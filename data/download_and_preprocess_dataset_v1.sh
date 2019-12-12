@@ -63,7 +63,7 @@ elif [ $1 = "kth" ]; then
   #TODO Bing, just use walking for test
   #for ACTION in walking jogging running boxing handwaving handclapping; do
   #Todo Bing: remove the comments below after testing
-  for ACTION in walking running; do
+  for ACTION in walking; do
     for VIDEO_FNAME in ${TARGET_DIR}/raw/${ACTION}/*.avi; do
       FNAME=$(basename ${VIDEO_FNAME})
       FNAME=${FNAME%_uncomp.avi}
@@ -83,6 +83,4 @@ else
   echo "Invalid dataset name: '$1' (choose from 'bair', 'kth')" >&2
   exit 1
 fi
-echo "Succesfully finished downloadi\
-
-ng and preprocessing dataset '$1'"
+echo "Succesfully finished downloading and preprocessing dataset '$1'"
