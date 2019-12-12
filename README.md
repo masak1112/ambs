@@ -15,7 +15,6 @@ git clone -b master https://gitlab.version.fz-juelich.de/gong1/video_prediction_
 cd Video_Prediction_SAVP
 ```
 - Install TensorFlow >= 1.9 and dependencies from http://tensorflow.org/
-- Install ffmpeg (optional, used to generate GIFs for visualization, e.g. in TensorBoard)
 - Install other dependencies
 
 ```bash
@@ -23,14 +22,19 @@ pip install -r requirements.txt
 ```
 
 ### Miscellaneous installation considerations
-- In python >= 3.6, make sure to add the root directory to the `PYTHONPATH`, e.g. `export PYTHONPATH=path/to/video_prediction`.
+- In python >= 3.6, make sure to add the root directory to thePYTHONPATH`, e.g. `export PYTHONPATH=path/to/video_prediction_savp`.
 - For the best speed and experimental results, we recommend using cudnn version 7.3.0.29 and any tensorflow version >= 1.9 and <= 1.12. The final training loss is worse when using cudnn versions 7.3.1.20 or 7.4.1.5, compared to when using versions 7.3.0.29 and below.
-- In macOS, make sure that bash >= 4.0 is used (needed for associative arrays in `download_model.sh` script).
+- Add the directories lpips-tensorflow and hickle (get from [Workflow project](https://gitlab.version.fz-juelich.de/gong1/workflow_parallel_frame_prediction) to the  `PATHONPATH `, e.g export PYTHONPATH=path/to/lpips-tensorflow
 
 ### Download data
 
 - Download the ERA5 data (.hkl) from the output of DataPreprocess in the [Workflow project](https://gitlab.version.fz-juelich.de/gong1/workflow_parallel_frame_prediction)
 ```bash
 bash data/download_and_preprocess_dataset_era5.sh --data era5 --input_dir /splits --output_dir  data/era5 
+```
+
+### Model Training
+```python
+python scripts/train.py --input_dir data/era5 --dataset era5  --model savp --model_hparams_dict hparams/kth/ours_savp/model_hparams.json --output_dir logs/era5/ours_savp
 ```
 
