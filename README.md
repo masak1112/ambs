@@ -26,10 +26,13 @@ The wokflow have been tested on the supercomputers from JSC, [JURECA](https://ww
 1. Clone or download this repository,
 2. Install the required modules/packages on JURECA/JUWELS.
 
-```shell
-source packageInstallation.sh
-```
-
+    ```shell
+    source packageInstallation.sh
+    ```
+    Add the packages directory to the PYTHONPATH
+    ```shell
+    export PATHONPATH=/p/home/jusers/USERNAME/jureca/.local/lib/python3.6/site-packages:$PYTHONPATH
+    ```
 
 3. Configure your input directory, output and log directory in .dat file for each step.
 
