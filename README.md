@@ -41,4 +41,5 @@ python scripts/train.py --input_dir data/era5 --dataset era5  --model savp --mod
 ### Model Evaluation
 
 ![Groud Truth](/results_test_samples/era5_size_64_64_1_v2/ours_savp/groud_true_images_0.gif)
-
+![Prediction](/results_test_samples/era5_size_64_64_1_v2/ours_savp/prediction_images_0.gif)
+![Evalution](/results_test_samples/era5_size_64_64_1_v2/ours_savp/MSE_AVG0.gif)
