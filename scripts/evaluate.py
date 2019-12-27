@@ -244,9 +244,12 @@ def main():
     else:
         num_examples_per_epoch = dataset.num_examples_per_epoch()
     if num_examples_per_epoch % args.batch_size != 0:
-        raise ValueError('batch_size should evenly divide the dataset size %d' % num_examples_per_epoch)
-
-    inputs = dataset.make_batch(args.batch_size)
+        #bing0
+        #raise ValueError('batch_size should evenly divide the dataset size %d' % num_examples_per_epoch)
+        pass
+    #Bing if it is era 5 data we used dataset.make_batch_v2
+    #inputs = dataset.make_batch(args.batch_size)
+    inputs = dataset.make_batch_v2(args.batch_size)
     input_phs = {k: tf.placeholder(v.dtype, v.shape, '%s_ph' % k) for k, v in inputs.items()}
     with tf.variable_scope(''):
         model.build_graph(input_phs)

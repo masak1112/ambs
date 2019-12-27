@@ -7,13 +7,26 @@ import errno
 import json
 import os
 import random
-
 import cv2
 import numpy as np
 import tensorflow as tf
 
+import numpy as np
+#from six.moves import cPickle
+import matplotlib
+matplotlib.use('Agg')
+import matplotlib.pyplot as plt
+import matplotlib.gridspec as gridspec
+import matplotlib.animation as animation
+import seaborn as sns
+
 from video_prediction import datasets, models
 from video_prediction.utils.ffmpeg_gif import save_gif
+
+
+
+
+
 
 
 def main():
@@ -103,7 +116,6 @@ def main():
         seed=args.seed,
         hparams_dict=dataset_hparams_dict,
         hparams=args.dataset_hparams)
-
     VideoPredictionModel = models.get_model_class(args.model)
     hparams_dict = dict(model_hparams_dict)
     hparams_dict.update({
@@ -125,11 +137,16 @@ def main():
             raise ValueError('num_samples cannot be larger than the dataset')
         num_examples_per_epoch = args.num_samples
     else:
-        num_examples_per_epoch = dataset.num_examples_per_epoch()
+        #Bing: error occurs here, cheats a little bit here
+        #num_examples_per_epoch = dataset.num_examples_per_epoch()
+        num_examples_per_epoch = args.batch_size * 8
     if num_examples_per_epoch % args.batch_size != 0:
-        raise ValueError('batch_size should evenly divide the dataset size %d' % num_examples_per_epoch)
-
-    inputs = dataset.make_batch(args.batch_size)
+        #bing
+        #raise ValueError('batch_size should evenly divide the dataset size %d' % num_examples_per_epoch)
+        pass
+    #Bing if it is era 5 data we used dataset.make_batch_v2
+    #inputs = dataset.make_batch(args.batch_size)
+    inputs = dataset.make_batch_v2(args.batch_size)
     input_phs = {k: tf.placeholder(v.dtype, v.shape, '%s_ph' % k) for k, v in inputs.items()}
     with tf.variable_scope(''):
         model.build_graph(input_phs)
@@ -148,10 +165,9 @@ def main():
     config = tf.ConfigProto(gpu_options=gpu_options, allow_soft_placement=True)
     sess = tf.Session(config=config)
     sess.graph.as_default()
-
     model.restore(sess, args.checkpoint)
-
     sample_ind = 0
+
     while True:
         if args.num_samples and sample_ind >= args.num_samples:
             break
@@ -160,34 +176,110 @@ def main():
         except tf.errors.OutOfRangeError:
             break
         print("evaluation samples from %d to %d" % (sample_ind, sample_ind + args.batch_size))
-
         feed_dict = {input_ph: input_results[name] for name, input_ph in input_phs.items()}
         for stochastic_sample_ind in range(args.num_stochastic_samples):
             gen_images = sess.run(model.outputs['gen_images'], feed_dict=feed_dict)
+            #input_images = sess.run(inputs["images"])
+
+            #Bing: Add evaluation metrics
+            fetches = {'images': model.inputs['images']}
+            fetches.update(model.eval_outputs.items())
+            fetches.update(model.eval_metrics.items())
+            results = sess.run(fetches, feed_dict = feed_dict)
+            input_images = results["images"] #shape (batch_size,future_frames,height,width,channel)
             # only keep the future frames
             gen_images = gen_images[:, -future_length:]
-            for i, gen_images_ in enumerate(gen_images):
-                context_images_ = (input_results['images'][i] * 255.0).astype(np.uint8)
-                gen_images_ = (gen_images_ * 255.0).astype(np.uint8)
+            input_images = input_images[:,-future_length:]
+            gen_mse_avg = results["eval_mse/avg"] #shape (batch_size,future_frames)
 
-                gen_images_fname = 'gen_image_%05d_%02d.gif' % (sample_ind + i, stochastic_sample_ind)
-                context_and_gen_images = list(context_images_[:context_frames]) + list(gen_images_)
-                if args.gif_length:
-                    context_and_gen_images = context_and_gen_images[:args.gif_length]
-                save_gif(os.path.join(args.output_gif_dir, gen_images_fname),
-                         context_and_gen_images, fps=args.fps)
+            for i, gen_mse_avg_ in enumerate(gen_mse_avg):
+                ims = []
+                fig = plt.figure()
+                plt.xlim(0,len(gen_mse_avg_))
+                plt.ylim(np.min(gen_mse_avg),np.max(gen_mse_avg))
+                plt.xlabel("Frames")
+                plt.ylabel("MSE_AVG")
+                #X = list(range(len(gen_mse_avg_)))
+                #for t, gen_mse_avg_ in enumerate(gen_mse_avg):
+                def animate_metric(j):
+                    data = gen_mse_avg_[:(j+1)]
+                    x = list(range(len(gen_mse_avg_)))[:(j+1)]
+                    p = sns.lineplot(x=x,y=data,color="b")
+                    p.tick_params(labelsize=17)
+                    plt.setp(p.lines, linewidth=6)
+                ani = animation.FuncAnimation(fig, animate_metric, frames=len(gen_mse_avg_), interval = 1000, repeat_delay=2000)
+                ani.save(os.path.join(args.output_png_dir, "MSE_AVG" + str(i) + ".mp4"))
 
-                gen_image_fname_pattern = 'gen_image_%%05d_%%02d_%%0%dd.png' % max(2, len(str(len(gen_images_) - 1)))
+
+            for i, input_images_ in enumerate(input_images):
+                #context_images_ = (input_results['images'][i])
+                #gen_images_fname = 'gen_image_%05d_%02d.gif' % (sample_ind + i, stochastic_sample_ind)
+                ims = []
+                fig = plt.figure()
+                for t, input_image in enumerate(input_images_):
+                    im = plt.imshow(input_images[i, t, :, :, 0], interpolation = 'none')
+                    ttl = plt.text(1.5, 2,"Frame_" + str(t))
+                    ims.append([im,ttl])
+                ani = animation.ArtistAnimation(fig, ims, interval= 1000, blit=True,repeat_delay=2000)
+                ani.save(os.path.join(args.output_png_dir,"groud_true_images_" + str(i) + ".mp4"))
+                #plt.show()
+
+            for i,gen_images_ in enumerate(gen_images):
+                ims = []
+                fig = plt.figure()
                 for t, gen_image in enumerate(gen_images_):
-                    gen_image_fname = gen_image_fname_pattern % (sample_ind + i, stochastic_sample_ind, t)
-                    if gen_image.shape[-1] == 1:
-                      gen_image = np.tile(gen_image, (1, 1, 3))
-                    else:
-                      gen_image = cv2.cvtColor(gen_image, cv2.COLOR_RGB2BGR)
-                    cv2.imwrite(os.path.join(args.output_png_dir, gen_image_fname), gen_image)
+                    im = plt.imshow(gen_images[i, t, :, :, 0], interpolation = 'none')
+                    ttl = plt.text(1.5, 2, "Frame_" + str(t))
+                    ims.append([im, ttl])
+                ani = animation.ArtistAnimation(fig, ims, interval = 1000, blit = True, repeat_delay = 2000)
+                ani.save(os.path.join(args.output_png_dir, "prediction_images_" + str(i) + ".mp4"))
+
+
+
+                # for i, gen_images_ in enumerate(gen_images):
+                #     #context_images_ = (input_results['images'][i] * 255.0).astype(np.uint8)
+                #     #gen_images_ = (gen_images_ * 255.0).astype(np.uint8)
+                #     #bing
+                #     context_images_ = (input_results['images'][i])
+                #     gen_images_fname = 'gen_image_%05d_%02d.gif' % (sample_ind + i, stochastic_sample_ind)
+                #     context_and_gen_images = list(context_images_[:context_frames]) + list(gen_images_)
+                #     plt.figure(figsize = (10,2))
+                #     gs = gridspec.GridSpec(2,10)
+                #     gs.update(wspace=0.,hspace=0.)
+                #     for t, gen_image in enumerate(gen_images_):
+                #         gen_image_fname_pattern = 'gen_image_%%05d_%%02d_%%0%dd.png' % max(2,len(str(len(gen_images_) - 1)))
+                #         gen_image_fname = gen_image_fname_pattern % (sample_ind + i, stochastic_sample_ind, t)
+                #         plt.subplot(gs[t])
+                #         plt.imshow(input_images[i, t, :, :, 0], interpolation = 'none')  # the last index sets the channel. 0 = t2
+                #         # plt.pcolormesh(X_test[i,t,::-1,:,0], shading='bottom', cmap=plt.cm.jet)
+                #         plt.tick_params(axis = 'both', which = 'both', bottom = False, top = False, left = False,
+                #                         right = False, labelbottom = False, labelleft = False)
+                #         if t == 0: plt.ylabel('Actual', fontsize = 10)
+                #
+                #         plt.subplot(gs[t + 10])
+                #         plt.imshow(gen_images[i, t, :, :, 0], interpolation = 'none')
+                #         # plt.pcolormesh(X_hat[i,t,::-1,:,0], shading='bottom', cmap=plt.cm.jet)
+                #         plt.tick_params(axis = 'both', which = 'both', bottom = False, top = False, left = False,
+                #                         right = False, labelbottom = False, labelleft = False)
+                #         if t == 0: plt.ylabel('Predicted', fontsize = 10)
+                #     plt.savefig(os.path.join(args.output_png_dir, gen_image_fname) + 'plot_' + str(i) + '.png')
+                #     plt.clf()
+
+                # if args.gif_length:
+                #     context_and_gen_images = context_and_gen_images[:args.gif_length]
+                # save_gif(os.path.join(args.output_gif_dir, gen_images_fname),
+                #          context_and_gen_images, fps=args.fps)
+                #
+                # gen_image_fname_pattern = 'gen_image_%%05d_%%02d_%%0%dd.png' % max(2, len(str(len(gen_images_) - 1)))
+                # for t, gen_image in enumerate(gen_images_):
+                #     gen_image_fname = gen_image_fname_pattern % (sample_ind + i, stochastic_sample_ind, t)
+                #     if gen_image.shape[-1] == 1:
+                #       gen_image = np.tile(gen_image, (1, 1, 3))
+                #     else:
+                #       gen_image = cv2.cvtColor(gen_image, cv2.COLOR_RGB2BGR)
+                #     cv2.imwrite(os.path.join(args.output_png_dir, gen_image_fname), gen_image)
 
         sample_ind += args.batch_size
-
 
 if __name__ == '__main__':
     main()

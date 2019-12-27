@@ -160,21 +160,21 @@ def main():
         aggregate_nccl=args.aggregate_nccl)
 
     batch_size = model.hparams.batch_size
-    train_tf_dataset = train_dataset.make_dataset(batch_size)#Bing: adopt the meteo data prepartion here
+    train_tf_dataset = train_dataset.make_dataset_v2(batch_size)#Bing: adopt the meteo data prepartion here
     train_iterator = train_tf_dataset.make_one_shot_iterator()#Bing:for era5, the problem happen in sess.run(feches) should come from here
     # The `Iterator.string_handle()` method returns a tensor that can be evaluated
     # and used to feed the `handle` placeholder.
     train_handle = train_iterator.string_handle()
-    val_tf_dataset = val_dataset.make_dataset(batch_size)
+    val_tf_dataset = val_dataset.make_dataset_v2(batch_size)
     val_iterator = val_tf_dataset.make_one_shot_iterator()
     val_handle = val_iterator.string_handle()
-    iterator = tf.data.Iterator.from_string_handle(
-        train_handle, train_tf_dataset.output_types, train_tf_dataset.output_shapes)
-    inputs = iterator.get_next()
+    #iterator = tf.data.Iterator.from_string_handle(
+    #    train_handle, train_tf_dataset.output_types, train_tf_dataset.output_shapes)
+    inputs = train_iterator.get_next()
     #Bing for debug
     with tf.Session() as sess:
         for i in range(2):
-            print(sess.run(tf.shape(inputs["images"])))
+            print(sess.run((inputs["images"])))
 
     # inputs comes from the training dataset by default, unless train_handle is remapped to the val_handles
     model.build_graph(inputs)
