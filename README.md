@@ -38,3 +38,7 @@ bash data/download_and_preprocess_dataset_era5.sh --data era5 --input_dir /split
 python scripts/train.py --input_dir data/era5 --dataset era5  --model savp --model_hparams_dict hparams/kth/ours_savp/model_hparams.json --output_dir logs/era5/ours_savp
 ```
 
+### Model Evaluation
+
+![Groud Truth](results_test_samples/era5_size_64_64_1_v2/our_savp/ground_true_images_0.mp4)
+
