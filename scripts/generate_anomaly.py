@@ -152,7 +152,7 @@ def main():
         pass
     #Bing if it is era 5 data we used dataset.make_batch_v2
     #inputs = dataset.make_batch(args.batch_size)
-    inputs = dataset.make_batch(args.batch_size)
+    inputs, inputs_mean = dataset.make_batch_v2(args.batch_size)
     input_phs = {k: tf.placeholder(v.dtype, v.shape, '%s_ph' % k) for k, v in inputs.items()}
     with tf.variable_scope(''):
         model.build_graph(input_phs)
@@ -181,13 +181,17 @@ def main():
             break
         try:
             input_results = sess.run(inputs)
+            input_mean_results = sess.run(inputs_mean)
+            input_final = input_results["images"] + input_mean_results["images"]
+
         except tf.errors.OutOfRangeError:
             break
         print("evaluation samples from %d to %d" % (sample_ind, sample_ind + args.batch_size))
         feed_dict = {input_ph: input_results[name] for name, input_ph in input_phs.items()}
-        for stochastic_sample_ind in range(args.num_stochastic_samples): #Todo: why use here
+        for stochastic_sample_ind in range(args.num_stochastic_samples):
             print("Stochastic sample id", stochastic_sample_ind)
-            gen_images = sess.run(model.outputs['gen_images'], feed_dict=feed_dict)
+            gen_anomaly = sess.run(model.outputs['gen_images'], feed_dict=feed_dict)
+            gen_images = gen_anomaly + input_mean_results["images"][:,1:,:,:]
             #input_images = sess.run(inputs["images"])
             #Bing: Add evaluation metrics
             # fetches = {'images': model.inputs['images']}
@@ -198,7 +202,8 @@ def main():
             # only keep the future frames
             #gen_images = gen_images[:, -future_length:] #(8,10,64,64,1) (batch_size, sequences, height, width, channel)
             #input_images = input_results["images"][:,-future_length:,:,:]
-            input_images = input_results["images"][:,1:,:,:,:]
+            #input_images = input_results["images"][:,1:,:,:,:]
+            input_images = input_final [:,1:,:,:,:]
             #gen_mse_avg = results["eval_mse/avg"] #shape (batch_size,future_frames)
             print("Finish sample ind",stochastic_sample_ind)
             input_gen_diff_ = input_images - gen_images
@@ -215,19 +220,10 @@ def main():
                     gen_images_ = gen_images[i, :]
                     gen_mse_avg_ = [np.mean(input_gen_diff_[i, frame, :, :, :]**2) for frame in
                                     range(19)]  # return the list with 10 (sequence) mse
-                    input_gen_diff = input_gen_diff_ [i,:,:,:,:]
+
+                    input_gen_diff = input_gen_diff_[i,:,:,:,:]
                     input_images_ = input_images[i, :]
                     #gen_mse_avg_ = gen_mse_avg[i, :]
-
-                    # Bing: This is to check the difference between the images and next images for debugging the freezon issues
-                    # gen_images_diff = []
-                    # for gen_idx in range(len(gen_images_) - 1):
-                    #     img_1 = gen_images_[gen_idx, :, :, :]
-                    #     img_2 = gen_images_[gen_idx + 1, :, :, :]
-                    #     img_diff = img_2 - img_1
-                    #     img_diff_nonzero = [e for img_idx, e in enumerate(img_diff.flatten()) if round(e,3) != 0.000]
-                    #     gen_images_diff.append(img_diff_nonzero)
-
                     fig = plt.figure()
                     gs = gridspec.GridSpec(4,6)
                     gs.update(wspace = 0.7,hspace=0.8)
@@ -266,6 +262,7 @@ def main():
                         cmap_name, "bwr", N = 5)
 
                     plot3 = ax3.imshow(init_images, vmin=-10, vmax=10, cmap=cm)#cmap = 'PuBu_r',
+
                     plot4, = ax4.plot([], [], color = "r")
                     ax4.set_xlim(0, len(gen_mse_avg_)-1)
                     ax4.set_ylim(0, 10)
@@ -308,28 +305,12 @@ def main():
 
                         return plots
 
-                    ani = animation.FuncAnimation(fig, animation_sample, frames=len(gen_mse_avg_), interval = 1000,
+                    ani = animation.FuncAnimation(fig, animation_sample, frames = len(gen_mse_avg_), interval = 1000,
                                                   repeat_delay = 2000)
                     ani.save(os.path.join(args.output_png_dir, "Sample_" + str(name) + ".mp4"))
 
-            else:
-                pass
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+                else:
+                    pass
 
     #         # for i, gen_mse_avg_ in enumerate(gen_mse_avg):
     #         #     ims = []

@@ -5,10 +5,9 @@ import os
 import pickle
 import random
 import re
-
+import tensorflow as tf
 import numpy as np
 import skimage.io
-import tensorflow as tf
 
 from video_prediction.datasets.base_dataset import VarLenFeatureVideoDataset
 
@@ -21,6 +20,7 @@ class KTHVideoDataset(VarLenFeatureVideoDataset):
         dict_message = MessageToDict(tf.train.Example.FromString(example))
         feature = dict_message['features']['feature']
         image_shape = tuple(int(feature[key]['int64List']['value'][0]) for key in ['height', 'width', 'channels'])
+
         self.state_like_names_and_shapes['images'] = 'images/encoded', image_shape
 
     def get_default_hparams_dict(self):
@@ -62,6 +62,7 @@ def partition_data(input_dir):
     # List files and corresponding person IDs
     fnames = glob.glob(os.path.join(input_dir, '*/*'))
     fnames = [fname for fname in fnames if os.path.isdir(fname)]
+    print("frames",fnames[0])
 
     persons = [re.match('person(\d+)_\w+_\w+', os.path.split(fname)[1]).group(1) for fname in fnames]
     persons = np.array([int(person) for person in persons])
@@ -97,17 +98,16 @@ def save_tf_record(output_fname, sequences):
 
 
 def read_frames_and_save_tf_records(output_dir, video_dirs, image_size, sequences_per_file=128):
-    partition_name = os.path.split(output_dir)[1]
-
+    partition_name = os.path.split(output_dir)[1] #Get the folder name train, val or test
     sequences = []
     sequence_iter = 0
     sequence_lengths_file = open(os.path.join(output_dir, 'sequence_lengths.txt'), 'w')
-    for video_iter, video_dir in enumerate(video_dirs):
+    for video_iter, video_dir in enumerate(video_dirs): #Interate group (e.g. walking) each person
         meta_partition_name = partition_name if partition_name == 'test' else 'train'
         meta_fname = os.path.join(os.path.split(video_dir)[0], '%s_meta%dx%d.pkl' %
                                   (meta_partition_name, image_size, image_size))
         with open(meta_fname, "rb") as f:
-            data = pickle.load(f)
+            data = pickle.load(f) # The data has 62 items, each item is a dict, with three keys.  "vid","n", and "files", Each file has 4 channels, each channel has n sequence images with 64*64 png
 
         vid = os.path.split(video_dir)[1]
         (d,) = [d for d in data if d['vid'] == vid]
@@ -117,7 +117,7 @@ def read_frames_and_save_tf_records(output_dir, video_dirs, image_size, sequence
             # they are grayscale images, so just keep one of the channels
             frames = [frame[..., 0:1] for frame in frames]
 
-            if not sequences:
+            if not sequences: #The length of the sequence in sequences could be different
                 last_start_sequence_iter = sequence_iter
                 print("reading sequences starting at sequence %d" % sequence_iter)
 
@@ -136,15 +136,17 @@ def read_frames_and_save_tf_records(output_dir, video_dirs, image_size, sequence
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("input_dir", type=str, help="directory containing the processed directories "
+    parser.add_argument("--input_dir", type=str, help="directory containing the processed directories "
                                                     "boxing, handclapping, handwaving, "
                                                     "jogging, running, walking")
-    parser.add_argument("output_dir", type=str)
-    parser.add_argument("image_size", type=int)
+    parser.add_argument("--output_dir", type=str)
+    parser.add_argument("--image_size", type=int)
     args = parser.parse_args()
 
     partition_names = ['train', 'val', 'test']
+    print("input dir", args.input_dir)
     partition_fnames = partition_data(args.input_dir)
+    print("partiotion_fnames[0]", partition_fnames[0])
 
     for partition_name, partition_fnames in zip(partition_names, partition_fnames):
         partition_dir = os.path.join(args.output_dir, partition_name)

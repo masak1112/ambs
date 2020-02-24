@@ -526,6 +526,8 @@ def reduce_tensors(structures, shallow=False):
 
 
 def get_checkpoint_restore_saver(checkpoint, var_list=None, skip_global_step=False, restore_to_checkpoint_mapping=None):
+
+
     if os.path.isdir(checkpoint):
         # latest_checkpoint doesn't work when the path has special characters
         checkpoint = tf.train.latest_checkpoint(checkpoint)
@@ -539,7 +541,7 @@ def get_checkpoint_restore_saver(checkpoint, var_list=None, skip_global_step=Fal
         del restore_vars['global_step']
     # restore variables that are both in the global graph and in the checkpoint
     restore_and_checkpoint_vars = {name: var for name, var in restore_vars.items() if name in checkpoint_var_names}
-    restore_saver = tf.train.Saver(max_to_keep=1, var_list=restore_and_checkpoint_vars, filename=checkpoint)
+    #restore_saver = tf.train.Saver(max_to_keep=1, var_list=restore_and_checkpoint_vars, filename=checkpoint)
     # print out information regarding variables that were not restored or used for restoring
     restore_not_in_checkpoint_vars = {name: var for name, var in restore_vars.items() if
                                       name not in checkpoint_var_names}
@@ -556,6 +558,10 @@ def get_checkpoint_restore_saver(checkpoint, var_list=None, skip_global_step=Fal
               "because they are not in the graph:")
         for name in sorted(checkpoint_not_in_restore_var_names):
             print("    ", name)
+
+
+    restore_saver = tf.train.Saver(max_to_keep=1, var_list=restore_and_checkpoint_vars, filename=checkpoint)
+
     return restore_saver, checkpoint
 
 

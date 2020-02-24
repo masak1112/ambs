@@ -10,6 +10,8 @@ from video_prediction.utils import tf_utils
 
 
 def encoder(inputs, nef=64, n_layers=3, norm_layer='instance'):
+    print("********inputs*******",inputs.get_shape())
+    print("*********nef********", nef)
     norm_layer = ops.get_norm_layer(norm_layer)
     layers = []
     paddings = [[0, 0], [1, 1], [1, 1], [0, 0]]

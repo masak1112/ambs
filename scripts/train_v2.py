@@ -171,13 +171,9 @@ def main():
     #iterator = tf.data.Iterator.from_string_handle(
     #    train_handle, train_tf_dataset.output_types, train_tf_dataset.output_shapes)
     inputs = train_iterator.get_next()
-    #Bing for debug
-    with tf.Session() as sess:
-        for i in range(2):
-            print(sess.run((inputs["images"])))
 
     # inputs comes from the training dataset by default, unless train_handle is remapped to the val_handles
-    model.build_graph(inputs)
+    model.build_graph(inputs, finetune=True)
 
     if long_val_dataset is not None:
         # separately build a model for the longer sequence.
@@ -361,7 +357,6 @@ def main():
                 print("saving model to", args.output_dir)
                 saver.save(sess, os.path.join(args.output_dir, "model"), global_step=global_step)
                 print("done")
-
 
 if __name__ == '__main__':
     main()

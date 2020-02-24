@@ -68,7 +68,9 @@ python scripts/plot_results.py results_test/bair --method_dirs \
     ours_gan \
     ours_vae_gan \
     --save --use_tex --plot_fname metrics.pdf; \
-python scripts/plot_results.py results_test/bair --method_dirs \
+python scripts/plot_results.py results_test/bair --
+
+method_dirs \
     sna_l1 \
     sna_l2 \
     ours_deterministic_l1 \

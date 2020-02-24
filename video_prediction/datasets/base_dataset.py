@@ -24,10 +24,10 @@ class BaseVideoDataset(object):
             hparams: a string of comma separated list of `name=value` pairs,
                 where `name` must be defined in `self.get_default_hparams()`.
                 These values overrides any values in hparams_dict (if any).
-
         Note:
             self.input_dir is the directory containing the tfrecords.
         """
+
         self.input_dir = os.path.normpath(os.path.expanduser(input_dir))
         self.mode = mode
         self.num_epochs = num_epochs
@@ -54,6 +54,13 @@ class BaseVideoDataset(object):
         self.action_like_names_and_shapes = OrderedDict()
 
         self.hparams = self.parse_hparams(hparams_dict, hparams)
+        #Bing: add this for anomaly
+        if os.path.exists(input_dir+"_mean"):
+            input_mean_dir = input_dir+"_mean"
+            self.filenames_mean = sorted(glob.glob(os.path.join(input_mean_dir, '*.tfrecord*')))
+        else:
+            self.filenames_mean = None
+
 
     def get_default_hparams_dict(self):
         """
@@ -124,6 +131,8 @@ class BaseVideoDataset(object):
         Parses a single tf.train.Example or tf.train.SequenceExample into
         images, states, actions, etc tensors.
         """
+
+
         raise NotImplementedError
 
     def make_dataset(self, batch_size):
@@ -132,7 +141,7 @@ class BaseVideoDataset(object):
         if shuffle:
             random.shuffle(filenames)
 
-        dataset = tf.data.TFRecordDataset(filenames, buffer_size=8 * 1024 * 1024)
+        dataset = tf.data.TFRecordDataset(filenames, buffer_size= 8 * 1024 * 1024) #todo: what is buffer_size
         dataset = dataset.filter(self.filter)
         if shuffle:
             dataset = dataset.apply(tf.contrib.data.shuffle_and_repeat(buffer_size=1024, count=self.num_epochs))
@@ -146,8 +155,8 @@ class BaseVideoDataset(object):
 
         num_parallel_calls = None if shuffle else 1  # for reproducibility (e.g. sampled subclips from the test set)
         dataset = dataset.apply(tf.contrib.data.map_and_batch(
-            _parser, batch_size, drop_remainder=True, num_parallel_calls=num_parallel_calls))
-        dataset = dataset.prefetch(batch_size)
+            _parser, batch_size, drop_remainder=True, num_parallel_calls=num_parallel_calls)) #  Bing: Parallel data mapping, num_parallel_calls normally depends on the hardware, however, normally should be equal to be the usalbe number of CPUs
+        dataset = dataset.prefetch(batch_size) #Bing: Take the data to buffer inorder to save the waiting time for GPU
         return dataset
 
     def make_batch(self, batch_size):
@@ -155,21 +164,29 @@ class BaseVideoDataset(object):
         iterator = dataset.make_one_shot_iterator()
         return iterator.get_next()
 
+
     def decode_and_preprocess_images(self, image_buffers, image_shape):
         def decode_and_preprocess_image(image_buffer):
-            image_buffer = tf.reshape(image_buffer, [])
+            print("image buffer", tf.shape(image_buffer))
+
+            image_buffer = tf.reshape(image_buffer,[],name="reshape_1")
+
             if self.jpeg_encoding:
                 image = tf.image.decode_jpeg(image_buffer)
+                print("14********image decode_jpeg********", image)
             else:
                 image = tf.decode_raw(image_buffer, tf.uint8)
-            image = tf.reshape(image, image_shape)
+                print("15 ********image decode_raw********", tf.shape(image))
+            print("16 ******** image shape", image_shape)
+
+            image = tf.reshape(image, image_shape, name="reshape_4") ##Bing:the bug #issue 1 is here
             crop_size = self.hparams.crop_size
             scale_size = self.hparams.scale_size
             if crop_size or scale_size:
                 if not crop_size:
                     crop_size = min(image_shape[0], image_shape[1])
                 image = tf.image.resize_image_with_crop_or_pad(image, crop_size, crop_size)
-                image = tf.reshape(image, [crop_size, crop_size, 3])
+                image = tf.reshape(image, [crop_size, crop_size, 3],"reshape_3")
                 if scale_size:
                     # upsample with bilinear interpolation but downsample with area interpolation
                     if crop_size < scale_size:
@@ -185,6 +202,7 @@ class BaseVideoDataset(object):
 
         if not isinstance(image_buffers, (list, tuple)):
             image_buffers = tf.unstack(image_buffers)
+        print("17 **************image buffer", image_buffers[0])
         images = [decode_and_preprocess_image(image_buffer) for image_buffer in image_buffers]
         images = tf.image.convert_image_dtype(images, dtype=tf.float32)
         return images
@@ -199,7 +217,9 @@ class BaseVideoDataset(object):
         sequence_length = self.hparams.sequence_length  # desired sequence length
         frame_skip = self.hparams.frame_skip
         time_shift = self.hparams.time_shift
+        print("22***********example sequence_length",example_sequence_length)
         if (time_shift and self.mode == 'train') or self.hparams.force_time_shift:
+            print("23***********I am here")
             assert time_shift > 0 and isinstance(time_shift, int)
             if isinstance(example_sequence_length, tf.Tensor):
                 example_sequence_length = tf.cast(example_sequence_length, tf.int32)
@@ -213,11 +233,14 @@ class BaseVideoDataset(object):
                 t_start = tf.random_uniform([], 0, num_shifts + 1, dtype=tf.int32, seed=self.seed) * time_shift
         else:
             t_start = 0
+        print("20:**********************sequence_len: {}, t_start:{}, frame_skip:{}".format(sequence_length,tf.shape(t_start),frame_skip))
         state_like_t_slice = slice(t_start, t_start + (sequence_length - 1) * (frame_skip + 1) + 1, frame_skip + 1)
         action_like_t_slice = slice(t_start, t_start + (sequence_length - 1) * (frame_skip + 1))
 
         for example_name, seq in state_like_seqs.items():
+            print("21*****************seq*******",seq)
             seq = tf.convert_to_tensor(seq)[state_like_t_slice]
+            print("25**************ses.shape", [self.hparams.sequence_length] + seq.shape.as_list()[1:])
             seq.set_shape([sequence_length] + seq.shape.as_list()[1:])
             state_like_seqs[example_name] = seq
         for example_name, seq in action_like_seqs.items():
@@ -230,6 +253,7 @@ class BaseVideoDataset(object):
 
     def num_examples_per_epoch(self):
         raise NotImplementedError
+
 
 
 class VideoDataset(BaseVideoDataset):
@@ -335,6 +359,7 @@ class VideoDataset(BaseVideoDataset):
         # parse all the features of all time steps together
         features = tf.parse_single_example(serialized_example, features=features)
 
+
         state_like_seqs = OrderedDict([(example_name, []) for example_name in self.state_like_names_and_shapes])
         action_like_seqs = OrderedDict([(example_name, []) for example_name in self.action_like_names_and_shapes])
         for i in range(self._max_sequence_length):
@@ -388,7 +413,7 @@ class SequenceExampleVideoDataset(BaseVideoDataset):
         for example_name, seq in action_like_seqs.items():
             example_sequence_length.append(tf.shape(seq)[0] + 1)
         example_sequence_length = tf.reduce_min(example_sequence_length)
-
+        #bing
         state_like_seqs, action_like_seqs = \
             self.slice_sequences(state_like_seqs, action_like_seqs, example_sequence_length)
 
@@ -416,10 +441,13 @@ class VarLenFeatureVideoDataset(BaseVideoDataset):
         """
         Parses a single tf.train.SequenceExample into images, states, actions, etc tensors.
         """
+        print("1.***parser function from class VarLenFeatureVideoDatase")
         features = dict()
         features['sequence_length'] = tf.FixedLenFeature((), tf.int64)
         for example_name, (name, shape) in self.state_like_names_and_shapes.items():
             if example_name == 'images':
+                #Bing
+                #features[name] = tf.FixedLenFeature([1], tf.string)
                 features[name] = tf.VarLenFeature(tf.string)
             else:
                 features[name] = tf.VarLenFeature(tf.float32)
@@ -427,7 +455,6 @@ class VarLenFeatureVideoDataset(BaseVideoDataset):
             features[name] = tf.VarLenFeature(tf.float32)
 
         features = tf.parse_single_example(serialized_example, features=features)
-
         example_sequence_length = features['sequence_length']
 
         state_like_seqs = OrderedDict()
@@ -438,17 +465,27 @@ class VarLenFeatureVideoDataset(BaseVideoDataset):
             else:
                 seq = tf.sparse_tensor_to_dense(features[name])
                 seq = tf.reshape(seq, [example_sequence_length] + list(shape))
+
             state_like_seqs[example_name] = seq
+
+
         for example_name, (name, shape) in self.action_like_names_and_shapes.items():
+
             seq = tf.sparse_tensor_to_dense(features[name])
             seq = tf.reshape(seq, [example_sequence_length - 1] + list(shape))
             action_like_seqs[example_name] = seq
 
+        #Bing: I replce the self.slice_sequence to the following three lines , the program works, but I need to figure it out what happend inside this function
         state_like_seqs, action_like_seqs = \
-            self.slice_sequences(state_like_seqs, action_like_seqs, example_sequence_length)
-
+              self.slice_sequences(state_like_seqs, action_like_seqs, example_sequence_length)
+        # seq = tf.convert_to_tensor(seq)
+        # print("25**************ses.shape",[self.hparams.sequence_length] + seq.shape.as_list()[1:])
+        # seq.set_shape([self.hparams.sequence_length] + seq.shape.as_list()[1:])
+        # state_like_seqs[example_name] = seq
+        #print("11**********Slide sequences**************** ", action_like_seqs)
         # decode and preprocess images on the sampled slice only
         _, image_shape = self.state_like_names_and_shapes['images']
+
         state_like_seqs['images'] = self.decode_and_preprocess_images(state_like_seqs['images'], image_shape)
         return state_like_seqs, action_like_seqs
 

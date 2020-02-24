@@ -5,7 +5,6 @@ import os
 import random
 import re
 from multiprocessing import Pool
-
 import cv2
 import tensorflow as tf
 

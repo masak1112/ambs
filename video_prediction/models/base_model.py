@@ -123,7 +123,7 @@ class BaseVideoPredictionModel(object):
             ('psnr', vp.metrics.psnr),
             ('mse', vp.metrics.mse),
             ('ssim', vp.metrics.ssim),
-            ('lpips', vp.metrics.lpips),
+            #('lpips', vp.metrics.lpips), #bing : remove lpips metric course the url fetching issue
         ]
         for metric_name, metric_fn in metric_fns:
             metrics[metric_name] = tf.reduce_mean(metric_fn(target_images, pred_images))
@@ -149,7 +149,7 @@ class BaseVideoPredictionModel(object):
             ('psnr', vp.metrics.psnr),
             ('mse', vp.metrics.mse),
             ('ssim', vp.metrics.ssim),
-            ('lpips', vp.metrics.lpips),
+           # ('lpips', vp.metrics.lpips), #bing
         ]
         # images and gen_images include all the frames
         images = inputs['images']
@@ -190,12 +190,12 @@ class BaseVideoPredictionModel(object):
                     a['eval_gen_images_%s/min' % name] = where_axis1(cond_min, gen_images_sample, a['eval_gen_images_%s/min' % name])
                     a['eval_gen_images_%s/sum' % name] = gen_images_sample + a['eval_gen_images_%s/sum' % name]
                     a['eval_gen_images_%s/max' % name] = where_axis1(cond_max, gen_images_sample, a['eval_gen_images_%s/max' % name])
-
-                a['eval_diversity'] = tf.cond(
-                    tf.logical_and(tf.less(0, a['eval_sample_ind']),
-                                   tf.less_equal(a['eval_sample_ind'], num_samples_for_diversity)),
-                    lambda: -vp.metrics.lpips(a['eval_pred_images_last'], pred_images_sample) + a['eval_diversity'],
-                    lambda: a['eval_diversity'])
+                #bing
+                # a['eval_diversity'] = tf.cond(
+                #     tf.logical_and(tf.less(0, a['eval_sample_ind']),
+                #                    tf.less_equal(a['eval_sample_ind'], num_samples_for_diversity)),
+                #     lambda: -vp.metrics.lpips(a['eval_pred_images_last'], pred_images_sample) + a['eval_diversity'],
+                #     lambda: a['eval_diversity'])
                 a['eval_sample_ind'] = 1 + a['eval_sample_ind']
                 a['eval_pred_images_last'] = pred_images_sample
                 return a
@@ -208,7 +208,7 @@ class BaseVideoPredictionModel(object):
                 initializer['eval_%s/min' % name] = tf.fill([future_length, batch_size], float('inf'))
                 initializer['eval_%s/sum' % name] = tf.zeros([future_length, batch_size])
                 initializer['eval_%s/max' % name] = tf.fill([future_length, batch_size], float('-inf'))
-            initializer['eval_diversity'] = tf.zeros([future_length, batch_size])
+            #initializer['eval_diversity'] = tf.zeros([future_length, batch_size])
             initializer['eval_sample_ind'] = tf.zeros((), dtype=tf.int32)
             initializer['eval_pred_images_last'] = tf.zeros_like(pred_images)
 
@@ -223,7 +223,7 @@ class BaseVideoPredictionModel(object):
                 eval_metrics['eval_%s/min' % name] = eval_outputs_and_metrics['eval_%s/min' % name]
                 eval_metrics['eval_%s/avg' % name] = eval_outputs_and_metrics['eval_%s/sum' % name] / float(num_samples)
                 eval_metrics['eval_%s/max' % name] = eval_outputs_and_metrics['eval_%s/max' % name]
-            eval_metrics['eval_diversity'] = eval_outputs_and_metrics['eval_diversity'] / float(num_samples_for_diversity)
+            #eval_metrics['eval_diversity'] = eval_outputs_and_metrics['eval_diversity'] / float(num_samples_for_diversity)
         return eval_outputs, eval_metrics
 
     def restore(self, sess, checkpoints, restore_to_checkpoint_mapping=None):
@@ -366,12 +366,12 @@ class VideoPredictionModel(BaseVideoPredictionModel):
             end_lr=0.0,
             decay_steps=(200000, 300000),
             lr_boundaries=(0,),
-            max_steps=300000,
+            max_steps=350000,
             beta1=0.9,
             beta2=0.999,
             context_frames=-1,
             sequence_length=-1,
-            clip_length=10,
+            clip_length=10, #Bing: TODO What is the clip_length, original is 10,
             l1_weight=0.0,
             l2_weight=1.0,
             vgg_cdist_weight=0.0,
@@ -464,7 +464,7 @@ class VideoPredictionModel(BaseVideoPredictionModel):
         metrics_tuple = nest.map_structure(transpose_batch_time, metrics_tuple)
         return outputs_tuple, losses_tuple, loss_tuple, metrics_tuple
 
-    def build_graph(self, inputs):
+    def build_graph(self, inputs,finetune=False):
         BaseVideoPredictionModel.build_graph(self, inputs)
 
         global_step = tf.train.get_or_create_global_step()
@@ -473,6 +473,18 @@ class VideoPredictionModel(BaseVideoPredictionModel):
         # they were created by a previously built model), those variables won't
         # be captured here.
         original_global_variables = tf.global_variables()
+
+
+        # ########Bing: fine-tune#######
+        # variables_to_restore = tf.contrib.framework.get_variables_to_restore(
+        #     exclude = ["discriminator/video/sn_fc4/dense/bias"])
+        # init_fn = tf.contrib.framework.assign_from_checkpoint_fn(checkpoint)
+        # restore_variables = tf.contrib.framework.get_variables("discriminator/video/sn_fc4/dense/bias")
+        # restore_init = tf.variables_initializer(restore_variables)
+        # restore_optimizer = tf.train.GradientDescentOptimizer(
+        #     learning_rate = 0.001)  # TODO: need to change the learning rate
+        # ###Bing: fine-tune#######
+        # skip_vars = {" discriminator_encoder/video_sn_fc4/dense/bias"}
 
         if self.num_gpus <= 1:  # cpu or 1 gpu
             outputs_tuple, losses_tuple, loss_tuple, metrics_tuple = self.tower_fn(self.inputs)
@@ -486,6 +498,14 @@ class VideoPredictionModel(BaseVideoPredictionModel):
             g_optimizer = tf.train.AdamOptimizer(self.learning_rate, self.hparams.beta1, self.hparams.beta2)
             d_optimizer = tf.train.AdamOptimizer(self.learning_rate, self.hparams.beta1, self.hparams.beta2)
 
+            if finetune:
+                ##Bing: fine-tune
+                #self.g_vars = tf.contrib.framework.get_variables("discriminator/video/sn_fc4/dense/bias")#generator/encoder/layer_3/conv2d/kernel/Adam_1
+                self.g_vars = tf.contrib.framework.get_variables("discriminator/encoder/video/sn_conv3_0/conv3d/kernel")
+                self.g_vars_init = tf.variables_initializer(self.g_vars)
+                g_optimizer = tf.train.AdamOptimizer(0.00001)
+                print("############Bing: Fine Tune here##########")
+
             if self.mode == 'train' and (self.d_losses or self.g_losses):
                 with tf.control_dependencies(tf.get_collection(tf.GraphKeys.UPDATE_OPS)):
                     if self.d_losses:
@@ -493,6 +513,7 @@ class VideoPredictionModel(BaseVideoPredictionModel):
                             d_gradvars = d_optimizer.compute_gradients(self.d_loss, var_list=self.d_vars)
                         with tf.name_scope('d_apply_gradients'):
                             d_train_op = d_optimizer.apply_gradients(d_gradvars)
+
                     else:
                         d_train_op = tf.no_op()
                 with tf.control_dependencies([d_train_op] if not self.hparams.joint_gan_optimization else []):
@@ -503,6 +524,11 @@ class VideoPredictionModel(BaseVideoPredictionModel):
                             g_gradvars = g_optimizer.compute_gradients(g_loss_post, var_list=self.g_vars)
                         with tf.name_scope('g_apply_gradients'):
                             g_train_op = g_optimizer.apply_gradients(g_gradvars)
+                        # #######Bing; finetune########
+                        # with tf.name_scope("finetune_gradients"):
+                        #     finetune_grads_vars = finetune_vars_optimizer.compute_gradients(self.d_loss, var_list = self.finetune_vars)
+                        # with tf.name_scope("finetune_apply_gradients"):
+                        #     finetune_train_op = finetune_vars_optimizer.apply_gradients(finetune_grads_vars)
                     else:
                         g_train_op = tf.no_op()
                 with tf.control_dependencies([g_train_op]):

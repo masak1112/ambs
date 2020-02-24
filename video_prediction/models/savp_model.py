@@ -698,6 +698,9 @@ def generator_given_z_fn(inputs, mode, hparams):
 
 def generator_fn(inputs, mode, hparams):
     batch_size = tf.shape(inputs['images'])[1]
+    print("2********mode*****",mode)
+    print("3*******hparams",hparams)
+
 
     if hparams.nz == 0:
         # no zs is given in inputs
@@ -862,7 +865,6 @@ def apply_dna_kernels(image, kernels, dilation_rate=(1, 1)):
             `[batch, in_height, in_width, in_channels]`.
         kernels: A 6-D of shape
             `[batch, in_height, in_width, kernel_size[0], kernel_size[1], num_transformed_images]`.
-
     Returns:
         A list of `num_transformed_images` 4-D tensors, each of shape
             `[batch, in_height, in_width, in_channels]`.
@@ -897,7 +899,6 @@ def apply_cdna_kernels(image, kernels, dilation_rate=(1, 1)):
             `[batch, in_height, in_width, in_channels]`.
         kernels: A 4-D of shape
             `[batch, kernel_size[0], kernel_size[1], num_transformed_images]`.
-
     Returns:
         A list of `num_transformed_images` 4-D tensors, each of shape
             `[batch, in_height, in_width, in_channels]`.
@@ -931,7 +932,6 @@ def apply_kernels(image, kernels, dilation_rate=(1, 1)):
         kernels: A 4-D or 6-D tensor of shape
             `[batch, kernel_size[0], kernel_size[1], num_transformed_images]` or
             `[batch, in_height, in_width, kernel_size[0], kernel_size[1], num_transformed_images]`.
-
     Returns:
         A list of `num_transformed_images` 4-D tensors, each of shape
             `[batch, in_height, in_width, in_channels]`.
