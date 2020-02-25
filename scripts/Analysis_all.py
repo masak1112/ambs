@@ -8,7 +8,6 @@ from matplotlib.pylab import plt
 # model_names = ["SAVP","SAVP_Finetune","GAN","VAE"]
 
 
-
 # results_path = ["results_test_samples/era5_size_64_64_3_norm_dup_pretrained/ours_savp","results_test_samples/era5_size_64_64_3_norm_msl_gph_pretrained_savp/ours_savp",
 #                "results_test_samples/era5_size_64_64_3_norm_dup_pretrained_gan/kth_ours_gan","results_test_samples/era5_size_64_64_3_norm_msl_gph_pretrained_gan/kth_ours_gan"]
 #
@@ -37,6 +36,7 @@ for path in results_path:
     mse_all.append(mse)
     psnr_all.append(psnr)
     ssim_all.append(ssim)
+
 
 def get_metric(metrtic):
     if metric == "mse":

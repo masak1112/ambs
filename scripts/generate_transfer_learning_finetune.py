@@ -79,7 +79,7 @@ def main():
     parser.add_argument("--num_samples", type = int, help = "number of samples in total (all of them by default)")
     parser.add_argument("--num_epochs", type = int, default = 1)
 
-    parser.add_argument("--num_stochastic_samples", type = int, default = 5)
+    parser.add_argument("--num_stochastic_samples", type = int, default = 1)
     parser.add_argument("--gif_length", type = int, help = "default is sequence_length")
     parser.add_argument("--fps", type = int, default = 4)
 
@@ -360,15 +360,24 @@ def main():
                 # else:
                 #     pass
 
-        # with open(os.path.join(args.output_png_dir, "gen_images_sample_id_" + str(sample_ind)), "wb") as gen_files:
-        #     pickle.dump(list(gen_images_stochastic), gen_files)
 
+        #
         # if sample_ind == 0:
         #     gen_images_all = gen_images_stochastic
         # else:
-        #     gen_images_all = np.concatenate((np.array(gen_images_all), np.array(gen_images_stochastic)), axis = 1)
-        # with open(os.path.join(args.output_png_dir, "gen_images_all"), "wb") as gen_files:
-        #     pickle.dump(list(gen_images_all), gen_files)
+        #     gen_images_all = np.concatenate((np.array(gen_images_all), np.array(gen_images_stochastic)), axis=1)
+        #
+        # if args.num_stochastic_samples == 1:
+        #     with open(os.path.join(args.output_png_dir, "gen_images_all"), "wb") as gen_files:
+        #         pickle.dump(list(gen_images_all[0]), gen_files)
+        # else:
+        #     with open(os.path.join(args.output_png_dir, "gen_images_sample_id_" + str(sample_ind)),"wb") as gen_files:
+        #         pickle.dump(list(gen_images_stochastic), gen_files)
+        #     with open(os.path.join(args.output_png_dir, "gen_images_all_stochastic"), "wb") as gen_files:
+        #         pickle.dump(list(gen_images_all), gen_files)
+        #
+        #
+        #
         #
         # sample_ind += args.batch_size
 
@@ -579,7 +588,7 @@ def main():
     # plt.savefig(os.path.join(args.output_png_dir, "kdp_gen_images.png"), dpi = 400)
     # plt.clf()
 
-    # #line plot for evaluating the prediction and groud-truth
+    #line plot for evaluating the prediction and groud-truth
     # for i in [0,3,6,9,12,15,18]:
     #     fig = plt.figure()
     #     plt.scatter(gen_images_all[:,i,:,:][s].flatten(),input_images_all[:,i,:,:][s].flatten(),s=0.3)
