@@ -1,0 +1,68 @@
+stages:
+  - build
+  - test
+  - coverage
+  - deploy
+  - pages
+
+
+
+build:
+    tags: 
+     - linux
+    stage: build
+    script: 
+        - echo "Building"
+        - mkdir build
+        - touch build/info.txt
+
+
+test:
+    tags: 
+     - linux
+    stage: test
+    script:
+      - zypper --non-interactive install python3-pip
+      - zypper --non-interactive install python-devel
+      - pip install --upgrade pip
+      - pip install -r requirements.txt
+      - python3 test/test_DataMgr.py
+
+
+docs:
+    tags:
+        - linux
+    stage: deploy
+    script:
+        - zypper --non-interactive install python3-pip
+        - zypper --non-interactive install python3-devel
+        - pip install sphinx
+        - pip install --upgrade pip
+        - pip install -r requirements.txt
+        - mkdir documents
+        - cd docs
+        - make html
+        - cp -r _build/html/* ../documents/.
+        - cd ../documents
+        - ls -l
+    artifacts:
+        name: docs
+        paths:
+          - documents/
+        when: always
+        expire_in: 1 week
+
+pages:
+    tags:
+        - linux
+    stage: pages
+    script:
+      - mkdir -p public/docs
+      - cp -af documents/ public/docs/
+      - ls public/docs/
+    artifacts:
+      name: pages
+      when: always
+      paths:
+        - public/
+        - documents/
