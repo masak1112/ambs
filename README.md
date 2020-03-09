@@ -41,4 +41,4 @@ python scripts/train_v2.py --input_dir data/era5 --dataset era5  --model savp --
 
 ### Model Evaluation
 
-![Groud Truth](/results_test_samples/era5_size_64_64_3_norm/ours_savp/Sample_Batch_id_0_Sample_1.mp4)
+![Groud Truth](/results_test_samples/era5_size_64_64_3_norm_dup/ours_savp/Sample_Batch_id_0_Sample_1.mp4)
