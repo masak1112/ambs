@@ -35,7 +35,7 @@ The wokflow have been tested on the supercomputers from JSC, [JURECA](https://ww
     ```shell
     export PYTHONPATH=/p/home/jusers/USERNAME/jureca/.local/lib/python3.6/site-packages:$PYTHONPATH
     ``` 
-=======
+
 
     ```shell
     source packageInstallation.sh
@@ -44,7 +44,6 @@ The wokflow have been tested on the supercomputers from JSC, [JURECA](https://ww
     ```shell
     export PATHONPATH=/p/home/jusers/USERNAME/jureca/.local/lib/python3.6/site-packages:$PYTHONPATH
     ```
->>>>>>> parallel_wf_v1.0
 
 3. Configure your input directory, output and log directory in .dat file for each step.
 
