@@ -21,18 +21,20 @@ else
     exit 1
 fi
 
-raw_dataset_input=./splits/${exp_name}
+raw_dataset_input=./${exp_name}
 prep_data_input=./data/${exp_name}
 train_output=./logs/${exp_name}
 results_output=./results_test_samples/${exp_name}/${method_dir}
 
 ##############Datat Preprocessing################
 #For parallel on HPC
-python ../workflow_video_prediction/DataPreprocess/benchmark/mpi_stager_v2_process_netCDF.py
+python ../workflow_video_prediction/DataPreprocess/benchmark/mpi_stager_v2_process_netCDF.py \
+--input_dir "/p/scratch/deepacf/bing/extractedData/" --destination_dir ${raw_dataset_input}
+
 #On local machine
-#python ...
+#python ../worklflow_video_prediction/DataPreprocess/process_netCDF_v2.py
 #Change the .hkl data to .tfrecords data
-python ./video_prediction/datasets/era5_dataset_v2.py  ${raw_dataset_input}  ${prep_data_input}
+python ./video_prediction/datasets/era5_dataset_v2.py  ${raw_dataset_input}/splits ${prep_data_input}
 
 #########Train##########################
 python ./scripts/train_v2.py --input_dir ${prep_data_input} --dataset era5  \
@@ -45,12 +47,4 @@ python ./scripts/generate_transfer_learning_finetune.py --input_dir ${prep_data_
 --dataset_hparams sequence_length=20 --checkpoint ${train_output}\
 --mode test --results_dir ${results_output} \
 --batch_size 4 --dataset era5
-
-
-
-
-
-
-
-
 
