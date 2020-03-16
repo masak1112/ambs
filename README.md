@@ -39,7 +39,7 @@ cd env_setup
 ## Workflow by steps
 
 
-## Data Extraction
+### Data Extraction
 
 [Workflow project](https://gitlab.version.fz-juelich.de/gong1/workflow_parallel_frame_prediction)
 
@@ -48,7 +48,7 @@ cd ../workflow_video_prediction/DataExtraction
 python mpi_stager_v2.py  --source_dir <input_dir1> --destination_dir <output_dir1>
 ```
 
-## Data Preprocessing
+### Data Preprocessing
 ```bash
 cd  ../workflow_video_prediction/DataPreprocess
 python mpi_stager_v2_process_netCDF.py --source_dir <output_dir1> --destination_dir <output_dir2> 
@@ -61,7 +61,7 @@ video_prediction/datasets/era5_dataset_v2.py <output_dir2/splits>  <output_dir3>
 ```python
 python scripts/train_v2.py --input_dir <output_dir3> --dataset era5  --model <savp> --model_hparams_dict hparams/kth/ours_savp/model_hparams.json --output_dir <logs/era5/ours_savp>
 ```
-## Postprocessing
+### Postprocessing
 
 
 ### Model Evaluation
