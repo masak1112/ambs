@@ -1,33 +1,34 @@
 stages:
-  - build
-  - test
-  - coverage
-  - deploy
-  - pages
+  - dataset
+  - model
+  - optimizer
+  - train
+  - evaluation
+#  - build
+#  - test
+#  - coverage
+#  - deploy
+#  - pages
 
 
-
-build:
+dataset:
     tags: 
      - linux
-    stage: build
+    stage: dataset
     script: 
-        - echo "Building"
-        - mkdir build
-        - touch build/info.txt
+        - echo "dataset testing"
 
-
-test:
+model:
     tags: 
      - linux
-    stage: test
+    stage: model
     script:
-      - zypper --non-interactive install python3-pip
-      - zypper --non-interactive install python-devel
-      - pip install --upgrade pip
-      - pip install -r requirements.txt
-      - python3 test/test_DataMgr.py
-
+        - echo "model testing"
+#      - zypper --non-interactive install python3-pip
+#      - zypper --non-interactive install python-devel
+#      - pip install --upgrade pip
+#      - pip install -r requirements.txt
+#      - python3 test/test_DataMgr.py
 
 docs:
     tags:
