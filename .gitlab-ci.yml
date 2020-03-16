@@ -1,4 +1,5 @@
 stages:
+<<<<<<< HEAD
   - dataset
   - model
   - optimizer
@@ -12,58 +13,96 @@ stages:
 
 
 dataset:
+=======
+  - build
+  - test
+  - deploy
+
+Loading:
+>>>>>>> ea75f3eff13013aed1dd40499c23f565fccff121
     tags: 
      - linux
     stage: dataset
     script: 
         - echo "dataset testing"
 
+<<<<<<< HEAD
 model:
+=======
+Preprocessing:
+    tags: 
+     - linux
+    stage: build
+    script: 
+        - echo "Building-preprocessing"
+
+
+Training:
+    tags: 
+     - linux
+    stage: build
+    script: 
+        - echo "Building-Training"
+
+test:
+>>>>>>> ea75f3eff13013aed1dd40499c23f565fccff121
     tags: 
      - linux
     stage: model
     script:
+<<<<<<< HEAD
         - echo "model testing"
 #      - zypper --non-interactive install python3-pip
 #      - zypper --non-interactive install python-devel
 #      - pip install --upgrade pip
 #      - pip install -r requirements.txt
 #      - python3 test/test_DataMgr.py
+=======
+        - echo "Testing"
+        - echo $CI_JOB_STAGE
+        
 
-docs:
+coverage:
+    tags:
+     - linux
+    stage: test
+    variables:
+        FAILURE_THRESHOLD: 50
+        COVERAGE_PASS_THRESHOLD: 80
+        CODE_PATH: "foo/"
+    script:
+        - zypper --non-interactive install python3-pip
+        - zypper --non-interactive install python3-devel
+        - pip install --upgrade pip
+        - pip install pytest
+#        - pip install -r requirement.txt
+#        - pip install unnitest
+#        - python test/test_DataMgr.py
+>>>>>>> ea75f3eff13013aed1dd40499c23f565fccff121
+
+job2:
+    before_script:
+        - export PATH=$PATH:/usr/local/bin
     tags:
         - linux
     stage: deploy
     script:
         - zypper --non-interactive install python3-pip
         - zypper --non-interactive install python3-devel
-        - pip install sphinx
-        - pip install --upgrade pip
-        - pip install -r requirements.txt
-        - mkdir documents
-        - cd docs
-        - make html
-        - cp -r _build/html/* ../documents/.
-        - cd ../documents
-        - ls -l
-    artifacts:
-        name: docs
-        paths:
-          - documents/
-        when: always
-        expire_in: 1 week
-
-pages:
+        # - pip install sphinx
+        # - pip install --upgrade pip
+#        - pip install -r requirements.txt
+#       - mkdir documents
+#        - cd docs
+#        - make html
+#        - mkdir documents
+#        - mv _build/html documents
+    # artifacts:
+    #     paths:
+    #         - documents
+deploy:
     tags:
         - linux
-    stage: pages
+    stage: deploy
     script:
-      - mkdir -p public/docs
-      - cp -af documents/ public/docs/
-      - ls public/docs/
-    artifacts:
-      name: pages
-      when: always
-      paths:
-        - public/
-        - documents/
+        - echo "deploy stage"
