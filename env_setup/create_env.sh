@@ -11,7 +11,7 @@ ENV_DIR=${WORKING_DIR}/env_setup
 
 source ${ENV_DIR}/modules.sh
 # Install additional Python packages.
-pip3 install --ignore-installed -r requirements.txt
+pip3 install --user --ignore-installed -r requirements.txt
 #pip3 install --user netCDF4
 #pip3 install --user numpy
 
