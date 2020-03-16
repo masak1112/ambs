@@ -6,12 +6,12 @@
 #SBATCH --cpus-per-task=1
 #SBATCH --output=process_netcdf-out.%j
 #SBATCH --error=process_netcdf-err.%j
-#SBATCH --time=23:20:00
-#SBATCH --partition=batch
+#SBATCH --time=00:20:00
+#SBATCH --partition=devel
 #SBATCH --mail-type=ALL
 #SBATCH --mail-user=b.gong@fz-juelich.de
+##jutil env activate -p cjjsc42
 
-jutil env activate -p deepacf
 
 module --force purge 
 module /usr/local/software/jureca/OtherStages

@@ -19,9 +19,9 @@ from netCDF4 import Dataset
 # the processed data will be stores. The raw data lies also in there in a subfolder
 
 #Path of ERA5 Data
-DATA_DIR = '/p/scratch/cjjsc42/bing/pystager-development/tryData/01'
+#DATA_DIR = '/p/scratch/cjjsc42/bing/pystager-development/tryData/01'
 #Path where to save processed data
-target_dir = '/p/scratch/cjjsc42/bing/pystager-development/processedData'
+#target_dir = '/p/scratch/cjjsc42/bing/pystager-development/processedData'
 
 # print('Image List:')
 # print(imageList)
@@ -66,8 +66,8 @@ target_dir = '/p/scratch/cjjsc42/bing/pystager-development/processedData'
 # print('Val:')
 # print(val_recordings)
 # print('Test:')
-# print(test_recordings)
-desired_im_sz = (128, 160)
+# print(tiest_recordings)
+desired_im_sz = (64, 64)
 # Create image datasets.
 # Processes images and saves them in train, val, test splits.
 def process_data(directory_to_process,target_dir,job_name):
@@ -95,9 +95,9 @@ def process_data(directory_to_process,target_dir,job_name):
             msl = im.variables['MSL'][0,:,:]
             gph500 = im.variables['gph500'][0,:,:]
             im.close()
-            EU_t2 = t2[74:202, 550:710]
-            EU_msl = msl[74:202, 550:710]
-            EU_gph500 = gph500[74:202, 550:710]
+            EU_t2 = t2[74+32:202-32,(550+16+32):(710-16-32)]
+            EU_msl = msl[74+32:202-32, (550+16+32):(710-16-32)]
+            EU_gph500 = gph500[74+32:202-32,(550+16+32):(710-16-32)]
             #print(EU_t2.shape, EU_msl.shape, EU_gph500.shape)
             #Normal stack: T2, MSL & GPH500
             #EU_stack = np.stack([EU_t2, EU_msl, EU_gph500],axis=2)
@@ -122,16 +122,16 @@ def process_data(directory_to_process,target_dir,job_name):
             #EU_stack = np.stack([EU_t2, empty_image, empty_image],axis=2)
             #EU_stack_list[i]=EU_stack
             #t2_2 stack. Stack t2 with one empty array
-            empty_image = np.zeros(shape = (128, 160))
-            EU_stack = np.stack([EU_t2, EU_t2, empty_image],axis=2)
-            EU_stack_list[i] = EU_stack
+#            empty_image = np.zeros(shape = (64, 64))
+            EU_stack = np.stack([EU_t2, EU_t2, EU_t2],axis=2)
+            EU_stack_list[i] =list(EU_stack)
             #print('Does ist work? ')
             #print(EU_stack_list[i][:,:,0]==EU_t2)
             #print(EU_stack[:,:,1]==EU_msl
         except Exception as err:
             print("*************ERROR*************", err)
             print("Error message {} from file {}".format(err,im_file))
-            EU_stack_list[i] = EU_stack # use the previous image as replacement, we can investigate further how to deal with the missing values
+            EU_stack_list[i] = list(EU_stack) # use the previous image as replacement, we can investigate further how to deal with the missing values
             continue
             
     X = np.array(EU_stack_list)

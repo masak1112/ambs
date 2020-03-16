@@ -1,12 +1,12 @@
-import os
+iimport os
 
 # ============ input parameters =================== #
 # 0:deactivate 1: active
 
 Pleas fill the following parameters list for PyStager
-Source_Directory = /p/scratch/cjjsc42/bing/PredNet/extractedData/
-Destination_Directory = /p/scratch/cjjsc42/bing/PredNet/processData_test1/
-Log_Directory = /p/project/cjjsc42/bing/pystager-development/DataPreprocess/test1/log
+Source_Directory = /p/scratch/deepacf/bing/extractedData/
+Destination_Directory = /p/scratch/deepacf/bing/processData_size_64_64_3_3t_norm
+Log_Directory = /p/project/deepacf/deeprain/bing/pystager-development/DataPreprocess/test10_size_64_64_3_dup/log
 Rsync_Status = 1
 Checksum_Status = 0
 

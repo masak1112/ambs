@@ -1,0 +1,99 @@
+2019-12-16 17:00:51,359:DEBUG: === PyStager is started === 
+2019-12-16 17:03:17,409:DEBUG: === PyStager is started === 
+2019-12-16 17:03:19,370:INFO:('Node:', '9', 'finished :', '', '\r\n')
+2019-12-16 17:03:26,422:INFO:('Node:', '8', 'finished :', '', '\r\n')
+2019-12-16 17:04:43,377:INFO:('Node:', '9', 'finished :', '', '\r\n')
+2019-12-16 17:04:47,127:INFO:('Node:', '8', 'finished :', '', '\r\n')
+2019-12-16 17:04:47,457:INFO:('Node:', '2', 'finished :', '', '\r\n')
+2019-12-16 17:04:51,305:INFO:('Node:', '3', 'finished :', '', '\r\n')
+2019-12-16 17:05:01,716:INFO:('Node:', '11', 'finished :', '', '\r\n')
+2019-12-16 17:05:26,347:INFO:('Node:', '10', 'finished :', '', '\r\n')
+2019-12-16 17:05:27,329:INFO:('Node:', '1', 'finished :', '', '\r\n')
+2019-12-16 17:05:29,457:INFO:('Node:', '5', 'finished :', '', '\r\n')
+2019-12-16 17:05:38,632:INFO:('Node:', '6', 'finished :', '', '\r\n')
+2019-12-16 17:05:54,116:INFO:('Node:', '4', 'finished :', '', '\r\n')
+2019-12-16 17:05:58,260:INFO:('Node:', '7', 'finished :', '', '\r\n')
+2019-12-16 17:07:58,539:INFO:('Node:', '1', 'finished :', '', '\r\n')
+2019-12-16 17:08:03,796:DEBUG:286.3876209259033
+2019-12-16 17:08:03,797:INFO:== PyStager is done ==
+2019-12-16 17:08:03,797:INFO:exit status : 0
+2019-12-16 17:28:15,152:DEBUG: === PyStager is started === 
+2019-12-16 17:30:36,385:INFO:('Node:', '2', 'finished :', '', '\r\n')
+2019-12-16 17:30:43,166:INFO:('Node:', '6', 'finished :', '', '\r\n')
+2019-12-16 17:30:44,827:INFO:('Node:', '4', 'finished :', '', '\r\n')
+2019-12-16 17:30:45,558:INFO:('Node:', '9', 'finished :', '', '\r\n')
+2019-12-16 17:30:46,865:INFO:('Node:', '11', 'finished :', '', '\r\n')
+2019-12-16 17:30:48,567:INFO:('Node:', '8', 'finished :', '', '\r\n')
+2019-12-16 17:30:49,334:INFO:('Node:', '7', 'finished :', '', '\r\n')
+2019-12-16 17:30:50,712:INFO:('Node:', '5', 'finished :', '', '\r\n')
+2019-12-16 17:30:50,847:INFO:('Node:', '1', 'finished :', '', '\r\n')
+2019-12-16 17:30:51,064:INFO:('Node:', '3', 'finished :', '', '\r\n')
+2019-12-16 17:30:56,754:INFO:('Node:', '10', 'finished :', '', '\r\n')
+2019-12-16 17:33:08,787:INFO:('Node:', '1', 'finished :', '', '\r\n')
+2019-12-16 17:33:10,120:DEBUG:294.9676990509033
+2019-12-16 17:33:10,120:INFO:== PyStager is done ==
+2019-12-16 17:33:10,120:INFO:exit status : 0
+2020-01-02 11:52:48,379:DEBUG: === PyStager is started === 
+2020-01-02 11:52:48,394:CRITICAL:The Destination does not exist
+2020-01-02 11:52:48,394:INFO:exit status : 1
+2020-01-02 12:10:23,308:DEBUG: === PyStager is started === 
+2020-01-02 12:13:16,976:INFO:('Node:', '9', 'finished :', '', '\r\n')
+2020-01-02 12:13:23,111:INFO:('Node:', '8', 'finished :', '', '\r\n')
+2020-01-02 16:53:02,544:DEBUG: === PyStager is started === 
+2020-01-02 16:53:04,932:INFO:('Node:', '8', 'finished :', '', '\r\n')
+2020-01-02 16:53:04,933:INFO:('Node:', '9', 'finished :', '', '\r\n')
+2020-01-06 09:29:19,954:DEBUG: === PyStager is started === 
+2020-01-06 09:29:21,858:INFO:('Node:', '8', 'finished :', '', '\r\n')
+2020-01-06 09:29:21,859:INFO:('Node:', '9', 'finished :', '', '\r\n')
+2020-01-06 09:57:06,845:DEBUG: === PyStager is started === 
+2020-01-06 10:12:14,095:DEBUG: === PyStager is started === 
+2020-01-06 10:12:14,286:INFO:('Node:', '8', 'finished :', '', '\r\n')
+2020-01-06 10:12:14,286:INFO:('Node:', '9', 'finished :', '', '\r\n')
+2020-01-06 10:15:02,258:INFO:('Node:', '2', 'finished :', '', '\r\n')
+2020-01-06 10:15:11,431:INFO:('Node:', '6', 'finished :', '', '\r\n')
+2020-01-06 10:15:14,685:INFO:('Node:', '11', 'finished :', '', '\r\n')
+2020-01-06 10:15:14,698:INFO:('Node:', '4', 'finished :', '', '\r\n')
+2020-01-06 10:15:17,329:INFO:('Node:', '7', 'finished :', '', '\r\n')
+2020-01-06 10:15:17,339:INFO:('Node:', '10', 'finished :', '', '\r\n')
+2020-01-06 10:15:18,095:INFO:('Node:', '3', 'finished :', '', '\r\n')
+2020-01-06 10:15:18,805:INFO:('Node:', '5', 'finished :', '', '\r\n')
+2020-01-06 10:15:19,204:INFO:('Node:', '1', 'finished :', '', '\r\n')
+2020-01-06 10:18:13,566:INFO:('Node:', '1', 'finished :', '', '\r\n')
+2020-01-06 10:18:16,071:DEBUG:361.97579979896545
+2020-01-06 10:18:16,071:INFO:== PyStager is done ==
+2020-01-06 10:18:16,071:INFO:exit status : 0
+2020-02-06 10:42:11,007:DEBUG: === PyStager is started === 
+2020-02-06 10:44:59,796:INFO:('Node:', '2', 'finished :', '', '\r\n')
+2020-02-06 10:45:10,648:INFO:('Node:', '6', 'finished :', '', '\r\n')
+2020-02-06 10:45:11,369:INFO:('Node:', '4', 'finished :', '', '\r\n')
+2020-02-06 10:45:12,609:INFO:('Node:', '9', 'finished :', '', '\r\n')
+2020-02-06 10:45:13,204:INFO:('Node:', '11', 'finished :', '', '\r\n')
+2020-02-06 10:45:15,373:INFO:('Node:', '7', 'finished :', '', '\r\n')
+2020-02-06 10:45:17,541:INFO:('Node:', '8', 'finished :', '', '\r\n')
+2020-02-06 10:45:17,638:INFO:('Node:', '1', 'finished :', '', '\r\n')
+2020-02-06 10:45:18,177:INFO:('Node:', '10', 'finished :', '', '\r\n')
+2020-02-06 10:45:19,215:INFO:('Node:', '3', 'finished :', '', '\r\n')
+2020-02-06 10:45:19,923:INFO:('Node:', '5', 'finished :', '', '\r\n')
+2020-02-06 10:48:09,971:INFO:('Node:', '1', 'finished :', '', '\r\n')
+2020-02-06 10:48:12,432:DEBUG:361.4250588417053
+2020-02-06 10:48:12,432:INFO:== PyStager is done ==
+2020-02-06 10:48:12,432:INFO:exit status : 0
+2020-03-10 17:27:16,396:DEBUG: === PyStager is started === 
+2020-03-10 17:27:16,454:CRITICAL:The Destination does not exist
+2020-03-10 17:27:16,454:INFO:exit status : 1
+2020-03-16 13:45:39,823:DEBUG: === PyStager is started === 
+2020-03-16 13:45:42,742:INFO:('Node:', '1', 'finished :', '', '\r\n')
+2020-03-16 13:45:42,743:INFO:('Node:', '2', 'finished :', '', '\r\n')
+2020-03-16 13:45:42,743:INFO:('Node:', '3', 'finished :', '', '\r\n')
+2020-03-16 13:45:42,744:INFO:('Node:', '4', 'finished :', '', '\r\n')
+2020-03-16 13:45:42,744:INFO:('Node:', '5', 'finished :', '', '\r\n')
+2020-03-16 13:45:42,744:INFO:('Node:', '6', 'finished :', '', '\r\n')
+2020-03-16 13:45:42,745:INFO:('Node:', '7', 'finished :', '', '\r\n')
+2020-03-16 13:45:42,745:INFO:('Node:', '8', 'finished :', '', '\r\n')
+2020-03-16 13:45:42,746:INFO:('Node:', '9', 'finished :', '', '\r\n')
+2020-03-16 13:45:42,746:INFO:('Node:', '10', 'finished :', '', '\r\n')
+2020-03-16 13:45:42,747:INFO:('Node:', '11', 'finished :', '', '\r\n')
+2020-03-16 13:45:42,747:INFO:('Node:', '1', 'finished :', '', '\r\n')
+2020-03-16 13:45:46,482:DEBUG:6.659131765365601
+2020-03-16 13:45:46,482:INFO:== PyStager is done ==
+2020-03-16 13:45:46,483:INFO:exit status : 0
