@@ -18,4 +18,4 @@ module load Stages/2019a
 module load Intel/2019.3.199-GCC-8.3.0  ParaStationMPI/5.2.2-1
 module load mpi4py/3.0.1-Python-3.6.8
 
-srun python mpi_stager_v2.py
+srun python mpi_stager_v2.py --source_dir /p/fastdata/slmet/slmet111/met_data/ecmwf/era5/nc/2017/  --destination_dir /p/scratch/deepacf/bing/extractedData
