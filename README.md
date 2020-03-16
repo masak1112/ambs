@@ -25,8 +25,7 @@ The wokflow have been tested on the supercomputers from JSC, [JURECA](https://ww
 
 1. Clone or download this repository,
 2. Install the required modules/packages on JURECA/JUWELS.
-<<<<<<< HEAD
-    
+
     ```shell
     source packageInstallation.sh
     ```
