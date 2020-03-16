@@ -36,6 +36,9 @@ cd env_setup
 ./create_env.sh <USER_FOLDER>
 ```
 
+
+
+
 ### Download data
 
 - Download the ERA5 data (.hkl) from the output of DataPreprocess in the [Workflow project](https://gitlab.version.fz-juelich.de/gong1/workflow_parallel_frame_prediction)
