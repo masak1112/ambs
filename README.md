@@ -8,7 +8,7 @@ This project aims to adopt the GAN-based architectures,  which original proposed
 - Python 3
 - CPU or NVIDIA GPU + CUDA CuDNN
 
-### Installation
+### Installation 
 - Clone this repo:
 ```bash
 git clone -b master https://gitlab.version.fz-juelich.de/gong1/video_prediction_savp.git
@@ -20,6 +20,17 @@ cd Video_Prediction_SAVP
 ```bash
 pip install -r requirements.txt
 ```
+
+###Set-up on JUWELS
+
+- Set up env and install packages
+
+```bash
+cd env_setup
+./create_env.sh <USER_FOLDER>
+```
+
+
 
 ### Miscellaneous installation considerations
 - In python >= 3.6, make sure to add the root directory to the PYTHONPATH`, e.g. `export PYTHONPATH=path/to/video_prediction_savp`.
@@ -37,7 +48,6 @@ bash data/download_and_preprocess_dataset_era5.sh --data era5 --input_dir /split
 ```python
 python scripts/train_v2.py --input_dir data/era5 --dataset era5  --model savp --model_hparams_dict hparams/kth/ours_savp/model_hparams.json --output_dir logs/era5/ours_savp
 ```
-
 
 ### Model Evaluation
 
