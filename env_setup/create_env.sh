@@ -6,7 +6,7 @@ if [[ ! -n "$1" ]]; then
 fi
 
 FOLDER_NAME=$1
-WORKING_DIR=/p/project/deepacf/deeprain/${FOLDER_NAME}/Video_Prediction_SAVP
+WORKING_DIR=/p/project/deepacf/deeprain/${FOLDER_NAME}/video_prediction_savp
 ENV_DIR=${WORKING_DIR}/env_setup
 
 source ${ENV_DIR}/modules.sh

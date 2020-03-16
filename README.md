@@ -12,7 +12,7 @@ This project aims to adopt the GAN-based architectures,  which original proposed
 - Clone this repo:
 ```bash
 git clone -b master https://gitlab.version.fz-juelich.de/gong1/video_prediction_savp.git
-cd Video_Prediction_SAVP
+cd video_prediction_savp
 ```
 - Install TensorFlow >= 1.9 and dependencies from http://tensorflow.org/
 - Install other dependencies
@@ -36,15 +36,47 @@ cd env_setup
 ./create_env.sh <USER_FOLDER>
 ```
 
+## Workflow by steps
+
+
+## Data Extraction
+
+
+## Data Preprocessing
+
+```bash
+cd workflow_video_prediction/DataExtraction
+python mpi_stager_v2.py
+```
+
+
+```bash
+bash data/download_and_preprocess_dataset_era5.sh --data era5 --input_dir /splits --output_dir  <data/era5>
+```
+
+## Training
+
+## Postprocessing
+
+### Prediction Generator
+
+### Model Evaluation
+
+
+## End-to-End run the entire workflow
+
+```bash
+cd bash
+./workflow_era5.sh
+```
+
 
 
 
 ### Download data
 
 - Download the ERA5 data (.hkl) from the output of DataPreprocess in the [Workflow project](https://gitlab.version.fz-juelich.de/gong1/workflow_parallel_frame_prediction)
-```bash
-bash data/download_and_preprocess_dataset_era5.sh --data era5 --input_dir /splits --output_dir  data/era5 
-```
+
 
 ### Model Training for ERA5 data
 ```python
