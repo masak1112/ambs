@@ -21,5 +21,6 @@ cp  -r /p/project/deepacf/deeprain/bing/hickle .
 export PYTHONPATH=${ENV_DIR}/hickle/lib/python3.6/site-packages:$PYTHONPATH
 export PYTHONPATH=${WORKING_DIR}:$PYTHONPATH
 export PYTHONPATH=/p/home/jusers/${USER}/juwels/.local/bin:$PYTHONPATH
+export PYTHONPATH=${WORKING_DIR}/lpips-tensorflow:$PYTHONPATH
 
 
