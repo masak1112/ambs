@@ -1,34 +1,17 @@
 stages:
-<<<<<<< HEAD
-  - dataset
-  - model
-  - optimizer
-  - train
-  - evaluation
-#  - build
-#  - test
-#  - coverage
-#  - deploy
-#  - pages
-
-
-dataset:
-=======
   - build
   - test
   - deploy
 
+
 Loading:
->>>>>>> ea75f3eff13013aed1dd40499c23f565fccff121
     tags: 
      - linux
-    stage: dataset
+    stage: build
     script: 
         - echo "dataset testing"
 
-<<<<<<< HEAD
-model:
-=======
+
 Preprocessing:
     tags: 
      - linux
@@ -45,19 +28,16 @@ Training:
         - echo "Building-Training"
 
 test:
->>>>>>> ea75f3eff13013aed1dd40499c23f565fccff121
     tags: 
      - linux
-    stage: model
+    stage: build
     script:
-<<<<<<< HEAD
         - echo "model testing"
 #      - zypper --non-interactive install python3-pip
 #      - zypper --non-interactive install python-devel
 #      - pip install --upgrade pip
 #      - pip install -r requirements.txt
 #      - python3 test/test_DataMgr.py
-=======
         - echo "Testing"
         - echo $CI_JOB_STAGE
         
@@ -78,7 +58,6 @@ coverage:
 #        - pip install -r requirement.txt
 #        - pip install unnitest
 #        - python test/test_DataMgr.py
->>>>>>> ea75f3eff13013aed1dd40499c23f565fccff121
 
 job2:
     before_script:
