@@ -56,14 +56,14 @@ python ../workflow_video_prediction/DataExtraction/mpi_stager_v2.py  --source_di
 ```python
 python ../workflow_video_prediction/DataPreprocess/mpi_stager_v2_process_netCDF.py --source_dir <output_dir1> --destination_dir <output_dir2> 
 
-video_prediction/datasets/era5_dataset_v2.py  --source_dir   <output_dir2> --destination_dir <output_dir3>
+python video_prediction/datasets/era5_dataset_v2.py  --source_dir   <output_dir2> --destination_dir <output_dir3>
 ```
 
 Example
 ```python
 python ../workflow_video_prediction/DataPreprocess/mpi_stager_v2_process_netCDF.py --source_dir /p/scratch/deepacf/bing/extractedData --destination_dir /p/scratch/deepacf/bing/preprocessedData
 
-video_prediction/datasets/era5_dataset_v2.py /p/scratch/deepacf/bing/preprocessedData  ./data/era5_64_64_3_3t_norm
+python video_prediction/datasets/era5_dataset_v2.py /p/scratch/deepacf/bing/preprocessedData  ./data/era5_64_64_3_3t_norm
  ```
  
 ### Trarining
