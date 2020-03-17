@@ -7,7 +7,7 @@ TRAIN_MODE=end_to_end
 EXP_NAME=era5_size_64_64_3_3t_norm
 
 
-DATA_ETL_DIR=/p/scratch/deepacf/{USER}/
+DATA_ETL_DIR=/p/scratch/deepacf/${USER}/
 DATA_EXTRA_DIR=${DATA_ETL_DIR}/extractedData/${EXP_NAME}
 DATA_PREPROCESS_DIR=${DATA_ETL_DIR}/preprocessedData/${EXP_NAME}
 DATA_PREPROCESS_TF_DIR=./data/${EXP_NAME}

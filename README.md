@@ -9,9 +9,11 @@ This project aims to adopt the GAN-based architectures,  which original proposed
 - CPU or NVIDIA GPU + CUDA CuDNN
 
 ### Installation 
+This project need to work with [Workflow_parallel_frame_prediction project](https://gitlab.version.fz-juelich.de/gong1/workflow_parallel_frame_prediction)
 - Clone this repo:
 ```bash
 git clone -b master https://gitlab.version.fz-juelich.de/gong1/video_prediction_savp.git
+git clone -b master https://gitlab.version.fz-juelich.de/gong1/workflow_parallel_frame_prediction
 cd video_prediction_savp
 ```
 - Install TensorFlow >= 1.9 and dependencies from http://tensorflow.org/
@@ -38,10 +40,7 @@ cd env_setup
 
 ## Workflow by steps
 
-
 ### Data Extraction
-
-[Workflow project](https://gitlab.version.fz-juelich.de/gong1/workflow_parallel_frame_prediction)
 
 ```python
 python ../workflow_video_prediction/DataExtraction/mpi_stager_v2.py  --source_dir <input_dir1> --destination_dir <output_dir1>
