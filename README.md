@@ -48,7 +48,7 @@ python ../workflow_video_prediction/DataExtraction/mpi_stager_v2.py  --source_di
 
 e.g. 
 ```python
-python ../workflow_video_prediction/DataExtraction/mpi_stager_v2.py  --source_dir "/p/fastdata/slmet/slmet111/met_data/ecmwf/era5/nc/2017/" --destination_dir "/p/scratch/deepacf/bing/extractedData"
+python ../workflow_video_prediction/DataExtraction/mpi_stager_v2.py  --source_dir /p/fastdata/slmet/slmet111/met_data/ecmwf/era5/nc/2017/ --destination_dir /p/scratch/deepacf/bing/extractedData
 ```
 
 ### Data Preprocessing
