@@ -56,7 +56,7 @@ python ../workflow_video_prediction/DataExtraction/mpi_stager_v2.py  --source_di
 ```python
 python ../workflow_video_prediction/DataPreprocess/mpi_stager_v2_process_netCDF.py --source_dir <output_dir1> --destination_dir <output_dir2> 
 
-python video_prediction/datasets/era5_dataset_v2.py  --source_dir   <output_dir2> --destination_dir <output_dir3>
+python video_prediction/datasets/era5_dataset_v2.py  --source_dir   <output_dir2> --destination_dir <.data/exp_name>
 ```
 
 Example
@@ -69,7 +69,7 @@ python video_prediction/datasets/era5_dataset_v2.py /p/scratch/deepacf/bing/prep
 ### Trarining
 
 ```python
-python scripts/train_v2.py --input_dir <output_dir3> --dataset era5  --model <savp> --model_hparams_dict hparams/kth/ours_savp/model_hparams.json --output_dir <logs_directory>
+python scripts/train_v2.py --input_dir <./data/exp_name> --dataset era5  --model <savp> --model_hparams_dict hparams/kth/ours_savp/model_hparams.json --output_dir <./logs/{exp_name}/{mode}/>
 ```
 
 Example
@@ -81,7 +81,7 @@ python scripts/train_v2.py --input_dir ./data/era5_64_64_3_3t_norm --dataset era
 Generating prediction frames, model evaluation, and visulization
 
 ```python
-python scripts/generate_transfer_learning_finetune.py --mode test --results_dir <results_directory>  --batch_size <batch_size> --dataset era5
+python scripts/generate_transfer_learning_finetune.py --input_dir <./data/exp_name>  --dataset_hparams sequence_length=20 --checkpoint <./logs/{exp_name}/{mode}/{model}> --mode test --results_dir <./results/{exp_name}/{mode}>  --batch_size <batch_size> --dataset era5
 ```
 
 
