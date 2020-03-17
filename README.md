@@ -43,28 +43,48 @@ cd env_setup
 
 [Workflow project](https://gitlab.version.fz-juelich.de/gong1/workflow_parallel_frame_prediction)
 
-```bash
-cd ../workflow_video_prediction/DataExtraction 
-python mpi_stager_v2.py  --source_dir <input_dir1> --destination_dir <output_dir1>
+```python
+python ../workflow_video_prediction/DataExtraction/mpi_stager_v2.py  --source_dir <input_dir1> --destination_dir <output_dir1>
+```
+
+e.g. 
+```python
+python ../workflow_video_prediction/DataExtraction/mpi_stager_v2.py  --source_dir "/p/fastdata/slmet/slmet111/met_data/ecmwf/era5/nc/2017/" --destination_dir "/p/scratch/deepacf/bing/extractedData"
 ```
 
 ### Data Preprocessing
-```bash
-cd  ../workflow_video_prediction/DataPreprocess
-python mpi_stager_v2_process_netCDF.py --source_dir <output_dir1> --destination_dir <output_dir2> 
+```python
+python ../workflow_video_prediction/DataPreprocess/mpi_stager_v2_process_netCDF.py --source_dir <output_dir1> --destination_dir <output_dir2> 
+
+video_prediction/datasets/era5_dataset_v2.py  --source_dir   <output_dir2> --destination_dir <output_dir3>
 ```
 
+e.g.
 ```python
-video_prediction/datasets/era5_dataset_v2.py <output_dir2/splits>  <output_dir3>
-```
+python ../workflow_video_prediction/DataPreprocess/mpi_stager_v2_process_netCDF.py --source_dir /p/scratch/deepacf/bing/extractedData --destination_dir /p/scratch/deepacf/bing/preprocessedData
+
+ video_prediction/datasets/era5_dataset_v2.py /p/scratch/deepacf/bing/preprocessedData  /p/scratch/deepacf/bing/preprocessedData_tfrecord/
+ ```
+ 
+ 
+###Trarining
 
 ```python
-python scripts/train_v2.py --input_dir <output_dir3> --dataset era5  --model <savp> --model_hparams_dict hparams/kth/ours_savp/model_hparams.json --output_dir <logs/era5/ours_savp>
+python scripts/train_v2.py --input_dir <output_dir3> --dataset era5  --model <savp> --model_hparams_dict hparams/kth/ours_savp/model_hparams.json --output_dir <logs_directory>
+```
+
+e.g 
+
+```python
+python scripts/train_v2.py --input_dir /p/scratch/deepacf/bing/preprocessedData_tfrecord/ --dataset era5  --model savp --model_hparams_dict hparams/kth/ours_savp/model_hparams.json --output_dir logs/era5_64_64_3_3t_norm/end_to_end
 ```
 ### Postprocessing
 
+Generating prediction frames, model evaluation, and visulization
 
-### Model Evaluation
+```python
+python scripts/generate_transfer_learning_finetune.py --mode test --results_dir <results_directory>  --batch_size <batch_size> --dataset era5
+```
 
 ![Groud Truth](/results_test_samples/era5_size_64_64_3_norm_dup/ours_savp/Sample_Batch_id_0_Sample_1.mp4)
 # End-to-End run the entire workflow
