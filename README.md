@@ -59,24 +59,22 @@ python ../workflow_video_prediction/DataPreprocess/mpi_stager_v2_process_netCDF.
 video_prediction/datasets/era5_dataset_v2.py  --source_dir   <output_dir2> --destination_dir <output_dir3>
 ```
 
-e.g.
+Example
 ```python
 python ../workflow_video_prediction/DataPreprocess/mpi_stager_v2_process_netCDF.py --source_dir /p/scratch/deepacf/bing/extractedData --destination_dir /p/scratch/deepacf/bing/preprocessedData
 
- video_prediction/datasets/era5_dataset_v2.py /p/scratch/deepacf/bing/preprocessedData  /p/scratch/deepacf/bing/preprocessedData_tfrecord/
+video_prediction/datasets/era5_dataset_v2.py /p/scratch/deepacf/bing/preprocessedData  ./data/era5_64_64_3_3t_norm
  ```
  
- 
-###Trarining
+### Trarining
 
 ```python
 python scripts/train_v2.py --input_dir <output_dir3> --dataset era5  --model <savp> --model_hparams_dict hparams/kth/ours_savp/model_hparams.json --output_dir <logs_directory>
 ```
 
-e.g 
-
+Example
 ```python
-python scripts/train_v2.py --input_dir /p/scratch/deepacf/bing/preprocessedData_tfrecord/ --dataset era5  --model savp --model_hparams_dict hparams/kth/ours_savp/model_hparams.json --output_dir logs/era5_64_64_3_3t_norm/end_to_end
+python scripts/train_v2.py --input_dir ./data/era5_64_64_3_3t_norm --dataset era5  --model savp --model_hparams_dict hparams/kth/ours_savp/model_hparams.json --output_dir logs/era5_64_64_3_3t_norm/end_to_end
 ```
 ### Postprocessing
 
@@ -85,6 +83,8 @@ Generating prediction frames, model evaluation, and visulization
 ```python
 python scripts/generate_transfer_learning_finetune.py --mode test --results_dir <results_directory>  --batch_size <batch_size> --dataset era5
 ```
+
+
 
 ![Groud Truth](/results_test_samples/era5_size_64_64_3_norm_dup/ours_savp/Sample_Batch_id_0_Sample_1.mp4)
 # End-to-End run the entire workflow
