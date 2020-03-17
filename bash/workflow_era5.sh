@@ -9,6 +9,7 @@ set -e
 MODEL=$1
 TRAIN_MODE=$2
 EXP_NAME=$3
+RETRAIN=1 #if we continue training the model or using the existing end-to-end model, 1 means continue training, and 1 means use the existing one
 DATA_ETL_DIR=/p/scratch/deepacf/${USER}/
 DATA_EXTRA_DIR=${DATA_ETL_DIR}/extractedData/${EXP_NAME}
 DATA_PREPROCESS_DIR=${DATA_ETL_DIR}/preprocessedData/${EXP_NAME}
@@ -69,11 +70,16 @@ fi
 if [ "$TRAIN_MODE" == "pre_trained" ]; then
     echo "step3: Using kth pre_trained model"
 elif [ "$TRAIN_MODE" == "end_to_end" ]; then
-    echo "Step3: Training Starts "
-    python ./scripts/train_v2.py --input_dir $DATA_PREPROCESS_TF_DIR --dataset era5  \
-    --model ${MODEL} --model_hparams_dict hparams/kth/${method_dir}/model_hparams.json \
-    --output_dir ${TRAIN_OUTPUT_DIR}
-    echo "Training ends "
+    echo "step3: End-to-end training"
+    if [ "$RETRAIN" == 1 ]; then
+        echo "Using the existing end-to-end model"
+    else
+        echo "Step3: Training Starts "
+        python ./scripts/train_v2.py --input_dir $DATA_PREPROCESS_TF_DIR --dataset era5  \
+        --model ${MODEL} --model_hparams_dict hparams/kth/${method_dir}/model_hparams.json \
+        --output_dir ${TRAIN_OUTPUT_DIR} --checkpoint ${CHECKPOINT_DIR_DIR}
+        echo "Training ends "
+    fi
 else
     echo "TRAIN_MODE is end_to_end or pre_trained"
     exit 1

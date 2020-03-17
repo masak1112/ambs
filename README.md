@@ -13,7 +13,7 @@ This project need to work with [Workflow_parallel_frame_prediction project](http
 - Clone this repo:
 ```bash
 git clone -b master https://gitlab.version.fz-juelich.de/gong1/video_prediction_savp.git
-git clone -b master https://gitlab.version.fz-juelich.de/gong1/workflow_parallel_frame_prediction
+git clone -b master https://gitlab.version.fz-juelich.de/gong1/workflow_parallel_frame_prediction.git
 cd video_prediction_savp
 ```
 - Install TensorFlow >= 1.9 and dependencies from http://tensorflow.org/
