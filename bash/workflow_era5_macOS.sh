@@ -34,8 +34,8 @@ if [ ${TRAIN_MODE}==pre_trained ]; then
     TRAIN_OUTPUT_DIR=./pretrained_models/kth/${method_dir}
 else
     TRAIN_OUTPUT_DIR=./logs/${EXP_NAME}/${TRAIN_MODE}
-
 fi
+
 ##############Datat Preprocessing################
 #To hkl data
 if [ -d ${DATA_PREPROCESS_DIR} ]; then
