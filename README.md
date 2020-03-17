@@ -89,8 +89,10 @@ python scripts/generate_transfer_learning_finetune.py --input_dir <./data/exp_na
 # End-to-End run the entire workflow
 
 ```bash
-cd bash
-./workflow_era5.sh
+./bash/workflow_era5.sh <model>  <train_mode>  <exp_name>
 ```
 
-
+example:
+```bash
+./bash/workflow_era5.sh savp end_to_end  era5_size_64_64_3_3t_norm
+```
