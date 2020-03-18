@@ -4,32 +4,17 @@ from __future__ import print_function
 
 import argparse
 import errno
-import json
 import os
 import math
-import random
-import cv2
-import numpy as np
 import tensorflow as tf
-import seaborn as sns
-import pickle
-from random import seed
 import random
 import json
 import numpy as np
-#from six.moves import cPickle
 import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
-import matplotlib.animation as animation
-import seaborn as sns
-import pandas as pd
-import re
 from video_prediction import datasets, models
-from matplotlib.colors import LinearSegmentedColormap
-#from matplotlib.ticker import MaxNLocator
-#from video_prediction.utils.ffmpeg_gif import save_gif
 from skimage.metrics import structural_similarity as ssim
 import pickle
 
@@ -65,7 +50,7 @@ def main():
     parser.add_argument("--checkpoint",
                         help = "directory with checkpoint or checkpoint name (e.g. checkpoint_dir/model-200000)")
 
-    parser.add_argument("--mode", type = str, choices = ['val', 'test'], default = 'val',
+    parser.add_argument("--mode", type = str, choices = ['train','val', 'test'], default = 'val',
                         help = 'mode for dataset, val or test.')
 
     parser.add_argument("--dataset", type = str, help = "dataset class name")

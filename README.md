@@ -84,6 +84,9 @@ python scripts/generate_transfer_learning_finetune.py --input_dir <./data/exp_na
 ```
 
 
+```python
+python3 scripts/generate_transfer_learning_finetune.py --input_dir data/era5_size_64_64_3_3t_norm --dataset_hparams sequence_length=20 --checkpoint logs/era5_size_64_64_3_3t_norm/end_to_end/ours_savp --mode test --results_dir results_test_samples/era5_size_64_64_3_3t_norm/end_to_end  --batch_size 4 --dataset era5
+```
 
 ![Groud Truth](/results_test_samples/era5_size_64_64_3_norm_dup/ours_savp/Sample_Batch_id_0_Sample_1.mp4)
 # End-to-End run the entire workflow
