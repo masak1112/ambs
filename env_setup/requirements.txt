@@ -3,3 +3,5 @@ opencv-python
 scipy
 scikit-image
 h5py
+pandas
+netCDF4

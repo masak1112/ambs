@@ -22,7 +22,7 @@ python3 -m venv $ENV_DIR
 source ${ENV_DIR}/bin/activate
 source ${ENV_SETUP_DIR}/modules.sh
 # Install additional Python packages.
-
+pip3 install --upgrade pip
 pip3 install --ignore-installed -r requirements.txt
 #pip3 install --user netCDF4
 #pip3 install --user numpy
