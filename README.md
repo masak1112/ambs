@@ -34,8 +34,8 @@ pip install -r requirements.txt
 - Set up env and install packages
 
 ```bash
-cd env_setup
-./create_env.sh <USER_FOLDER>
+./env_setup/create_env.sh <user> <env_name>
+source <env_name>/bin/activate
 ```
 
 ## Workflow by steps
@@ -68,24 +68,25 @@ python video_prediction/datasets/era5_dataset_v2.py /p/scratch/deepacf/bing/prep
 ### Trarining
 
 ```python
-python scripts/train_v2.py --input_dir <./data/exp_name> --dataset era5  --model <savp> --model_hparams_dict hparams/kth/ours_savp/model_hparams.json --output_dir <./logs/{exp_name}/{mode}/>
+python3 scripts/train_v2.py --input_dir <./data/exp_name> --dataset era5  --model <savp> --model_hparams_dict hparams/kth/ours_savp/model_hparams.json --output_dir <./logs/{exp_name}/{mode}/>
 ```
 
 Example
 ```python
-python scripts/train_v2.py --input_dir ./data/era5_64_64_3_3t_norm --dataset era5  --model savp --model_hparams_dict hparams/kth/ours_savp/model_hparams.json --output_dir logs/era5_64_64_3_3t_norm/end_to_end
+python3 scripts/train_v2.py --input_dir ./data/era5_64_64_3_3t_norm --dataset era5  --model savp --model_hparams_dict hparams/kth/ours_savp/model_hparams.json --output_dir logs/era5_64_64_3_3t_norm/end_to_end
 ```
 ### Postprocessing
 
 Generating prediction frames, model evaluation, and visulization
+You can trained your own model from the training step , or you can copy the Bing's trained model
 
 ```python
-python scripts/generate_transfer_learning_finetune.py --input_dir <./data/exp_name>  --dataset_hparams sequence_length=20 --checkpoint <./logs/{exp_name}/{mode}/{model}> --mode test --results_dir <./results/{exp_name}/{mode}>  --batch_size <batch_size> --dataset era5
+python3 scripts/generate_transfer_learning_finetune.py --input_dir <./data/exp_name>  --dataset_hparams sequence_length=20 --checkpoint <./logs/{exp_name}/{mode}/{model}> --mode test --results_dir <./results/{exp_name}/{mode}>  --batch_size <batch_size> --dataset era5
 ```
 
-
+- example: use end_to_end training model from bing for exp_name:era5_size_64_64_3_3t_norm
 ```python
-python3 scripts/generate_transfer_learning_finetune.py --input_dir data/era5_size_64_64_3_3t_norm --dataset_hparams sequence_length=20 --checkpoint logs/era5_size_64_64_3_3t_norm/end_to_end/ours_savp --mode test --results_dir results_test_samples/era5_size_64_64_3_3t_norm/end_to_end  --batch_size 4 --dataset era5
+python3 scripts/generate_transfer_learning_finetune.py --input_dir data/era5_size_64_64_3_3t_norm --dataset_hparams sequence_length=20 --checkpoint /p/project/deepacf/deeprain/bing/video_prediction_savp/logs/era5_size_64_64_3_3t_norm/end_to_end/ours_savp --mode test --results_dir results_test_samples/era5_size_64_64_3_3t_norm/end_to_end  --batch_size 4 --dataset era5
 ```
 
 ![Groud Truth](/results_test_samples/era5_size_64_64_3_norm_dup/ours_savp/Sample_Batch_id_0_Sample_1.mp4)
