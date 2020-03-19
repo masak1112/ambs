@@ -26,6 +26,10 @@ pip3 install --ignore-installed -r requirements.txt
 
 #Copy the hickle package from bing's account
 cp  -r /p/project/deepacf/deeprain/bing/hickle ${WORKING_DIR}
+
+source ${ENV_SETUP_DIR}/modules.sh
+source ${ENV_DIR}/bin/activate
+
 export PYTHONPATH=${WORKING_DIR}/hickle/lib/python3.6/site-packages:$PYTHONPATH
 export PYTHONPATH=${WORKING_DIR}:$PYTHONPATH
 export PYTHONPATH=${ENV_DIR}/lib/python3.6/site-packages:$PYTHONPATH
