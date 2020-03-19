@@ -16,13 +16,10 @@ WORKING_DIR=/p/project/deepacf/deeprain/${FOLDER_NAME}/video_prediction_savp
 ENV_SETUP_DIR=${WORKING_DIR}/env_setup
 ENV_DIR=${WORKING_DIR}/${ENV_NAME}
 
-
-
-python3 -m venv $ENV_DIR
-source ${ENV_DIR}/bin/activate
 source ${ENV_SETUP_DIR}/modules.sh
 # Install additional Python packages.
-pip3 install --upgrade pip
+python3 -m venv $ENV_DIR
+source ${ENV_DIR}/bin/activate
 pip3 install --ignore-installed -r requirements.txt
 #pip3 install --user netCDF4
 #pip3 install --user numpy
@@ -34,6 +31,5 @@ export PYTHONPATH=${WORKING_DIR}:$PYTHONPATH
 export PYTHONPATH=${ENV_DIR}/lib/python3.6/site-packages:$PYTHONPATH
 #export PYTHONPATH=/p/home/jusers/${USER}/juwels/.local/bin:$PYTHONPATH
 export PYTHONPATH=${WORKING_DIR}/lpips-tensorflow:$PYTHONPATH
-#jutil env activate -p $2
 
 
