@@ -18,15 +18,6 @@ from netCDF4 import Dataset
 # there's just DATA_DIR (which is specified in kitti_settings.py) and in there
 # the processed data will be stores. The raw data lies also in there in a subfolder
 
-#Path of ERA5 Data
-#DATA_DIR = '/p/scratch/cjjsc42/bing/pystager-development/tryData/01'
-#Path where to save processed data
-#target_dir = '/p/scratch/cjjsc42/bing/pystager-development/processedData'
-
-# print('Image List:')
-# print(imageList)
-# print('Length of Image List: ' + str(len(imageList)))
-#scp hussmann1@jureca.fz-juelich.de:/p/project/cjjsc42/severin/data/era5_extract_481.nc ~/Desktop/netCDFdata
 
 # ToDo: Define properly the train, val and test index
 # Here just for testing and taking weird .DS_Store file into consideration
@@ -67,15 +58,18 @@ from netCDF4 import Dataset
 # print(val_recordings)
 # print('Test:')
 # print(tiest_recordings)
-desired_im_sz = (64, 64)
+
+
+#exec("%s = %d" % (var1,2))
 # Create image datasets.
 # Processes images and saves them in train, val, test splits.
-def process_data(directory_to_process,target_dir,job_name):
+def process_data(directory_to_process, target_dir, job_name, slices, vars=("T2","MSL","gph500")):
+    desired_im_sz = (slices["lat_e"] - slices["lat_s"], slices["lon_e"] - slices["lon_s"])
     # ToDo: Define a convenient function to create a list containing all files.
     imageList = list(os.walk(directory_to_process, topdown = False))[-1][-1]
     imageList = sorted(imageList)
     EU_stack_list = [0] * (len(imageList))
-
+    len_vars = len(vars)
     #X = np.zeros((len(splits[split]),) + desired_im_sz + (3,), np.uint8)
     #print(X)
     #print('shape of X' + str(X.shape))
@@ -88,16 +82,18 @@ def process_data(directory_to_process,target_dir,job_name):
     for i, im_file in enumerate(imageList):
         try:
             im_path = os.path.join(directory_to_process, im_file)
-            print('Open following dataset: ' + im_path)
-            im = Dataset(im_path, mode = 'r')
-            #print(im)
-            t2 = im.variables['T2'][0,:,:]
-            msl = im.variables['MSL'][0,:,:]
-            gph500 = im.variables['gph500'][0,:,:]
-            im.close()
-            EU_t2 = t2[74+32:202-32,(550+16+32):(710-16-32)]
-            EU_msl = msl[74+32:202-32, (550+16+32):(710-16-32)]
-            EU_gph500 = gph500[74+32:202-32,(550+16+32):(710-16-32)]
+            print('Open following dataset: '+im_path)
+
+            vars_list = []
+            for i in range(len_vars):
+                im = Dataset(im_path, mode = 'r')
+                var1 = im.variables[vars[i]][0, :, :]
+                im.close()
+                var1 = var1[slices["lat_s"]:slices["lat_e"], slices["lon_s"]:slices["lon_e"]]
+                vars_list.append(var1)
+
+            # var2 = var2[slices["lat_e"]-slices["lat_s"],slices["lon_e"]-slices["lon_s"]]
+            # var3 = var3[slices["lat_e"]-slices["lat_s"],slices["lon_e"]-slices["lon_s"]]
             #print(EU_t2.shape, EU_msl.shape, EU_gph500.shape)
             #Normal stack: T2, MSL & GPH500
             #EU_stack = np.stack([EU_t2, EU_msl, EU_gph500],axis=2)
@@ -123,7 +119,8 @@ def process_data(directory_to_process,target_dir,job_name):
             #EU_stack_list[i]=EU_stack
             #t2_2 stack. Stack t2 with one empty array
 #            empty_image = np.zeros(shape = (64, 64))
-            EU_stack = np.stack([EU_t2, EU_t2, EU_t2],axis=2)
+            #EU_stack = np.stack([var1, var2, var3], axis=2)
+            EU_stack = np.stack(vars_list, axis = 2)
             EU_stack_list[i] =list(EU_stack)
             #print('Does ist work? ')
             #print(EU_stack_list[i][:,:,0]==EU_t2)
@@ -159,10 +156,10 @@ def process_data(directory_to_process,target_dir,job_name):
         #hkl.dump(X, os.path.join(DATA_DIR, 'X_' + split + '.hkl'))
         #hkl.dump(source_list, os.path.join(DATA_DIR, 'sources_' + split + '.hkl'))
 
-def process_netCDF_in_dir(job_name,src_dir,target_dir):
-    print ("job_name",job_name)
+def process_netCDF_in_dir(src_dir,**kwargs):
+    target_dir = kwargs.get("target_dir")
+    job_name = kwargs.get("job_name")
     directory_to_process = os.path.join(src_dir, job_name)
-    print("Going to process file in directory {}".format(directory_to_process))
     os.chdir(directory_to_process)
     if not os.path.exists(target_dir): os.mkdir(target_dir)
     target_file = os.path.join(target_dir, 'X_' + str(job_name) + '.hkl')
@@ -170,7 +167,7 @@ def process_netCDF_in_dir(job_name,src_dir,target_dir):
         print(target_file," file exists in the directory ", target_dir)
     else:
         print ("==========Processing files in directory {} =============== ".format(directory_to_process))
-        process_data(directory_to_process=directory_to_process, target_dir=target_dir, job_name=job_name)
+        process_data(directory_to_process=directory_to_process, **kwargs)
 
 
 def split_data(target_dir, partition= [0.6, 0.2, 0.2]):

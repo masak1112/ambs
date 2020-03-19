@@ -11,29 +11,43 @@ from external_function import md5
 from process_netCDF_v2 import *  
 import os
 import argparse
-from pathlib import Path
-
+import json
 
 def main():
-    parser=argparse.ArgumentParser()
-    parser.add_argument("--source_dir",type=str,default="/p/scratch/deepacf/bing/extractedData/")
-    parser.add_argument("--destination_dir",type=str,default="/p/scratch/deepacf/bing/processData_size_64_64_3_3t_norm")
-    parser.add_argument("--checksum_status",type=int,default = 0)
-    parser.add_argument("--rsync_status",type=int,default=1)
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--source_dir", type=str, default="/p/scratch/deepacf/bing/extractedData/")
+    parser.add_argument("--destination_dir", type=str, default="/p/scratch/deepacf/bing/processData_size_64_64_3_3t_norm")
+    parser.add_argument("--checksum_status", type=int, default=0)
+    parser.add_argument("--rsync_status", type=int, default=1)
+    parser.add_argument("--vars", action='extend', type=str, default = "T2") #"MSL","gph500"
+    parser.add_argument("--lat_s", type=int, default=74+32)
+    parser.add_argument("--lat_e", type=int, default=202-32)
+    parser.add_argument("--lon_s", type=int, default=550+16+32)
+    parser.add_argument("--lon_e", type=int, default=710-16-32)
     args = parser.parse_args()
 
-    # for the local machine test
     current_path = os.getcwd()
     source_dir = args.source_dir
     destination_dir = args.destination_dir
     checksum_status = args.checksum_status
     rsync_status = args.rsync_status
+    vars = args.vars
+    lat_s = args.lat_s
+    lat_e = args.lat_e
+    lon_s = args.lon_s
+    lon_e = args.lon_e
 
-    log_dir = os.path.join(current_path,"log")
-    # TODO : it will be integerated in the seperated read_in_file
-    #rot_grid="/mnt/rasdaman/DeepRain/gridneu.dat"
+    slices = {"lat_s": lat_s,
+              "lat_e": lat_e,
+              "lon_s": lon_s,
+              "lon_e": lon_e
+              }
+
+
     os.chdir(current_path)
     time.sleep(0)
+
 
     # ini. MPI
     comm = MPI.COMM_WORLD
@@ -87,20 +101,16 @@ def main():
     if not os.path.exists(destination_dir):  # check if the Destination dir. is existing
         if my_rank == 0:
             logging.critical('The Destination does not exist')
-            logging.info('exit status : 1')
-            print('Critical : The Destination does not exist')
+            logging.info('Create new destination dir')
+            if not os.path.exists(destination_dir): os.mkdir(destination_dir)
 
-        sys.exit(1)
-
-    if my_rank == 0:  # node is master
-
+    if my_rank == 0:  # node is master:
         # ==================================== Master : Directory scanner ================================= #
 
         print(" # ==============  Directory scanner : start    ==================# ")
 
         ret_dir_scanner = directory_scanner(source_dir)
         print(ret_dir_scanner)
-
         dir_detail_list = ret_dir_scanner[0]
         sub_dir_list = ret_dir_scanner[1]
         total_size_source = ret_dir_scanner[2]
@@ -115,7 +125,6 @@ def main():
         transfer_dict = ret_load_balancer
 
         print(ret_load_balancer)
-
         # ===================================== Master : Send / Receive =============================== #
         print(" # ==============  Communication  : start  ==================# ")
 
@@ -141,14 +150,12 @@ def main():
         #Bing
         split_data(target_dir=destination_dir, partition = [0.6, 0.2, 0.2])
 
-
         # stamp the end of the runtime
         end = time.time()
         logging.debug(end - start)
         logging.info('== PyStager is done ==')
         logging.info('exit status : 0')
         print('PyStager is finished ')
-
         sys.exit(0)
 
     else:  # node is slave
@@ -171,7 +178,7 @@ def main():
 
                 # creat a checksum ( hash) from the source folder.
                 if checksum_status == 1:
-                    hash_directory(source_dir, job, current_path,"source")
+                    hash_directory(source_dir, job, current_path, "source")
 
                 if rsync_status == 1:
                     # prepare the rsync commoand to be excexuted by the worker node
@@ -179,13 +186,13 @@ def main():
                     #os.system(rsync_str)
 
                     #process_era5_in_dir(job, src_dir=source_dir, target_dir=destination_dir)
-                    process_netCDF_in_dir(job_name=job, src_dir=source_dir, target_dir=destination_dir)
+                    process_netCDF_in_dir(job_name=job, src_dir=source_dir, target_dir=destination_dir,slices=slices,vars=vars)
 
                     if checksum_status == 1:
-                        hash_directory(destination_dir,job,current_path,"destination")
+                        hash_directory(destination_dir, job, current_path, "destination")
                         os.chdir(current_path)
                         source_hash_text = "source" + "_"+ job +"_hashed.txt"
-                        destination_hash_text = "destination"  + "_"+ job +"_hashed.txt"
+                        destination_hash_text = "destination" + "_"+ job +"_hashed.txt"
                         if md5(source_hash_text) == md5(destination_hash_text):
                             msg_out = 'source: ' + job +' and destination: ' + job + ' files are identical'
                             print(msg_out)
@@ -195,7 +202,6 @@ def main():
                             print(msg_out)
 
                 # Send : the finish of the sync message back to master node
-
                 message_out = ('Node:', str(my_rank), 'finished :', "", '\r\n')
                 comm.send(message_out, dest=0)
 
