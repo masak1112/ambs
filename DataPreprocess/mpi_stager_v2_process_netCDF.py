@@ -20,7 +20,7 @@ def main():
     parser.add_argument("--destination_dir", type=str, default="/p/scratch/deepacf/bing/processData_size_64_64_3_3t_norm")
     parser.add_argument("--checksum_status", type=int, default=0)
     parser.add_argument("--rsync_status", type=int, default=1)
-    parser.add_argument("--vars", action='extend', type=str, default = "T2") #"MSL","gph500"
+    #parser.add_argument("--vars", action='extend', type=str, default = "T2") #"MSL","gph500"
     parser.add_argument("--lat_s", type=int, default=74+32)
     parser.add_argument("--lat_e", type=int, default=202-32)
     parser.add_argument("--lon_s", type=int, default=550+16+32)
@@ -32,7 +32,8 @@ def main():
     destination_dir = args.destination_dir
     checksum_status = args.checksum_status
     rsync_status = args.rsync_status
-    vars = args.vars
+    vars = ["T2", "T2", "T2"]
+    #vars = args.vars
     lat_s = args.lat_s
     lat_e = args.lat_e
     lon_s = args.lon_s
