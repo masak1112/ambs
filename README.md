@@ -42,26 +42,26 @@ source env_setup/create_env.sh <dir_name> <env_name>
 ### Data Extraction
 
 ```python
-python ../workflow_video_prediction/DataExtraction/mpi_stager_v2.py  --source_dir <input_dir1> --destination_dir <output_dir1>
+python3 ../workflow_video_prediction/DataExtraction/mpi_stager_v2.py  --source_dir <input_dir1> --destination_dir <output_dir1>
 ```
 
 e.g. 
 ```python
-python ../workflow_video_prediction/DataExtraction/mpi_stager_v2.py  --source_dir /p/fastdata/slmet/slmet111/met_data/ecmwf/era5/nc/2017/ --destination_dir /p/scratch/deepacf/bing/extractedData
+python3 ../workflow_video_prediction/DataExtraction/mpi_stager_v2.py  --source_dir /p/fastdata/slmet/slmet111/met_data/ecmwf/era5/nc/2017/ --destination_dir /p/scratch/deepacf/bing/extractedData
 ```
 
 ### Data Preprocessing
 ```python
-python ../workflow_video_prediction/DataPreprocess/mpi_stager_v2_process_netCDF.py --source_dir <output_dir1> --destination_dir <output_dir2> 
+python3 ../workflow_video_prediction/DataPreprocess/mpi_stager_v2_process_netCDF.py --source_dir <output_dir1> --destination_dir <output_dir2> 
 
-python video_prediction/datasets/era5_dataset_v2.py  --source_dir   <output_dir2> --destination_dir <.data/exp_name>
+python3 video_prediction/datasets/era5_dataset_v2.py  --source_dir   <output_dir2> --destination_dir <.data/exp_name>
 ```
 
 Example
 ```python
-python ../workflow_video_prediction/DataPreprocess/mpi_stager_v2_process_netCDF.py --source_dir /p/scratch/deepacf/bing/extractedData --destination_dir /p/scratch/deepacf/bing/preprocessedData
+python3 ../workflow_video_prediction/DataPreprocess/mpi_stager_v2_process_netCDF.py --source_dir /p/scratch/deepacf/bing/extractedData --destination_dir /p/scratch/deepacf/bing/preprocessedData
 
-python video_prediction/datasets/era5_dataset_v2.py /p/scratch/deepacf/bing/preprocessedData  ./data/era5_64_64_3_3t_norm
+python3 video_prediction/datasets/era5_dataset_v2.py /p/scratch/deepacf/bing/preprocessedData  ./data/era5_64_64_3_3t_norm
  ```
  
 ### Trarining
