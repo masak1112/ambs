@@ -9,7 +9,7 @@
 #SBATCH --time=00:20:00
 #SBATCH --partition=devel
 #SBATCH --mail-type=ALL
-#SBATCH --mail-user=b.gong@fz-juelich.de
+#SBATCH --mail-user=s.stadtler@fz-juelich.de
 ##jutil env activate -p deepacf
 
 module --force purge
