@@ -1,7 +1,5 @@
-tensorflow-gpu>=1.9.0
 opencv-python
 scipy
 scikit-image
-h5py
 pandas
 netCDF4
