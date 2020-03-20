@@ -17,7 +17,7 @@ import argparse
 
 def main():
     parser=argparse.ArgumentParser()
-    parser.add_argument("--source_dir",type=str,default=" /p/fastdata/slmet/slmet111/met_data/ecmwf/era5/nc/2017/")
+    parser.add_argument("--source_dir",type=str,default="/p/fastdata/slmet/slmet111/met_data/ecmwf/era5/nc/2017/")
     parser.add_argument("--destination_dir",type=str,default="/p/scratch/deepacf/bing/extractedData")
     parser.add_argument("--checksum_status",type=int,default = 0)
     parser.add_argument("--rsync_status",type=int,default=1)
@@ -28,7 +28,7 @@ def main():
     destination_dir = args.destination_dir
     checksum_status = args.checksum_status
     rsync_status = args.rsync_status
-    if not os.path.exists(destination_dir): os.makedirs(destination_dir)
+
 
     # for the local machine test
     current_path = os.getcwd()
@@ -59,25 +59,22 @@ def main():
 
     # ================================== ALL Nodes:  Read-in parameters ====================================== #
 
-    fileName = "parameters.dat"  # input parameters file
-    fileObj = open(fileName)
-    params = {}
+    # fileName = "parameters.dat"  # input parameters file
+    # fileObj = open(fileName)
+    # params = {}
 
-    for line in fileObj:
-        line = line.strip()
-        read_in_value = line.split("=")
-        if len(read_in_value) == 2:
-            params[read_in_value[0].strip()] = read_in_value[1].strip()
+    # for line in fileObj:
+    #     line = line.strip()
+    #     read_in_value = line.split("=")
+    #     if len(read_in_value) == 2:
+    #         params[read_in_value[0].strip()] = read_in_value[1].strip()
 
-    # input from the user:
-    source_dir = str(params["Source_Directory"])
-    destination_dir = str(params["Destination_Directory"])
-    log_dir = str(params["Log_Directory"])
-    rsync_status = int(params["Rsync_Status"])
-    checksum_status = int(params["Checksum_Status"])
-
-
-
+    # # input from the user:
+    # source_dir = str(params["Source_Directory"])
+    # destination_dir = str(params["Destination_Directory"])
+    # log_dir = str(params["Log_Directory"])
+    # rsync_status = int(params["Rsync_Status"])
+    # checksum_status = int(params["Checksum_Status"])
 
 
 
@@ -94,10 +91,11 @@ def main():
     if not os.path.exists(destination_dir):  # check if the Destination dir. is existing
         if my_rank == 0:
             logging.critical('The Destination does not exist')
-            logging.info('exit status : 1')
-            print('Critical : The Destination does not exist')
+            logging.info('Create a Destination dir')
+            if not os.path.exists(destination_dir): os.makedirs(destination_dir)
+            print('Create a Destination dir')
 
-        sys.exit(1)
+
 
     if my_rank == 0:  # node is master
 
