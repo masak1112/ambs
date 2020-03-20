@@ -1,4 +1,3 @@
-
 #!/bin/bash -x
 #SBATCH --account=deepacf
 #SBATCH --nodes=1
