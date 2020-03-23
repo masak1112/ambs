@@ -90,8 +90,9 @@ def process_data(directory_to_process, target_dir, job_name, slices, vars=("T2",
                 var1 = im.variables[vars[i]][0, :, :]
                 im.close()
                 var1 = var1[slices["lat_s"]:slices["lat_e"], slices["lon_s"]:slices["lon_e"]]
+                print("VAR1",var1)
                 vars_list.append(var1)
-
+            
             # var2 = var2[slices["lat_e"]-slices["lat_s"],slices["lon_e"]-slices["lon_s"]]
             # var3 = var3[slices["lat_e"]-slices["lat_s"],slices["lon_e"]-slices["lon_s"]]
             #print(EU_t2.shape, EU_msl.shape, EU_gph500.shape)
