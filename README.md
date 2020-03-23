@@ -12,8 +12,8 @@ This project aims to adopt the GAN-based architectures,  which original proposed
 This project need to work with [Workflow_parallel_frame_prediction project](https://gitlab.version.fz-juelich.de/gong1/workflow_parallel_frame_prediction)
 - Clone this repo:
 ```bash
-git clone -b master https://gitlab.version.fz-juelich.de/gong1/video_prediction_savp.git
-git clone -b master https://gitlab.version.fz-juelich.de/gong1/workflow_parallel_frame_prediction.git
+git clone master https://gitlab.version.fz-juelich.de/gong1/video_prediction_savp.git
+git clone master https://gitlab.version.fz-juelich.de/gong1/workflow_parallel_frame_prediction.git
 
 ```
 - Install TensorFlow >= 1.9 and dependencies from http://tensorflow.org/
