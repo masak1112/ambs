@@ -4,8 +4,8 @@
 #SBATCH --ntasks=13
 ##SBATCH --ntasks-per-node=13
 #SBATCH --cpus-per-task=1
-#SBATCH --output=pystager-out.%j
-#SBATCH --error=pystager-err.%j
+#SBATCH --output=DataExtraction-out.%j
+#SBATCH --error=DataExtraction-err.%j
 #SBATCH --time=00:20:00
 #SBATCH --partition=devel
 #SBATCH --mail-type=ALL

@@ -4,8 +4,8 @@
 #SBATCH --ntasks=12
 ##SBATCH --ntasks-per-node=12
 #SBATCH --cpus-per-task=1
-#SBATCH --output=process_netcdf-out.%j
-#SBATCH --error=process_netcdf-err.%j
+#SBATCH --output=DataPreprocess-out.%j
+#SBATCH --error=DataPreprocess-err.%j
 #SBATCH --time=00:20:00
 #SBATCH --partition=devel
 #SBATCH --mail-type=ALL
