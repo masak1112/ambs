@@ -85,12 +85,13 @@ def process_data(directory_to_process, target_dir, job_name, slices, vars=("T2",
             print('Open following dataset: '+im_path)
 
             vars_list = []
-            for i in range(len_vars):
+            for j in range(len_vars):
                 im = Dataset(im_path, mode = 'r')
-                var1 = im.variables[vars[i]][0, :, :]
+                print ("vars[i]",vars[j])
+                var1 = im.variables[vars[j]][0, :, :]
                 im.close()
                 var1 = var1[slices["lat_s"]:slices["lat_e"], slices["lon_s"]:slices["lon_e"]]
-                print("VAR1",var1)
+                #print("VAR1",var1)
                 vars_list.append(var1)
             
             # var2 = var2[slices["lat_e"]-slices["lat_s"],slices["lon_e"]-slices["lon_s"]]
@@ -121,7 +122,11 @@ def process_data(directory_to_process, target_dir, job_name, slices, vars=("T2",
             #t2_2 stack. Stack t2 with one empty array
 #            empty_image = np.zeros(shape = (64, 64))
             #EU_stack = np.stack([var1, var2, var3], axis=2)
+            
+            print("var_list",np.array(vars_list).shape)
             EU_stack = np.stack(vars_list, axis = 2)
+            print ("EU_stack shape",EU_stack.shape)
+
             EU_stack_list[i] =list(EU_stack)
             #print('Does ist work? ')
             #print(EU_stack_list[i][:,:,0]==EU_t2)
