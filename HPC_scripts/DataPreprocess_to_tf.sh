@@ -18,4 +18,5 @@ module load Intel/2019.3.199-GCC-8.3.0  ParaStationMPI/5.2.2-1
 module load h5py/2.9.0-Python-3.6.8
 module load mpi4py/3.0.1-Python-3.6.8
 
-srun python video_prediction/datasets/era5_dataset_v2.py  /p/scratch/deepacf/bing/processData_size_64_64_3_3t_norm  ./data/era5_64_64_3_3t_norm
+
+srun python ../video_prediction/datasets/era5_dataset_v2.py  /p/scratch/deepacf/bing/processData_size_64_64_3_3t_norm  ../data/era5_64_64_3_3t_norm
