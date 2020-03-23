@@ -14,7 +14,7 @@
 ##jutil env activate -p cjjsc42
 
 module --force purge 
-module /usr/local/software/jureca/OtherStages
+module use use $OTHERSTAGES
 module load Stages/2019a
 module load GCCcore/.8.3.0
 module load mpi4py/3.0.1-Python-3.6.8
@@ -24,6 +24,6 @@ module load cuDNN/7.5.1.10-CUDA-10.1.105
 
 
 srun python video_prediction/datasets/era5_dataset_v2.py /p/scratch/deepacf/bing/processData_size_64_64_3_2016/splits/ ./data/era5_size_64_64_3_norm_2016
-:
+
 #srun python scripts/generate_transfer_learning.py --input_dir data/era5_size_64_64_1_v2 --dataset_hparams sequence_length=20  --checkpoint pretrained_models/kth/ours_savp  --mode test --results_dir results_test_samples/era5_size_64_64_1_v2_pretrained --dataset era5
 #srun  python scripts/train.py --input_dir data/era5 --dataset era5  --model savp --model_hparams_dict hparams/kth/ours_savp/model_hparams.json --output_dir logs/era5/ours_savp
