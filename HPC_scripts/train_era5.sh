@@ -14,7 +14,7 @@
 ##jutil env activate -p cjjsc42
 
 module --force purge 
-module /usr/local/software/jureca/OtherStages
+module use use $OTHERSTAGES
 module load Stages/2019a
 module load GCCcore/.8.3.0
 module load mpi4py/3.0.1-Python-3.6.8
@@ -24,5 +24,5 @@ module load cuDNN/7.5.1.10-CUDA-10.1.105
 
 #srun  python scripts/train.py --input_dir data/kth --dataset kth  --model savp --model_hparams_dict hparams/kth/ours_savp/model_hparams.json --output_dir logs/kth/ours_savp
 
-srun python scripts/train_v2.py --input_dir data/era5_size_128_128_1 --dataset era5  --model savp --model_hparams_dict hparams/kth/ours_savp/model_hparams.json --output_dir logs/era5_128_128_1/ours_savp  
+srun python ../scripts/train_v2.py --input_dir ../data/era5_size_64_64_3_3t_norm --dataset era5  --model savp --model_hparams_dict hparams/kth/ours_savp/model_hparams.json --output_dir ../logs/era5_size_64_64_3_3t_norm/ours_savp
 #srun  python scripts/train.py --input_dir data/era5 --dataset era5  --model savp --model_hparams_dict hparams/kth/ours_savp/model_hparams.json --output_dir logs/era5/ours_savp
