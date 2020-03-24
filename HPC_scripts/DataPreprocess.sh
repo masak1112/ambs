@@ -14,7 +14,7 @@
 ##jutil env activate -p cjjsc42
 
 module --force purge 
-module use use $OTHERSTAGES
+module use $OTHERSTAGES
 module load Stages/2019a
 module load GCCcore/.8.3.0
 module load mpi4py/3.0.1-Python-3.6.8
