@@ -31,7 +31,7 @@ from matplotlib.colors import LinearSegmentedColormap
 from skimage.metrics import structural_similarity as ssim
 import pickle
 
-with open("geo_info.json","r") as json_file:
+with open("../geo_info.json","r") as json_file:
     geo = json.load(json_file)
     lat = [round(i,2) for i in geo["lat"]]
     lon = [round(i,2) for i in geo["lon"]]
