@@ -84,12 +84,12 @@ class ERA5Dataset_v2(VarLenFeatureVideoDataset):
         shuffle = self.mode == 'train' or (self.mode == 'val' and self.hparams.shuffle_on_val)
         if shuffle:
             random.shuffle(filenames)
-        dataset = tf.data.TFRecordDataset(filenames, buffer_size = 8 * 1024 * 1024)  # todo: what is buffer_size
+        dataset = tf.data.TFRecordDataset(filenames, buffer_size = 8* 1024 * 1024)  # todo: what is buffer_size
         print("files", self.filenames)
         print("mode", self.mode)
         dataset = dataset.filter(self.filter)
         if shuffle:
-            dataset = dataset.apply(tf.contrib.data.shuffle_and_repeat(buffer_size = 1024, count = self.num_epochs))
+            dataset = dataset.apply(tf.contrib.data.shuffle_and_repeat(buffer_size =1024, count = self.num_epochs))
         else:
             dataset = dataset.repeat(self.num_epochs)
 
@@ -171,14 +171,14 @@ def read_frames_and_save_tf_records(output_dir,input_dir,partition_name,N_seq,se
             ###Normalization should adpot the selected variables, here we used duplicated channel temperature variables
             sequences = np.array(sequences)
             ### 3T normalization
-            # sequences[:,:,:,:,0] = (sequences[:,:,:,:,0]-235.2141571044922)/(321.46630859375-235.2141571044922)
-            # sequences[:,:,:,:,1] = (sequences[:,:,:,:,1] - 235.2141571044922) / (321.46630859375 - 235.2141571044922)
-            # sequences[:, :, :, :, 2] = (sequences[:, :, :, :, 2] - 235.2141571044922) / (321.46630859375 - 235.2141571044922)
+            sequences[:,:,:,:,0] = (sequences[:,:,:,:,0]-235.2141571044922)/(321.46630859375-235.2141571044922)
+            sequences[:,:,:,:,1] = (sequences[:,:,:,:,1] - 235.2141571044922) / (321.46630859375 - 235.2141571044922)
+            sequences[:, :, :, :, 2] = (sequences[:, :, :, :, 2] - 235.2141571044922) / (321.46630859375 - 235.2141571044922)
 
             ### T_msl_gph normalizartion
-            sequences[:, :, :, :, 0] = (sequences[:, :, :, :, 0] - 235.2141571044922) / (321.46630859375 - 235.2141571044922)
-            sequences[:, :, :, :, 1] = (sequences[:, :, :, :, 1] - 93401.125) / (105391.4375 - 93401.125)
-            sequences[:, :, :, :, 2] = (sequences[:, :, :, :, 2] - 4836.070232780612) / (6007.097417091836 - 4836.070232780612)
+            #sequences[:, :, :, :, 0] = (sequences[:, :, :, :, 0] - 235.2141571044922) / (321.46630859375 - 235.2141571044922)
+            #sequences[:, :, :, :, 1] = (sequences[:, :, :, :, 1] - 93401.125) / (105391.4375 - 93401.125)
+            #sequences[:, :, :, :, 2] = (sequences[:, :, :, :, 2] - 4836.070232780612) / (6007.097417091836 - 4836.070232780612)
 
             output_fname = 'sequence_{0}_to_{1}.tfrecords'.format(last_start_sequence_iter, sequence_iter - 1)
             output_fname = os.path.join(output_dir, output_fname)

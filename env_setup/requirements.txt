@@ -2,4 +2,3 @@ opencv-python
 scipy
 scikit-image
 pandas
-netCDF4
