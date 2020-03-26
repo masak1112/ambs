@@ -103,6 +103,7 @@ esac
 done
 
 echo "DATA  = ${DATA} "
+
 echo "OUTPUT_DIRECTORY = ${OUTPUT_DIR}"
 
 if [ -d $INPUT_DIR ]; then
@@ -115,8 +116,9 @@ fi
 
 
 if [ $DATA = "era5" ]; then
+
   mkdir -p ${OUTPUT_DIR}
-  python3 video_prediction/datasets/era5_dataset.py ${INPUT_DIR}  ${OUTPUT_DIR}
+  python video_prediction/datasets/era5_dataset.py $INPUT_DIR  ${OUTPUT_DIR}
 else
   echo "dataset name: '$DATA' (choose from 'era5')" >&2
   exit 1
