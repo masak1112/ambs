@@ -108,3 +108,11 @@ ENV/
 # Ignore log- and errorfiles 
 *-err.???????
 *-out.???????
+
+
+#Ignore the results files
+
+**/results_test_samples
+**/logs
+**/vp
+**/hickle
