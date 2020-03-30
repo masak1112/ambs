@@ -1,6 +1,4 @@
-"""bash
-
-
+"""
 ├── ExtractedData
 │   ├── [Year]
 │   │   ├── [Month]
@@ -24,9 +22,6 @@
 │   │   ├── [training_mode]
 │   │   │   ├── [source_data_name_convention]
 │   │   │   │   ├── [model_name]
-
-
-
 
 """
 
