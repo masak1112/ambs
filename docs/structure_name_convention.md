@@ -64,7 +64,7 @@ This is the output folder structure and name convention
 | var	| full  names 	|
 |---	|---	|
 |T|2m temperature|   
-|gph|500 hPa geopotential|   
+|gph500|500 hPa geopotential|   
 |msl|meansealevelpressure|   
 
 
