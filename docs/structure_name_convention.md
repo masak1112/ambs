@@ -36,7 +36,9 @@ This is the output folder structure and name convention
 `Y[yyyy]to[yyyy]M[mm]to[mm]-[nx]_[ny]-[nn.nn]N[ee.ee]E-[var1]_[var2]_[var3]`
 
 
-`Y[yyyy]to[yyyy]M[mm]to[mm]`
+
+### `Y[yyyy]to[yyyy]M[mm]to[mm]`
+
 | Examples	| Name abbrevation 	|
 |---	|---	|
 |all data from March to June of the years 2005-2015	| Y2005toY2015M03to06 |   
@@ -46,9 +48,17 @@ This is the output folder structure and name convention
 |add new whole year data of 2017 on the operational data base |Y2016to2017M01to12 |  
 | Note: Y2016to2017M01to12 = Y2016M01to12_Y2017M01to12|  
 
+### varialbe abbrevaition and the corresponding full names
+
+| var	| full  names 	|
+|---	|---	|
+|T|2m temperature|   
+|gph|500 hPa geopotential|   
+|msl|meansealevelpressure|   
+
+
 
 ### Example
-
 
 ```
 ├── ExtractedData
