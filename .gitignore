@@ -62,7 +62,8 @@ instance/
 .scrapy
 
 # Sphinx documentation
-docs/_build/
+#docs/_build/
+
 
 # PyBuilder
 target/
@@ -104,3 +105,17 @@ ENV/
 .idea/*
 
 *.DS_Store
+
+# Ignore log- and errorfiles 
+*-err.???????
+*-out.???????
+
+
+#Ignore the results files
+
+**/results_test_samples
+**/logs
+**/vp
+**/hickle
+*.tfrecords
+**/era5_size_64_64_3_3t_norm
