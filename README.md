@@ -91,6 +91,7 @@ example:
 
 
 ### Recomendation for output folder structure and name convention
+The details can be found [name_convention](docs/structure_name_convention.md)
 
 ```
 ├── ExtractedData
