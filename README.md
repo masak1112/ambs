@@ -90,7 +90,7 @@ example:
 
 
 
-### Recomendation of output folder structure and name convention
+### Recomendation for output folder structure and name convention
 
 ```
 ├── ExtractedData
