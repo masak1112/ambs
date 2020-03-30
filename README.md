@@ -86,7 +86,7 @@ python3 scripts/generate_transfer_learning_finetune.py --input_dir data/era5_siz
 example:
 ```bash
 ./bash/workflow_era5.sh savp end_to_end  era5_size_64_64_3_3t_norm
-
+```
 
 
 
