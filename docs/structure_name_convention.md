@@ -42,6 +42,10 @@ This is the output folder structure and name convention
 
 `Y[yyyy]to[yyyy]M[mm]to[mm]-[nx]_[ny]-[nn.nn]N[ee.ee]E-[var1]_[var2]_[var3]`
 
+ - Y[yyyy]to[yyyy]M[mm]to[mm]
+ - [nx]_[ny] :  the size of images,e.g 64_64 means 64*64 pixels 
+ - [nn.nn]N[ee.ee]E :the geolocation of selected regions with two decimal points. e.g : 0.00N11.50E
+ - [var1]_[var2]_[var3] : [abbrevation of selected variables from table ](###variable abbrevaition and the corresponding full names)  
 
 ### `Y[yyyy]to[yyyy]M[mm]to[mm]`
 
@@ -53,7 +57,6 @@ This is the output folder structure and name convention
 |operational’ data base: whole year 2016 |  Y2016M01to12 |   
 |add new whole year data of 2017 on the operational data base |Y2016to2017M01to12 |  
 | Note: Y2016to2017M01to12 = Y2016M01to12_Y2017M01to12|  
-
 
 
 ### variable abbrevaition and the corresponding full names
