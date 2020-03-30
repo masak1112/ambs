@@ -32,16 +32,15 @@ This is the output folder structure and name convention
 | Arguments	| Value	|
 |---	|---	|
 | [Year]	| 2005;2005;2007 ...|
-| [Month]	| 01;02;03 ...,12	|
+| [Month]	| 01;02;03 ...,12|
+|[Data_name_convention]|Y[yyyy]to[yyyy]M[mm]to[mm]-[nx]_[ny]-[nn.nn]N[ee.ee]E-[var1]_[var2]_[var3]|
+|[model_name]| Ours_savp;  ours_gan;  ours_vae; prednet|
+|[training_mode]|end_to_end; transfer_learning|
 
 
 ## Data name convention
 
 `Y[yyyy]to[yyyy]M[mm]to[mm]-[nx]_[ny]-[nn.nn]N[ee.ee]E-[var1]_[var2]_[var3]`
-
-
-
-
 
 
 ### `Y[yyyy]to[yyyy]M[mm]to[mm]`
