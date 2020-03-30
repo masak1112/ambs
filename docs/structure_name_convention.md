@@ -1,5 +1,6 @@
+This is the output folder structure and name convention
 
-##Shared folder structure
+## Shared folder structure
 
 ```
 ├── ExtractedData
@@ -27,6 +28,24 @@
 │   │   │   │   ├── [model_name]
 
 ```
+
+
+
+## Data name convention
+
+`Y[yyyy]to[yyyy]M[mm]to[mm]-[nx]_[ny]-[nn.nn]N[ee.ee]E-[var1]_[var2]_[var3]`
+
+
+`Y[yyyy]to[yyyy]M[mm]to[mm]`
+| Examples	| Name abbrevation 	|
+|---	|---	|
+|all data from March to June of the years 2005-2015	| Y2005toY2015M03to06 |   
+|data from February to May of years 2005-2008 + data from March to June of year 2015| Y2005to2008M02to05_Y2015M03to06 |   
+|Data from February to May, and October to December of 2005 |  Y2005M02to05_Y2015M10to12 |   
+|operational’ data base: whole year 2016 |  Y2016M01to12 |   
+|add new whole year data of 2017 on the operational data base |Y2016to2017M01to12 |  
+| Note: Y2016to2017M01to12 = Y2016M01to12_Y2017M01to12|  
+
 
 ### Example
 
