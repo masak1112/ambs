@@ -45,7 +45,7 @@ This is the output folder structure and name convention
  - Y[yyyy]to[yyyy]M[mm]to[mm]
  - [nx]_[ny] :  the size of images,e.g 64_64 means 64*64 pixels 
  - [nn.nn]N[ee.ee]E :the geolocation of selected regions with two decimal points. e.g : 0.00N11.50E
- - [var1]_[var2]_[var3] : [Use the abbrevation of selected variables](#variable abbrevaition and the corresponding full names)  
+ - [var1]_[var2]_[var3] : [Use the abbrevation of selected variables](#variable-abbrevaition-and-the-corresponding-full-names)  
 
 ### `Y[yyyy]to[yyyy]M[mm]to[mm]`
 
