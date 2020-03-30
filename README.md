@@ -87,3 +87,34 @@ example:
 ```bash
 ./bash/workflow_era5.sh savp end_to_end  era5_size_64_64_3_3t_norm
 ```
+
+
+
+### Recomendation for output folder structure and name convention
+
+```
+├── ExtractedData
+│   ├── [Year]
+│   │   ├── [Month]
+│   │   │   ├── **/*.netCDF
+├── PreprocessedData
+│   ├── [Data_name_convention]
+│   │   ├── hickle
+│   │   │   ├── train
+│   │   │   ├── val
+│   │   │   ├── test
+│   │   ├── tfrecords
+│   │   │   ├── train
+│   │   │   ├── val
+│   │   │   ├── test
+├── Models
+│   ├── [Data_name_convention]
+│   │   ├── [model_name]
+│   │   ├── [model_name]
+├── Results
+│   ├── [Data_name_convention]
+│   │   ├── [training_mode]
+│   │   │   ├── [source_data_name_convention]
+│   │   │   │   ├── [model_name]
+
+```
