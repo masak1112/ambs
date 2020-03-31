@@ -1,0 +1,55 @@
+se node ----
+FROM opensuse/leap:latest AS base
+MAINTAINER Lukas Leufen <l.leufen@fz-juelich.de>
+
+# install git
+RUN zypper --non-interactive install git
+
+# install python3
+RUN zypper --non-interactive install python3 python3-devel
+
+# install pip
+RUN zypper --non-interactive install python3-pip
+
+# upgrade pip
+RUN pip install --upgrade pip
+
+# install curl
+RUN zypper --non-interactive install curl
+
+# install make
+RUN zypper --non-interactive install make
+
+# install gcc
+RUN zypper --non-interactive install gcc-c++
+
+# ---- test node ----
+FROM base AS test
+
+# install pytest
+RUN pip install pytest pytest-html pytest-lazy-fixture
+
+# ---- coverage node ----
+FROM test AS coverage
+
+# install pytest coverage
+RUN pip install pytest-cov
+
+
+# ---- docs node ----
+FROM base AS docs
+
+# install sphinx
+RUN pip install sphinx
+
+# ---- django version ----
+FROM base AS django
+
+# install django requirements
+RUN zypper --non-interactive install binutils libproj-devel gdal-devel
+
+# install cartopy
+RUN zypper --non-interactive install proj
+RUN pip install cython numpy==1.15.4 pyshp six pyproj shapely matplotlib pillow
+RUN zypper --non-interactive install geos-devel
+RUN pip install cartopy==0.16.0

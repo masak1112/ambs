@@ -1,0 +1,43 @@
+# ---- base node ----
+FROM tensorflow/tensorflow:1.13.1-gpu-py3
+
+# update apt-get
+RUN apt-get update -y
+
+ENV NVIDIA_VISIBLE_DEVICES all
+ENV NVIDIA_DRIVER_CAPABILITIES compute,utility
+
+#RUN pip install keras==2.2.4
+
+RUN apt-get install software-properties-common -y
+RUN add-apt-repository ppa:deadsnakes/ppa -y
+RUN apt-get update -y
+RUN apt-get install python3.6 python3.6-dev -y
+RUN apt-get install git -y
+RUN apt-get install gnupg-curl -y
+RUN apt-get install wget -y
+#RUN apt-get install linux-headers-$(uname -r) -y
+#
+#RUN wget https://developer.download.nvidia.com/compute/cuda/repos/ubuntu1604/x86_64/cuda-repo-ubuntu1604_10.0.130-1_amd64.deb
+#RUN dpkg -i cuda-repo-ubuntu1604_10.0.130-1_amd64.deb
+#RUN apt-key adv --fetch-keys https://developer.download.nvidia.com/compute/cuda/repos/ubuntu1604/x86_64/7fa2af80.pub
+#RUN apt-get update -y
+#RUN DEBIAN_FRONTEND=noninteractive apt-get -qy install cuda-10-0
+
+#RUN apt-get install build-essential dkms -y
+#RUN apt-get install freeglut3 freeglut3-dev libxi-dev libxmu-dev -y
+
+
+#RUN add-apt-repository ppa:graphics-drivers/ppa -y
+RUN apt-get update -y
+RUN apt-get install python3-pip -y
+RUN python3.6 -m pip install --upgrade pip
+RUN python3.6 -m pip install tensorflow-gpu==1.13.1 
+RUN python3.6 -m pip install keras==2.2.4
+
+# install make
+RUN apt-get install make -y
+RUN apt-get install libproj-dev -y
+RUN apt-get install proj-bin -y
+RUN apt-get install libgeos++-dev -y
+RUN pip3.6 install GEOS
