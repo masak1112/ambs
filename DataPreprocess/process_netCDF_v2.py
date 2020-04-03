@@ -85,15 +85,16 @@ def process_data(directory_to_process, target_dir, job_name, slices, vars=("T2",
             print('Open following dataset: '+im_path)
 
             vars_list = []
-            for j in range(len_vars):
+            varmin, varmax, varavg = np.zeros(len_vars)
+            for i in range(len_vars):
                 im = Dataset(im_path, mode = 'r')
-                print ("vars[i]",vars[j])
-                var1 = im.variables[vars[j]][0, :, :]
+                var1 = im.variables[vars[i]][0, :, :]
                 im.close()
                 var1 = var1[slices["lat_s"]:slices["lat_e"], slices["lon_s"]:slices["lon_e"]]
-                #print("VAR1",var1)
                 vars_list.append(var1)
-            
+                # ML 2020/03/31: apply some statistics
+                varmin[i], varmax[i] = np.min(varmin[i],np.amin(var1)), np.max(varmax[i],np.amax(var1))
+                varavg[i] += np.average(var1) 
             # var2 = var2[slices["lat_e"]-slices["lat_s"],slices["lon_e"]-slices["lon_s"]]
             # var3 = var3[slices["lat_e"]-slices["lat_s"],slices["lon_e"]-slices["lon_s"]]
             #print(EU_t2.shape, EU_msl.shape, EU_gph500.shape)
@@ -122,11 +123,7 @@ def process_data(directory_to_process, target_dir, job_name, slices, vars=("T2",
             #t2_2 stack. Stack t2 with one empty array
 #            empty_image = np.zeros(shape = (64, 64))
             #EU_stack = np.stack([var1, var2, var3], axis=2)
-            
-            print("var_list",np.array(vars_list).shape)
             EU_stack = np.stack(vars_list, axis = 2)
-            print ("EU_stack shape",EU_stack.shape)
-
             EU_stack_list[i] =list(EU_stack)
             #print('Does ist work? ')
             #print(EU_stack_list[i][:,:,0]==EU_t2)
@@ -142,6 +139,20 @@ def process_data(directory_to_process, target_dir, job_name, slices, vars=("T2",
     target_file = os.path.join(target_dir, 'X_' + str(job_name) + '.hkl')
     hkl.dump(X, target_file) #Not optimal!
     print(target_file, "is saved")
+    # ML 2020/03/31: write json file with statistics
+    stat_dict = {}
+    for i in range(len_vars):
+        stat_dict[vars[i]]=[]
+        stat_dict[vars[i]].append({
+                  'min': varmin[i]
+                  'max': varmax[i]
+                  'avg': varavg[i]/len(imageList)
+
+    js_file = os.path.join(target_dir,'stat_' + str(job_name) + '.json')
+    with open(js_file,'w') as stat_out:
+	json.dump(stat_dict, stat_out)
+    print(js_file+" was created successfully...")
+
         #hkl.dump(source_list, os.path.join(target_dir, 'sources_' + str(job) + '.hkl'))
 
         #for category, folder in splits[split]:
