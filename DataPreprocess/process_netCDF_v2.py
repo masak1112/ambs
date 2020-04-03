@@ -85,7 +85,8 @@ def process_data(directory_to_process, target_dir, job_name, slices, vars=("T2",
             print('Open following dataset: '+im_path)
 
             vars_list = []
-            varmin, varmax, varavg = np.zeros(len_vars)
+            varmin, varmax = np.full(len_vars,np.nan)
+            varavg = np.zeros(len_vars)
             for i in range(len_vars):
                 im = Dataset(im_path, mode = 'r')
                 var1 = im.variables[vars[i]][0, :, :]
@@ -93,7 +94,7 @@ def process_data(directory_to_process, target_dir, job_name, slices, vars=("T2",
                 var1 = var1[slices["lat_s"]:slices["lat_e"], slices["lon_s"]:slices["lon_e"]]
                 vars_list.append(var1)
                 # ML 2020/03/31: apply some statistics
-                varmin[i], varmax[i] = np.min(varmin[i],np.amin(var1)), np.max(varmax[i],np.amax(var1))
+                varmin[i], varmax[i] = np.fmin(varmin[i],np.amin(var1)), np.fmax(varmax[i],np.amax(var1))
                 varavg[i] += np.average(var1) 
             # var2 = var2[slices["lat_e"]-slices["lat_s"],slices["lon_e"]-slices["lon_s"]]
             # var3 = var3[slices["lat_e"]-slices["lat_s"],slices["lon_e"]-slices["lon_s"]]
@@ -227,6 +228,44 @@ def split_data(target_dir, partition= [0.6, 0.2, 0.2]):
         hkl.dump(files, os.path.join(split_dir,'sources_' + split + '.hkl'))
 
 
+def get_stat(stat_dict,stat_name):
+    '''
+    Unpacks statistics dictionary and returns values of stat_name
+    '''
+
+    try:
+        return [stat_dict[i][0][stat_name] for i in [*stat_dict.keys()]]
+    except:
+        raise ValueError("Could not find "+stat_name+" for all variables of input dictionary.")
+
+def create_stat_json_master(target_dir,nnodes_activei,vars):
+    ''' 
+    Reads all json-files created by slave nodes in 'process_data'-function (see above),
+    computes final statistics and writes them in final file to be used in subsequent steps.
+    '''
+ 
+    nvars = len(vars)
+
+    all_stat_files = os.path(target_dir+"stat_*.json")
+    nfiles         = len(all_stat_files)
+
+    if (nfiles == nnodes_active):
+       raise ValueError("Found less files than expected by number of active slave nodes!")
+
+    varmin, varmax, varavg = np.full(nvars,np.nan)   # initializes with NaNs -> make use of np.fmin/np.fmax subsequently
+
+    for ff in range(nfiles):
+        with open(all_stat_files[ff]) as js_file:
+            data = json.load(js_file)
+            
+            varmin, varmax = np.fmin(varmin,get_stat(data,"min")), np.fmax(varmax,get_stat(data,"max"))
+
+            
+            
+
+                 
+
+    
 
 
 
