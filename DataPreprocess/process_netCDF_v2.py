@@ -145,8 +145,8 @@ def process_data(directory_to_process, target_dir, job_name, slices, vars=("T2",
     for i in range(len_vars):
         stat_dict[vars[i]]=[]
         stat_dict[vars[i]].append({
-                  'min': varmin[i]
-                  'max': varmax[i]
+                  'min': varmin[i],
+                  'max': varmax[i],
                   'avg': varavg[i]/len(imageList)
 
     js_file = os.path.join(target_dir,'stat_' + str(job_name) + '.json')
@@ -267,8 +267,8 @@ def create_stat_json_master(target_dir,nnodes_active,vars):
     for i in range(nvars):
         stat_dict[vars[i]]=[]
         stat_dict[vars[i]].append({
-                  'min': varmin[i]
-                  'max': varmax[i]
+                  'min': varmin[i],
+                  'max': varmax[i],
                   'avg': varavg[i]/nfiles
 
     js_file = os.path.join(target_dir,'statistics.json')
