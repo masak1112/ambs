@@ -145,7 +145,7 @@ def process_data(directory_to_process, target_dir, job_name, slices, vars=("T2",
     print(target_file, "is saved")
     # ML 2020/03/31: write json file with statistics
     vars_uni, varsind, nvars = np.unique(vars,unique_indices=True,unique_counts=True)
-´   varmin, varmax, varavg = varmin[varsind], varmax[varsind], varavg[varsind] 
+    varmin, varmax, varavg = varmin[varsind], varmax[varsind], varavg[varsind] 
     stat_dict = {}
     for i in range(navrs):
         varavg[i] /= len(imageList)
