@@ -9,7 +9,7 @@
 #SBATCH --time=00:20:00
 #SBATCH --partition=devel
 #SBATCH --mail-type=ALL
-#SBATCH --mail-user=b.gong@fz-juelich.de
+#SBATCH --mail-user=m.langguth@fz-juelich.de
 
 module --force purge
 module use  $OTHERSTAGES
@@ -20,5 +20,5 @@ module load mpi4py/3.0.1-Python-3.6.8
 
 srun python ../../workflow_parallel_frame_prediction/DataPreprocess/mpi_stager_v2_process_netCDF.py \
  --source_dir /p/scratch/deepacf/video_prediction_shared_folder/extractedData/ \
- --destination_dir /p/scratch/deepacf/video_prediction_shared_folder/preprocessedData/Y2017M01to12-128_160-74.00N710E-T_MSL_gph500 \
- --vars T2 MSL gph500 --lat_s 74 --lat_e 202 --lon_s 550 --lon_e 710
+ --destination_dir /p/scratch/deepacf/video_prediction_shared_folder//Y2017M01to12-128_160-74.00N710E-T_T_T \
+ --vars T2 T2 T2 --lat_s 74 --lat_e 202 --lon_s 550 --lon_e 710
