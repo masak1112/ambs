@@ -257,10 +257,11 @@ def create_stat_json_master(target_dir,nnodes_active,vars):
     '''
  
 
-    all_stat_files = glob.glob(target_dir+"stat_*.json")
-    nfiles         = len(all_stat_files)
+    all_stat_files = glob.glob(target_dir+"/stat_*.json")
 
-    if (nfiles == nnodes_active):
+
+    nfiles         = len(all_stat_files)
+    if (nfiles < nnodes_active):
        raise ValueError("Found less files than expected by number of active slave nodes!")
 
 
@@ -277,7 +278,8 @@ def create_stat_json_master(target_dir,nnodes_active,vars):
             varmin, varmax = np.fmin(varmin,get_stat(data,"min")), np.fmax(varmax,get_stat(data,"max"))
             varavg        += get_stat(data,"avg")
             
-    # write final statistics 
+    # write final statistics
+    print("Bing: debugging : nfiles",nfiles)
     stat_dict = {}
     for i in range(nvars):
         stat_dict[vars_uni[i]]=[]
