@@ -144,10 +144,12 @@ def process_data(directory_to_process, target_dir, job_name, slices, vars=("T2",
     hkl.dump(X, target_file) #Not optimal!
     print(target_file, "is saved")
     # ML 2020/03/31: write json file with statistics
-    vars_uni, varsind, nvars = np.unique(vars,unique_indices=True,unique_counts=True)
-´   varmin, varmax, varavg = varmin[varsind], varmax[varsind], varavg[varsind] 
+    vars_uni, varsind = np.unique(vars,return_index=True)
+    nvars = len(vars_uni)
+
+    varmin, varmax, varavg = varmin[varsind], varmax[varsind], varavg[varsind] 
     stat_dict = {}
-    for i in range(navrs):
+    for i in range(nvars):
         varavg[i] /= len(imageList)
         print('varavg['+str(i)+'] : {0:5.2f}'.format(varavg[i]))
         print('length of imageList: ',len(imageList))
@@ -262,7 +264,8 @@ def create_stat_json_master(target_dir,nnodes_active,vars):
        raise ValueError("Found less files than expected by number of active slave nodes!")
 
 
-    vars_uni, varsind, nvars = np.unique(vars,unique_counts=True)
+    vars_uni = np.unique(vars)
+    nvars    = len(vars_uni)
 
     varmin, varmax = np.full(nvars,np.nan), np.full(nvars,np.nan)   # initializes with NaNs -> make use of np.fmin/np.fmax subsequently
     varavg         = np.zeros(nvars)
