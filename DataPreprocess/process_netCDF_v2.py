@@ -78,15 +78,18 @@ def process_data(directory_to_process, target_dir, job_name, slices, vars=("T2",
     #####		overlay arrays for RGB like style.
     #####		Save everything after for loop.
     EU_stack_list = [0] * (len(imageList))
-
+   
+    # ML 2020/04/06 S
+    # Some inits
+    varmin, varmax = np.full(len_vars,np.nan), np.full(len_vars,np.nan)
+    varavg = np.zeros(len_vars)
+    # ML 2020/04/06 E
     for i, im_file in enumerate(imageList):
         try:
             im_path = os.path.join(directory_to_process, im_file)
             print('Open following dataset: '+im_path)
 
             vars_list = []
-            varmin, varmax = np.full(len_vars,np.nan)
-            varavg = np.zeros(len_vars)
             for i in range(len_vars):
                 im = Dataset(im_path, mode = 'r')
                 var1 = im.variables[vars[i]][0, :, :]
@@ -148,10 +151,11 @@ def process_data(directory_to_process, target_dir, job_name, slices, vars=("T2",
                   'min': varmin[i],
                   'max': varmax[i],
                   'avg': varavg[i]/len(imageList)
-
+        })
+   
     js_file = os.path.join(target_dir,'stat_' + str(job_name) + '.json')
     with open(js_file,'w') as stat_out:
-	json.dump(stat_dict, stat_out)
+        json.dump(stat_dict, stat_out)
     print(js_file+" was created successfully...")
 
         #hkl.dump(source_list, os.path.join(target_dir, 'sources_' + str(job) + '.hkl'))
@@ -271,9 +275,11 @@ def create_stat_json_master(target_dir,nnodes_active,vars):
                   'max': varmax[i],
                   'avg': varavg[i]/nfiles
 
+        })
+
     js_file = os.path.join(target_dir,'statistics.json')
     with open(js_file,'w') as stat_out:
-	json.dump(stat_dict, stat_out)
+        json.dump(stat_dict, stat_out)
     print(js_file+" was created successfully...")
             
 
