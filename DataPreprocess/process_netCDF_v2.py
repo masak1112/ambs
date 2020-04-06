@@ -238,7 +238,7 @@ def get_stat(stat_dict,stat_name):
     except:
         raise ValueError("Could not find "+stat_name+" for all variables of input dictionary.")
 
-def create_stat_json_master(target_dir,nnodes_activei,vars):
+def create_stat_json_master(target_dir,nnodes_active,vars):
     ''' 
     Reads all json-files created by slave nodes in 'process_data'-function (see above),
     computes final statistics and writes them in final file to be used in subsequent steps.
@@ -252,15 +252,29 @@ def create_stat_json_master(target_dir,nnodes_activei,vars):
     if (nfiles == nnodes_active):
        raise ValueError("Found less files than expected by number of active slave nodes!")
 
-    varmin, varmax, varavg = np.full(nvars,np.nan)   # initializes with NaNs -> make use of np.fmin/np.fmax subsequently
+    varmin, varmax = np.full(nvars,np.nan)   # initializes with NaNs -> make use of np.fmin/np.fmax subsequently
+    varavg         = np.zeros(nvars)
 
     for ff in range(nfiles):
         with open(all_stat_files[ff]) as js_file:
             data = json.load(js_file)
             
             varmin, varmax = np.fmin(varmin,get_stat(data,"min")), np.fmax(varmax,get_stat(data,"max"))
-
+            varavg        += get_stat(data,"avg")
             
+    # write final statistics 
+    stat_dict = {}
+    for i in range(nvars):
+        stat_dict[vars[i]]=[]
+        stat_dict[vars[i]].append({
+                  'min': varmin[i]
+                  'max': varmax[i]
+                  'avg': varavg[i]/nfiles
+
+    js_file = os.path.join(target_dir,'statistics.json')
+    with open(js_file,'w') as stat_out:
+	json.dump(stat_dict, stat_out)
+    print(js_file+" was created successfully...")
             
 
                  
