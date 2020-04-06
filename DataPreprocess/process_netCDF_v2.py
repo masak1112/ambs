@@ -257,12 +257,16 @@ def create_stat_json_master(target_dir,nnodes_active,vars):
     '''
  
 
-    all_stat_files = glob.glob(target_dir+"stat_*.json")
+    all_stat_files = glob.glob(target_dir+"/"+"stat_*.json")
     nfiles         = len(all_stat_files)
+  
+    print("nfiles: "+str(nfiles))
+    print("active nodes: "+str(nnodes_active))
 
-    if (nfiles == nnodes_active):
+    if (nfiles < nnodes_active):
        raise ValueError("Found less files than expected by number of active slave nodes!")
 
+  
 
     vars_uni = np.unique(vars)
     nvars    = len(vars_uni)
@@ -274,6 +278,7 @@ def create_stat_json_master(target_dir,nnodes_active,vars):
         with open(all_stat_files[ff]) as js_file:
             data = json.load(js_file)
             
+            print(get_stat(data,"min")) 
             varmin, varmax = np.fmin(varmin,get_stat(data,"min")), np.fmax(varmax,get_stat(data,"max"))
             varavg        += get_stat(data,"avg")
             
