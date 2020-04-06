@@ -227,7 +227,7 @@ def split_data(target_dir, partition= [0.6, 0.2, 0.2]):
         hkl.dump(X, os.path.join(split_dir, 'X_' + split + '.hkl'))
         hkl.dump(files, os.path.join(split_dir,'sources_' + split + '.hkl'))
 
-
+# ML 2020/04/03 S
 def get_stat(stat_dict,stat_name):
     '''
     Unpacks statistics dictionary and returns values of stat_name
@@ -277,6 +277,7 @@ def create_stat_json_master(target_dir,nnodes_active,vars):
     print(js_file+" was created successfully...")
             
 
+# ML 2020/04/03 E
                  
 
     
