@@ -12,7 +12,7 @@ import numpy as np
 #from scipy.misc import imresize
 import hickle as hkl
 from netCDF4 import Dataset
-
+import json
 
 #TODO: Not optimal with DATA_DIR and filingPath: In original process_kitti.py 
 # there's just DATA_DIR (which is specified in kitti_settings.py) and in there
@@ -84,7 +84,7 @@ def process_data(directory_to_process, target_dir, job_name, slices, vars=("T2",
     varmin, varmax = np.full(len_vars,np.nan), np.full(len_vars,np.nan)
     varavg = np.zeros(len_vars)
     # ML 2020/04/06 E
-    for i, im_file in enumerate(imageList):
+    for j, im_file in enumerate(imageList):
         try:
             im_path = os.path.join(directory_to_process, im_file)
             print('Open following dataset: '+im_path)
@@ -128,14 +128,14 @@ def process_data(directory_to_process, target_dir, job_name, slices, vars=("T2",
 #            empty_image = np.zeros(shape = (64, 64))
             #EU_stack = np.stack([var1, var2, var3], axis=2)
             EU_stack = np.stack(vars_list, axis = 2)
-            EU_stack_list[i] =list(EU_stack)
+            EU_stack_list[j] =list(EU_stack)
             #print('Does ist work? ')
             #print(EU_stack_list[i][:,:,0]==EU_t2)
             #print(EU_stack[:,:,1]==EU_msl
         except Exception as err:
             print("*************ERROR*************", err)
             print("Error message {} from file {}".format(err,im_file))
-            EU_stack_list[i] = list(EU_stack) # use the previous image as replacement, we can investigate further how to deal with the missing values
+            EU_stack_list[j] = list(EU_stack) # use the previous image as replacement, we can investigate further how to deal with the missing values
             continue
             
     X = np.array(EU_stack_list)
@@ -144,13 +144,19 @@ def process_data(directory_to_process, target_dir, job_name, slices, vars=("T2",
     hkl.dump(X, target_file) #Not optimal!
     print(target_file, "is saved")
     # ML 2020/03/31: write json file with statistics
+    vars_uni, varsind, nvars = np.unique(vars,unique_indices=True,unique_counts=True)
+´   varmin, varmax, varavg = varmin[varsind], varmax[varsind], varavg[varsind] 
     stat_dict = {}
-    for i in range(len_vars):
-        stat_dict[vars[i]]=[]
-        stat_dict[vars[i]].append({
+    for i in range(navrs):
+        varavg[i] /= len(imageList)
+        print('varavg['+str(i)+'] : {0:5.2f}'.format(varavg[i]))
+        print('length of imageList: ',len(imageList))
+
+        stat_dict[vars_uni[i]]=[]
+        stat_dict[vars_uni[i]].append({
                   'min': varmin[i],
                   'max': varmax[i],
-                  'avg': varavg[i]/len(imageList)
+                  'avg': varavg[i]
         })
    
     js_file = os.path.join(target_dir,'stat_' + str(job_name) + '.json')
@@ -248,15 +254,17 @@ def create_stat_json_master(target_dir,nnodes_active,vars):
     computes final statistics and writes them in final file to be used in subsequent steps.
     '''
  
-    nvars = len(vars)
 
-    all_stat_files = os.path(target_dir+"stat_*.json")
+    all_stat_files = glob.glob(target_dir+"stat_*.json")
     nfiles         = len(all_stat_files)
 
     if (nfiles == nnodes_active):
        raise ValueError("Found less files than expected by number of active slave nodes!")
 
-    varmin, varmax = np.full(nvars,np.nan)   # initializes with NaNs -> make use of np.fmin/np.fmax subsequently
+
+    vars_uni, varsind, nvars = np.unique(vars,unique_counts=True)
+
+    varmin, varmax = np.full(nvars,np.nan), np.full(nvars,np.nan)   # initializes with NaNs -> make use of np.fmin/np.fmax subsequently
     varavg         = np.zeros(nvars)
 
     for ff in range(nfiles):
@@ -269,8 +277,8 @@ def create_stat_json_master(target_dir,nnodes_active,vars):
     # write final statistics 
     stat_dict = {}
     for i in range(nvars):
-        stat_dict[vars[i]]=[]
-        stat_dict[vars[i]].append({
+        stat_dict[vars_uni[i]]=[]
+        stat_dict[vars_uni[i]].append({
                   'min': varmin[i],
                   'max': varmax[i],
                   'avg': varavg[i]/nfiles
