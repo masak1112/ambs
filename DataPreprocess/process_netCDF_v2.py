@@ -11,7 +11,7 @@ import numpy as np
 #from imageio import imread
 #from scipy.misc import imresize
 import hickle as hkl
-from netCDF4 import Dataset
+from netCDF4 import Dataset,num2date
 
 
 #TODO: Not optimal with DATA_DIR and filingPath: In original process_kitti.py 
@@ -84,57 +84,36 @@ def process_data(directory_to_process, target_dir, job_name, slices, vars=("T2",
         try:
             im_path = os.path.join(directory_to_process, im_file)
             print('Open following dataset: '+im_path)
+             
             
             #20200408,Bing
-            temporal_info = extract_temporal_info(im_path)
+            
+            im = Dataset(im_path, mode = 'r')
+            times = im.variables['time']
+            time = num2date(times[:],units=times.units,calendar=times.calendar)
             vars_list = []
             for j in range(len_vars):
-                im = Dataset(im_path, mode = 'r')
-                print ("vars[i]",vars[j])
                 var1 = im.variables[vars[j]][0, :, :]
-                im.close()
                 var1 = var1[slices["lat_s"]:slices["lat_e"], slices["lon_s"]:slices["lon_e"]]
-                #print("VAR1",var1)
                 vars_list.append(var1)
-            
-            # var2 = var2[slices["lat_e"]-slices["lat_s"],slices["lon_e"]-slices["lon_s"]]
-            # var3 = var3[slices["lat_e"]-slices["lat_s"],slices["lon_e"]-slices["lon_s"]]
-            #print(EU_t2.shape, EU_msl.shape, EU_gph500.shape)
-            #Normal stack: T2, MSL & GPH500
-            #EU_stack = np.stack([EU_t2, EU_msl, EU_gph500],axis=2)
-            #Stack T2 only:
-            #EU_stack = np.stack([EU_t2, EU_t2, EU_t2],axis=2)
-            #EU_stack_list[i]=EU_stack
-            #Stack T2*2 MSL*1:
-            #EU_stack = np.stack([EU_t2, EU_t2, EU_msl],axis=2)
-            #EU_stack_list[i]=EU_stack
-            #EU_stack = np.stack([EU_t2, EU_msl, EU_msl],axis=2)
-            #EU_stack_list[i]=EU_stack
-            #Stack T2*2 gph500*1:
-            #EU_stack = np.stack([EU_t2, EU_t2, EU_gph500],axis=2)
-            #EU_stack_list[i]=EU_stack
-            #Stack T2*1 gph500*2
-            #EU_stack = np.stack([EU_t2, EU_gph500, EU_gph500],axis=2)
-            #EU_stack_list[i]=EU_stack
-            #print(EU_stack.shape)
-            #X[i]=EU_stack #this should be unnecessary
-            #t2_1 stack. Stack t2 with two empty arrays
-            #empty_image = np.zeros(shape = (128, 160))
-            #EU_stack = np.stack([EU_t2, empty_image, empty_image],axis=2)
-            #EU_stack_list[i]=EU_stack
-            #t2_2 stack. Stack t2 with one empty array
-#            empty_image = np.zeros(shape = (64, 64))
-            #EU_stack = np.stack([var1, var2, var3], axis=2)
-            
+            im.close()
+
             print("var_list",np.array(vars_list).shape)
             EU_stack = np.stack(vars_list, axis = 2)
             print ("EU_stack shape",EU_stack.shape)
 
             EU_stack_list[i] =list(EU_stack)
+            #20200408,bing
+            print("0408 debug time",time)
+            temporal_list[i] = list(time)
             #print('Does ist work? ')
             #print(EU_stack_list[i][:,:,0]==EU_t2)
             #print(EU_stack[:,:,1]==EU_msl
         except Exception as err:
+            im_path = os.path.join(directory_to_process, im_file)
+            print('Open following dataset: '+im_path)
+            im = Dataset(im_path, mode = 'r')
+            print("BING DEBUGGING!!!!!!!!!!!!!!!!!",im.variables["T2"][:])
             print("*************ERROR*************", err)
             print("Error message {} from file {}".format(err,im_file))
             EU_stack_list[i] = list(EU_stack) # use the previous image as replacement, we can investigate further how to deal with the missing values
@@ -146,7 +125,7 @@ def process_data(directory_to_process, target_dir, job_name, slices, vars=("T2",
     hkl.dump(X, target_file) #Not optimal!
     print(target_file, "is saved")
     #20200408:bing
-    temporal_info = np.array(temporal_info)
+    temporal_info = np.array(temporal_list)
     temporal_file = os.path.join(target_dir, 'T_' + str(job_name) + '.hkl')
     hkl.dump(temporal_info, temporal_file) 
 
@@ -229,7 +208,6 @@ def split_data_multiple_years(target_dir,partition):
     Collect all the X_*.hkl data across years and split them to training, val and testing datatset
 
     """
-
     #target_dirs = [os.path.join(target_dir,year) for year in years]
     #os.chdir(target_dir)
     splits_dir = os.path.join(target_dir,"splits")
@@ -244,6 +222,8 @@ def split_data_multiple_years(target_dir,partition):
             for month in values[year]:
                 month = "{0:0=2d}".format(month)
                 hickle_file = "X_{}.hkl".format(month)
+                #20200408:bing
+                temporal_file = "T_{}.hkl".format(month)
                 data_file = os.path.join(file_dir,hickle_file)
                 files.append(data_file)
                 data = hkl.load(data_file)
@@ -259,11 +239,7 @@ def split_data_multiple_years(target_dir,partition):
 
         
     
-def extract_temporal_info(src_file):
-    """
-    We need to extract the temporal info from the files name  /p/scratch/deepacf/video_prediction_shared_folder/extractedData/2016/01
-    """
-    return true
+
 
                 
             
