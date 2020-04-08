@@ -78,12 +78,15 @@ def process_data(directory_to_process, target_dir, job_name, slices, vars=("T2",
     #####		overlay arrays for RGB like style.
     #####		Save everything after for loop.
     EU_stack_list = [0] * (len(imageList))
-
+    #20200408,Bing   
+    temporal_list = [0] * (len(imageList))
     for i, im_file in enumerate(imageList):
         try:
             im_path = os.path.join(directory_to_process, im_file)
             print('Open following dataset: '+im_path)
-
+            
+            #20200408,Bing
+            temporal_info = extract_temporal_info(im_path)
             vars_list = []
             for j in range(len_vars):
                 im = Dataset(im_path, mode = 'r')
@@ -142,6 +145,11 @@ def process_data(directory_to_process, target_dir, job_name, slices, vars=("T2",
     target_file = os.path.join(target_dir, 'X_' + str(job_name) + '.hkl')
     hkl.dump(X, target_file) #Not optimal!
     print(target_file, "is saved")
+    #20200408:bing
+    temporal_info = np.array(temporal_info)
+    temporal_file = os.path.join(target_dir, 'T_' + str(job_name) + '.hkl')
+    hkl.dump(temporal_info, temporal_file) 
+
         #hkl.dump(source_list, os.path.join(target_dir, 'sources_' + str(job) + '.hkl'))
 
         #for category, folder in splits[split]:
@@ -251,6 +259,11 @@ def split_data_multiple_years(target_dir,partition):
 
         
     
+def extract_temporal_info(src_file):
+    """
+    We need to extract the temporal info from the files name  /p/scratch/deepacf/video_prediction_shared_folder/extractedData/2016/01
+    """
+    return true
 
                 
             
