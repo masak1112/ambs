@@ -15,6 +15,7 @@ from os import path
 import sys
 sys.path.append(path.abspath('../../workflow_parallel_frame_prediction/'))
 from DataPreprocess.process_netCDF_v2 import get_stat
+from DataPreprocess.process_netCDF_v2 import get_stat_allvars
 #from base_dataset import VarLenFeatureVideoDataset
 from collections import OrderedDict
 from tensorflow.contrib.training import HParams
@@ -130,19 +131,6 @@ def _floats_feature(value):
 def _int64_feature(value):
     return tf.train.Feature(int64_list=tf.train.Int64List(value=[value]))
 
-#ML 2020/04/13: S
-def get_stat_allvars(stat_dict,stat_name,allvars):
-'''
-   Retrieves requested statistics (stat_name) for all variables listed in allvars given statistics dictionary.
-'''
-    vars_uni,indrev = np.unique(allvars,return_inverse=True)
-    
-    try:
-        return([stat_dict[var][0][stat_name] for var in vars_uni[indrev]]) 
-    except:
-        raise ValueError("Could not find "+stat_name+" for all variables of input dictionary.")
-#ML 2020/04/13: E
-
 def save_tf_record(output_fname, sequences):
     print('saving sequences to %s' % output_fname)
     with tf.python_io.TFRecordWriter(output_fname) as writer:
@@ -185,10 +173,10 @@ def read_frames_and_save_tf_records(output_dir,input_dir,partition_name,vars_in,
     
     # open statistics file
     with open(os.path.join(input_dir,"statistics.json")) as js_file:
-            data = json.load(js_file)
+        data = json.load(js_file)
     
-    if (norm == "minmax"):
-        varmin, varmax = get_stat_allvars(data,"min",vars_in), get_stat_allvars(data,"max",vars_in)
+        if (norm == "minmax"):
+            varmin, varmax = get_stat_allvars(data,"min",vars_in), get_stat_allvars(data,"max",vars_in)
 
 
     sequences = []
