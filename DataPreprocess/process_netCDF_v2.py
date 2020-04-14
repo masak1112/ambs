@@ -271,7 +271,7 @@ def create_stat_json_master(target_dir,nnodes_active,vars):
     '''
  
 
-    all_stat_files = glob.glob(target_dir+"/stat_*.json")
+    all_stat_files = glob.glob(target_dir+"/**/stat_*.json",recursive=True)
 
 
     nfiles         = len(all_stat_files)
@@ -290,7 +290,6 @@ def create_stat_json_master(target_dir,nnodes_active,vars):
         with open(all_stat_files[ff]) as js_file:
             data = json.load(js_file)
             
-            print(get_stat(data,"min")) 
             varmin, varmax = np.fmin(varmin,get_stat(data,"min")), np.fmax(varmax,get_stat(data,"max"))
             varavg        += get_stat(data,"avg")
             
