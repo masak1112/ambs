@@ -149,11 +149,11 @@ def main():
             message_in = comm.recv()
             logging.info(message_in)
             message_counter = message_counter + 1
+        #Bing
+        split_data(target_dir=destination_dir, partition = [0.6, 0.2, 0.2])
         # ML 2020/04/06 S
         create_stat_json_master(destination_dir,p-idle_counter,vars)
         # ML 2020/04/06 E 
-        #Bing
-        split_data(target_dir=destination_dir, partition = [0.6, 0.2, 0.2])
 
         # stamp the end of the runtime
         end = time.time()
