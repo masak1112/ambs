@@ -178,7 +178,9 @@ def read_frames_and_save_tf_records(output_dir,input_dir,partition_name,vars_in,
         if (norm == "minmax"):
             varmin, varmax = get_stat_allvars(data,"min",vars_in), get_stat_allvars(data,"max",vars_in)
 
-
+    #print(len(varmin))
+    #print(varmin)
+    
     sequences = []
     sequence_iter = 0
     sequence_lengths_file = open(os.path.join(output_dir, 'sequence_lengths.txt'), 'w')
