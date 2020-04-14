@@ -295,7 +295,6 @@ def create_stat_json_master(target_dir,nnodes_active,vars):
             varavg        += get_stat(data,"avg")
             
     # write final statistics
-    print("Bing: debugging : nfiles",nfiles)
     stat_dict = {}
     for i in range(nvars):
         stat_dict[vars_uni[i]]=[]
@@ -306,7 +305,7 @@ def create_stat_json_master(target_dir,nnodes_active,vars):
 
         })
 
-    js_file = os.path.join(target_dir,'statistics.json')
+    js_file = os.path.join(target_dir+"/splits",'statistics.json')
     with open(js_file,'w') as stat_out:
         json.dump(stat_dict, stat_out)
     print(js_file+" was created successfully...")
