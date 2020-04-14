@@ -165,6 +165,14 @@ def read_frames_and_save_tf_records(output_dir,input_dir,partition_name,vars_in,
                 print('"'+norm_name+'"')
     else:
         norm = "minmax"
+    
+    # open statistics file
+    with open(os.path.join(input_dir,"statistics.json") as js_file:
+            data = json.load(js_file)
+    
+    if (norm == "minmax"):
+        varmin, varmax = get_stat(data,"min"), get_stat(data_"max")
+
 
     sequences = []
     sequence_iter = 0
@@ -192,17 +200,10 @@ def read_frames_and_save_tf_records(output_dir,input_dir,partition_name,vars_in,
             ### normalization
             # ML 2020/04/08:
             # again rather inelegant/inefficient as...
-            # a) there is in principle no nedd to read repeatly the invariant data from the json-file 
-            # b) normalization should be cast in class definition (with initialization, setting of norm. approach including 
+            # a) normalization should be cast in class definition (with initialization, setting of norm. approach including 
             #    data retrieval and the normalization itself
-            if (norm == "minmax"):
-                with open(os.path.join(input_dir,"statistics.json") as js_file:
-                    data = json.load(js_file)
-
-                    varmin, varmax = get_stat(data,"min"), get_stat(data_"max")
-
-                for i in range(nvars):    
-                    sequences[:,:,:,:,i] = (sequences[:,:,:,:,i]-varmin[i])/(varmax[i]-varmin[i])
+            for i in range(nvars):    
+                sequences[:,:,:,:,i] = (sequences[:,:,:,:,i]-varmin[i])/(varmax[i]-varmin[i])
 
             output_fname = 'sequence_{0}_to_{1}.tfrecords'.format(last_start_sequence_iter, sequence_iter - 1)
             output_fname = os.path.join(output_dir, output_fname)
