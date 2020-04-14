@@ -250,6 +250,20 @@ def get_stat(stat_dict,stat_name):
     except:
         raise ValueError("Could not find "+stat_name+" for all variables of input dictionary.")
 
+# ML 2020/04/13 S
+def get_stat_allvars(stat_dict,stat_name,allvars):
+    '''
+    Retrieves requested statistics (stat_name) for all variables listed in allvars given statistics dictionary.
+    '''
+    vars_uni,indrev = np.unique(allvars,return_inverse=True)
+    
+    try:
+        return([stat_dict[var][0][stat_name] for var in vars_uni[indrev]]) 
+    except:
+        raise ValueError("Could not find "+stat_name+" for all variables of input dictionary.")
+
+# ML 2020/04/13: E
+
 def create_stat_json_master(target_dir,nnodes_active,vars):
     ''' 
     Reads all json-files created by slave nodes in 'process_data'-function (see above),
@@ -257,12 +271,10 @@ def create_stat_json_master(target_dir,nnodes_active,vars):
     '''
  
 
-    all_stat_files = glob.glob(target_dir+"/"+"stat_*.json")
-    nfiles         = len(all_stat_files)
-  
-    print("nfiles: "+str(nfiles))
-    print("active nodes: "+str(nnodes_active))
+    all_stat_files = glob.glob(target_dir+"/stat_*.json")
 
+
+    nfiles         = len(all_stat_files)
     if (nfiles < nnodes_active):
        raise ValueError("Found less files than expected by number of active slave nodes!")
 
@@ -282,7 +294,8 @@ def create_stat_json_master(target_dir,nnodes_active,vars):
             varmin, varmax = np.fmin(varmin,get_stat(data,"min")), np.fmax(varmax,get_stat(data,"max"))
             varavg        += get_stat(data,"avg")
             
-    # write final statistics 
+    # write final statistics
+    print("Bing: debugging : nfiles",nfiles)
     stat_dict = {}
     for i in range(nvars):
         stat_dict[vars_uni[i]]=[]
