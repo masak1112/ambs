@@ -20,5 +20,5 @@ module load mpi4py/3.0.1-Python-3.6.8
 
 srun python ../../workflow_parallel_frame_prediction/DataPreprocess/mpi_stager_v2_process_netCDF.py \
  --source_dir /p/scratch/deepacf/video_prediction_shared_folder/extractedData/2016/ \
- --destination_dir /p/scratch/deepacf/video_prediction_shared_folder/preprocessedData/Y2017M01to12-128_160-74.00N710E-T_T_T \
+ --destination_dir /p/scratch/deepacf/video_prediction_shared_folder/preprocessedData/Y2016M01to12-128_160-74.00N710E-T_T_T \
  --vars T2 T2 T2 --lat_s 74 --lat_e 202 --lon_s 550 --lon_e 710

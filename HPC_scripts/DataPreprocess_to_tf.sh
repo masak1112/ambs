@@ -17,6 +17,6 @@ module load Stages/2019a
 module load Intel/2019.3.199-GCC-8.3.0  ParaStationMPI/5.2.2-1
 module load h5py/2.9.0-Python-3.6.8
 module load mpi4py/3.0.1-Python-3.6.8
+module load TensorFlow/1.13.1-GPU-Python-3.6.8
 
-
-srun python ../video_prediction/datasets/era5_dataset_v2.py /p/scratch/deepacf/video_prediction_shared_folder/preprocessedData/2017M01to12-64_64-50.00N11.50E-T_T_T/hickle/splits/ /p/scratch/deepacf/video_prediction_shared_folder/preprocessedData/2017M01to12-64_64-50.00N11.50E-T_T_T/tfrecords/ 
+srun python ../video_prediction/datasets/era5_dataset_v2.py /p/scratch/deepacf/video_prediction_shared_folder/preprocessedData/Y2016M01to12-128_160-74.00N710E-T_T_T/splits/ /p/scratch/deepacf/video_prediction_shared_folder/preprocessedData/Y2016M01to12-128_160-74.00N710E-T_T_T/tfrecords/ -vars T2 T2 T2 
