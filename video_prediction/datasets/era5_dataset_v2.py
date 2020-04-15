@@ -155,9 +155,8 @@ def read_frames_and_save_tf_records(output_dir,input_dir,partition_name,vars_in,
     # and optional keyword argument for kind of normalization
     known_norms = ["minmax"]     # may be more elegant to define a class here?   
 
-    if not os.path.exists(output_dir): os.mkdir(output_dir)
     output_dir = os.path.join(output_dir,partition_name)
-    if not os.path.exists(output_dir): os.mkdir(output_dir)
+    os.makedirs(output_dir,exist_ok=True)
     
     nvars     = len(vars_in)
     vars_uni, indrev = np.unique(vars_in,return_inverse=True)
