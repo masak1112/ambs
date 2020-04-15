@@ -12,7 +12,7 @@ import numpy as np
 #from scipy.misc import imresize
 import hickle as hkl
 from netCDF4 import Dataset
-
+import json
 
 #TODO: Not optimal with DATA_DIR and filingPath: In original process_kitti.py 
 # there's just DATA_DIR (which is specified in kitti_settings.py) and in there
@@ -78,22 +78,27 @@ def process_data(directory_to_process, target_dir, job_name, slices, vars=("T2",
     #####		overlay arrays for RGB like style.
     #####		Save everything after for loop.
     EU_stack_list = [0] * (len(imageList))
-
-    for i, im_file in enumerate(imageList):
+   
+    # ML 2020/04/06 S
+    # Some inits
+    varmin, varmax = np.full(len_vars,np.nan), np.full(len_vars,np.nan)
+    varavg = np.zeros(len_vars)
+    # ML 2020/04/06 E
+    for j, im_file in enumerate(imageList):
         try:
             im_path = os.path.join(directory_to_process, im_file)
             print('Open following dataset: '+im_path)
 
             vars_list = []
-            for j in range(len_vars):
+            for i in range(len_vars):
                 im = Dataset(im_path, mode = 'r')
-                print ("vars[i]",vars[j])
-                var1 = im.variables[vars[j]][0, :, :]
+                var1 = im.variables[vars[i]][0, :, :]
                 im.close()
                 var1 = var1[slices["lat_s"]:slices["lat_e"], slices["lon_s"]:slices["lon_e"]]
-                #print("VAR1",var1)
                 vars_list.append(var1)
-            
+                # ML 2020/03/31: apply some statistics
+                varmin[i], varmax[i] = np.fmin(varmin[i],np.amin(var1)), np.fmax(varmax[i],np.amax(var1))
+                varavg[i] += np.average(var1) 
             # var2 = var2[slices["lat_e"]-slices["lat_s"],slices["lon_e"]-slices["lon_s"]]
             # var3 = var3[slices["lat_e"]-slices["lat_s"],slices["lon_e"]-slices["lon_s"]]
             #print(EU_t2.shape, EU_msl.shape, EU_gph500.shape)
@@ -122,19 +127,15 @@ def process_data(directory_to_process, target_dir, job_name, slices, vars=("T2",
             #t2_2 stack. Stack t2 with one empty array
 #            empty_image = np.zeros(shape = (64, 64))
             #EU_stack = np.stack([var1, var2, var3], axis=2)
-            
-            print("var_list",np.array(vars_list).shape)
             EU_stack = np.stack(vars_list, axis = 2)
-            print ("EU_stack shape",EU_stack.shape)
-
-            EU_stack_list[i] =list(EU_stack)
+            EU_stack_list[j] =list(EU_stack)
             #print('Does ist work? ')
             #print(EU_stack_list[i][:,:,0]==EU_t2)
             #print(EU_stack[:,:,1]==EU_msl
         except Exception as err:
             print("*************ERROR*************", err)
             print("Error message {} from file {}".format(err,im_file))
-            EU_stack_list[i] = list(EU_stack) # use the previous image as replacement, we can investigate further how to deal with the missing values
+            EU_stack_list[j] = list(EU_stack) # use the previous image as replacement, we can investigate further how to deal with the missing values
             continue
             
     X = np.array(EU_stack_list)
@@ -142,6 +143,29 @@ def process_data(directory_to_process, target_dir, job_name, slices, vars=("T2",
     target_file = os.path.join(target_dir, 'X_' + str(job_name) + '.hkl')
     hkl.dump(X, target_file) #Not optimal!
     print(target_file, "is saved")
+    # ML 2020/03/31: write json file with statistics
+    vars_uni, varsind = np.unique(vars,return_index=True)
+    nvars = len(vars_uni)
+
+    varmin, varmax, varavg = varmin[varsind], varmax[varsind], varavg[varsind] 
+    stat_dict = {}
+    for i in range(nvars):
+        varavg[i] /= len(imageList)
+        print('varavg['+str(i)+'] : {0:5.2f}'.format(varavg[i]))
+        print('length of imageList: ',len(imageList))
+
+        stat_dict[vars_uni[i]]=[]
+        stat_dict[vars_uni[i]].append({
+                  'min': varmin[i],
+                  'max': varmax[i],
+                  'avg': varavg[i]
+        })
+   
+    js_file = os.path.join(target_dir,'stat_' + str(job_name) + '.json')
+    with open(js_file,'w') as stat_out:
+        json.dump(stat_dict, stat_out)
+    print(js_file+" was created successfully...")
+
         #hkl.dump(source_list, os.path.join(target_dir, 'sources_' + str(job) + '.hkl'))
 
         #for category, folder in splits[split]:
@@ -215,11 +239,83 @@ def split_data(target_dir, partition= [0.6, 0.2, 0.2]):
         hkl.dump(X, os.path.join(split_dir, 'X_' + split + '.hkl'))
         hkl.dump(files, os.path.join(split_dir,'sources_' + split + '.hkl'))
 
+# ML 2020/04/03 S
+def get_stat(stat_dict,stat_name):
+    '''
+    Unpacks statistics dictionary and returns values of stat_name
+    '''
+
+    try:
+        return [stat_dict[i][0][stat_name] for i in [*stat_dict.keys()]]
+    except:
+        raise ValueError("Could not find "+stat_name+" for all variables of input dictionary.")
+
+# ML 2020/04/13 S
+def get_stat_allvars(stat_dict,stat_name,allvars):
+    '''
+    Retrieves requested statistics (stat_name) for all variables listed in allvars given statistics dictionary.
+    '''
+    vars_uni,indrev = np.unique(allvars,return_inverse=True)
+    
+    try:
+        return([stat_dict[var][0][stat_name] for var in vars_uni[indrev]]) 
+    except:
+        raise ValueError("Could not find "+stat_name+" for all variables of input dictionary.")
+
+# ML 2020/04/13: E
+
+def create_stat_json_master(target_dir,nnodes_active,vars):
+    ''' 
+    Reads all json-files created by slave nodes in 'process_data'-function (see above),
+    computes final statistics and writes them in final file to be used in subsequent steps.
+    '''
+ 
+
+    all_stat_files = glob.glob(target_dir+"/**/stat_*.json",recursive=True)
+
+
+    nfiles         = len(all_stat_files)
+    if (nfiles < nnodes_active):
+       raise ValueError("Found less files than expected by number of active slave nodes!")
+
+  
+
+    vars_uni = np.unique(vars)
+    nvars    = len(vars_uni)
+
+    varmin, varmax = np.full(nvars,np.nan), np.full(nvars,np.nan)   # initializes with NaNs -> make use of np.fmin/np.fmax subsequently
+    varavg         = np.zeros(nvars)
+
+    for ff in range(nfiles):
+        with open(all_stat_files[ff]) as js_file:
+            data = json.load(js_file)
+            
+            varmin, varmax = np.fmin(varmin,get_stat(data,"min")), np.fmax(varmax,get_stat(data,"max"))
+            varavg        += get_stat(data,"avg")
+            
+    # write final statistics
+    stat_dict = {}
+    for i in range(nvars):
+        stat_dict[vars_uni[i]]=[]
+        stat_dict[vars_uni[i]].append({
+                  'min': varmin[i],
+                  'max': varmax[i],
+                  'avg': varavg[i]/nfiles
+
+        })
+
+    js_file = os.path.join(target_dir+"/splits",'statistics.json')
+    with open(js_file,'w') as stat_out:
+        json.dump(stat_dict, stat_out)
+    print(js_file+" was created successfully...")
+            
+
+# ML 2020/04/03 E
+                 
 
 def split_data_multiple_years(target_dir,partition):
     """
     Collect all the X_*.hkl data across years and split them to training, val and testing datatset
-
     """
 
     #target_dirs = [os.path.join(target_dir,year) for year in years]
