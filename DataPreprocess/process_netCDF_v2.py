@@ -12,55 +12,10 @@ import numpy as np
 #from scipy.misc import imresize
 import hickle as hkl
 from netCDF4 import Dataset,num2date
+import pickle
 
 
-#TODO: Not optimal with DATA_DIR and filingPath: In original process_kitti.py 
-# there's just DATA_DIR (which is specified in kitti_settings.py) and in there
-# the processed data will be stores. The raw data lies also in there in a subfolder
 
-
-# ToDo: Define properly the train, val and test index
-# Here just for testing and taking weird .DS_Store file into consideration
-# http://www.apfelwiki.de/Main/DSStore
-#train_recordings = imageList[1:6]
-#val_recordings = imageList[7:9]
-#test_recordings = imageList[-2:]
-
-#Train,Val,Test size in percentage
-#partition = [0.8, 0.05, 0.15]
-#determine correct indices 
-#train_begin = 0
-#train_end = round(partition[0]*len(imageList))-1
-#val_begin = train_end + 1
-#val_end = train_end + round(partition[1]*len(imageList))
-#test_begin = val_end + 1
-#test_end = len(imageList)-1
-#print('Indices of Train, Val and test: '+ str(train_begin) + ' ' + str(val_begin) + ' ' + str(test_begin))
-#slightly adapting start and end because starts at the first index given and stops before(!) the last. 
-#train_recordings = imageList[train_begin:val_begin]
-#val_recordings = imageList[val_begin:test_begin]
-#test_recordings = imageList[test_begin:test_end]
-
-#adapted for feature testing: just first year (2015); Otherwise would take too long and some weird mistake in some data in 2016
-#in total: 17544
-#half: 8772
-#train: 0-6900
-#val:6901-7000
-#test:7001-8772
-#train_recordings = imageList[0:1000]
-#val_recordings = imageList[6901:7000]
-#test_recordings = imageList[7001:8772]
-
-# print('Now everything together:')
-# print('Train:')
-# print(train_recordings)
-# print('Val:')
-# print(val_recordings)
-# print('Test:')
-# print(tiest_recordings)
-
-
-#exec("%s = %d" % (var1,2))
 # Create image datasets.
 # Processes images and saves them in train, val, test splits.
 def process_data(directory_to_process, target_dir, job_name, slices, vars=("T2","MSL","gph500")):
@@ -98,36 +53,32 @@ def process_data(directory_to_process, target_dir, job_name, slices, vars=("T2",
                 vars_list.append(var1)
             im.close()
 
-            print("var_list",np.array(vars_list).shape)
             EU_stack = np.stack(vars_list, axis = 2)
-            print ("EU_stack shape",EU_stack.shape)
 
             EU_stack_list[i] =list(EU_stack)
             #20200408,bing
-            print("0408 debug time",time)
             temporal_list[i] = list(time)
             #print('Does ist work? ')
             #print(EU_stack_list[i][:,:,0]==EU_t2)
             #print(EU_stack[:,:,1]==EU_msl
         except Exception as err:
             im_path = os.path.join(directory_to_process, im_file)
-            print('Open following dataset: '+im_path)
-            im = Dataset(im_path, mode = 'r')
-            print("BING DEBUGGING!!!!!!!!!!!!!!!!!",im.variables["T2"][:])
+            #im = Dataset(im_path, mode = 'r')
             print("*************ERROR*************", err)
             print("Error message {} from file {}".format(err,im_file))
             EU_stack_list[i] = list(EU_stack) # use the previous image as replacement, we can investigate further how to deal with the missing values
             continue
             
     X = np.array(EU_stack_list)
-    print('Shape of X: ' + str(X.shape))
     target_file = os.path.join(target_dir, 'X_' + str(job_name) + '.hkl')
     hkl.dump(X, target_file) #Not optimal!
     print(target_file, "is saved")
     #20200408:bing
     temporal_info = np.array(temporal_list)
-    temporal_file = os.path.join(target_dir, 'T_' + str(job_name) + '.hkl')
-    hkl.dump(temporal_info, temporal_file) 
+    temporal_file = os.path.join(target_dir, 'T_' + str(job_name) + '.pkl')
+    cwd = os.getcwd()
+    pickle.dump(temporal_info, open( temporal_file, "wb" ) )
+    #hkl.dump(temporal_info, temporal_file) 
 
         #hkl.dump(source_list, os.path.join(target_dir, 'sources_' + str(job) + '.hkl'))
 
@@ -169,40 +120,60 @@ def split_data(target_dir, partition= [0.6, 0.2, 0.2]):
     os.chdir(target_dir)
     files = glob.glob("*.hkl")
     filesList = sorted(files)
+    #Bing: 20200415
+    temporal_files = glob.glob("*.pkl")
+    temporal_filesList = sorted(temporal_files)
+
     # determine correct indicesue
     train_begin = 0
     train_end = round(partition[0] * len(filesList)) - 1
     val_begin = train_end + 1
     val_end = train_end + round(partition[1] * len(filesList))
     test_begin = val_end + 1
-
-    print('Indices of Train, Val and test: ' + str(train_begin) + ' ' + str(val_begin) + ' ' + str(test_begin))
+   
+    
     # slightly adapting start and end because starts at the first index given and stops before(!) the last.
     train_files = filesList[train_begin:val_begin]
     val_files = filesList[val_begin:test_begin]
     test_files = filesList[test_begin:]
+    #bing: 20200415
+    train_temporal_files = temporal_filesList[train_begin:val_begin]
+    val_temporal_files = temporal_filesList[val_begin:test_begin]
+    test_temporal_files = temporal_filesList[test_begin:]
+
+
     splits = {s: [] for s in ['train', 'test', 'val']}
     splits['val'] = val_files
     splits['test'] = test_files
     splits['train'] = train_files
+
+
+    splits_temporal = {s: [] for s in ['train', 'test', 'val']}
+    splits_temporal["train"] = train_temporal_files
+    splits_temporal["val"] = val_temporal_files
+    splits_temporal["test"] = test_temporal_files
+    
     for split in splits:
         X = []
+        X_temporal = []
         files = splits[split]
-        for file in files:
+        temporal_files = splits_temporal[split]
+        for file, temporal_file in zip(files, temporal_files):
             data_file = os.path.join(target_dir,file)
+            temporal_file = os.path.join(target_dir,temporal_file)
             #load data with hkl file
             data = hkl.load(data_file)
+            temporal_data = pickle.load(open(temporal_file,"rb"))
+            X_temporal = X_temporal + list(temporal_data)
             X = X + list(data)
         X = np.array(X)
-        print("==================={}=====================".format(split))
-        print ("Sources for {} dataset are {}".format(split,files))
-        print("Number of images in {} dataset is {} ".format(split,len(X)))
-        print ("dataset shape is {}".format(np.array(X).shape))
+        X_temporal = np.array(X_temporal)
+        print ("X_temporal",X_temporal)
         #save training, val and test data into splits directoyr
         hkl.dump(X, os.path.join(split_dir, 'X_' + split + '.hkl'))
         hkl.dump(files, os.path.join(split_dir,'sources_' + split + '.hkl'))
-
-
+        pickle.dump(X_temporal,open(os.path.join(split_dir,"T_"+split + ".pkl"),"wb"))
+        print ("PICKLE FILE FOR SPLITS SAVED")
 def split_data_multiple_years(target_dir,partition):
     """
     Collect all the X_*.hkl data across years and split them to training, val and testing datatset
