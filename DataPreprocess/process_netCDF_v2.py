@@ -313,7 +313,55 @@ def create_stat_json_master(target_dir,nnodes_active,vars):
 # ML 2020/04/03 E
                  
 
+def split_data_multiple_years(target_dir,partition):
+    """
+    Collect all the X_*.hkl data across years and split them to training, val and testing datatset
+    """
+
+    #target_dirs = [os.path.join(target_dir,year) for year in years]
+    #os.chdir(target_dir)
+    splits_dir = os.path.join(target_dir,"splits")
+    os.makedirs(splits_dir, exist_ok=True) 
+    splits = {s: [] for s in list(partition.keys())}
+    for split in partition.keys():
+        values = partition[split]
+        files = []
+        X = []
+        for year in values.keys():
+            file_dir = os.path.join(target_dir,year)
+            for month in values[year]:
+                month = "{0:0=2d}".format(month)
+                hickle_file = "X_{}.hkl".format(month)
+                data_file = os.path.join(file_dir,hickle_file)
+                files.append(data_file)
+                data = hkl.load(data_file)
+                X = X + list(data)
+        X = np.array(X) 
+        print("==================={}=====================".format(split))
+        print ("Sources for {} dataset are {}".format(split,files))
+        print("Number of images in {} dataset is {} ".format(split,len(X)))
+        print ("dataset shape is {}".format(np.array(X).shape))
+        hkl.dump(X, os.path.join(splits_dir , 'X_' + split + '.hkl'))
+        hkl.dump(files, os.path.join(splits_dir,'sources_' + split + '.hkl'))
+        
+
+        
+    
+
+                
+            
+                
+            
+            
+        
+    
+    
+    
+    
+    
     
 
 
+
+    
 
