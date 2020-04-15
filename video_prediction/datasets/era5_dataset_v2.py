@@ -7,8 +7,15 @@ import random
 import re
 import hickle as hkl
 import numpy as np
+import json
 import tensorflow as tf
 from video_prediction.datasets.base_dataset import VarLenFeatureVideoDataset
+# ML 2020/04/14: hack for getting functions of process_netCDF_v2:
+from os import path
+import sys
+sys.path.append(path.abspath('../../workflow_parallel_frame_prediction/'))
+from DataPreprocess.process_netCDF_v2 import get_stat
+from DataPreprocess.process_netCDF_v2 import get_stat_allvars
 #from base_dataset import VarLenFeatureVideoDataset
 from collections import OrderedDict
 from tensorflow.contrib.training import HParams
@@ -124,8 +131,6 @@ def _floats_feature(value):
 def _int64_feature(value):
     return tf.train.Feature(int64_list=tf.train.Int64List(value=[value]))
 
-
-
 def save_tf_record(output_fname, sequences):
     print('saving sequences to %s' % output_fname)
     with tf.python_io.TFRecordWriter(output_fname) as writer:
@@ -144,10 +149,37 @@ def save_tf_record(output_fname, sequences):
             example = tf.train.Example(features=features)
             writer.write(example.SerializeToString())
 
-def read_frames_and_save_tf_records(output_dir,input_dir,partition_name,N_seq,sequences_per_file=128):#Bing: original 128
-    if not os.path.exists(output_dir): os.mkdir(output_dir)
+def read_frames_and_save_tf_records(output_dir,input_dir,partition_name,vars_in,N_seq,sequences_per_file=128,**kwargs):#Bing: original 128
+    # ML 2020/04/08:
+    # Include vars_in for more flexible data handling (normalization and reshaping)
+    # and optional keyword argument for kind of normalization
+    known_norms = ["minmax"]     # may be more elegant to define a class here?   
+
     output_dir = os.path.join(output_dir,partition_name)
-    if not os.path.exists(output_dir): os.mkdir(output_dir)
+    os.makedirs(output_dir,exist_ok=True)
+    
+    nvars     = len(vars_in)
+    vars_uni, indrev = np.unique(vars_in,return_inverse=True)
+    if 'norm' in kwargs:
+        norm = kwargs.get("norm")
+        if (not norm in knwon_norms): 
+            raise ValueError("Pass valid normalization identifier.")
+            print("Known identifiers are: ")
+            for norm_name in known_norm:
+                print('"'+norm_name+'"')
+    else:
+        norm = "minmax"
+    
+    # open statistics file
+    with open(os.path.join(input_dir,"statistics.json")) as js_file:
+        data = json.load(js_file)
+    
+        if (norm == "minmax"):
+            varmin, varmax = get_stat_allvars(data,"min",vars_in), get_stat_allvars(data,"max",vars_in)
+
+    #print(len(varmin))
+    #print(varmin)
+    
     sequences = []
     sequence_iter = 0
     sequence_lengths_file = open(os.path.join(output_dir, 'sequence_lengths.txt'), 'w')
@@ -159,7 +191,8 @@ def read_frames_and_save_tf_records(output_dir,input_dir,partition_name,N_seq,se
         #seq = X_train[X_start:X_end, :, :,:]
         seq = X_train[X_start:X_end,:,:]
         #print("*****len of seq ***.{}".format(len(seq)))
-        seq = list(np.array(seq).reshape((len(seq), 64, 64, 3)))
+        #seq = list(np.array(seq).reshape((len(seq), 64, 64, 3)))
+        seq = list(np.array(seq).reshape((len(seq), 128, 160,nvars)))
         if not sequences:
             last_start_sequence_iter = sequence_iter
             print("reading sequences starting at sequence %d" % sequence_iter)
@@ -170,15 +203,13 @@ def read_frames_and_save_tf_records(output_dir,input_dir,partition_name,N_seq,se
         if len(sequences) == sequences_per_file:
             ###Normalization should adpot the selected variables, here we used duplicated channel temperature variables
             sequences = np.array(sequences)
-            ### 3T normalization
-            sequences[:,:,:,:,0] = (sequences[:,:,:,:,0]-235.2141571044922)/(321.46630859375-235.2141571044922)
-            sequences[:,:,:,:,1] = (sequences[:,:,:,:,1] - 235.2141571044922) / (321.46630859375 - 235.2141571044922)
-            sequences[:, :, :, :, 2] = (sequences[:, :, :, :, 2] - 235.2141571044922) / (321.46630859375 - 235.2141571044922)
-
-            ### T_msl_gph normalizartion
-            #sequences[:, :, :, :, 0] = (sequences[:, :, :, :, 0] - 235.2141571044922) / (321.46630859375 - 235.2141571044922)
-            #sequences[:, :, :, :, 1] = (sequences[:, :, :, :, 1] - 93401.125) / (105391.4375 - 93401.125)
-            #sequences[:, :, :, :, 2] = (sequences[:, :, :, :, 2] - 4836.070232780612) / (6007.097417091836 - 4836.070232780612)
+            ### normalization
+            # ML 2020/04/08:
+            # again rather inelegant/inefficient as...
+            # a) normalization should be cast in class definition (with initialization, setting of norm. approach including 
+            #    data retrieval and the normalization itself
+            for i in range(nvars):    
+                sequences[:,:,:,:,i] = (sequences[:,:,:,:,i]-varmin[i])/(varmax[i]-varmin[i])
 
             output_fname = 'sequence_{0}_to_{1}.tfrecords'.format(last_start_sequence_iter, sequence_iter - 1)
             output_fname = os.path.join(output_dir, output_fname)
@@ -191,6 +222,9 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("input_dir", type=str, help="directory containing the processed directories ""boxing, handclapping, handwaving, ""jogging, running, walking")
     parser.add_argument("output_dir", type=str)
+    # ML 2020/04/08 S
+    # Add vars for ensuring proper normalization and reshaping of sequences
+    parser.add_argument("-vars","--variables",dest="variables", nargs='+', type=str, help="Names of input variables.")
     # parser.add_argument("image_size_h", type=int)
     # parser.add_argument("image_size_v", type = int)
     args = parser.parse_args()
@@ -198,8 +232,9 @@ def main():
     #input_dir = "/Users/gongbing/PycharmProjects/video_prediction/splits"
     #output_dir = "/Users/gongbing/PycharmProjects/video_prediction/data/era5"
     partition_names = ['train','val',  'test'] #64,64,3 val has issue#
+  
     for partition_name in partition_names:
-        read_frames_and_save_tf_records(output_dir=args.output_dir,input_dir=args.input_dir,partition_name=partition_name, N_seq=20) #Bing: Todo need check the N_seq
+        read_frames_and_save_tf_records(output_dir=args.output_dir,input_dir=args.input_dir,vars_in=args.variables,partition_name=partition_name, N_seq=20) #Bing: Todo need check the N_seq
         #ead_frames_and_save_tf_records(output_dir = output_dir, input_dir = input_dir,partition_name = partition_name, N_seq=20) #Bing: TODO: first try for N_seq is 10, but it met loading data issue. let's try 5
 
 if __name__ == '__main__':
