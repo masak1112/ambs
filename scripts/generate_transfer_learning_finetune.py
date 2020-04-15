@@ -1,6 +1,3 @@
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
 
 import argparse
 import errno
@@ -229,41 +226,41 @@ def main():
                     gen_mse_avg_ = [np.mean(input_gen_diff[frame, :, :] ** 2) for frame in
                                     range(sequence_length)]  # return the list with 10 (sequence) mse
 
-                    fig = plt.figure(figsize=(18,6))
-                    gs = gridspec.GridSpec(1, 10)
-                    gs.update(wspace = 0., hspace = 0.)
-                    ts = [0,5,9,10,12,14,16,18,19]
-                    xlables = [round(i,2) for i in list(np.linspace(np.min(lon),np.max(lon),5))]
-                    ylabels = [round(i,2) for i  in list(np.linspace(np.max(lat),np.min(lat),5))]
-
-                    for t in range(len(ts)):
-                        #if t==0 : ax1=plt.subplot(gs[t])
-                        ax1 = plt.subplot(gs[t])
-                        input_image = input_images_[ts[t], :, :, 0] * (321.46630859375 - 235.2141571044922) + 235.2141571044922
-                        plt.imshow(input_image, cmap = 'jet', vmin=270, vmax=300)
-                        ax1.title.set_text("t = " + str(ts[t]+1))
-                        plt.setp([ax1], xticks = [], xticklabels = [], yticks = [], yticklabels = [])
-
-                        if t == 0:
-                            plt.setp([ax1], xticks = list(np.linspace(0, 64, 3)), xticklabels = xlables, yticks = list(np.linspace(0, 64, 3)), yticklabels = ylabels)
-                            plt.ylabel("Ground Truth", fontsize=10)
-                    plt.savefig(os.path.join(args.output_png_dir, "Ground_Truth_Sample_" + str(name) + ".jpg"))
-                    plt.clf()
-
-                    fig = plt.figure(figsize=(12,6))
-                    gs = gridspec.GridSpec(1, 10)
-                    gs.update(wspace = 0., hspace = 0.)
-                    ts = [10,12,14,16,18,19]
-                    for t in range(len(ts)):
-                        #if t==0 : ax1=plt.subplot(gs[t])
-                        ax1 = plt.subplot(gs[t])
-                        gen_image = gen_images_[ts[t], :, :, 0] * (321.46630859375 - 235.2141571044922) + 235.2141571044922
-                        plt.imshow(gen_image, cmap = 'jet', vmin=270, vmax=300)
-                        ax1.title.set_text("t = " + str(ts[t]+1))
-                        plt.setp([ax1], xticks = [], xticklabels = [], yticks = [], yticklabels = [])
-
-                    plt.savefig(os.path.join(args.output_png_dir, "Predicted_Sample_" + str(name) + ".jpg"))
-                    plt.clf()
+##                    fig = plt.figure(figsize=(18,6))
+##                    gs = gridspec.GridSpec(1, 10)
+##                    gs.update(wspace = 0., hspace = 0.)
+##                    ts = [0,5,9,10,12,14,16,18,19]
+##                    xlables = [round(i,2) for i in list(np.linspace(np.min(lon),np.max(lon),5))]
+##                    ylabels = [round(i,2) for i  in list(np.linspace(np.max(lat),np.min(lat),5))]
+##
+##                    for t in range(len(ts)):
+##                        #if t==0 : ax1=plt.subplot(gs[t])
+##                        ax1 = plt.subplot(gs[t])
+##                        input_image = input_images_[ts[t], :, :, 0] * (321.46630859375 - 235.2141571044922) + 235.2141571044922
+##                        plt.imshow(input_image, cmap = 'jet', vmin=270, vmax=300)
+##                        ax1.title.set_text("t = " + str(ts[t]+1))
+##                        plt.setp([ax1], xticks = [], xticklabels = [], yticks = [], yticklabels = [])
+##
+##                        if t == 0:
+##                            plt.setp([ax1], xticks = list(np.linspace(0, 64, 3)), xticklabels = xlables, yticks = list(np.linspace(0, 64, 3)), yticklabels = ylabels)
+##                            plt.ylabel("Ground Truth", fontsize=10)
+##                    plt.savefig(os.path.join(args.output_png_dir, "Ground_Truth_Sample_" + str(name) + ".jpg"))
+##                    plt.clf()
+##
+##                    fig = plt.figure(figsize=(12,6))
+##                    gs = gridspec.GridSpec(1, 10)
+##                    gs.update(wspace = 0., hspace = 0.)
+##                    ts = [10,12,14,16,18,19]
+##                    for t in range(len(ts)):
+##                        #if t==0 : ax1=plt.subplot(gs[t])
+##                        ax1 = plt.subplot(gs[t])
+##                        gen_image = gen_images_[ts[t], :, :, 0] * (321.46630859375 - 235.2141571044922) + 235.2141571044922
+##                        plt.imshow(gen_image, cmap = 'jet', vmin=270, vmax=300)
+##                        ax1.title.set_text("t = " + str(ts[t]+1))
+##                        plt.setp([ax1], xticks = [], xticklabels = [], yticks = [], yticklabels = [])
+##
+##                    plt.savefig(os.path.join(args.output_png_dir, "Predicted_Sample_" + str(name) + ".jpg"))
+##                    plt.clf()
 
                     # fig = plt.figure()
                     # gs = gridspec.GridSpec(4,6)

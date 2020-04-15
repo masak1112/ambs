@@ -26,6 +26,9 @@ declare -a years=("2015"
                  "2017"
                   )
 
+partition_dir='{"train":{"2016":[1,2,3,4,5,6,7,8,9,10,11,12]}, "val":{"2017":[1,2,3,4,5,6,7,8,9,10,11,12]}, "test":{"2015":[1,2,3,4,5,6,7,8,9,10,11,12] }}'
+
+echo "partition_dir ${!partition_dir}"
 
 for year in "${years[@]}"; 
     do 
@@ -37,8 +40,8 @@ for year in "${years[@]}";
     done
 
 
-#srun python ../../workflow_parallel_frame_prediction/DataPreprocess/mpi_split_data_multi_years.py \
-#--destination_dir ${destination_dir}
+srun python ../../workflow_parallel_frame_prediction/DataPreprocess/mpi_split_data_multi_years.py --partition ${!partition_dir} \
+--destination_dir ${destination_dir}
 
 
 
