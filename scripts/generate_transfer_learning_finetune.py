@@ -1,3 +1,6 @@
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
 
 import argparse
 import errno
@@ -9,6 +12,7 @@ import cv2
 import numpy as np
 import tensorflow as tf
 import pickle
+import hickle
 from random import seed
 import random
 import json
@@ -26,7 +30,7 @@ from matplotlib.colors import LinearSegmentedColormap
 #from matplotlib.ticker import MaxNLocator
 #from video_prediction.utils.ffmpeg_gif import save_gif
 from skimage.metrics import structural_similarity as ssim
-import pickle
+import datetime
 
 with open("../geo_info.json","r") as json_file:
     geo = json.load(json_file)
@@ -189,191 +193,246 @@ def main():
 
     sample_ind = 0
     gen_images_all = []
+    #Bing:20200410
+    persistent_images_all = []
     input_images_all = []
+    #Bing:20201417
+    test_temporal_pkl = pickle.load(open("/p/scratch/deepacf/video_prediction_shared_folder/preprocessedData/era5-Y2017M01to12-64x64-50d00N11d50E-T_T_T/hickle/splits/T_test.pkl","rb"))
+    #val_temporal_pkl = pickle.load(open("/p/scratch/deepacf/video_prediction_shared_folder/preprocessedData/era5-Y2017M01to12-64x64-50d00N11d50E-T_T_T/hickle/splits/T_val.pkl","rb"))
+    print("test temporal_pkl file looks like folowing", test_temporal_pkl)
+
+    #X_val = hickle.load("/p/scratch/deepacf/video_prediction_shared_folder/preprocessedData/era5-Y2017M01to12-64x64-50d00N11d50E-T_T_T/hickle/splits/X_val.hkl")
+    X_test = hickle.load("/p/scratch/deepacf/video_prediction_shared_folder/preprocessedData/era5-Y2017M01to12-64x64-50d00N11d50E-T_T_T/hickle/splits/X_test.hkl")
+    is_first=True
+    
 
     while True:
         print("Sample id", sample_ind)
-        gen_images_stochastic = []
-        if args.num_samples and sample_ind >= args.num_samples:
-            break
-        try:
-            input_results = sess.run(inputs)
-            input_images = input_results["images"]
-            input_images_all.extend(input_images)
-            with open(os.path.join(args.output_png_dir, "input_images_all"), "wb") as input_files:
-                pickle.dump(list(input_images_all), input_files)
+        if sample_ind <= 24:
+            pass
+        else:
+            gen_images_stochastic = []
+            if args.num_samples and sample_ind >= args.num_samples:
+                break
+            try:
+                input_results = sess.run(inputs)
+                input_images = input_results["images"]
 
-        except tf.errors.OutOfRangeError:
-            break
 
-        feed_dict = {input_ph: input_results[name] for name, input_ph in input_phs.items()}
-        for stochastic_sample_ind in range(args.num_stochastic_samples):
-            gen_images = sess.run(model.outputs['gen_images'], feed_dict = feed_dict)
-            gen_images_stochastic.append(gen_images)
-            print("Stochastic_sample,", stochastic_sample_ind)
-            for i in range(args.batch_size):
-                print("batch", i)
+            except tf.errors.OutOfRangeError:
+                break
+
+            feed_dict = {input_ph: input_results[name] for name, input_ph in input_phs.items()}
+            for stochastic_sample_ind in range(args.num_stochastic_samples):
+                input_images_all.extend(input_images)
+                with open(os.path.join(args.output_png_dir, "input_images_all.pkl"), "wb") as input_files:
+                    pickle.dump(list(input_images_all), input_files)
+                
+                gen_images = sess.run(model.outputs['gen_images'], feed_dict = feed_dict)
+                gen_images_stochastic.append(gen_images)
+                #print("Stochastic_sample,", stochastic_sample_ind)
+                for i in range(args.batch_size):
+                    #bing:20200417
+                    t_stampe = test_temporal_pkl[sample_ind+i]
+                    print("timestamp:",type(t_stampe))
+
+                    persistent_ts = np.array(t_stampe) - datetime.timedelta(days=1)
+                    print ("persistent ts",persistent_ts)
+                    persistent_idx = list(test_temporal_pkl).index(np.array(persistent_ts))
+                    persistent_X = X_test[persistent_idx:persistent_idx+context_frames + future_length]
+                    print("persistent index in test set:", persistent_idx)
+                    print("persistent_X.shape",persistent_X.shape)
+                    persistent_images_all.append(persistent_X)
+
+                        
+                #print("batch", i)
                 #colors = [(1, 0, 0), (0, 1, 0), (0, 0, 1)]
-                cmap_name = 'my_list'
-                if sample_ind < 20 and i == 1:
-                    name = 'Stochastic_id_' + str(stochastic_sample_ind) + 'Batch_id_' + str(
-                        sample_ind) + " + Sample_" + str(i)
-                    gen_images_ = np.array(list(input_images[i,:context_frames]) + list(gen_images[i,-future_length:, :]))
-                    #gen_images_ =  gen_images[i, :]
-                    input_images_ = input_images[i, :]
-                    input_gen_diff = (input_images_[:, :, :,0] * (321.46630859375 - 235.2141571044922) + 235.2141571044922) - (gen_images_[:, :, :, 0] * (321.46630859375 - 235.2141571044922) + 235.2141571044922)
 
-                    gen_mse_avg_ = [np.mean(input_gen_diff[frame, :, :] ** 2) for frame in
-                                    range(sequence_length)]  # return the list with 10 (sequence) mse
 
-##                    fig = plt.figure(figsize=(18,6))
-##                    gs = gridspec.GridSpec(1, 10)
-##                    gs.update(wspace = 0., hspace = 0.)
-##                    ts = [0,5,9,10,12,14,16,18,19]
-##                    xlables = [round(i,2) for i in list(np.linspace(np.min(lon),np.max(lon),5))]
-##                    ylabels = [round(i,2) for i  in list(np.linspace(np.max(lat),np.min(lat),5))]
+                    cmap_name = 'my_list'
+                    if sample_ind < 100:
+                        #name = '_Stochastic_id_' + str(stochastic_sample_ind) + 'Batch_id_' + str(
+                        #    sample_ind) + " + Sample_" + str(i)
+                        name = '_Stochastic_id_' + str(stochastic_sample_ind) + "_Time_"+ t_stampe[0].strftime("%Y%m%d-%H%M%S")
+                        print ("name",name)
+                        gen_images_ = np.array(list(input_images[i,:context_frames]) + list(gen_images[i,-future_length:, :]))
+                        #gen_images_ =  gen_images[i, :]
+                        input_images_ = input_images[i, :]
+                        #Bing:20200417
+                        #persistent_images = ?
+                        input_gen_diff = (input_images_[:, :, :,0] * (321.46630859375 - 235.2141571044922) + 235.2141571044922) - (gen_images_[:, :, :, 0] * (321.46630859375 - 235.2141571044922) + 235.2141571044922)
+                        persistent_diff = (input_images_[:, :, :,0] * (321.46630859375 - 235.2141571044922) + 235.2141571044922) - (persistent_X[:, :, :, 0] * (321.46630859375 - 235.2141571044922) + 235.2141571044922)
+
+                        gen_mse_avg_ = [np.mean(input_gen_diff[frame, :, :] ** 2) for frame in
+                                        range(sequence_length)]  # return the list with 10 (sequence) mse
+                        persistent_mse_avg_ = [np.mean(persistent_diff[frame, :, :] ** 2) for frame in
+                                        range(sequence_length)]  # return the list with 10 (sequence) mse
+
+                        fig = plt.figure(figsize=(18,6))
+                        gs = gridspec.GridSpec(1, 10)
+                        gs.update(wspace = 0., hspace = 0.)
+                        ts = list(range(10,20)) #[10,11,12,..]
+                        xlables = [round(i,2) for i  in list(np.linspace(np.min(lon),np.max(lon),5))]
+                        ylabels = [round(i,2) for i  in list(np.linspace(np.max(lat),np.min(lat),5))]
+
+                        for t in ts:
+
+                            #if t==0 : ax1=plt.subplot(gs[t])
+                            ax1 = plt.subplot(gs[ts.index(t)])
+                            input_image = input_images_[t, :, :, 0] * (321.46630859375 - 235.2141571044922) + 235.2141571044922
+                            plt.imshow(input_image, cmap = 'jet', vmin=270, vmax=300)
+                            ax1.title.set_text("t = " + str(t+1-10))
+                            plt.setp([ax1], xticks = [], xticklabels = [], yticks = [], yticklabels = [])
+                            if t == 0:
+                                plt.setp([ax1], xticks = list(np.linspace(0, 64, 3)), xticklabels = xlables, yticks = list(np.linspace(0, 64, 3)), yticklabels = ylabels)
+                                plt.ylabel("Ground Truth", fontsize=10)
+                        plt.savefig(os.path.join(args.output_png_dir, "Ground_Truth_Sample_" + str(name) + ".jpg"))
+                        plt.clf()
+
+                        fig = plt.figure(figsize=(12,6))
+                        gs = gridspec.GridSpec(1, 10)
+                        gs.update(wspace = 0., hspace = 0.)
+
+                        for t in ts:
+                            #if t==0 : ax1=plt.subplot(gs[t])
+                            ax1 = plt.subplot(gs[ts.index(t)])
+                            gen_image = gen_images_[t, :, :, 0] * (321.46630859375 - 235.2141571044922) + 235.2141571044922
+                            plt.imshow(gen_image, cmap = 'jet', vmin=270, vmax=300)
+                            ax1.title.set_text("t = " + str(t+1-10))
+                            plt.setp([ax1], xticks = [], xticklabels = [], yticks = [], yticklabels = [])
+
+                        plt.savefig(os.path.join(args.output_png_dir, "Predicted_Sample_" + str(name) + ".jpg"))
+                        plt.clf()
+
+
+                        fig = plt.figure(figsize=(12,6))
+                        gs = gridspec.GridSpec(1, 10)
+                        gs.update(wspace = 0., hspace = 0.)
+                        for t in ts:
+                            #if t==0 : ax1=plt.subplot(gs[t])
+                            ax1 = plt.subplot(gs[ts.index(t)])
+                            #persistent_image = persistent_X[t, :, :, 0] * (321.46630859375 - 235.2141571044922) + 235.2141571044922
+                            plt.imshow(persistent_X[t, :, :, 0], cmap = 'jet', vmin=270, vmax=300)
+                            ax1.title.set_text("t = " + str(t+1-10))
+                            plt.setp([ax1], xticks = [], xticklabels = [], yticks = [], yticklabels = [])
+
+                        plt.savefig(os.path.join(args.output_png_dir, "Persistent_Sample_" + str(name) + ".jpg"))
+                        plt.clf()
+
+##                        
+##                with open(os.path.join(args.output_png_dir, "persistent_images_all.pkl"), "wb") as input_files:
+##                    pickle.dump(list(persistent_images_all), input_files)
+##                    print ("Save persistent all")
+##                if is_first:
+##                    gen_images_all = gen_images_stochastic
+##                    is_first = False
+##                else:
+##                    gen_images_all = np.concatenate((np.array(gen_images_all), np.array(gen_images_stochastic)), axis=1)
 ##
-##                    for t in range(len(ts)):
-##                        #if t==0 : ax1=plt.subplot(gs[t])
-##                        ax1 = plt.subplot(gs[t])
-##                        input_image = input_images_[ts[t], :, :, 0] * (321.46630859375 - 235.2141571044922) + 235.2141571044922
-##                        plt.imshow(input_image, cmap = 'jet', vmin=270, vmax=300)
-##                        ax1.title.set_text("t = " + str(ts[t]+1))
-##                        plt.setp([ax1], xticks = [], xticklabels = [], yticks = [], yticklabels = [])
+##                if args.num_stochastic_samples == 1:
+##                    with open(os.path.join(args.output_png_dir, "gen_images_all.pkl"), "wb") as gen_files:
+##                        pickle.dump(list(gen_images_all[0]), gen_files)
+##                        print ("Save generate all")
+##                else:
+##                    with open(os.path.join(args.output_png_dir, "gen_images_sample_id_" + str(sample_ind)),"wb") as gen_files:
+##                        pickle.dump(list(gen_images_stochastic), gen_files)
+##                    with open(os.path.join(args.output_png_dir, "gen_images_all_stochastic"), "wb") as gen_files:
+##                        pickle.dump(list(gen_images_all), gen_files)
+##                
 ##
-##                        if t == 0:
-##                            plt.setp([ax1], xticks = list(np.linspace(0, 64, 3)), xticklabels = xlables, yticks = list(np.linspace(0, 64, 3)), yticklabels = ylabels)
-##                            plt.ylabel("Ground Truth", fontsize=10)
-##                    plt.savefig(os.path.join(args.output_png_dir, "Ground_Truth_Sample_" + str(name) + ".jpg"))
-##                    plt.clf()
+##                    # fig = plt.figure()
+##                    # gs = gridspec.GridSpec(4,6)
+##                    # gs.update(wspace = 0.7,hspace=0.8)
+##                    # ax1 = plt.subplot(gs[0:2,0:3])
+##                    # ax2 = plt.subplot(gs[0:2,3:],sharey=ax1)
+##                    # ax3 = plt.subplot(gs[2:4,0:3])
+##                    # ax4 = plt.subplot(gs[2:4,3:])
+##                    # xlables = [round(i,2) for i in list(np.linspace(np.min(lon),np.max(lon),5))]
+##                    # ylabels = [round(i,2) for i  in list(np.linspace(np.max(lat),np.min(lat),5))]
+##                    # plt.setp([ax1,ax2,ax3],xticks=list(np.linspace(0,64,5)), xticklabels=xlables ,yticks=list(np.linspace(0,64,5)),yticklabels=ylabels)
+##                    # ax1.title.set_text("(a) Ground Truth")
+##                    # ax2.title.set_text("(b) SAVP")
+##                    # ax3.title.set_text("(c) Diff.")
+##                    # ax4.title.set_text("(d) MSE")
+##                    #
+##                    # ax1.xaxis.set_tick_params(labelsize=7)
+##                    # ax1.yaxis.set_tick_params(labelsize = 7)
+##                    # ax2.xaxis.set_tick_params(labelsize=7)
+##                    # ax2.yaxis.set_tick_params(labelsize = 7)
+##                    # ax3.xaxis.set_tick_params(labelsize=7)
+##                    # ax3.yaxis.set_tick_params(labelsize = 7)
+##                    #
+##                    # init_images = np.zeros((input_images_.shape[1], input_images_.shape[2]))
+##                    # print("inti images shape", init_images.shape)
+##                    # xdata, ydata = [], []
+##                    # #plot1 = ax1.imshow(init_images, cmap='jet', vmin =0, vmax = 1)
+##                    # #plot2 = ax2.imshow(init_images, cmap='jet', vmin =0, vmax = 1)
+##                    # plot1 = ax1.imshow(init_images, cmap='jet', vmin = 270, vmax = 300)
+##                    # plot2 = ax2.imshow(init_images, cmap='jet', vmin = 270, vmax = 300)
+##                    # #x = np.linspace(0, 64, 64)
+##                    # #y = np.linspace(0, 64, 64)
+##                    # #plot1 = ax1.contourf(x,y,init_images, cmap='jet', vmin = np.min(input_images), vmax = np.max(input_images))
+##                    # #plot2 = ax2.contourf(x,y,init_images, cmap='jet', vmin = np.min(input_images), vmax = np.max(input_images))
+##                    # fig.colorbar(plot1, ax=ax1).ax.tick_params(labelsize=7)
+##                    # fig.colorbar(plot2, ax=ax2).ax.tick_params(labelsize=7)
+##                    #
+##                    # cm = LinearSegmentedColormap.from_list(
+##                    #     cmap_name, "bwr", N = 5)
+##                    #
+##                    # plot3 = ax3.imshow(init_images, vmin=-20, vmax=20, cmap=cm)#cmap = 'PuBu_r',
+##                    # #plot3 = ax3.imshow(init_images, vmin = -1, vmax = 1, cmap = cm)  # cmap = 'PuBu_r',
+##                    # plot4, = ax4.plot([], [], color = "r")
+##                    # ax4.set_xlim(0, future_length-1)
+##                    # ax4.set_ylim(0, 20)
+##                    # #ax4.set_ylim(0, 0.5)
+##                    # ax4.set_xlabel("Frames", fontsize=10)
+##                    # #ax4.set_ylabel("MSE", fontsize=10)
+##                    # ax4.xaxis.set_tick_params(labelsize=7)
+##                    # ax4.yaxis.set_tick_params(labelsize=7)
+##                    #
+##                    #
+##                    # plots = [plot1, plot2, plot3, plot4]
+##                    #
+##                    # #fig.colorbar(plots[1], ax = [ax1, ax2])
+##                    #
+##                    # fig.colorbar(plots[2], ax=ax3).ax.tick_params(labelsize=7)
+##                    # #fig.colorbar(plot1[0], ax=ax1).ax.tick_params(labelsize=7)
+##                    # #fig.colorbar(plot2[1], ax=ax2).ax.tick_params(labelsize=7)
+##                    #
+##                    # def animation_sample(t):
+##                    #     input_image = input_images_[t, :, :, 0]* (321.46630859375-235.2141571044922) + 235.2141571044922
+##                    #     gen_image = gen_images_[t, :, :, 0]* (321.46630859375-235.2141571044922) + 235.2141571044922
+##                    #     diff_image = input_gen_diff[t,:,:]
+##                    #     # p = sns.lineplot(x=x,y=data,color="b")
+##                    #     # p.tick_params(labelsize=17)
+##                    #     # plt.setp(p.lines, linewidth=6)
+##                    #     plots[0].set_data(input_image)
+##                    #     plots[1].set_data(gen_image)
+##                    #     #plots[0] = ax1.contourf(x, y, input_image, cmap = 'jet', vmin = np.min(input_images),vmax = np.max(input_images))
+##                    #     #plots[1] = ax2.contourf(x, y, gen_image, cmap = 'jet', vmin = np.min(input_images),vmax = np.max(input_images))
+##                    #     plots[2].set_data(diff_image)
+##                    #
+##                    #     if t >= future_length:
+##                    #         #data = gen_mse_avg_[:t + 1]
+##                    #         # x = list(range(len(gen_mse_avg_)))[:t+1]
+##                    #         xdata.append(t-future_length)
+##                    #         print("xdata", xdata)
+##                    #         ydata.append(gen_mse_avg_[t])
+##                    #         print("ydata", ydata)
+##                    #         plots[3].set_data(xdata, ydata)
+##                    #         fig.suptitle("Predicted Frame " + str(t-future_length))
+##                    #     else:
+##                    #         #plots[3].set_data(xdata, ydata)
+##                    #         fig.suptitle("Context Frame " + str(t))
+##                    #     return plots
+##                    #
+##                    # ani = animation.FuncAnimation(fig, animation_sample, frames=len(gen_mse_avg_), interval = 1000,
+##                    #                               repeat_delay=2000)
+##                    # ani.save(os.path.join(args.output_png_dir, "Sample_" + str(name) + ".mp4"))
 ##
-##                    fig = plt.figure(figsize=(12,6))
-##                    gs = gridspec.GridSpec(1, 10)
-##                    gs.update(wspace = 0., hspace = 0.)
-##                    ts = [10,12,14,16,18,19]
-##                    for t in range(len(ts)):
-##                        #if t==0 : ax1=plt.subplot(gs[t])
-##                        ax1 = plt.subplot(gs[t])
-##                        gen_image = gen_images_[ts[t], :, :, 0] * (321.46630859375 - 235.2141571044922) + 235.2141571044922
-##                        plt.imshow(gen_image, cmap = 'jet', vmin=270, vmax=300)
-##                        ax1.title.set_text("t = " + str(ts[t]+1))
-##                        plt.setp([ax1], xticks = [], xticklabels = [], yticks = [], yticklabels = [])
+####                else:
+####                    pass
 ##
-##                    plt.savefig(os.path.join(args.output_png_dir, "Predicted_Sample_" + str(name) + ".jpg"))
-##                    plt.clf()
-
-                    # fig = plt.figure()
-                    # gs = gridspec.GridSpec(4,6)
-                    # gs.update(wspace = 0.7,hspace=0.8)
-                    # ax1 = plt.subplot(gs[0:2,0:3])
-                    # ax2 = plt.subplot(gs[0:2,3:],sharey=ax1)
-                    # ax3 = plt.subplot(gs[2:4,0:3])
-                    # ax4 = plt.subplot(gs[2:4,3:])
-                    # xlables = [round(i,2) for i in list(np.linspace(np.min(lon),np.max(lon),5))]
-                    # ylabels = [round(i,2) for i  in list(np.linspace(np.max(lat),np.min(lat),5))]
-                    # plt.setp([ax1,ax2,ax3],xticks=list(np.linspace(0,64,5)), xticklabels=xlables ,yticks=list(np.linspace(0,64,5)),yticklabels=ylabels)
-                    # ax1.title.set_text("(a) Ground Truth")
-                    # ax2.title.set_text("(b) SAVP")
-                    # ax3.title.set_text("(c) Diff.")
-                    # ax4.title.set_text("(d) MSE")
-                    #
-                    # ax1.xaxis.set_tick_params(labelsize=7)
-                    # ax1.yaxis.set_tick_params(labelsize = 7)
-                    # ax2.xaxis.set_tick_params(labelsize=7)
-                    # ax2.yaxis.set_tick_params(labelsize = 7)
-                    # ax3.xaxis.set_tick_params(labelsize=7)
-                    # ax3.yaxis.set_tick_params(labelsize = 7)
-                    #
-                    # init_images = np.zeros((input_images_.shape[1], input_images_.shape[2]))
-                    # print("inti images shape", init_images.shape)
-                    # xdata, ydata = [], []
-                    # #plot1 = ax1.imshow(init_images, cmap='jet', vmin =0, vmax = 1)
-                    # #plot2 = ax2.imshow(init_images, cmap='jet', vmin =0, vmax = 1)
-                    # plot1 = ax1.imshow(init_images, cmap='jet', vmin = 270, vmax = 300)
-                    # plot2 = ax2.imshow(init_images, cmap='jet', vmin = 270, vmax = 300)
-                    # #x = np.linspace(0, 64, 64)
-                    # #y = np.linspace(0, 64, 64)
-                    # #plot1 = ax1.contourf(x,y,init_images, cmap='jet', vmin = np.min(input_images), vmax = np.max(input_images))
-                    # #plot2 = ax2.contourf(x,y,init_images, cmap='jet', vmin = np.min(input_images), vmax = np.max(input_images))
-                    # fig.colorbar(plot1, ax=ax1).ax.tick_params(labelsize=7)
-                    # fig.colorbar(plot2, ax=ax2).ax.tick_params(labelsize=7)
-                    #
-                    # cm = LinearSegmentedColormap.from_list(
-                    #     cmap_name, "bwr", N = 5)
-                    #
-                    # plot3 = ax3.imshow(init_images, vmin=-20, vmax=20, cmap=cm)#cmap = 'PuBu_r',
-                    # #plot3 = ax3.imshow(init_images, vmin = -1, vmax = 1, cmap = cm)  # cmap = 'PuBu_r',
-                    # plot4, = ax4.plot([], [], color = "r")
-                    # ax4.set_xlim(0, future_length-1)
-                    # ax4.set_ylim(0, 20)
-                    # #ax4.set_ylim(0, 0.5)
-                    # ax4.set_xlabel("Frames", fontsize=10)
-                    # #ax4.set_ylabel("MSE", fontsize=10)
-                    # ax4.xaxis.set_tick_params(labelsize=7)
-                    # ax4.yaxis.set_tick_params(labelsize=7)
-                    #
-                    #
-                    # plots = [plot1, plot2, plot3, plot4]
-                    #
-                    # #fig.colorbar(plots[1], ax = [ax1, ax2])
-                    #
-                    # fig.colorbar(plots[2], ax=ax3).ax.tick_params(labelsize=7)
-                    # #fig.colorbar(plot1[0], ax=ax1).ax.tick_params(labelsize=7)
-                    # #fig.colorbar(plot2[1], ax=ax2).ax.tick_params(labelsize=7)
-                    #
-                    # def animation_sample(t):
-                    #     input_image = input_images_[t, :, :, 0]* (321.46630859375-235.2141571044922) + 235.2141571044922
-                    #     gen_image = gen_images_[t, :, :, 0]* (321.46630859375-235.2141571044922) + 235.2141571044922
-                    #     diff_image = input_gen_diff[t,:,:]
-                    #     # p = sns.lineplot(x=x,y=data,color="b")
-                    #     # p.tick_params(labelsize=17)
-                    #     # plt.setp(p.lines, linewidth=6)
-                    #     plots[0].set_data(input_image)
-                    #     plots[1].set_data(gen_image)
-                    #     #plots[0] = ax1.contourf(x, y, input_image, cmap = 'jet', vmin = np.min(input_images),vmax = np.max(input_images))
-                    #     #plots[1] = ax2.contourf(x, y, gen_image, cmap = 'jet', vmin = np.min(input_images),vmax = np.max(input_images))
-                    #     plots[2].set_data(diff_image)
-                    #
-                    #     if t >= future_length:
-                    #         #data = gen_mse_avg_[:t + 1]
-                    #         # x = list(range(len(gen_mse_avg_)))[:t+1]
-                    #         xdata.append(t-future_length)
-                    #         print("xdata", xdata)
-                    #         ydata.append(gen_mse_avg_[t])
-                    #         print("ydata", ydata)
-                    #         plots[3].set_data(xdata, ydata)
-                    #         fig.suptitle("Predicted Frame " + str(t-future_length))
-                    #     else:
-                    #         #plots[3].set_data(xdata, ydata)
-                    #         fig.suptitle("Context Frame " + str(t))
-                    #     return plots
-                    #
-                    # ani = animation.FuncAnimation(fig, animation_sample, frames=len(gen_mse_avg_), interval = 1000,
-                    #                               repeat_delay=2000)
-                    # ani.save(os.path.join(args.output_png_dir, "Sample_" + str(name) + ".mp4"))
-
-                else:
-                    pass
-
-
-
-        if sample_ind == 0:
-            gen_images_all = gen_images_stochastic
-        else:
-            gen_images_all = np.concatenate((np.array(gen_images_all), np.array(gen_images_stochastic)), axis=1)
-
-        if args.num_stochastic_samples == 1:
-            with open(os.path.join(args.output_png_dir, "gen_images_all"), "wb") as gen_files:
-                pickle.dump(list(gen_images_all[0]), gen_files)
-        else:
-            with open(os.path.join(args.output_png_dir, "gen_images_sample_id_" + str(sample_ind)),"wb") as gen_files:
-                pickle.dump(list(gen_images_stochastic), gen_files)
-            with open(os.path.join(args.output_png_dir, "gen_images_all_stochastic"), "wb") as gen_files:
-                pickle.dump(list(gen_images_all), gen_files)
-
-
-
-
         sample_ind += args.batch_size
 
 
@@ -465,14 +524,18 @@ def main():
 
 
 
-    with open(os.path.join(args.output_png_dir, "input_images_all"),"rb") as input_files:
+    with open(os.path.join(args.output_png_dir, "input_images_all.pkl"),"rb") as input_files:
         input_images_all = pickle.load(input_files)
 
-    with open(os.path.join(args.output_png_dir, "gen_images_all"),"rb") as gen_files:
+    with open(os.path.join(args.output_png_dir, "gen_images_all.pkl"),"rb") as gen_files:
         gen_images_all = pickle.load(gen_files)
+
+    with open(os.path.join(args.output_png_dir, "persistent_images_all.pkl"),"rb") as gen_files:
+        persistent_images_all = pickle.load(gen_files)
 
     input_images_all = np.array(input_images_all)
     input_images_all = np.array(input_images_all) * (321.46630859375 - 235.2141571044922) + 235.2141571044922
+    persistent_images_all = np.array(persistent_images_all)
     if len(np.array(gen_images_all).shape) == 6:
         for i in range(len(gen_images_all)):
             gen_images_all_stochastic = np.array(gen_images_all)[i,:,:,:,:,:]
@@ -498,6 +561,7 @@ def main():
                 f.write("Model PSNR: %f\n" % psnr_model)
                 f.write("Model SSIM: %f\n" % ssim_model)
 
+
             pickle.dump(results, open(os.path.join(args.output_png_dir, "results_stochastic_{}.pkl".format(i)), "wb"))
             # f.write("Previous frame PSNR: %f\n" % psnr_prev)
             f.write("Shape of X_test: " + str(input_images_all.shape))
@@ -506,24 +570,39 @@ def main():
 
     else:
         gen_images_all = np.array(gen_images_all) * (321.46630859375 - 235.2141571044922) + 235.2141571044922
+        
         # mse_model = np.mean((input_images_all[:, 1:,:,:,0] - gen_images_all[:, 1:,:,:,0])**2)  # look at all timesteps except the first
         # mse_model_last = np.mean((input_images_all[:, future_length-1,:,:,0] - gen_images_all[:, future_length-1,:,:,0])**2)
         # mse_prev = np.mean((input_images_all[:, :-1,:,:,0] - gen_images_all[:, 1:,:,:,0])**2 )
         mse_all = []
         psnr_all = []
         ssim_all = []
+        persistent_mse_all = []
+        persistent_psnr_all = []
+        persistent_ssim_all = []
         f = open(os.path.join(args.output_png_dir, 'prediction_scores_4prediction.txt'), 'w')
         for i in range(future_length):
-            mse_model = np.mean((input_images_all[:, i + 10, :, :, 0] - gen_images_all[:, i + 9, :, :,
+            mse_model = np.mean((input_images_all[:1268, i + 10, :, :, 0] - gen_images_all[:, i + 9, :, :,
                                                                         0]) ** 2)  # look at all timesteps except the first
-            psnr_model = psnr(input_images_all[:, i + 10, :, :, 0], gen_images_all[:, i + 9, :, :, 0])
-            ssim_model = ssim(input_images_all[:, i + 10, :, :, 0], gen_images_all[:, i + 9, :, :, 0],
+            persistent_mse_model = np.mean((input_images_all[:1268, i + 10, :, :, 0] - persistent_images_all[:, i + 9, :, :,
+                                                                        0]) ** 2)  # look at all timesteps except the first
+            
+            psnr_model = psnr(input_images_all[:1268, i + 10, :, :, 0], gen_images_all[:, i + 9, :, :, 0])
+            ssim_model = ssim(input_images_all[:1268, i + 10, :, :, 0], gen_images_all[:, i + 9, :, :, 0],
                               data_range = max(gen_images_all[:, i + 9, :, :, 0].flatten()) - min(
                                   input_images_all[:, i + 10, :, :, 0].flatten()))
+            persistent_psnr_model = psnr(input_images_all[:1268, i + 10, :, :, 0], persistent_images_all[:, i + 9, :, :, 0])
+            persistent_ssim_model = ssim(input_images_all[:1268, i + 10, :, :, 0], persistent_images_all[:, i + 9, :, :, 0],
+                              data_range = max(gen_images_all[:1268, i + 9, :, :, 0].flatten()) - min(input_images_all[:1268, i + 10, :, :, 0].flatten()))
             mse_all.extend([mse_model])
             psnr_all.extend([psnr_model])
             ssim_all.extend([ssim_model])
+            persistent_mse_all.extend([persistent_mse_model])
+            persistent_psnr_all.extend([persistent_psnr_model])
+            persistent_ssim_all.extend([persistent_ssim_model])
             results = {"mse": mse_all, "psnr": psnr_all, "ssim": ssim_all}
+
+            persistent_results = {"mse": persistent_mse_all, "psnr": persistent_psnr_all, "ssim": persistent_ssim_all}
             f.write("##########Predicted Frame {}\n".format(str(i + 1)))
             f.write("Model MSE: %f\n" % mse_model)
             # f.write("Previous Frame MSE: %f\n" % mse_prev)
@@ -531,6 +610,7 @@ def main():
             f.write("Model SSIM: %f\n" % ssim_model)
 
         pickle.dump(results, open(os.path.join(args.output_png_dir, "results.pkl"), "wb"))
+        pickle.dump(persistent_results, open(os.path.join(args.output_png_dir, "persistent_results.pkl"), "wb"))
         # f.write("Previous frame PSNR: %f\n" % psnr_prev)
         f.write("Shape of X_test: " + str(input_images_all.shape))
         f.write("")
@@ -538,8 +618,8 @@ def main():
 
 
 
-    psnr_model = psnr(input_images_all[:, :10, :, :, 0],  gen_images_all[:, :10, :, :, 0])
-    psnr_model_last = psnr(input_images_all[:, 10, :, :, 0],  gen_images_all[:,10, :, :, 0])
+    #psnr_model = psnr(input_images_all[:, :10, :, :, 0],  gen_images_all[:, :10, :, :, 0])
+    #psnr_model_last = psnr(input_images_all[:, 10, :, :, 0],  gen_images_all[:,10, :, :, 0])
     #psnr_prev = psnr(input_images_all[:, :, :, :, 0],  input_images_all[:, 1:10, :, :, 0])
 
     # ims = []

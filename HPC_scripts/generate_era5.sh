@@ -21,9 +21,11 @@ module load TensorFlow/1.13.1-GPU-Python-3.6.8
 module load netcdf4-python/1.5.0.1-Python-3.6.8
 module load h5py/2.9.0-Python-3.6.8
 
-python ../scripts/generate_transfer_learning_finetune.py \
+
+python -u ../scripts/generate_transfer_learning_finetune.py \
 --input_dir /p/scratch/deepacf/video_prediction_shared_folder/preprocessedData/era5-Y2017M01to12-64x64-50d00N11d50E-T_T_T/tfrecords/  \
 --dataset_hparams sequence_length=20 --checkpoint  /p/scratch/deepacf/video_prediction_shared_folder/models/era5-Y2017M01to12-64x64-50d00N11d50E-T_T_T/ours_gan \
 --mode test --results_dir /p/scratch/deepacf/video_prediction_shared_folder/results/era5-Y2017M01to12-64x64-50d00N11d50E-T_T_T \
---batch_size 4 --dataset era5 
+--batch_size 4 --dataset era5   > generate_era5-out.out
+
 #srun  python scripts/train.py --input_dir data/era5 --dataset era5  --model savp --model_hparams_dict hparams/kth/ours_savp/model_hparams.json --output_dir logs/era5/ours_savp
