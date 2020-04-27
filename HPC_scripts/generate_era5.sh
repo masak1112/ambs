@@ -13,6 +13,8 @@
 #SBATCH --mail-user=b.gong@fz-juelich.de
 ##jutil env activate -p cjjsc42
 
+
+module purge
 module load GCC/8.3.0
 module load ParaStationMPI/5.2.2-1
 module load TensorFlow/1.13.1-GPU-Python-3.6.8

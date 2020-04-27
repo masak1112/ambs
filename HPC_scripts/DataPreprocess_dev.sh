@@ -9,7 +9,7 @@
 #SBATCH --time=00:20:00
 #SBATCH --partition=devel
 #SBATCH --mail-type=ALL
-#SBATCH --mail-user=b.gong@fz-juelich.de
+#SBATCH --mail-user=m.langguth@fz-juelich.de
 
 module --force purge
 module use  $OTHERSTAGES
@@ -17,7 +17,6 @@ module load Stages/2019a
 module load Intel/2019.3.199-GCC-8.3.0  ParaStationMPI/5.2.2-1
 module load h5py/2.9.0-Python-3.6.8
 module load mpi4py/3.0.1-Python-3.6.8
-
 
 source_dir=/p/scratch/deepacf/video_prediction_shared_folder/extractedData
 destination_dir=/p/scratch/deepacf/video_prediction_shared_folder/preprocessedData/era5-Y2015toY2017M01to12-128x160-74d00N71d00E-T_MSL_gph500/hickle
