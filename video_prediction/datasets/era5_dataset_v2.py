@@ -37,10 +37,12 @@ class ERA5Dataset_v2(VarLenFeatureVideoDataset):
             sequence_length=20,#bing: TODO original is 20,
             long_sequence_length=20,
             force_time_shift=True,
-            shuffle_on_val=True,
+            shuffle_on_val=True, 
             use_state=False,
         )
         return dict(itertools.chain(default_hparams.items(), hparams.items()))
+
+
     @property
     def jpeg_encoding(self):
         return False
@@ -88,6 +90,9 @@ class ERA5Dataset_v2(VarLenFeatureVideoDataset):
             seqs["images"] = images
             return seqs
         filenames = self.filenames
+        print ("FILENAMES",filenames)
+	#TODO:
+	#temporal_filenames = self.temporal_filenames
         shuffle = self.mode == 'train' or (self.mode == 'val' and self.hparams.shuffle_on_val)
         if shuffle:
             random.shuffle(filenames)
