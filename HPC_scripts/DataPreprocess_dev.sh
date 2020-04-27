@@ -18,7 +18,21 @@ module load Intel/2019.3.199-GCC-8.3.0  ParaStationMPI/5.2.2-1
 module load h5py/2.9.0-Python-3.6.8
 module load mpi4py/3.0.1-Python-3.6.8
 
-srun python ../../workflow_parallel_frame_prediction/DataPreprocess/mpi_stager_v2_process_netCDF.py \
- --source_dir /p/scratch/deepacf/video_prediction_shared_folder/extractedData/2016/ \
- --destination_dir /p/scratch/deepacf/video_prediction_shared_folder/preprocessedData/Y2016M01to12-128_160-74.00N710E-T_T_T \
- --vars T2 T2 T2 --lat_s 74 --lat_e 202 --lon_s 550 --lon_e 710
+source_dir=/p/scratch/deepacf/video_prediction_shared_folder/extractedData
+destination_dir=/p/scratch/deepacf/video_prediction_shared_folder/preprocessedData/era5-Y2015toY2017M01to12-128x160-74d00N71d00E-T_MSL_gph500/hickle
+declare -a years=("2015" 
+                 "2016" 
+                 "2017"
+                  )
+
+
+for year in "${years[@]}"; 
+    do 
+        echo "Year $year"
+	echo "source_dir ${source_dir}/${year}"
+	srun python ../../workflow_parallel_frame_prediction/DataPreprocess/mpi_stager_v2_process_netCDF.py \
+         --source_dir ${source_dir}/${year}/ \
+         --destination_dir ${destination_dir}/${year}/ --vars T2 MSL gph500 --lat_s 74 --lat_e 202 --lon_s 550 --lon_e 710
+    done
+
+
