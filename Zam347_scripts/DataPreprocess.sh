@@ -13,7 +13,6 @@ for year in "${years[@]}";
          --source_dir ${source_dir}/${year}/ \
          --destination_dir ${destination_dir}/${year}/ --vars T2 MSL gph500 --lat_s 74 --lat_e 202 --lon_s 550 --lon_e 710
     done
-
 python ../../workflow_parallel_frame_prediction/DataPreprocess/mpi_split_data_multi_years.py --destination_dir ${destination_dir}
 
 
