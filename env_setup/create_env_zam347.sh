@@ -15,6 +15,7 @@ unset PYTHONPATH
 # Install additional Python packages.
 python3 -m venv $ENV_DIR
 source ${ENV_DIR}/bin/activate
+pip3 install --upgrade pip
 pip3 install -r ${ENV_SETUP_DIR}/requirements.txt
 #conda install mpi4py
 pip3 install  mpi4py 
