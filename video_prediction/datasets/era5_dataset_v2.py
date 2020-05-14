@@ -190,11 +190,13 @@ def read_frames_and_save_tf_records(output_dir,input_dir,partition_name,vars_in,
     sequence_lengths_file = open(os.path.join(output_dir, 'sequence_lengths.txt'), 'w')
     X_train = hkl.load(os.path.join(input_dir, "X_" + partition_name + ".hkl"))
     X_possible_starts = [i for i in range(len(X_train) - N_seq)]
+    print(X_possible_starts)
     for X_start in X_possible_starts:
         print("Interation", sequence_iter)
         X_end = X_start + N_seq
         #seq = X_train[X_start:X_end, :, :,:]
         seq = X_train[X_start:X_end,:,:]
+        print(seq.shape)
         #print("*****len of seq ***.{}".format(len(seq)))
         #seq = list(np.array(seq).reshape((len(seq), 64, 64, 3)))
         seq = list(np.array(seq).reshape((len(seq), 128, 160,nvars)))
@@ -239,7 +241,7 @@ def main():
     partition_names = ['train','val',  'test'] #64,64,3 val has issue#
   
     for partition_name in partition_names:
-        read_frames_and_save_tf_records(output_dir=args.output_dir,input_dir=args.input_dir,vars_in=args.variables,partition_name=partition_name, N_seq=20) #Bing: Todo need check the N_seq
+        read_frames_and_save_tf_records(output_dir=args.output_dir,input_dir=args.input_dir,vars_in=args.variables,partition_name=partition_name, N_seq=10, sequences_per_file=2) #Bing: Todo need check the N_seq
         #ead_frames_and_save_tf_records(output_dir = output_dir, input_dir = input_dir,partition_name = partition_name, N_seq=20) #Bing: TODO: first try for N_seq is 10, but it met loading data issue. let's try 5
 
 if __name__ == '__main__':
