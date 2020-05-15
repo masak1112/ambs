@@ -13,6 +13,7 @@ import numpy as np
 from netCDF4 import Dataset
 import hickle as hkl
 import json
+import copy
 
 #TODO: Not optimal with DATA_DIR and filingPath: In original process_kitti.py 
 # there's just DATA_DIR (which is specified in kitti_settings.py) and in there
@@ -133,7 +134,7 @@ def get_stat(stat_dict,stat_name):
     '''
     if ("common_stat" in stat_dict):
         # remove dictionary elements not related to specific variables, i.e. common_stat-elements
-        stat_dict_filter = copy.deepcoy(stat_dict)
+        stat_dict_filter = copy.deepcopy(stat_dict)
         stat_dict_filter.pop("common_stat")
     else:
         stat_dict_filter = stat_dict
