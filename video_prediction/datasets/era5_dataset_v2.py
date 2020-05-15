@@ -85,7 +85,7 @@ class ERA5Dataset_v2(VarLenFeatureVideoDataset):
             # images = tf.decode_raw(parsed_features["images/encoded"],tf.int32)
 
             # images = seq
-            images = tf.reshape(seq, [20, 64, 64, 3], name = "reshape_new")
+            images = tf.reshape(seq, [20, 128, 160, 3], name = "reshape_new")
             print("IMAGES", images)
             seqs["images"] = images
             return seqs
