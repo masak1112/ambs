@@ -10,8 +10,8 @@ import glob
 import numpy as np
 #from imageio import imread
 #from scipy.misc import imresize
-import hickle as hkl
 from netCDF4 import Dataset
+import hickle as hkl
 import json
 
 #TODO: Not optimal with DATA_DIR and filingPath: In original process_kitti.py 
@@ -22,46 +22,7 @@ import json
 # ToDo: Define properly the train, val and test index
 # Here just for testing and taking weird .DS_Store file into consideration
 # http://www.apfelwiki.de/Main/DSStore
-#train_recordings = imageList[1:6]
-#val_recordings = imageList[7:9]
-#test_recordings = imageList[-2:]
 
-#Train,Val,Test size in percentage
-#partition = [0.8, 0.05, 0.15]
-#determine correct indices 
-#train_begin = 0
-#train_end = round(partition[0]*len(imageList))-1
-#val_begin = train_end + 1
-#val_end = train_end + round(partition[1]*len(imageList))
-#test_begin = val_end + 1
-#test_end = len(imageList)-1
-#print('Indices of Train, Val and test: '+ str(train_begin) + ' ' + str(val_begin) + ' ' + str(test_begin))
-#slightly adapting start and end because starts at the first index given and stops before(!) the last. 
-#train_recordings = imageList[train_begin:val_begin]
-#val_recordings = imageList[val_begin:test_begin]
-#test_recordings = imageList[test_begin:test_end]
-
-#adapted for feature testing: just first year (2015); Otherwise would take too long and some weird mistake in some data in 2016
-#in total: 17544
-#half: 8772
-#train: 0-6900
-#val:6901-7000
-#test:7001-8772
-#train_recordings = imageList[0:1000]
-#val_recordings = imageList[6901:7000]
-#test_recordings = imageList[7001:8772]
-
-# print('Now everything together:')
-# print('Train:')
-# print(train_recordings)
-# print('Val:')
-# print(val_recordings)
-# print('Test:')
-# print(tiest_recordings)
-
-
-#exec("%s = %d" % (var1,2))
-# Create image datasets.
 # Processes images and saves them in train, val, test splits.
 def process_data(directory_to_process, target_dir, job_name, slices, vars=("T2","MSL","gph500")):
     desired_im_sz = (slices["lat_e"] - slices["lat_s"], slices["lon_e"] - slices["lon_s"])
@@ -111,48 +72,6 @@ def process_data(directory_to_process, target_dir, job_name, slices, vars=("T2",
     # ML 2020/03/31: write json file with statistics
     stat_obj.finalize_stat_loc(vars)
     stat_obj.write_stat_json_loc(target_dir,job_name)
-    
-    vars_uni, varsind = np.unique(vars,return_index=True)
-    nvars = len(vars_uni)
-
-    varmin, varmax, varavg = varmin[varsind], varmax[varsind], varavg[varsind] 
-    stat_dict = {}
-    for i in range(nvars):
-        varavg[i] /= len(imageList)
-        print('varavg['+str(i)+'] : {0:5.2f}'.format(varavg[i]))
-        print('length of imageList: ',len(imageList))
-
-        stat_dict[vars_uni[i]]=[]
-        stat_dict[vars_uni[i]].append({
-                  'min': varmin[i],
-                  'max': varmax[i],
-                  'avg': varavg[i]
-        })
-   
-    js_file = os.path.join(target_dir,'stat_' + str(job_name) + '.json')
-    with open(js_file,'w') as stat_out:
-        json.dump(stat_dict, stat_out)
-    print(js_file+" was created successfully...")
-
-        #hkl.dump(source_list, os.path.join(target_dir, 'sources_' + str(job) + '.hkl'))
-
-        #for category, folder in splits[split]:
-        #    im_dir = os.path.join(DATA_DIR, 'raw/', category, folder, folder[:10], folder, 'image_03/data/')
-        #    files = list(os.walk(im_dir, topdown=False))[-1][-1]
-        #    im_list += [im_dir + f for f in sorted(files)]
-            # multiply path of respective recording with lengths of its files in order to ensure
-            # that each entry in X_train.hkl corresponds with an entry of source_list/ sources_train.hkl
-        #    source_list += [category + '-' + folder] * len(files)
-
-        #print( 'Creating ' + split + ' data: ' + str(len(im_list)) + ' images')
-        #X = np.zeros((len(im_list),) + desired_im_sz + (3,), np.uint8)
-        # enumerate allows us to loop over something and have an automatic counter
-        #for i, im_file in enumerate(im_list):
-        #    im = imread(im_file)
-        #    X[i] = process_im(im, desired_im_sz)
-
-        #hkl.dump(X, os.path.join(DATA_DIR, 'X_' + split + '.hkl'))
-        #hkl.dump(source_list, os.path.join(DATA_DIR, 'sources_' + split + '.hkl'))
 
 def process_netCDF_in_dir(src_dir,**kwargs):
     target_dir = kwargs.get("target_dir")
