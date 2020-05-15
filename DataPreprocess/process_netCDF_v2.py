@@ -131,7 +131,7 @@ def get_stat(stat_dict,stat_name):
     '''
     Unpacks statistics dictionary and returns values of stat_name
     '''
-    if ("common_stat" in stat_dict_filter):
+    if ("common_stat" in stat_dict):
         # remove dictionary elements not related to specific variables, i.e. common_stat-elements
         stat_dict_filter = copy.deepcoy(stat_dict)
         stat_dict_filter.pop("common_stat")
