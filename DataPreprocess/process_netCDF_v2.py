@@ -69,7 +69,7 @@ def process_data(directory_to_process, target_dir, job_name, slices, vars=("T2",
     imageList = list(os.walk(directory_to_process, topdown = False))[-1][-1]
     imageList = sorted(imageList)
     EU_stack_list = [0] * (len(imageList))
-    len_vars = len(vars)
+    nvars = len(vars)
     #X = np.zeros((len(splits[split]),) + desired_im_sz + (3,), np.uint8)
     #print(X)
     #print('shape of X' + str(X.shape))
@@ -81,8 +81,7 @@ def process_data(directory_to_process, target_dir, job_name, slices, vars=("T2",
    
     # ML 2020/04/06 S
     # Some inits
-    varmin, varmax = np.full(len_vars,np.nan), np.full(len_vars,np.nan)
-    varavg = np.zeros(len_vars)
+    stat_obj = calc_data_stat(nvars)
     # ML 2020/04/06 E
     for j, im_file in enumerate(imageList):
         try:
@@ -90,48 +89,14 @@ def process_data(directory_to_process, target_dir, job_name, slices, vars=("T2",
             print('Open following dataset: '+im_path)
 
             vars_list = []
-            for i in range(len_vars):
-                im = Dataset(im_path, mode = 'r')
-                var1 = im.variables[vars[i]][0, :, :]
-                im.close()
-                var1 = var1[slices["lat_s"]:slices["lat_e"], slices["lon_s"]:slices["lon_e"]]
-                vars_list.append(var1)
-                # ML 2020/03/31: apply some statistics
-                varmin[i], varmax[i] = np.fmin(varmin[i],np.amin(var1)), np.fmax(varmax[i],np.amax(var1))
-                varavg[i] += np.average(var1) 
-            # var2 = var2[slices["lat_e"]-slices["lat_s"],slices["lon_e"]-slices["lon_s"]]
-            # var3 = var3[slices["lat_e"]-slices["lat_s"],slices["lon_e"]-slices["lon_s"]]
-            #print(EU_t2.shape, EU_msl.shape, EU_gph500.shape)
-            #Normal stack: T2, MSL & GPH500
-            #EU_stack = np.stack([EU_t2, EU_msl, EU_gph500],axis=2)
-            #Stack T2 only:
-            #EU_stack = np.stack([EU_t2, EU_t2, EU_t2],axis=2)
-            #EU_stack_list[i]=EU_stack
-            #Stack T2*2 MSL*1:
-            #EU_stack = np.stack([EU_t2, EU_t2, EU_msl],axis=2)
-            #EU_stack_list[i]=EU_stack
-            #EU_stack = np.stack([EU_t2, EU_msl, EU_msl],axis=2)
-            #EU_stack_list[i]=EU_stack
-            #Stack T2*2 gph500*1:
-            #EU_stack = np.stack([EU_t2, EU_t2, EU_gph500],axis=2)
-            #EU_stack_list[i]=EU_stack
-            #Stack T2*1 gph500*2
-            #EU_stack = np.stack([EU_t2, EU_gph500, EU_gph500],axis=2)
-            #EU_stack_list[i]=EU_stack
-            #print(EU_stack.shape)
-            #X[i]=EU_stack #this should be unnecessary
-            #t2_1 stack. Stack t2 with two empty arrays
-            #empty_image = np.zeros(shape = (128, 160))
-            #EU_stack = np.stack([EU_t2, empty_image, empty_image],axis=2)
-            #EU_stack_list[i]=EU_stack
-            #t2_2 stack. Stack t2 with one empty array
-#            empty_image = np.zeros(shape = (64, 64))
-            #EU_stack = np.stack([var1, var2, var3], axis=2)
+            with Dataset(im_path,'r') as data_file:
+                for i in range(nvars):
+                    var1 = data_file.variables[vars[i]][0,slices["lat_s"]:slices["lat_e"], slices["lon_s"]:slices["lon_e"]]
+                    stat_obj.acc_stat(i,var1)
+                    vars_list.append(var1)
+
             EU_stack = np.stack(vars_list, axis = 2)
             EU_stack_list[j] =list(EU_stack)
-            #print('Does ist work? ')
-            #print(EU_stack_list[i][:,:,0]==EU_t2)
-            #print(EU_stack[:,:,1]==EU_msl
         except Exception as err:
             print("*************ERROR*************", err)
             print("Error message {} from file {}".format(err,im_file))
@@ -144,6 +109,9 @@ def process_data(directory_to_process, target_dir, job_name, slices, vars=("T2",
     hkl.dump(X, target_file) #Not optimal!
     print(target_file, "is saved")
     # ML 2020/03/31: write json file with statistics
+    stat_obj.finalize_stat_loc(vars)
+    stat_obj.write_stat_json_loc(target_dir,job_name)
+    
     vars_uni, varsind = np.unique(vars,return_index=True)
     nvars = len(vars_uni)
 
@@ -311,6 +279,53 @@ def create_stat_json_master(target_dir,nnodes_active,vars):
             
 
 # ML 2020/04/03 E
+
+# ML 2020/05/15 S
+class calc_data_stat:
+    """Class for computing statistics and saving them to a json-files."""
+    def __init__(self,nvars):
+        self.stat_dict = {}
+        self.varmin    = np.full(nvars,np.nan)
+        self.varmax    = np.full(nvars,np.nan)
+        self.varavg    = np.zeros(nvars)
+        self.nfiles    = 0
+
+    def acc_stat(self,ivar,data):
+        self.varmin[ivar]  = np.fmin(self.varmin[ivar],np.amin(data))
+        self.varmax[ivar]  = np.fmax(self.varmax[ivar],np.amax(data))
+        self.varavg[ivar] += np.average(data)
+        if (ivar == 0): self.nfiles += 1 
+        
+    def finalize_stat_loc(self,varnames):
+        vars_uni, varsind = np.unique(varnames,return_index=True)
+        nvars = len(vars_uni)
+
+        varmin, varmax, varavg = self.varmin[varsind], self.varmax[varsind], self.varavg[varsind] 
+        
+        for i in range(nvars):
+            varavg[i] /= self.nfiles
+            print('varavg['+str(i)+'] : {0:5.2f}'.format(varavg[i]))
+            print('length of imageList: ',self.nfiles)
+
+            self.stat_dict[vars_uni[i]]=[]
+            self.stat_dict[vars_uni[i]].append({
+                  'min': varmin[i],
+                  'max': varmax[i],
+                  'avg': varavg[i]
+            })        
+        self.stat_dict["nfiles"] = self.nfiles
+        
+    def write_stat_json_loc(self,path_out,job_name):
+        try:
+            js_file = os.path.join(path_out,'stat_'+str(job_name) + '.json')
+            with open(js_file,'w') as stat_out:
+                json.dump(self.stat_dict,stat_out)
+        except ValueError: 
+            print("Something went wrong when writing dictionary to json-file: '"+js_file+"''")
+        finally:
+            print("Created statistics json-file '"+js_file+"' successfully.")
+
+# ML 2020/05/15 E
                  
 
 def split_data_multiple_years(target_dir,partition):
