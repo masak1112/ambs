@@ -131,9 +131,15 @@ def get_stat(stat_dict,stat_name):
     '''
     Unpacks statistics dictionary and returns values of stat_name
     '''
-
+    if ("common_stat" in stat_dict_filter):
+        # remove dictionary elements not related to specific variables, i.e. common_stat-elements
+        stat_dict_filter = copy.deepcoy(stat_dict)
+        stat_dict_filter.pop("common_stat")
+    else:
+        stat_dict_filter = stat_dict
+    
     try:
-        return [stat_dict[i][0][stat_name] for i in [*stat_dict.keys()]]
+        return [stat_dict_filter[i][0][stat_name] for i in [*stat_dict_filter.keys()]]
     except:
         raise ValueError("Could not find "+stat_name+" for all variables of input dictionary.")
 
@@ -232,7 +238,8 @@ class calc_data_stat:
                   'max': varmax[i],
                   'avg': varavg[i]
             })        
-        self.stat_dict["nfiles"] = self.nfiles
+        self.stat_dict["common_stat"] = [
+            {"nfiles":self.nfiles}]
         
     def write_stat_json_loc(self,path_out,job_name):
         try:
