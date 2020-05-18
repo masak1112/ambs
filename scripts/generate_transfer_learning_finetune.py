@@ -91,7 +91,10 @@ def main():
         tf.set_random_seed(args.seed)
         np.random.seed(args.seed)
         random.seed(args.seed)
-
+    #Bing:20200518 
+    input_dir = args.input_dir
+    temporal_dir = os.path.split(input_dir)[0] + "/hickle/splits/"
+    print ("temporal_dir:",temporal_dir)
     args.results_gif_dir = args.results_gif_dir or args.results_dir
     args.results_png_dir = args.results_png_dir or args.results_dir
     dataset_hparams_dict = {}
@@ -197,12 +200,13 @@ def main():
     persistent_images_all = []
     input_images_all = []
     #Bing:20201417
-    test_temporal_pkl = pickle.load(open("/p/scratch/deepacf/video_prediction_shared_folder/preprocessedData/era5-Y2017M01to12-64x64-50d00N11d50E-T_T_T/hickle/splits/T_test.pkl","rb"))
+    print ("temporal_dir:",temporal_dir)
+    test_temporal_pkl = pickle.load(open(os.path.join(temporal_dir,"T_test.pkl"),"rb"))
     #val_temporal_pkl = pickle.load(open("/p/scratch/deepacf/video_prediction_shared_folder/preprocessedData/era5-Y2017M01to12-64x64-50d00N11d50E-T_T_T/hickle/splits/T_val.pkl","rb"))
     print("test temporal_pkl file looks like folowing", test_temporal_pkl)
 
     #X_val = hickle.load("/p/scratch/deepacf/video_prediction_shared_folder/preprocessedData/era5-Y2017M01to12-64x64-50d00N11d50E-T_T_T/hickle/splits/X_val.hkl")
-    X_test = hickle.load("/p/scratch/deepacf/video_prediction_shared_folder/preprocessedData/era5-Y2017M01to12-64x64-50d00N11d50E-T_T_T/hickle/splits/X_test.hkl")
+    X_test = hickle.load(os.path.join(temporal_dir,"X_test.hkl"))
     is_first=True
     
 
