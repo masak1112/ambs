@@ -104,7 +104,8 @@ def main():
         if my_rank == 0:
             logging.critical('The Destination does not exist')
             logging.info('Create new destination dir')
-            if not os.path.exists(destination_dir): os.mkdir(destination_dir)
+            os.makedirs(destination_dir,exist_ok=True)
+            #if not os.path.exists(destination_dir): os.mkdir(destination_dir)
 
     if my_rank == 0:  # node is master:
         # ==================================== Master : Directory scanner ================================= #
