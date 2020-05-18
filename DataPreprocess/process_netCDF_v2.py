@@ -127,37 +127,6 @@ def split_data(target_dir, partition= [0.6, 0.2, 0.2]):
         hkl.dump(X, os.path.join(split_dir, 'X_' + split + '.hkl'))
         hkl.dump(files, os.path.join(split_dir,'sources_' + split + '.hkl'))
 
-# ML 2020/04/03 S
-def get_stat(stat_dict,stat_name):
-    '''
-    Unpacks statistics dictionary and returns values of stat_name
-    '''
-    if ("common_stat" in stat_dict):
-        # remove dictionary elements not related to specific variables, i.e. common_stat-elements
-        stat_dict_filter = copy.deepcopy(stat_dict)
-        stat_dict_filter.pop("common_stat")
-    else:
-        stat_dict_filter = stat_dict
-    
-    try:
-        return [stat_dict_filter[i][0][stat_name] for i in [*stat_dict_filter.keys()]]
-    except:
-        raise ValueError("Could not find "+stat_name+" for all variables of input dictionary.")
-
-# ML 2020/04/13 S
-def get_stat_allvars(stat_dict,stat_name,allvars):
-    '''
-    Retrieves requested statistics (stat_name) for all variables listed in allvars given statistics dictionary.
-    '''
-    vars_uni,indrev = np.unique(allvars,return_inverse=True)
-    
-    try:
-        return([stat_dict[var][0][stat_name] for var in vars_uni[indrev]]) 
-    except:
-        raise ValueError("Could not find "+stat_name+" for all variables of input dictionary.")
-
-# ML 2020/04/13: E
-
 def create_stat_json_master(target_dir,nnodes_active,vars):
     ''' 
     Reads all json-files created by slave nodes in 'process_data'-function (see above),
@@ -217,19 +186,29 @@ class calc_data_stat:
         self.nfiles    = 0
 
     def acc_stat(self,ivar,data):
+        """
+        Performs accumulation of all statistics while looping through all data files (i.e. updates the statistics)
+        """
         self.varmin[ivar]  = np.fmin(self.varmin[ivar],np.amin(data))
         self.varmax[ivar]  = np.fmax(self.varmax[ivar],np.amax(data))
-        self.varavg[ivar] += np.average(data)
+        self.varavg[ivar] += np.average(data)                           # note that we sum the average -> readjustment required in the final step
         if (ivar == 0): self.nfiles += 1 
         
     def finalize_stat_loc(self,varnames):
+        """
+        Finalizes computation of statistics after going through all the data.
+        Afterwards the statistics dictionary is ready for being written in a json-file
+        """
+        
+        if self.stat_dict: raise ValueError("Statistics dictionary is not empty.")
+        
         vars_uni, varsind = np.unique(varnames,return_index=True)
         nvars = len(vars_uni)
 
         varmin, varmax, varavg = self.varmin[varsind], self.varmax[varsind], self.varavg[varsind] 
         
         for i in range(nvars):
-            varavg[i] /= self.nfiles
+            varavg[i] /= self.nfiles                                    # for adjusting the (summed) average
             print('varavg['+str(i)+'] : {0:5.2f}'.format(varavg[i]))
             print('length of imageList: ',self.nfiles)
 
@@ -242,9 +221,43 @@ class calc_data_stat:
         self.stat_dict["common_stat"] = [
             {"nfiles":self.nfiles}]
         
-    def write_stat_json_loc(self,path_out,job_name):
+    def get_var_stat(self,stat_name):
+        '''
+        Unpacks statistics dictionary and returns values of stat_name
+        '''        
+        
+        if not self.stat_dict: raise ValueError("Statistics dictionary is still empty! Cannot access anything from it.")
+        
+        stat_dict_filter = copy.deepcopy(self.stat_dict)
+        stat_dict_filter.pop("common_stat")
+        
         try:
-            js_file = os.path.join(path_out,'stat_'+str(job_name) + '.json')
+            return [stat_dict_filter[i][0][stat_name] for i in [*stat_dict_filter.keys()]]
+        except:
+            raise ValueError("Could not find "+stat_name+" for all variables of input dictionary.")       
+        
+        
+    def get_stat_allvars(self,stat_name,allvars):
+        '''
+        Retrieves requested statistics (stat_name) for all variables listed in allvars given statistics dictionary.
+        '''        
+        
+        if not self.stat_dict: raise ValueError("Statistics dictionary is still empty! Cannot access anything from it.")
+    
+        vars_uni,indrev = np.unique(allvars,return_inverse=True)
+    
+        try:
+            return([stat_dict[var][0][stat_name] for var in vars_uni[indrev]]) 
+        except:
+            raise ValueError("Could not find "+stat_name+" for all variables of input dictionary.")
+        
+        
+    def write_stat_json_loc(self,path_out,job_id):
+        """
+        Writes statistics-dictionary of slave nodes to json-file (with job_id in the output name)
+        """
+        try:
+            js_file = os.path.join(path_out,'stat_'+str(job_id) + '.json')
             with open(js_file,'w') as stat_out:
                 json.dump(self.stat_dict,stat_out)
         except ValueError: 
