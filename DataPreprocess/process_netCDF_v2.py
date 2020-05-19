@@ -216,16 +216,16 @@ class calc_data_stat:
                 data = json.load(js_file)
                 
                 # sanity check
-                if (data.keys() != self.stat_dict.keys()):
-                    raise ValueError("Different variables found in json-file '"+js_file+"' and input dictionary.")
+                if (len(data.keys()) -1 != len(self.varmin)):
+                    raise ValueError("Different number of variables found in json-file '"+js_file+"' as expected from statistics object.")
                 
-                self.varmin  = np.fmin(self.varmin,self.get_var_stat(data,"min")) 
-                self.varmax  = np.fmax(self.varmax,self.get_var_stat(data,"max"))
+                self.varmin  = np.fmin(self.varmin,self.get_var_stat("min")) 
+                self.varmax  = np.fmax(self.varmax,self.get_var_stat("max"))
                 if (all(self.varavg == 0.) or self.nfiles[0] == 0):
-                    self.varavg = get_stat(data,"avg")
+                    self.varavg = self.get_var_stat("avg")
                     self.nfiles[0] = self.get_common_stat("nfiles")
                 else:
-                    self.varavg = np.append(self.varavg,get_var_stat("avg"))
+                    self.varavg = np.append(self.varavg,self.get_var_stat("avg"))
                     self.nfiles.append(self.get_common_stat("nfiles"))
         except IOError:
             print("Cannot handle statistics file '"+file_name+"' to be processed.")
@@ -357,7 +357,7 @@ def split_data_multiple_years(target_dir,partition,varnames):
                 data = hkl.load(data_file)
                 X = X + list(data)
                 # process stat-file:
-                stat_obj.acc_stat_master(file_dir,month)
+                stat_obj.acc_stat_master(file_dir,int(month))
                 
         X = np.array(X) 
         print("==================={}=====================".format(split))
