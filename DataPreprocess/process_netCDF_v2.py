@@ -13,7 +13,6 @@ import numpy as np
 from netCDF4 import Dataset
 import hickle as hkl
 import json
-import copy
 
 #TODO: Not optimal with DATA_DIR and filingPath: In original process_kitti.py 
 # there's just DATA_DIR (which is specified in kitti_settings.py) and in there
@@ -72,7 +71,7 @@ def process_data(directory_to_process, target_dir, job_name, slices, vars=("T2",
     print(target_file, "is saved")
     # ML 2020/03/31: write json file with statistics
     stat_obj.finalize_stat_loc(vars)
-    stat_obj.write_stat_json_loc(target_dir,job_name)
+    stat_obj.write_stat_json(target_dir,job_id=job_name)
 
 def process_netCDF_in_dir(src_dir,**kwargs):
     target_dir = kwargs.get("target_dir")
@@ -127,37 +126,6 @@ def split_data(target_dir, partition= [0.6, 0.2, 0.2]):
         hkl.dump(X, os.path.join(split_dir, 'X_' + split + '.hkl'))
         hkl.dump(files, os.path.join(split_dir,'sources_' + split + '.hkl'))
 
-# ML 2020/04/03 S
-def get_stat(stat_dict,stat_name):
-    '''
-    Unpacks statistics dictionary and returns values of stat_name
-    '''
-    if ("common_stat" in stat_dict):
-        # remove dictionary elements not related to specific variables, i.e. common_stat-elements
-        stat_dict_filter = copy.deepcopy(stat_dict)
-        stat_dict_filter.pop("common_stat")
-    else:
-        stat_dict_filter = stat_dict
-    
-    try:
-        return [stat_dict_filter[i][0][stat_name] for i in [*stat_dict_filter.keys()]]
-    except:
-        raise ValueError("Could not find "+stat_name+" for all variables of input dictionary.")
-
-# ML 2020/04/13 S
-def get_stat_allvars(stat_dict,stat_name,allvars):
-    '''
-    Retrieves requested statistics (stat_name) for all variables listed in allvars given statistics dictionary.
-    '''
-    vars_uni,indrev = np.unique(allvars,return_inverse=True)
-    
-    try:
-        return([stat_dict[var][0][stat_name] for var in vars_uni[indrev]]) 
-    except:
-        raise ValueError("Could not find "+stat_name+" for all variables of input dictionary.")
-
-# ML 2020/04/13: E
-
 def create_stat_json_master(target_dir,nnodes_active,vars):
     ''' 
     Reads all json-files created by slave nodes in 'process_data'-function (see above),
@@ -207,29 +175,58 @@ def create_stat_json_master(target_dir,nnodes_active,vars):
 # ML 2020/04/03 E
 
 # ML 2020/05/15 S
+def get_unique_vars(varnames):
+    vars_uni, varsind = np.unique(varnames,return_index = True)
+    nvars_uni         = len(vars_uni)
+    
+    return(vars_uni, varsind, nvars_uni)
+
 class calc_data_stat:
     """Class for computing statistics and saving them to a json-files."""
     def __init__(self,nvars):
         self.stat_dict = {}
         self.varmin    = np.full(nvars,np.nan)
         self.varmax    = np.full(nvars,np.nan)
-        self.varavg    = np.zeros(nvars)
-        self.nfiles    = 0
+        self.varavg    = np.zeros((nvars,1))            # second dimension acts as placeholder for averaging on master node collecting json-files from slave nodes
+        self.nfiles    = [0]
+        self.mode      = ""
 
-    def acc_stat(self,ivar,data):
-        self.varmin[ivar]  = np.fmin(self.varmin[ivar],np.amin(data))
-        self.varmax[ivar]  = np.fmax(self.varmax[ivar],np.amax(data))
-        self.varavg[ivar] += np.average(data)
-        if (ivar == 0): self.nfiles += 1 
+    def acc_stat_loc(self,ivar,data):
+        """
+        Performs accumulation of all statistics while looping through all data files (i.e. updates the statistics) on slave nodes
+        """
+        if not self.mode: 
+            self.mode = "loc"
+        else if self.mode = "master":
+            raise ValueError("Cannot switch to loc-mode during runtime...")
+        else:
+            pass
+    
+        self.varmin[ivar]    = np.fmin(self.varmin[ivar],np.amin(data))
+        self.varmax[ivar]    = np.fmax(self.varmax[ivar],np.amax(data))
+        self.varavg[ivar,0] += np.average(data)                           # note that we sum the average -> readjustment required in the final step
+        if (ivar == 0): self.nfiles[0] += 1 
         
     def finalize_stat_loc(self,varnames):
+        """
+        Finalizes computation of statistics after going through all the data on slave nodes.
+        Afterwards the statistics dictionary is ready for being written in a json-file
+        """
+        
+        if self.mode /= "loc":
+            raise ValueError("Object is not in loc-mode. Probably some master-method has been called previously.")
+        
+        if self.stat_dict: raise ValueError("Statistics dictionary is not empty.")
+        
         vars_uni, varsind = np.unique(varnames,return_index=True)
         nvars = len(vars_uni)
+        
+        vars_uni, varsind, nvars = get_unique_vars(varnames)
 
-        varmin, varmax, varavg = self.varmin[varsind], self.varmax[varsind], self.varavg[varsind] 
+        varmin, varmax, varavg = self.varmin[varsind], self.varmax[varsind], self.varavg[varsind,0] 
         
         for i in range(nvars):
-            varavg[i] /= self.nfiles
+            varavg[i] /= self.nfiles                                    # for adjusting the (summed) average
             print('varavg['+str(i)+'] : {0:5.2f}'.format(varavg[i]))
             print('length of imageList: ',self.nfiles)
 
@@ -240,11 +237,130 @@ class calc_data_stat:
                   'avg': varavg[i]
             })        
         self.stat_dict["common_stat"] = [
-            {"nfiles":self.nfiles}]
+            {"nfiles":self.nfiles[0]}]
         
-    def write_stat_json_loc(self,path_out,job_name):
+    def acc_stat_master(self,file_dir,file_id):
+        """ Opens statistics-file (created by slave nodes) and accumulates its content."""
+        
+        if not self.mode: 
+            self.mode = "master"
+        else if self.mode = "loc":
+            raise ValueError("Cannot switch to master-mode during runtime...")
+        else:
+            pass
+        
+        # sanity check: check if dictionary is initialized with unique values only
+        if self.stat_dict.keys() > set(self.stat_dict.keys()):
+            raise ValueError("Initialized dictionary contains duplicates of variales. Need unique collection instead.")
+        else:
+            pass
+    
         try:
-            js_file = os.path.join(path_out,'stat_'+str(job_name) + '.json')
+            with open(file_name) as js_file:                
+                data = json.load(js_file)
+                
+                # sanity check
+                if (data.keys() /= self.stat_dict.keys()):
+                    raise ValueError("Different variables found in json-file '"+js_file+"' and input dictionary.")
+                
+                self.varmin  = np.fmin(self.varmin,self.get_var_stat(data,"min")) 
+                self.varmax  = np.fmax(self.varmax,self.get_var_stat(data,"max"))
+                if (all(self.varavg == 0.) or self.nfiles[0] == 0):
+                    self.varavg = get_stat(data,"avg")
+                    self.nfiles[0] = self.get_common_stat("nfiles")
+                else:
+                    self.varavg = np.append(self.varavg,get_var_stat("avg"))
+                    self.nfiles.append(self.get_common_stat("nfiles"))
+        except IOError:
+            print("Cannot handle statistics file '"+file_name+"' to be processed.")
+        except ValueError:
+            print("Cannot retireve all required statistics from '"+file_name+"'")
+            
+    def finalize_stat_master(self,path_out,vars_uni):
+        """Performs final compuattion of statistics after accumulation from slave nodes."""
+        if self.mode /= "master":
+            raise ValueError("Object is not in master-mode. Probably some loc-method has been called previously.")
+        
+        if len(vars_uni) > len(set(vars_uni)):
+            raise ValueError("Input variable names are not unique.")
+                
+        js_file = os.path.join(path_out,"statistics.json")
+        nvars     = len(vars_uni)
+        n_jsfiles = len(self.nfiles)
+        avg_wgt   = self.nfiles/np.sum(self.nfiles)
+        
+        varmin, varmax = self.varmin, self.varmax
+        varavg    = np.sum(np.multiply(self.varavg,avg_wgt))        # calculate weighted average
+        
+        for i in range(nvars):
+            self.stat_dict[vars_uni[i]]=[]
+            self.stat_dict[vars_uni[i]].append({
+                  'min': varmin[i],
+                  'max': varmax[i],
+                  'avg': varavg[i]
+            })        
+        self.stat_dict["common_stat"] = [
+            {"nfiles":self.nfiles[0]}]    
+        
+    def get_var_stat(self,stat_name):
+        '''
+        Unpacks statistics dictionary and returns values of stat_name
+        '''        
+        
+        if not self.stat_dict: raise ValueError("Statistics dictionary is still empty! Cannot access anything from it.")
+        
+        stat_dict_filter = (self.stat_dict).copy()
+        stat_dict_filter.pop("common_stat")
+        
+        try:
+            return [stat_dict_filter[i][0][stat_name] for i in [*stat_dict_filter.keys()]]
+        except:
+            raise ValueError("Could not find "+stat_name+" for all variables of input dictionary.")       
+        
+        
+    def get_stat_allvars(self,stat_name,allvars):
+        '''
+        Retrieves requested statistics (stat_name) for all variables listed in allvars given statistics dictionary.
+        '''        
+        
+        if not self.stat_dict: raise ValueError("Statistics dictionary is still empty! Cannot access anything from it.")
+    
+        vars_uni,indrev = np.unique(allvars,return_inverse=True)
+    
+        try:
+            return([stat_dict[var][0][stat_name] for var in vars_uni[indrev]]) 
+        except:
+            raise ValueError("Could not find "+stat_name+" for all variables of input dictionary.")
+    
+    def get_common_stat(self,stat_name):
+        
+        common_stat_dict = self.stat_dict["common_stat"]
+        
+        try:
+            return(get_common_stat[stat_name])
+        except:
+            raise ValueError("Could not find "+stat_name+" in common_stat of input dictionary.")
+        
+        
+    def write_stat_json(self,path_out,file_id = -1):
+        """
+        Writes statistics-dictionary of slave nodes to json-file (with job_id in the output name)
+        If file_id is passed (and greater than 0), parallelized peration on a slave node is assumed.
+        Else: method is invoked from master node, i.e. final json-file is created
+        """
+        if (self.mode == "loc"):
+            if file_id <= 0: raise ValueError("Object is in loc-mode, but no valid file_id passed")
+            # json-file from slave node
+            js_file = os.path.join(path_out,'stat_'+str(file_id) + '.json')
+        else if (self.mode == "master"):
+            if (file_id > 0): print("Warning: Object is master-mode, but file_id passed which will be ignored.")
+            # (final) json-file from master node 
+            js_file = os.path.join(path_out,'statistics.json')
+        else:
+            raise ValueError("Object seems to be initialized only, but no data has been processed so far.")
+        
+        try:
+            js_file = os.path.join(path_out,'stat_'+str(file_id) + '.json')
             with open(js_file,'w') as stat_out:
                 json.dump(self.stat_dict,stat_out)
         except ValueError: 
@@ -255,7 +371,7 @@ class calc_data_stat:
 # ML 2020/05/15 E
                  
 
-def split_data_multiple_years(target_dir,partition):
+def split_data_multiple_years(target_dir,partition,varnames):
     """
     Collect all the X_*.hkl data across years and split them to training, val and testing datatset
     """
@@ -265,6 +381,10 @@ def split_data_multiple_years(target_dir,partition):
     splits_dir = os.path.join(target_dir,"splits")
     os.makedirs(splits_dir, exist_ok=True) 
     splits = {s: [] for s in list(partition.keys())}
+    # ML 2020/05/19 S
+    vars_uni, varsind, nvars = get_unique_vars(varnames)
+    stat_obj = calc_data_stat(nvars) 
+    
     for split in partition.keys():
         values = partition[split]
         files = []
@@ -278,6 +398,9 @@ def split_data_multiple_years(target_dir,partition):
                 files.append(data_file)
                 data = hkl.load(data_file)
                 X = X + list(data)
+                # process stat-file:
+                stat_obj.acc_stat_master(file_dir,month)
+                
         X = np.array(X) 
         print("==================={}=====================".format(split))
         print ("Sources for {} dataset are {}".format(split,files))
@@ -285,6 +408,10 @@ def split_data_multiple_years(target_dir,partition):
         print ("dataset shape is {}".format(np.array(X).shape))
         hkl.dump(X, os.path.join(splits_dir , 'X_' + split + '.hkl'))
         hkl.dump(files, os.path.join(splits_dir,'sources_' + split + '.hkl'))
+        
+    # write final statistics json-file
+    stat_obj.finalize_stat_master(target_dir,vars_uni)
+    stat_obj.write_stat_json(target_dir)
         
 
         
