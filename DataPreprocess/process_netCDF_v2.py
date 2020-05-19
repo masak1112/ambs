@@ -53,7 +53,7 @@ def process_data(directory_to_process, target_dir, job_name, slices, vars=("T2",
             with Dataset(im_path,'r') as data_file:
                 for i in range(nvars):
                     var1 = data_file.variables[vars[i]][0,slices["lat_s"]:slices["lat_e"], slices["lon_s"]:slices["lon_e"]]
-                    stat_obj.acc_stat(i,var1)
+                    stat_obj.acc_stat_loc(i,var1)
                     vars_list.append(var1)
 
             EU_stack = np.stack(vars_list, axis = 2)
@@ -71,7 +71,7 @@ def process_data(directory_to_process, target_dir, job_name, slices, vars=("T2",
     print(target_file, "is saved")
     # ML 2020/03/31: write json file with statistics
     stat_obj.finalize_stat_loc(vars)
-    stat_obj.write_stat_json(target_dir,job_id=job_name)
+    stat_obj.write_stat_json(target_dir,file_id=job_name)
 
 def process_netCDF_in_dir(src_dir,**kwargs):
     target_dir = kwargs.get("target_dir")
@@ -149,7 +149,7 @@ class calc_data_stat:
         """
         if not self.mode: 
             self.mode = "loc"
-        else if self.mode = "master":
+        elif self.mode == "master":
             raise ValueError("Cannot switch to loc-mode during runtime...")
         else:
             pass
@@ -165,7 +165,7 @@ class calc_data_stat:
         Afterwards the statistics dictionary is ready for being written in a json-file
         """
         
-        if self.mode /= "loc":
+        if self.mode != "loc":
             raise ValueError("Object is not in loc-mode. Probably some master-method has been called previously.")
         
         if self.stat_dict: raise ValueError("Statistics dictionary is not empty.")
@@ -193,10 +193,12 @@ class calc_data_stat:
         
     def acc_stat_master(self,file_dir,file_id):
         """ Opens statistics-file (created by slave nodes) and accumulates its content."""
-        
+       
+        if (int(file_id) <= 0): raise ValueError("Non-valid file_id passed.")
+      
         if not self.mode: 
             self.mode = "master"
-        else if self.mode = "loc":
+        elif self.mode == "loc":
             raise ValueError("Cannot switch to master-mode during runtime...")
         else:
             pass
@@ -206,13 +208,15 @@ class calc_data_stat:
             raise ValueError("Initialized dictionary contains duplicates of variales. Need unique collection instead.")
         else:
             pass
+
+        file_name = os.join.path(file_dir,"stat_{0:2d}.json".format(file_id))
     
         try:
             with open(file_name) as js_file:                
                 data = json.load(js_file)
                 
                 # sanity check
-                if (data.keys() /= self.stat_dict.keys()):
+                if (data.keys() != self.stat_dict.keys()):
                     raise ValueError("Different variables found in json-file '"+js_file+"' and input dictionary.")
                 
                 self.varmin  = np.fmin(self.varmin,self.get_var_stat(data,"min")) 
@@ -230,7 +234,7 @@ class calc_data_stat:
             
     def finalize_stat_master(self,path_out,vars_uni):
         """Performs final compuattion of statistics after accumulation from slave nodes."""
-        if self.mode /= "master":
+        if self.mode != "master":
             raise ValueError("Object is not in master-mode. Probably some loc-method has been called previously.")
         
         if len(vars_uni) > len(set(vars_uni)):
@@ -301,18 +305,18 @@ class calc_data_stat:
         Else: method is invoked from master node, i.e. final json-file is created
         """
         if (self.mode == "loc"):
-            if file_id <= 0: raise ValueError("Object is in loc-mode, but no valid file_id passed")
+            if int(file_id) <= 0: raise ValueError("Object is in loc-mode, but no valid file_id passed")
             # json-file from slave node
-            js_file = os.path.join(path_out,'stat_'+str(file_id) + '.json')
-        else if (self.mode == "master"):
-            if (file_id > 0): print("Warning: Object is master-mode, but file_id passed which will be ignored.")
+            js_file = os.path.join(path_out,'stat_{0:2d}.json'.format(int(file_id)))
+        elif (self.mode == "master"):
+            if (int(file_id) > 0): print("Warning: Object is master-mode, but file_id passed which will be ignored.")
             # (final) json-file from master node 
             js_file = os.path.join(path_out,'statistics.json')
         else:
             raise ValueError("Object seems to be initialized only, but no data has been processed so far.")
         
         try:
-            js_file = os.path.join(path_out,'stat_'+str(file_id) + '.json')
+            js_file = os.path.join(path_out,'stat_{0:2d}.json'.format(int(file_id)))
             with open(js_file,'w') as stat_out:
                 json.dump(self.stat_dict,stat_out)
         except ValueError: 
