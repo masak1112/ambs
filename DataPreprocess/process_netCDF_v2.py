@@ -209,7 +209,7 @@ class calc_data_stat:
         else:
             pass
 
-        file_name = os.path.join(file_dir,"stat_{0:2d}.json".format(file_id))
+        file_name = os.path.join(file_dir,"stat_{0:0=2d}.json".format(int(file_id)))
     
         try:
             with open(file_name) as js_file:                
@@ -246,7 +246,9 @@ class calc_data_stat:
         avg_wgt   = self.nfiles/np.sum(self.nfiles)
         
         varmin, varmax = self.varmin, self.varmax
-        varavg    = np.sum(np.multiply(self.varavg,avg_wgt))        # calculate weighted average
+        print(np.shape(self.varavg))
+        varavg    = np.sum(np.multiply(self.varavg,avg_wgt),axis=1)        # calculate weighted average
+        print(np.shape(varavg))
         
         for i in range(nvars):
             self.stat_dict[vars_uni[i]]=[]
@@ -307,7 +309,7 @@ class calc_data_stat:
         if (self.mode == "loc"):
             if int(file_id) <= 0: raise ValueError("Object is in loc-mode, but no valid file_id passed")
             # json-file from slave node
-            js_file = os.path.join(path_out,'stat_{0:2d}.json'.format(int(file_id)))
+            js_file = os.path.join(path_out,'stat_{0:0=2d}.json'.format(int(file_id)))
         elif (self.mode == "master"):
             if (int(file_id) > 0): print("Warning: Object is master-mode, but file_id passed which will be ignored.")
             # (final) json-file from master node 
@@ -316,7 +318,7 @@ class calc_data_stat:
             raise ValueError("Object seems to be initialized only, but no data has been processed so far.")
         
         try:
-            js_file = os.path.join(path_out,'stat_{0:2d}.json'.format(int(file_id)))
+            js_file = os.path.join(path_out,'stat_{0:0=2d}.json'.format(int(file_id)))
             with open(js_file,'w') as stat_out:
                 json.dump(self.stat_dict,stat_out)
         except ValueError: 
