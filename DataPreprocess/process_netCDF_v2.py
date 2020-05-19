@@ -209,7 +209,7 @@ class calc_data_stat:
         else:
             pass
 
-        file_name = os.join.path(file_dir,"stat_{0:2d}.json".format(file_id))
+        file_name = os.path.join(file_dir,"stat_{0:2d}.json".format(file_id))
     
         try:
             with open(file_name) as js_file:                
