@@ -213,20 +213,20 @@ class calc_data_stat:
     
         try:
             with open(file_name) as js_file:                
-                data = json.load(js_file)
+                dict_in = json.load(js_file)
                 
                 # sanity check
                 if (len(data.keys()) -1 != len(self.varmin)):
                     raise ValueError("Different number of variables found in json-file '"+js_file+"' as expected from statistics object.")
                 
-                self.varmin  = np.fmin(self.varmin,self.get_var_stat("min")) 
-                self.varmax  = np.fmax(self.varmax,self.get_var_stat("max"))
+                self.varmin  = np.fmin(self.varmin,get_var_stat(dict_in,"min")) 
+                self.varmax  = np.fmax(self.varmax,get_var_stat(dict_in,"max"))
                 if (all(self.varavg == 0.) or self.nfiles[0] == 0):
-                    self.varavg = self.get_var_stat("avg")
-                    self.nfiles[0] = self.get_common_stat("nfiles")
+                    self.varavg = get_var_stat(dict_in,"avg")
+                    self.nfiles[0] = get_common_stat(dict_in,"nfiles")
                 else:
-                    self.varavg = np.append(self.varavg,self.get_var_stat("avg"))
-                    self.nfiles.append(self.get_common_stat("nfiles"))
+                    self.varavg = np.append(self.varavg,get_var_stat(dict_in,"avg"))
+                    self.nfiles.append(get_common_stat(dict_in,"nfiles"))
         except IOError:
             print("Cannot handle statistics file '"+file_name+"' to be processed.")
         except ValueError:
@@ -260,28 +260,35 @@ class calc_data_stat:
         self.stat_dict["common_stat"] = [
             {"nfiles":self.nfiles[0]}]    
         
-    def get_var_stat(self,stat_name):
+    @staticmethod
+    def get_var_stat(stat_dict,stat_name):
         '''
         Unpacks statistics dictionary and returns values of stat_name
         '''        
         
-        if not self.stat_dict: raise ValueError("Statistics dictionary is still empty! Cannot access anything from it.")
+        # some sanity checks
+        if not stat_dict: raise ValueError("Input dictionary is still empty! Cannot access anything from it.")
+        if not "common_stat" in stat_dict.keys(): raise ValueError("Input dictionary does not seem to be a proper statistics dictionary as common_stat-element is missing.")
         
-        stat_dict_filter = (self.stat_dict).copy()
+        
+        stat_dict_filter = (stat_dict).copy()
         stat_dict_filter.pop("common_stat")
+        
+        if not stat_dict_filter.keys(): raise ValueError("Input dictionary does not contain any variables.")
         
         try:
             return [stat_dict_filter[i][0][stat_name] for i in [*stat_dict_filter.keys()]]
         except:
             raise ValueError("Could not find "+stat_name+" for all variables of input dictionary.")       
         
-        
-    def get_stat_allvars(self,stat_name,allvars):
+    @staticmethod    
+    def get_stat_allvars(stat_dict,stat_name,allvars):
         '''
         Retrieves requested statistics (stat_name) for all variables listed in allvars given statistics dictionary.
         '''        
         
-        if not self.stat_dict: raise ValueError("Statistics dictionary is still empty! Cannot access anything from it.")
+        if not stat_dict: raise ValueError("Statistics dictionary is still empty! Cannot access anything from it.")
+        if not "common_stat" in stat_dict.keys(): raise ValueError("Input dictionary does not seem to be a proper statistics dictionary as common_stat-element is missing.")    
     
         vars_uni,indrev = np.unique(allvars,return_inverse=True)
     
@@ -290,9 +297,13 @@ class calc_data_stat:
         except:
             raise ValueError("Could not find "+stat_name+" for all variables of input dictionary.")
     
-    def get_common_stat(self,stat_name):
+    @staticmethod
+    def get_common_stat(stat_dict,stat_name):
         
-        common_stat_dict = self.stat_dict["common_stat"]
+        if not stat_dict: raise ValueError("Input dictionary is still empty! Cannot access anything from it.")
+        if not "common_stat" in stat_dict.keys(): raise ValueError("Input dictionary does not seem to be a proper statistics dictionary as common_stat-element is missing.")
+        
+        common_stat_dict = self.stat_dict["common_stat"][0]
         
         try:
             return(get_common_stat[stat_name])
