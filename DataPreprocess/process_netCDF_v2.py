@@ -223,7 +223,7 @@ class calc_data_stat:
 
                     self.varmin  = np.fmin(self.varmin,calc_data_stat.get_var_stat(dict_in,"min")) 
                     self.varmax  = np.fmax(self.varmax,calc_data_stat.get_var_stat(dict_in,"max"))
-                    if (all(self.varavg == 0.) or self.nfiles[0] == 0):
+                    if (np.all(self.varavg == 0.) or self.nfiles[0] == 0):
                         self.varavg    = calc_data_stat.get_var_stat(dict_in,"avg")
                         self.nfiles[0] = calc_data_stat.get_common_stat(dict_in,"nfiles")
                         self.jsfiles[0]= file_name    
