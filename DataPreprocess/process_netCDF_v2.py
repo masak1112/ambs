@@ -216,17 +216,17 @@ class calc_data_stat:
                 dict_in = json.load(js_file)
                 
                 # sanity check
-                if (len(data.keys()) -1 != len(self.varmin)):
+                if (len(dict_in.keys()) -1 != len(self.varmin)):
                     raise ValueError("Different number of variables found in json-file '"+js_file+"' as expected from statistics object.")
                 
-                self.varmin  = np.fmin(self.varmin,get_var_stat(dict_in,"min")) 
-                self.varmax  = np.fmax(self.varmax,get_var_stat(dict_in,"max"))
+                self.varmin  = np.fmin(self.varmin,calc_data_stat.get_var_stat(dict_in,"min")) 
+                self.varmax  = np.fmax(self.varmax,calc_data_stat.get_var_stat(dict_in,"max"))
                 if (all(self.varavg == 0.) or self.nfiles[0] == 0):
-                    self.varavg = get_var_stat(dict_in,"avg")
-                    self.nfiles[0] = get_common_stat(dict_in,"nfiles")
+                    self.varavg = calc_data_stat.get_var_stat(dict_in,"avg")
+                    self.nfiles[0] = calc_data_stat.get_common_stat(dict_in,"nfiles")
                 else:
-                    self.varavg = np.append(self.varavg,get_var_stat(dict_in,"avg"))
-                    self.nfiles.append(get_common_stat(dict_in,"nfiles"))
+                    self.varavg = np.append(self.varavg,calc_data_stat.get_var_stat(dict_in,"avg"))
+                    self.nfiles.append(calc_data_stat.get_common_stat(dict_in,"nfiles"))
         except IOError:
             print("Cannot handle statistics file '"+file_name+"' to be processed.")
         except ValueError:
@@ -303,7 +303,7 @@ class calc_data_stat:
         if not stat_dict: raise ValueError("Input dictionary is still empty! Cannot access anything from it.")
         if not "common_stat" in stat_dict.keys(): raise ValueError("Input dictionary does not seem to be a proper statistics dictionary as common_stat-element is missing.")
         
-        common_stat_dict = self.stat_dict["common_stat"][0]
+        common_stat_dict = stat_dict["common_stat"][0]
         
         try:
             return(get_common_stat[stat_name])
