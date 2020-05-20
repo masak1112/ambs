@@ -210,7 +210,16 @@ class calc_data_stat:
             pass
 
         file_name = os.path.join(file_dir,"stat_{0:0=2d}.json".format(int(file_id)))
-    
+        
+        print("Try to open: '"+file_name+"'")
+
+        print("Averages from object before opening file")
+        print(self.varavg)
+        
+        dict_in2 = json.load(open(file_name))
+        print("Try to get nfiles from input dictionary")
+        print(calc_data_stat.get_common_stat(dict_in2,"nfiles"))
+
         try:
             with open(file_name) as js_file:                
                 dict_in = json.load(js_file)
@@ -218,15 +227,27 @@ class calc_data_stat:
                 # sanity check
                 if (len(dict_in.keys()) -1 != len(self.varmin)):
                     raise ValueError("Different number of variables found in json-file '"+js_file+"' as expected from statistics object.")
-                
+
                 self.varmin  = np.fmin(self.varmin,calc_data_stat.get_var_stat(dict_in,"min")) 
                 self.varmax  = np.fmax(self.varmax,calc_data_stat.get_var_stat(dict_in,"max"))
                 if (all(self.varavg == 0.) or self.nfiles[0] == 0):
-                    self.varavg = calc_data_stat.get_var_stat(dict_in,"avg")
-                    self.nfiles[0] = calc_data_stat.get_common_stat(dict_in,"nfiles")
+                    print("Processing first file...")
+                    print(calc_data_stat.get_var_stat(dict_in,"avg"))
+                    self.varavg[:,0] = calc_data_stat.get_var_stat(dict_in,"avg")
+                    print("Content of self.varavg:")
+                    print(self.varavg)
+                    self.nfiles[0]   = calc_data_stat.get_common_stat(dict_in,"nfiles")
+                    print("Content of nfiles:")
+                    print(self.nfiles)
                 else:
-                    self.varavg = np.append(self.varavg,calc_data_stat.get_var_stat(dict_in,"avg"))
+                    print("Processing follow-up file...")
+                    print(calc_data_stat.get_var_stat(dict_in,"avg"))
+                    self.varavg = np.append(self.varavg,calc_data_stat.get_var_stat(dict_in,"avg"),axis=1)
+                    print("Content of self.varavg:")
+                    print(self.varavg)
                     self.nfiles.append(calc_data_stat.get_common_stat(dict_in,"nfiles"))
+                    print("Content of nfiles:")
+                    print(self.nfiles)
         except IOError:
             print("Cannot handle statistics file '"+file_name+"' to be processed.")
         except ValueError:
@@ -270,14 +291,17 @@ class calc_data_stat:
         if not stat_dict: raise ValueError("Input dictionary is still empty! Cannot access anything from it.")
         if not "common_stat" in stat_dict.keys(): raise ValueError("Input dictionary does not seem to be a proper statistics dictionary as common_stat-element is missing.")
         
-        
         stat_dict_filter = (stat_dict).copy()
         stat_dict_filter.pop("common_stat")
         
         if not stat_dict_filter.keys(): raise ValueError("Input dictionary does not contain any variables.")
         
         try:
-            return [stat_dict_filter[i][0][stat_name] for i in [*stat_dict_filter.keys()]]
+            varstat = np.array([stat_dict_filter[i][0][stat_name] for i in [*stat_dict_filter.keys()]])
+            if np.ndim(varstat) == 1:         # avoid returning rank 1-arrays
+                return varstat.reshape(-1,1)
+            else:
+                return varstat
         except:
             raise ValueError("Could not find "+stat_name+" for all variables of input dictionary.")       
         
@@ -304,9 +328,11 @@ class calc_data_stat:
         if not "common_stat" in stat_dict.keys(): raise ValueError("Input dictionary does not seem to be a proper statistics dictionary as common_stat-element is missing.")
         
         common_stat_dict = stat_dict["common_stat"][0]
+        print("Content of common_stat_dict")
+        print(common_stat_dict)
         
         try:
-            return(get_common_stat[stat_name])
+            return(common_stat_dict[stat_name])
         except:
             raise ValueError("Could not find "+stat_name+" in common_stat of input dictionary.")
         
@@ -352,7 +378,7 @@ def split_data_multiple_years(target_dir,partition,varnames):
     splits = {s: [] for s in list(partition.keys())}
     # ML 2020/05/19 S
     vars_uni, varsind, nvars = get_unique_vars(varnames)
-    stat_obj = calc_data_stat(nvars) 
+    stat_obj = calc_data_stat(nvars)
     
     for split in partition.keys():
         values = partition[split]
