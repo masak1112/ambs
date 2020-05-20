@@ -91,7 +91,10 @@ def main():
         tf.set_random_seed(args.seed)
         np.random.seed(args.seed)
         random.seed(args.seed)
-
+    #Bing:20200518 
+    input_dir = args.input_dir
+    temporal_dir = os.path.split(input_dir)[0] + "/hickle/splits/"
+    print ("temporal_dir:",temporal_dir)
     args.results_gif_dir = args.results_gif_dir or args.results_dir
     args.results_png_dir = args.results_png_dir or args.results_dir
     dataset_hparams_dict = {}
@@ -197,12 +200,13 @@ def main():
     persistent_images_all = []
     input_images_all = []
     #Bing:20201417
-    test_temporal_pkl = pickle.load(open("/p/scratch/deepacf/video_prediction_shared_folder/preprocessedData/era5-Y2017M01to12-64x64-50d00N11d50E-T_T_T/hickle/splits/T_test.pkl","rb"))
+    print ("temporal_dir:",temporal_dir)
+    test_temporal_pkl = pickle.load(open(os.path.join(temporal_dir,"T_test.pkl"),"rb"))
     #val_temporal_pkl = pickle.load(open("/p/scratch/deepacf/video_prediction_shared_folder/preprocessedData/era5-Y2017M01to12-64x64-50d00N11d50E-T_T_T/hickle/splits/T_val.pkl","rb"))
     print("test temporal_pkl file looks like folowing", test_temporal_pkl)
 
     #X_val = hickle.load("/p/scratch/deepacf/video_prediction_shared_folder/preprocessedData/era5-Y2017M01to12-64x64-50d00N11d50E-T_T_T/hickle/splits/X_val.hkl")
-    X_test = hickle.load("/p/scratch/deepacf/video_prediction_shared_folder/preprocessedData/era5-Y2017M01to12-64x64-50d00N11d50E-T_T_T/hickle/splits/X_test.hkl")
+    X_test = hickle.load(os.path.join(temporal_dir,"X_test.hkl"))
     is_first=True
     
 
@@ -210,6 +214,8 @@ def main():
         print("Sample id", sample_ind)
         if sample_ind <= 24:
             pass
+        elif sample_ind >= len(X_test):
+            break
         else:
             gen_images_stochastic = []
             if args.num_samples and sample_ind >= args.num_samples:
@@ -235,7 +241,6 @@ def main():
                     #bing:20200417
                     t_stampe = test_temporal_pkl[sample_ind+i]
                     print("timestamp:",type(t_stampe))
-
                     persistent_ts = np.array(t_stampe) - datetime.timedelta(days=1)
                     print ("persistent ts",persistent_ts)
                     persistent_idx = list(test_temporal_pkl).index(np.array(persistent_ts))
@@ -319,25 +324,25 @@ def main():
                         plt.savefig(os.path.join(args.output_png_dir, "Persistent_Sample_" + str(name) + ".jpg"))
                         plt.clf()
 
-##                        
-##                with open(os.path.join(args.output_png_dir, "persistent_images_all.pkl"), "wb") as input_files:
-##                    pickle.dump(list(persistent_images_all), input_files)
-##                    print ("Save persistent all")
-##                if is_first:
-##                    gen_images_all = gen_images_stochastic
-##                    is_first = False
-##                else:
-##                    gen_images_all = np.concatenate((np.array(gen_images_all), np.array(gen_images_stochastic)), axis=1)
-##
-##                if args.num_stochastic_samples == 1:
-##                    with open(os.path.join(args.output_png_dir, "gen_images_all.pkl"), "wb") as gen_files:
-##                        pickle.dump(list(gen_images_all[0]), gen_files)
-##                        print ("Save generate all")
-##                else:
-##                    with open(os.path.join(args.output_png_dir, "gen_images_sample_id_" + str(sample_ind)),"wb") as gen_files:
-##                        pickle.dump(list(gen_images_stochastic), gen_files)
-##                    with open(os.path.join(args.output_png_dir, "gen_images_all_stochastic"), "wb") as gen_files:
-##                        pickle.dump(list(gen_images_all), gen_files)
+                        
+                with open(os.path.join(args.output_png_dir, "persistent_images_all.pkl"), "wb") as input_files:
+                    pickle.dump(list(persistent_images_all), input_files)
+                    print ("Save persistent all")
+                if is_first:
+                    gen_images_all = gen_images_stochastic
+                    is_first = False
+                else:
+                    gen_images_all = np.concatenate((np.array(gen_images_all), np.array(gen_images_stochastic)), axis=1)
+
+                if args.num_stochastic_samples == 1:
+                    with open(os.path.join(args.output_png_dir, "gen_images_all.pkl"), "wb") as gen_files:
+                        pickle.dump(list(gen_images_all[0]), gen_files)
+                        print ("Save generate all")
+                else:
+                    with open(os.path.join(args.output_png_dir, "gen_images_sample_id_" + str(sample_ind)),"wb") as gen_files:
+                        pickle.dump(list(gen_images_stochastic), gen_files)
+                    with open(os.path.join(args.output_png_dir, "gen_images_all_stochastic"), "wb") as gen_files:
+                        pickle.dump(list(gen_images_all), gen_files)
 ##                
 ##
 ##                    # fig = plt.figure()
