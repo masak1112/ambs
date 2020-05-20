@@ -140,8 +140,9 @@ class calc_data_stat:
         self.varmin    = np.full(nvars,np.nan)
         self.varmax    = np.full(nvars,np.nan)
         self.varavg    = np.zeros((nvars,1))            # second dimension acts as placeholder for averaging on master node collecting json-files from slave nodes
-        self.nfiles    = [0]
-        self.mode      = ""
+        self.nfiles    = [0]                            # number of processed files
+        self.mode      = ""                             # mode to distinguish between processing on slave and master nodes (sanity check)
+        self.jsfiles   = [""]                           # list of processed json-files (master-mode only!)
 
     def acc_stat_loc(self,ivar,data):
         """
@@ -179,8 +180,6 @@ class calc_data_stat:
         
         for i in range(nvars):
             varavg[i] /= self.nfiles                                    # for adjusting the (summed) average
-            print('varavg['+str(i)+'] : {0:5.2f}'.format(varavg[i]))
-            print('length of imageList: ',self.nfiles)
 
             self.stat_dict[vars_uni[i]]=[]
             self.stat_dict[vars_uni[i]].append({
@@ -212,14 +211,7 @@ class calc_data_stat:
         file_name = os.path.join(file_dir,"stat_{0:0=2d}.json".format(int(file_id)))
         
         print("Try to open: '"+file_name+"'")
-
-        print("Averages from object before opening file")
-        print(self.varavg)
         
-        dict_in2 = json.load(open(file_name))
-        print("Try to get nfiles from input dictionary")
-        print(calc_data_stat.get_common_stat(dict_in2,"nfiles"))
-
         try:
             with open(file_name) as js_file:                
                 dict_in = json.load(js_file)
@@ -231,23 +223,11 @@ class calc_data_stat:
                 self.varmin  = np.fmin(self.varmin,calc_data_stat.get_var_stat(dict_in,"min")) 
                 self.varmax  = np.fmax(self.varmax,calc_data_stat.get_var_stat(dict_in,"max"))
                 if (all(self.varavg == 0.) or self.nfiles[0] == 0):
-                    print("Processing first file...")
-                    print(calc_data_stat.get_var_stat(dict_in,"avg"))
-                    self.varavg[:,0] = calc_data_stat.get_var_stat(dict_in,"avg")
-                    print("Content of self.varavg:")
-                    print(self.varavg)
+                    self.varavg = calc_data_stat.get_var_stat(dict_in,"avg")
                     self.nfiles[0]   = calc_data_stat.get_common_stat(dict_in,"nfiles")
-                    print("Content of nfiles:")
-                    print(self.nfiles)
                 else:
-                    print("Processing follow-up file...")
-                    print(calc_data_stat.get_var_stat(dict_in,"avg"))
                     self.varavg = np.append(self.varavg,calc_data_stat.get_var_stat(dict_in,"avg"),axis=1)
-                    print("Content of self.varavg:")
-                    print(self.varavg)
                     self.nfiles.append(calc_data_stat.get_common_stat(dict_in,"nfiles"))
-                    print("Content of nfiles:")
-                    print(self.nfiles)
         except IOError:
             print("Cannot handle statistics file '"+file_name+"' to be processed.")
         except ValueError:
@@ -264,22 +244,21 @@ class calc_data_stat:
         js_file = os.path.join(path_out,"statistics.json")
         nvars     = len(vars_uni)
         n_jsfiles = len(self.nfiles)
-        avg_wgt   = self.nfiles/np.sum(self.nfiles)
-        
+        nfiles_all= np.sum(self.nfiles)
+        avg_wgt   = np.array(self.nfiles,dtype=float)/float(nfiles_all)
+
         varmin, varmax = self.varmin, self.varmax
-        print(np.shape(self.varavg))
         varavg    = np.sum(np.multiply(self.varavg,avg_wgt),axis=1)        # calculate weighted average
-        print(np.shape(varavg))
-        
+
         for i in range(nvars):
             self.stat_dict[vars_uni[i]]=[]
             self.stat_dict[vars_uni[i]].append({
-                  'min': varmin[i],
-                  'max': varmax[i],
-                  'avg': varavg[i]
+                  'min': varmin[i].tolist(),
+                  'max': varmax[i].tolist(),
+                  'avg': varavg[i].tolist()
             })        
         self.stat_dict["common_stat"] = [
-            {"nfiles":self.nfiles[0]}]    
+            {"nfiles":int(nfiles_all)}]    
         
     @staticmethod
     def get_var_stat(stat_dict,stat_name):
@@ -295,7 +274,7 @@ class calc_data_stat:
         stat_dict_filter.pop("common_stat")
         
         if not stat_dict_filter.keys(): raise ValueError("Input dictionary does not contain any variables.")
-        
+       
         try:
             varstat = np.array([stat_dict_filter[i][0][stat_name] for i in [*stat_dict_filter.keys()]])
             if np.ndim(varstat) == 1:         # avoid returning rank 1-arrays
@@ -328,8 +307,6 @@ class calc_data_stat:
         if not "common_stat" in stat_dict.keys(): raise ValueError("Input dictionary does not seem to be a proper statistics dictionary as common_stat-element is missing.")
         
         common_stat_dict = stat_dict["common_stat"][0]
-        print("Content of common_stat_dict")
-        print(common_stat_dict)
         
         try:
             return(common_stat_dict[stat_name])
@@ -353,9 +330,8 @@ class calc_data_stat:
             js_file = os.path.join(path_out,'statistics.json')
         else:
             raise ValueError("Object seems to be initialized only, but no data has been processed so far.")
-        
+       
         try:
-            js_file = os.path.join(path_out,'stat_{0:0=2d}.json'.format(int(file_id)))
             with open(js_file,'w') as stat_out:
                 json.dump(self.stat_dict,stat_out)
         except ValueError: 
