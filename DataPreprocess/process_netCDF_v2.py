@@ -210,28 +210,34 @@ class calc_data_stat:
 
         file_name = os.path.join(file_dir,"stat_{0:0=2d}.json".format(int(file_id)))
         
-        print("Try to open: '"+file_name+"'")
-        
-        try:
-            with open(file_name) as js_file:                
-                dict_in = json.load(js_file)
-                
-                # sanity check
-                if (len(dict_in.keys()) -1 != len(self.varmin)):
-                    raise ValueError("Different number of variables found in json-file '"+js_file+"' as expected from statistics object.")
+        if not file_name in self.jsfiles:
+            print("Try to open: '"+file_name+"'")
+            
+            try:
+                with open(file_name) as js_file:                
+                    dict_in = json.load(js_file)
+                    
+                    # sanity check
+                    if (len(dict_in.keys()) -1 != len(self.varmin)):
+                        raise ValueError("Different number of variables found in json-file '"+js_file+"' as expected from statistics object.")
 
-                self.varmin  = np.fmin(self.varmin,calc_data_stat.get_var_stat(dict_in,"min")) 
-                self.varmax  = np.fmax(self.varmax,calc_data_stat.get_var_stat(dict_in,"max"))
-                if (all(self.varavg == 0.) or self.nfiles[0] == 0):
-                    self.varavg = calc_data_stat.get_var_stat(dict_in,"avg")
-                    self.nfiles[0]   = calc_data_stat.get_common_stat(dict_in,"nfiles")
-                else:
-                    self.varavg = np.append(self.varavg,calc_data_stat.get_var_stat(dict_in,"avg"),axis=1)
-                    self.nfiles.append(calc_data_stat.get_common_stat(dict_in,"nfiles"))
-        except IOError:
-            print("Cannot handle statistics file '"+file_name+"' to be processed.")
-        except ValueError:
-            print("Cannot retireve all required statistics from '"+file_name+"'")
+                    self.varmin  = np.fmin(self.varmin,calc_data_stat.get_var_stat(dict_in,"min")) 
+                    self.varmax  = np.fmax(self.varmax,calc_data_stat.get_var_stat(dict_in,"max"))
+                    if (all(self.varavg == 0.) or self.nfiles[0] == 0):
+                        self.varavg    = calc_data_stat.get_var_stat(dict_in,"avg")
+                        self.nfiles[0] = calc_data_stat.get_common_stat(dict_in,"nfiles")
+                        self.jsfiles[0]= file_name    
+                    else:
+                        self.varavg = np.append(self.varavg,calc_data_stat.get_var_stat(dict_in,"avg"),axis=1)
+                        self.nfiles.append(calc_data_stat.get_common_stat(dict_in,"nfiles"))
+                        self.jsfiles.append(file_name)
+            except IOError:
+                print("Cannot handle statistics file '"+file_name+"' to be processed.")
+            except ValueError:
+                print("Cannot retireve all required statistics from '"+file_name+"'")
+        else:
+            print("Statistics file '"+file_name+"' has already been processed. Thus, just pass here...")
+            pass
             
     def finalize_stat_master(self,path_out,vars_uni):
         """Performs final compuattion of statistics after accumulation from slave nodes."""
