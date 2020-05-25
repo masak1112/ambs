@@ -14,6 +14,7 @@ from video_prediction.datasets.base_dataset import VarLenFeatureVideoDataset
 from os import path
 import sys
 sys.path.append(path.abspath('../../workflow_parallel_frame_prediction/'))
+from DataPreprocess.process_netCDF_v2 import get_unique_vars
 from DataPreprocess.process_netCDF_v2 import get_stat
 from DataPreprocess.process_netCDF_v2 import get_stat_allvars
 #from base_dataset import VarLenFeatureVideoDataset
@@ -148,8 +149,13 @@ def save_tf_record(output_fname, sequences):
     with tf.python_io.TFRecordWriter(output_fname) as writer:
         for sequence in sequences:
             num_frames = len(sequence)
+            print('num_frames: ',str(num_frames))
+            print('shape of sequence: ')
+            print(sequence.shape)
+            print(sequence[0].shape)
             height, width, channels = sequence[0].shape
             encoded_sequence = np.array([list(image) for image in sequence])
+            print('encoded_sequence: '+encoded_sequence)
 
             features = tf.train.Features(feature={
                 'sequence_length': _int64_feature(num_frames),
@@ -160,6 +166,73 @@ def save_tf_record(output_fname, sequences):
             })
             example = tf.train.Example(features=features)
             writer.write(example.SerializeToString())
+            
+class norm_data:
+    
+    knwon_norms = {}
+    known_norms["minmax"] = ["min","max"]
+    known_norms["znorm"]  = ["avg","sigma"]
+    
+    def __init__(self,varnames):
+        varnames_uni, _, nvars = get_unique_vars(varnames)
+        
+        self.varnames = varnames_uni
+        self.status_ok= False
+            
+    def check_and_set_norm(self,stat_dict,norm):
+        
+        if not norm in self.known_norms.keys():
+            print("Please select one of the following known normalizations: ")
+            for norm_avail in self.known_norms.keys():
+                print(norm_avail)
+            raise ValueError("Passed normalization '"+norm+"' is unknown.")
+        
+        if not all(self.varnames in stat_dict):
+            print("Keys in stat_dict:")
+            print(stat_dict.keys())
+            
+            print("Requested variables:")
+            print(self.varnames)
+            raise ValueError("Could not find all requested variables in statistics dictionary.")   
+
+        for varname in varnames_uni:
+            for stat_name in knwon_norms[norm]:
+                setattr(self,varname+stat_name,stat_dict[varname][0][stat_name])
+                
+        self.status_ok = True
+                
+    def normalize_var(self,data,varname,norm):
+        
+        # some sanity checks
+        if not self.status_ok: raise ValueError("norm_data-object needs to be initialized and checked first.")
+        
+        if not norm in self.known_norms.keys():
+            print("Please select one of the following known normalizations: ")
+            for norm_avail in self.known_norms.keys():
+                print(norm_avail)
+            raise ValueError("Passed normalization '"+norm+"' is unknown.")
+        
+        if norm == "minmax":
+            return((data[...] - getattr(self,varname+"min"))/(getattr(self,varname+"max") - getattr(self,varname+"min")))
+        elif norm == "znorm":
+            return((data[...] - getattr(self,varname+"avg"))/getattr(self,varname+"sigma")**2)
+        
+    def denormalize_var(self,data,varname,norm):
+        
+        # some sanity checks
+        if not self.status_ok: raise ValueError("norm_data-object needs to be initialized and checked first.")        
+        
+        if not norm in self.known_norms.keys():
+            print("Please select one of the following known normalizations: ")
+            for norm_avail in self.known_norms.keys():
+                print(norm_avail)
+            raise ValueError("Passed normalization '"+norm+"' is unknown.")
+        
+        if norm = "minmax":
+            return(data[...] * (getattr(self,varname+"max") - getattr(self,varname+"min")) + getattr(self,varname+"max"))
+        elif norm = "znorm":
+            return(data[...] * getattr(self,varname+"sigma")**2 + getattr(self,varname+"avg"))
+        
 
 def read_frames_and_save_tf_records(output_dir,input_dir,partition_name,vars_in,seq_length=20,sequences_per_file=128,height=64,width=64,channels=3,**kwargs):#Bing: original 128
     # ML 2020/04/08:
@@ -170,6 +243,7 @@ def read_frames_and_save_tf_records(output_dir,input_dir,partition_name,vars_in,
     output_dir = os.path.join(output_dir,partition_name)
     os.makedirs(output_dir,exist_ok=True)
     
+    norm = norm_data(vars_in)
     nvars     = len(vars_in)
     vars_uni, indrev = np.unique(vars_in,return_inverse=True)
     if 'norm' in kwargs:
@@ -182,12 +256,12 @@ def read_frames_and_save_tf_records(output_dir,input_dir,partition_name,vars_in,
     else:
         norm = "minmax"
     
-    # open statistics file
+    # open statistics file and store the dictionary
     with open(os.path.join(input_dir,"statistics.json")) as js_file:
-        data = json.load(js_file)
+        norm.check_and_set_norm(json.load(js_file),norm_name)        
     
-        if (norm == "minmax"):
-            varmin, varmax = get_stat_allvars(data,"min",vars_in), get_stat_allvars(data,"max",vars_in)
+        #if (norm == "minmax"):
+            #varmin, varmax = get_stat_allvars(data,"min",vars_in), get_stat_allvars(data,"max",vars_in)
 
     #print(len(varmin))
     #print(varmin)
@@ -221,7 +295,7 @@ def read_frames_and_save_tf_records(output_dir,input_dir,partition_name,vars_in,
             # a) normalization should be cast in class definition (with initialization, setting of norm. approach including 
             #    data retrieval and the normalization itself
             for i in range(nvars):    
-                sequences[:,:,:,:,i] = (sequences[:,:,:,:,i]-varmin[i])/(varmax[i]-varmin[i])
+                sequences[:,:,:,:,i] = norm.normalize_var(sequences[:,:,:,:,i],vars_in[i],norm_name)
 
             output_fname = 'sequence_{0}_to_{1}.tfrecords'.format(last_start_sequence_iter, sequence_iter - 1)
             output_fname = os.path.join(output_dir, output_fname)
