@@ -14,8 +14,9 @@ from video_prediction.datasets.base_dataset import VarLenFeatureVideoDataset
 from os import path
 import sys
 sys.path.append(path.abspath('../../workflow_parallel_frame_prediction/'))
+import DataPreprocess.process_netCDF_v2 
 from DataPreprocess.process_netCDF_v2 import get_unique_vars
-from DataPreprocess.process_netCDF_v2 import calc_data_stat.get_stat_vars
+from DataPreprocess.process_netCDF_v2 import Calc_data_stat
 #from base_dataset import VarLenFeatureVideoDataset
 from collections import OrderedDict
 from tensorflow.contrib.training import HParams
@@ -161,7 +162,7 @@ def save_tf_record(output_fname, sequences):
             example = tf.train.Example(features=features)
             writer.write(example.SerializeToString())
             
-class norm_data:
+class Norm_data:
     """
      Class for normalizing data. The statistical data for normalization (minimum, maximum, average, standard deviation etc.) is expected to be available from a statistics-dictionary
      created with the calc_data_stat-class (see 'process_netCDF_v2.py'.
@@ -171,7 +172,7 @@ class norm_data:
     known_norms = {}
     known_norms["minmax"] = ["min","max"]
     known_norms["znorm"]  = ["avg","sigma"]
-    
+   
     def __init__(self,varnames):
         """Initialize the instance by setting the variable names to be handled and the status (for sanity checks only) as attributes."""
         varnames_uni, _, nvars = get_unique_vars(varnames)
@@ -205,7 +206,7 @@ class norm_data:
         for varname in self.varnames:
             for stat_name in self.known_norms[norm]:
                 #setattr(self,varname+stat_name,stat_dict[varname][0][stat_name])
-                setattr(self,varname+stat_name,get_stat_vars(stat_dict,stat_name,varname))
+                setattr(self,varname+stat_name,Calc_data_stat.get_stat_vars(stat_dict,stat_name,varname))
                 
         self.status_ok = True           # set status for normalization -> ready
                 
@@ -215,7 +216,7 @@ class norm_data:
         """
         
         # some sanity checks
-        if not self.status_ok: raise ValueError("norm_data-object needs to be initialized and checked first.") # status ready?
+        if not self.status_ok: raise ValueError("Norm_data-instance needs to be initialized and checked first.") # status ready?
         
         if not norm in self.known_norms.keys():                                # valid normalization requested?
             print("Please select one of the following known normalizations: ")
@@ -235,7 +236,7 @@ class norm_data:
         """
         
         # some sanity checks
-        if not self.status_ok: raise ValueError("norm_data-object needs to be initialized and checked first.") # status ready?        
+        if not self.status_ok: raise ValueError("Norm_data-instance needs to be initialized and checked first.") # status ready?        
         
         if not norm in self.known_norms.keys():                                # valid normalization requested?
             print("Please select one of the following known normalizations: ")
@@ -264,7 +265,7 @@ def read_frames_and_save_tf_records(output_dir,input_dir,partition_name,vars_in,
     output_dir = os.path.join(output_dir,partition_name)
     os.makedirs(output_dir,exist_ok=True)
     
-    norm_cls  = norm_data(vars_in)       # init normalization-instance
+    norm_cls  = Norm_data(vars_in)       # init normalization-instance
     nvars     = len(vars_in)
     
     # open statistics file and feed it to norm-instance
