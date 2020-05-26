@@ -15,6 +15,7 @@ from os import path
 import sys
 sys.path.append(path.abspath('../../workflow_parallel_frame_prediction/'))
 from DataPreprocess.process_netCDF_v2 import get_unique_vars
+from DataPreprocess.process_netCDF_v2 import calc_data_stat.get_stat_vars
 #from base_dataset import VarLenFeatureVideoDataset
 from collections import OrderedDict
 from tensorflow.contrib.training import HParams
@@ -203,7 +204,8 @@ class norm_data:
         # create all attributes for the instance
         for varname in self.varnames:
             for stat_name in self.known_norms[norm]:
-                setattr(self,varname+stat_name,stat_dict[varname][0][stat_name])
+                #setattr(self,varname+stat_name,stat_dict[varname][0][stat_name])
+                setattr(self,varname+stat_name,get_stat_vars(stat_dict,stat_name,varname))
                 
         self.status_ok = True           # set status for normalization -> ready
                 
