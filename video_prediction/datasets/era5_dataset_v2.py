@@ -15,8 +15,6 @@ from os import path
 import sys
 sys.path.append(path.abspath('../../workflow_parallel_frame_prediction/'))
 from DataPreprocess.process_netCDF_v2 import get_unique_vars
-from DataPreprocess.process_netCDF_v2 import get_stat
-from DataPreprocess.process_netCDF_v2 import get_stat_allvars
 #from base_dataset import VarLenFeatureVideoDataset
 from collections import OrderedDict
 from tensorflow.contrib.training import HParams
@@ -239,7 +237,11 @@ def read_frames_and_save_tf_records(output_dir,input_dir,partition_name,vars_in,
     # Include vars_in for more flexible data handling (normalization and reshaping)
     # and optional keyword argument for kind of normalization
     
-    if n
+    if norm in kwargs:
+        norm = kwargs.get("norm")
+    else:
+        norm = "minmax"
+        print("Make use of default minmax-normalization...")
 
     output_dir = os.path.join(output_dir,partition_name)
     os.makedirs(output_dir,exist_ok=True)
