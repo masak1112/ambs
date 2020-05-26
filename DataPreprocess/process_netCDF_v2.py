@@ -273,8 +273,9 @@ class Calc_data_stat:
                   'avg': varavg[i].tolist()
             })        
         self.stat_dict["common_stat"] = [
-            {"nfiles":int(nfiles_all)},
-             "jsfiles":self.jsfiles.tolist()]    
+            {"nfiles": int(nfiles_all),
+             "jsfiles": self.jsfiles
+             }]    
         
     @staticmethod
     def get_stat_allvars(stat_dict,stat_name):
