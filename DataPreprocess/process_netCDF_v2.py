@@ -388,7 +388,7 @@ def split_data_multiple_years(target_dir,partition,varnames):
         
     # write final statistics json-file
     stat_obj.finalize_stat_master(target_dir,vars_uni)
-    stat_obj.write_stat_json(target_dir)
+    stat_obj.write_stat_json(splits_dir)
         
 
         
