@@ -135,9 +135,13 @@ def get_unique_vars(varnames):
 
 class calc_data_stat:
     """Class for computing statistics and saving them to a json-files."""
+    
     def __init__(self,nvars):
+        """
+         Initializes the instance for later use, i.e. initializes attributes with expected shape
+        """
         self.stat_dict = {}
-        self.varmin    = np.full((nvars,1),np.nan)
+        self.varmin    = np.full((nvars,1),np.nan)      # avoid rank one-arrays
         self.varmax    = np.full((nvars,1),np.nan)
         self.varavg    = np.zeros((nvars,1))            # second dimension acts as placeholder for averaging on master node collecting json-files from slave nodes
         self.nfiles    = [0]                            # number of processed files
@@ -146,7 +150,7 @@ class calc_data_stat:
 
     def acc_stat_loc(self,ivar,data):
         """
-        Performs accumulation of all statistics while looping through all data files (i.e. updates the statistics) on slave nodes
+         Performs accumulation of all statistics while looping through all data files (i.e. updates the statistics) on slave nodes
         """
         if not self.mode: 
             self.mode = "loc"
@@ -162,8 +166,8 @@ class calc_data_stat:
         
     def finalize_stat_loc(self,varnames):
         """
-        Finalizes computation of statistics after going through all the data on slave nodes.
-        Afterwards the statistics dictionary is ready for being written in a json-file
+         Finalizes computation of statistics after going through all the data on slave nodes.
+         Afterwards the statistics dictionary is ready for being written in a json-file.
         """
         
         if self.mode != "loc":
@@ -191,7 +195,9 @@ class calc_data_stat:
             {"nfiles":self.nfiles[0]}]
         
     def acc_stat_master(self,file_dir,file_id):
-        """ Opens statistics-file (created by slave nodes) and accumulates its content."""
+        """ 
+         Opens statistics-file (created by slave nodes) and accumulates its content.
+        """
        
         if (int(file_id) <= 0): raise ValueError("Non-valid file_id passed.")
       
@@ -221,15 +227,15 @@ class calc_data_stat:
                     if (len(dict_in.keys()) -1 != len(self.varmin)):
                         raise ValueError("Different number of variables found in json-file '"+js_file+"' as expected from statistics object.")
 
-                    self.varmin  = np.fmin(self.varmin,calc_data_stat.get_var_stat(dict_in,"min")) 
-                    self.varmax  = np.fmax(self.varmax,calc_data_stat.get_var_stat(dict_in,"max"))
+                    self.varmin  = np.fmin(self.varmin,calc_data_stat.get_stat_allvars(dict_in,"min")) 
+                    self.varmax  = np.fmax(self.varmax,calc_data_stat.get_stat_allvars(dict_in,"max"))
 
                     if (np.all(self.varavg == 0.) or self.nfiles[0] == 0):
-                        self.varavg    = calc_data_stat.get_var_stat(dict_in,"avg")
+                        self.varavg    = calc_data_stat.get_stat_allvars(dict_in,"avg")
                         self.nfiles[0] = calc_data_stat.get_common_stat(dict_in,"nfiles")
                         self.jsfiles[0]= file_name    
                     else:
-                        self.varavg = np.append(self.varavg,calc_data_stat.get_var_stat(dict_in,"avg"),axis=1)
+                        self.varavg = np.append(self.varavg,calc_data_stat.get_stat_allvars(dict_in,"avg"),axis=1)
                         self.nfiles.append(calc_data_stat.get_common_stat(dict_in,"nfiles"))
                         self.jsfiles.append(file_name)
             except IOError:
@@ -241,7 +247,9 @@ class calc_data_stat:
             pass
             
     def finalize_stat_master(self,path_out,vars_uni):
-        """Performs final compuattion of statistics after accumulation from slave nodes."""
+        """
+         Performs final compuattion of statistics after accumulation from slave nodes.
+        """
         if self.mode != "master":
             raise ValueError("Object is not in master-mode. Probably some loc-method has been called previously.")
         
@@ -268,10 +276,10 @@ class calc_data_stat:
             {"nfiles":int(nfiles_all)}]    
         
     @staticmethod
-    def get_var_stat(stat_dict,stat_name):
-        '''
-        Unpacks statistics dictionary and returns values of stat_name
-        '''        
+    def get_stat_allvars(stat_dict,stat_name):
+        """
+         Unpacks statistics dictionary and returns values of stat_name of all variables contained in the dictionary.
+        """        
         
         # some sanity checks
         if not stat_dict: raise ValueError("Input dictionary is still empty! Cannot access anything from it.")
@@ -292,15 +300,15 @@ class calc_data_stat:
             raise ValueError("Could not find "+stat_name+" for all variables of input dictionary.")       
         
     @staticmethod    
-    def get_stat_allvars(stat_dict,stat_name,allvars):
-        '''
-        Retrieves requested statistics (stat_name) for all variables listed in allvars given statistics dictionary.
-        '''        
+    def get_stat_vars(stat_dict,stat_name,vars_in):
+        """
+         Retrieves requested statistics (stat_name) for all unique variables listed in allvars given statistics dictionary.
+        """        
         
         if not stat_dict: raise ValueError("Statistics dictionary is still empty! Cannot access anything from it.")
         if not "common_stat" in stat_dict.keys(): raise ValueError("Input dictionary does not seem to be a proper statistics dictionary as common_stat-element is missing.")    
     
-        vars_uni,indrev = np.unique(allvars,return_inverse=True)
+        vars_uni,indrev = np.unique(vars_in,return_inverse=True)
     
         try:
             return([stat_dict[var][0][stat_name] for var in vars_uni[indrev]]) 
