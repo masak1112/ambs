@@ -42,7 +42,7 @@ def process_data(directory_to_process, target_dir, job_name, slices, vars=("T2",
    
     # ML 2020/04/06 S
     # Some inits
-    stat_obj = calc_data_stat(nvars)
+    stat_obj = Calc_data_stat(nvars)
     # ML 2020/04/06 E
     for j, im_file in enumerate(imageList):
         try:
@@ -133,7 +133,7 @@ def get_unique_vars(varnames):
     
     return(vars_uni, varsind, nvars_uni)
 
-class calc_data_stat:
+class Calc_data_stat:
     """Class for computing statistics and saving them to a json-files."""
     
     def __init__(self,nvars):
@@ -227,16 +227,16 @@ class calc_data_stat:
                     if (len(dict_in.keys()) -1 != len(self.varmin)):
                         raise ValueError("Different number of variables found in json-file '"+js_file+"' as expected from statistics object.")
 
-                    self.varmin  = np.fmin(self.varmin,calc_data_stat.get_stat_allvars(dict_in,"min")) 
-                    self.varmax  = np.fmax(self.varmax,calc_data_stat.get_stat_allvars(dict_in,"max"))
+                    self.varmin  = np.fmin(self.varmin,Calc_data_stat.get_stat_allvars(dict_in,"min")) 
+                    self.varmax  = np.fmax(self.varmax,Calc_data_stat.get_stat_allvars(dict_in,"max"))
 
                     if (np.all(self.varavg == 0.) or self.nfiles[0] == 0):
-                        self.varavg    = calc_data_stat.get_stat_allvars(dict_in,"avg")
-                        self.nfiles[0] = calc_data_stat.get_common_stat(dict_in,"nfiles")
+                        self.varavg    = Calc_data_stat.get_stat_allvars(dict_in,"avg")
+                        self.nfiles[0] = Calc_data_stat.get_common_stat(dict_in,"nfiles")
                         self.jsfiles[0]= file_name    
                     else:
-                        self.varavg = np.append(self.varavg,calc_data_stat.get_stat_allvars(dict_in,"avg"),axis=1)
-                        self.nfiles.append(calc_data_stat.get_common_stat(dict_in,"nfiles"))
+                        self.varavg = np.append(self.varavg,Calc_data_stat.get_stat_allvars(dict_in,"avg"),axis=1)
+                        self.nfiles.append(Calc_data_stat.get_common_stat(dict_in,"nfiles"))
                         self.jsfiles.append(file_name)
             except IOError:
                 print("Cannot handle statistics file '"+file_name+"' to be processed.")
@@ -303,6 +303,7 @@ class calc_data_stat:
     def get_stat_vars(stat_dict,stat_name,vars_in):
         """
          Retrieves requested statistics (stat_name) for all unique variables listed in allvars given statistics dictionary.
+         If more than one unique variable is processed, this method returns a list, whereas a scalar is returned else.
         """        
         
         if not stat_dict: raise ValueError("Statistics dictionary is still empty! Cannot access anything from it.")
@@ -311,7 +312,10 @@ class calc_data_stat:
         vars_uni,indrev = np.unique(vars_in,return_inverse=True)
     
         try:
-            return([stat_dict[var][0][stat_name] for var in vars_uni[indrev]]) 
+            if len(vars_uni) > 1:
+                return([stat_dict[var][0][stat_name] for var in vars_uni[indrev]]) 
+            else:
+                return(stat_dict[vars_uni[0]][0][stat_name])
         except:
             raise ValueError("Could not find "+stat_name+" for all variables of input dictionary.")
     
@@ -369,7 +373,7 @@ def split_data_multiple_years(target_dir,partition,varnames):
     splits = {s: [] for s in list(partition.keys())}
     # ML 2020/05/19 S
     vars_uni, varsind, nvars = get_unique_vars(varnames)
-    stat_obj = calc_data_stat(nvars)
+    stat_obj = Calc_data_stat(nvars)
     
     for split in partition.keys():
         values = partition[split]
