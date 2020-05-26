@@ -147,13 +147,8 @@ def save_tf_record(output_fname, sequences):
     with tf.python_io.TFRecordWriter(output_fname) as writer:
         for sequence in sequences:
             num_frames = len(sequence)
-            print('num_frames: ',str(num_frames))
-            print('shape of sequence: ')
-            print(sequence.shape)
-            print(sequence[0].shape)
             height, width, channels = sequence[0].shape
             encoded_sequence = np.array([list(image) for image in sequence])
-            print('encoded_sequence: '+encoded_sequence)
 
             features = tf.train.Features(feature={
                 'sequence_length': _int64_feature(num_frames),
@@ -199,9 +194,6 @@ class norm_data:
                 setattr(self,varname+stat_name,stat_dict[varname][0][stat_name])
                 
         self.status_ok = True
-        for i in range(len(self.varnames)):
-            print(self.varnames[i])
-            print(getattr(self,self.varnames[i]+"min"))
                 
     def norm_var(self,data,varname,norm):
         
@@ -213,6 +205,7 @@ class norm_data:
             for norm_avail in self.known_norms.keys():
                 print(norm_avail)
             raise ValueError("Passed normalization '"+norm+"' is unknown.")
+        
         
         if norm == "minmax":
             return((data[...] - getattr(self,varname+"min"))/(getattr(self,varname+"max") - getattr(self,varname+"min")))
@@ -252,26 +245,10 @@ def read_frames_and_save_tf_records(output_dir,input_dir,partition_name,vars_in,
     
     norm_cls  = norm_data(vars_in)
     nvars     = len(vars_in)
-    #vars_uni, indrev = np.unique(vars_in,return_inverse=True)
-    #if 'norm' in kwargs:
-        #norm = kwargs.get("norm")
-        #if (not norm in knwon_norms): 
-            #raise ValueError("Pass valid normalization identifier.")
-            #print("Known identifiers are: ")
-            #for norm_name in known_norm:
-                #print('"'+norm_name+'"')
-    #else:
-        #norm = "minmax"
     
     # open statistics file and store the dictionary
     with open(os.path.join(input_dir,"statistics.json")) as js_file:
         norm_cls.check_and_set_norm(json.load(js_file),norm)        
-    
-        #if (norm == "minmax"):
-            #varmin, varmax = get_stat_allvars(data,"min",vars_in), get_stat_allvars(data,"max",vars_in)
-
-    #print(len(varmin))
-    #print(varmin)
     
     sequences = []
     sequence_iter = 0
