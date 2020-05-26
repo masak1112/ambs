@@ -137,8 +137,8 @@ class calc_data_stat:
     """Class for computing statistics and saving them to a json-files."""
     def __init__(self,nvars):
         self.stat_dict = {}
-        self.varmin    = np.full(nvars,np.nan)
-        self.varmax    = np.full(nvars,np.nan)
+        self.varmin    = np.full((nvars,1),np.nan)
+        self.varmax    = np.full((nvars,1),np.nan)
         self.varavg    = np.zeros((nvars,1))            # second dimension acts as placeholder for averaging on master node collecting json-files from slave nodes
         self.nfiles    = [0]                            # number of processed files
         self.mode      = ""                             # mode to distinguish between processing on slave and master nodes (sanity check)
@@ -183,9 +183,9 @@ class calc_data_stat:
 
             self.stat_dict[vars_uni[i]]=[]
             self.stat_dict[vars_uni[i]].append({
-                  'min': varmin[i],
-                  'max': varmax[i],
-                  'avg': varavg[i]
+                  'min': varmin[i,0].tolist(),
+                  'max': varmax[i,0].tolist(),
+                  'avg': varavg[i].tolist()
             })        
         self.stat_dict["common_stat"] = [
             {"nfiles":self.nfiles[0]}]
@@ -223,6 +223,7 @@ class calc_data_stat:
 
                     self.varmin  = np.fmin(self.varmin,calc_data_stat.get_var_stat(dict_in,"min")) 
                     self.varmax  = np.fmax(self.varmax,calc_data_stat.get_var_stat(dict_in,"max"))
+
                     if (np.all(self.varavg == 0.) or self.nfiles[0] == 0):
                         self.varavg    = calc_data_stat.get_var_stat(dict_in,"avg")
                         self.nfiles[0] = calc_data_stat.get_common_stat(dict_in,"nfiles")
@@ -259,8 +260,8 @@ class calc_data_stat:
         for i in range(nvars):
             self.stat_dict[vars_uni[i]]=[]
             self.stat_dict[vars_uni[i]].append({
-                  'min': varmin[i].tolist(),
-                  'max': varmax[i].tolist(),
+                  'min': varmin[i,0].tolist(),
+                  'max': varmax[i,0].tolist(),
                   'avg': varavg[i].tolist()
             })        
         self.stat_dict["common_stat"] = [
