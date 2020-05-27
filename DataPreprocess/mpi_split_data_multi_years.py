@@ -1,20 +1,30 @@
 from mpi4py import MPI
 import argparse
 from process_netCDF_v2 import *
+import json
 
+#add parser arguments
 parser = argparse.ArgumentParser()
 #parser.add_argument("--source_dir", type=str, default="/p/scratch/deepacf/bing/extractedData/")
-parser.add_argument("--destination_dir", type=str, default="/p/scratch/deepacf/bing/processData_size_64_64_3_3t_norm")
+parser.add_argument("--destination_dir","-dest",dest="destination_dir",type=str, default="/p/scratch/deepacf/bing/processData_size_64_64_3_3t_norm")
 parser.add_argument("--varnames","-vars",dest="varnames", nargs = '+')
+#parser.add_argument("--partition","-part",dest="partition",type=json.loads)
+#                    help="--partition allows to control the splitting of the processed data in training, test and validation data. Pass a dictionary-like string.")
+#parser.add_argument("--partition", type=str, default="")
+>>>>>>> origin/test_zam347
 args = parser.parse_args()
 target_dir = args.destination_dir
 varnames = args.varnames
 
+#partition = args.partition
+#all_keys  = partition.keys()
+#for key in all_keys:
+#    print(partition[key]) 
 
 partition = {
             "train":{
                 "2017":[1]
-                },
+                 },
             "val":
                 {"2017":[2]
                  },
