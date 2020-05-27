@@ -10,8 +10,7 @@ parser.add_argument("--destination_dir","-dest",dest="destination_dir",type=str,
 parser.add_argument("--varnames","-vars",dest="varnames", nargs = '+')
 #parser.add_argument("--partition","-part",dest="partition",type=json.loads)
 #                    help="--partition allows to control the splitting of the processed data in training, test and validation data. Pass a dictionary-like string.")
-#parser.add_argument("--partition", type=str, default="")
->>>>>>> origin/test_zam347
+
 args = parser.parse_args()
 target_dir = args.destination_dir
 varnames = args.varnames
