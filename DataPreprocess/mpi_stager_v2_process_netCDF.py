@@ -105,7 +105,6 @@ def main():
             logging.critical('The Destination does not exist')
             logging.info('Create new destination dir')
             os.makedirs(destination_dir,exist_ok=True)
-            #if not os.path.exists(destination_dir): os.mkdir(destination_dir)
 
     if my_rank == 0:  # node is master:
         # ==================================== Master : Directory scanner ================================= #
@@ -151,10 +150,8 @@ def main():
             logging.info(message_in)
             message_counter = message_counter + 1
         #Bing
-        split_data(target_dir=destination_dir, partition = [0.6, 0.2, 0.2])
-        # ML 2020/04/06 S
-        create_stat_json_master(destination_dir,p-idle_counter,vars)
-        # ML 2020/04/06 E 
+        # ML 2020/05/19: Splitting now controlled from batch-script
+        # split_data(target_dir=destination_dir, partition = [0.6, 0.2, 0.2])
 
         # stamp the end of the runtime
         end = time.time()
