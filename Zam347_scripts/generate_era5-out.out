@@ -1,0 +1,30 @@
+temporal_dir: /home/b.gong/preprocessedData/era5-Y2015toY2017M01to12-64x64-74d00N71d00E-T_MSL_gph500/hickle/splits/
+loading options from checkpoint /home/b.gong/models/era5-Y2015toY2017M01to12-64x64-74d00N71d00E-T_MSL_gph500/vae
+----------------------------------- Options ------------------------------------
+batch_size = 2
+checkpoint = /home/b.gong/models/era5-Y2015toY2017M01to12-64x64-74d00N71d00E-T_MSL_gph500/vae
+dataset = era5
+dataset_hparams = sequence_length=20
+fps = 4
+gif_length = None
+gpu_mem_frac = 0
+input_dir = /home/b.gong/preprocessedData/era5-Y2015toY2017M01to12-64x64-74d00N71d00E-T_MSL_gph500/tfrecords
+mode = test
+model = vae
+model_hparams = None
+num_epochs = 1
+num_samples = None
+num_stochastic_samples = 1
+output_gif_dir = /home/b.gong/results/era5-Y2015toY2017M01to12-64x64-74d00N71d00E-T_MSL_gph500/vae
+output_png_dir = /home/b.gong/results/era5-Y2015toY2017M01to12-64x64-74d00N71d00E-T_MSL_gph500/vae
+results_dir = /home/b.gong/results/era5-Y2015toY2017M01to12-64x64-74d00N71d00E-T_MSL_gph500
+results_gif_dir = /home/b.gong/results/era5-Y2015toY2017M01to12-64x64-74d00N71d00E-T_MSL_gph500
+results_png_dir = /home/b.gong/results/era5-Y2015toY2017M01to12-64x64-74d00N71d00E-T_MSL_gph500
+seed = 7
+------------------------------------- End --------------------------------------
+datset_class ERA5Dataset_v2
+FILENAMES ['/home/b.gong/preprocessedData/era5-Y2015toY2017M01to12-64x64-74d00N71d00E-T_MSL_gph500/tfrecords/test/sequence_0_to_1.tfrecords', '/home/b.gong/preprocessedData/era5-Y2015toY2017M01to12-64x64-74d00N71d00E-T_MSL_gph500/tfrecords/test/sequence_10_to_11.tfrecords', '/home/b.gong/preprocessedData/era5-Y2015toY2017M01to12-64x64-74d00N71d00E-T_MSL_gph500/tfrecords/test/sequence_12_to_13.tfrecords', '/home/b.gong/preprocessedData/era5-Y2015toY2017M01to12-64x64-74d00N71d00E-T_MSL_gph500/tfrecords/test/sequence_2_to_3.tfrecords', '/home/b.gong/preprocessedData/era5-Y2015toY2017M01to12-64x64-74d00N71d00E-T_MSL_gph500/tfrecords/test/sequence_4_to_5.tfrecords', '/home/b.gong/preprocessedData/era5-Y2015toY2017M01to12-64x64-74d00N71d00E-T_MSL_gph500/tfrecords/test/sequence_6_to_7.tfrecords', '/home/b.gong/preprocessedData/era5-Y2015toY2017M01to12-64x64-74d00N71d00E-T_MSL_gph500/tfrecords/test/sequence_8_to_9.tfrecords']
+files ['/home/b.gong/preprocessedData/era5-Y2015toY2017M01to12-64x64-74d00N71d00E-T_MSL_gph500/tfrecords/test/sequence_0_to_1.tfrecords', '/home/b.gong/preprocessedData/era5-Y2015toY2017M01to12-64x64-74d00N71d00E-T_MSL_gph500/tfrecords/test/sequence_10_to_11.tfrecords', '/home/b.gong/preprocessedData/era5-Y2015toY2017M01to12-64x64-74d00N71d00E-T_MSL_gph500/tfrecords/test/sequence_12_to_13.tfrecords', '/home/b.gong/preprocessedData/era5-Y2015toY2017M01to12-64x64-74d00N71d00E-T_MSL_gph500/tfrecords/test/sequence_2_to_3.tfrecords', '/home/b.gong/preprocessedData/era5-Y2015toY2017M01to12-64x64-74d00N71d00E-T_MSL_gph500/tfrecords/test/sequence_4_to_5.tfrecords', '/home/b.gong/preprocessedData/era5-Y2015toY2017M01to12-64x64-74d00N71d00E-T_MSL_gph500/tfrecords/test/sequence_6_to_7.tfrecords', '/home/b.gong/preprocessedData/era5-Y2015toY2017M01to12-64x64-74d00N71d00E-T_MSL_gph500/tfrecords/test/sequence_8_to_9.tfrecords']
+mode test
+Parse features {'images/encoded': <tensorflow.python.framework.sparse_tensor.SparseTensor object at 0x7f71880c6b00>, 'channels': <tf.Tensor 'ParseSingleExample/ParseSingleExample:3' shape=() dtype=int64>, 'height': <tf.Tensor 'ParseSingleExample/ParseSingleExample:4' shape=() dtype=int64>, 'sequence_length': <tf.Tensor 'ParseSingleExample/ParseSingleExample:5' shape=() dtype=int64>, 'width': <tf.Tensor 'ParseSingleExample/ParseSingleExample:6' shape=() dtype=int64>}
+Image shape 20, 64,64,3

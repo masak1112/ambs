@@ -7,7 +7,7 @@ from .savp_model import SAVPVideoPredictionModel
 from .dna_model import DNAVideoPredictionModel
 from .sna_model import SNAVideoPredictionModel
 from .sv2p_model import SV2PVideoPredictionModel
-
+from .vanilla_vae_model import VanillaVAEVideoPredictionModel
 
 def get_model_class(model):
     model_mappings = {
@@ -17,6 +17,7 @@ def get_model_class(model):
         'dna': 'DNAVideoPredictionModel',
         'sna': 'SNAVideoPredictionModel',
         'sv2p': 'SV2PVideoPredictionModel',
+        'vae': 'VanillaVAEVideoPredictionModel',
     }
     model_class = model_mappings.get(model, model)
     model_class = globals().get(model_class)
