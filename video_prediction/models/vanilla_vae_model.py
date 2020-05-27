@@ -21,20 +21,11 @@ class VanillaVAEVideoPredictionModel(BaseVideoPredictionModel):
         super(VanillaVAEVideoPredictionModel, self).__init__(mode, hparams_dict, hparams, **kwargs)
         self.mode = mode
         self.learning_rate = self.hparams.lr
+        self.nz = self.hparams.nz
         self.aggregate_nccl=aggregate_nccl
         self.gen_images_enc = None
-        self.g_losses = None
-        self.d_losses = None
-        self.g_loss = None
-        self.d_loss = None
-        self.g_vars = None
-        self.d_vars = None
         self.train_op = None
         self.summary_op = None
-        self.image_summary_op = None
-        self.eval_summary_op = None
-        self.accum_eval_summary_op = None
-        self.accum_eval_metrics_reset_op = None
         self.recon_loss = None
         self.latent_loss = None
         self.total_loss = None
@@ -65,6 +56,7 @@ class VanillaVAEVideoPredictionModel(BaseVideoPredictionModel):
                 specified during instantiation.
         """
         default_hparams = super(VanillaVAEVideoPredictionModel, self).get_default_hparams_dict()
+        print ("default hparams",default_hparams)
         hparams = dict(
             batch_size=16,
             lr=0.001,
@@ -73,35 +65,9 @@ class VanillaVAEVideoPredictionModel(BaseVideoPredictionModel):
             lr_boundaries=(0,),
             max_steps=350000,
             nz=10,
-            beta1=0.9,
-            beta2=0.999,
             context_frames=-1,
             sequence_length=-1,
             clip_length=10, #Bing: TODO What is the clip_length, original is 10,
-            l1_weight=0.0,
-            l2_weight=1.0,
-            vgg_cdist_weight=0.0,
-            feature_l2_weight=0.0,
-            ae_l2_weight=0.0,
-            state_weight=0.0,
-            tv_weight=0.0,
-            image_sn_gan_weight=0.0,
-            image_sn_vae_gan_weight=0.0,
-            images_sn_gan_weight=0.0,
-            images_sn_vae_gan_weight=0.0,
-            video_sn_gan_weight=0.0,
-            video_sn_vae_gan_weight=0.0,
-            gan_feature_l2_weight=0.0,
-            gan_feature_cdist_weight=0.0,
-            vae_gan_feature_l2_weight=0.0,
-            vae_gan_feature_cdist_weight=0.0,
-            gan_loss_type='LSGAN',
-            joint_gan_optimization=False,
-            kl_weight=0.0,
-            kl_anneal='linear',
-            kl_anneal_k=-1.0,
-            kl_anneal_steps=(50000, 100000),
-            z_l1_weight=0.0,
         )
         return dict(itertools.chain(default_hparams.items(), hparams.items()))
 
@@ -167,7 +133,7 @@ class VanillaVAEVideoPredictionModel(BaseVideoPredictionModel):
 
 
     @staticmethod
-    def vae_arc3(x, l_name=0):
+    def vae_arc3(x,l_name=0,nz=16):
         seq_name = "sq_" + str(l_name) + "_"
         print("DBBUG: INPUT", x)
         conv1 = ld.conv_layer(x, 3, 2, 8, seq_name + "encode_1")
@@ -184,8 +150,8 @@ class VanillaVAEVideoPredictionModel(BaseVideoPredictionModel):
         conv3_shape = conv3.get_shape().as_list()
         print("conv4_shape",conv3_shape)
         # Todo: to conv3 to 
-        z_mu = ld.fc_layer(conv4, hiddens = 16, idx = seq_name + "enc_fc4_m")
-        z_log_sigma_sq = ld.fc_layer(conv4, hiddens = 16, idx = seq_name + "enc_fc4_m"'enc_fc4_sigma')
+        z_mu = ld.fc_layer(conv4, hiddens = nz, idx = seq_name + "enc_fc4_m")
+        z_log_sigma_sq = ld.fc_layer(conv4, hiddens = nz, idx = seq_name + "enc_fc4_m"'enc_fc4_sigma')
         eps = tf.random_normal(shape = tf.shape(z_log_sigma_sq), mean = 0, stddev = 1, dtype = tf.float32)
         z = z_mu + tf.sqrt(tf.exp(z_log_sigma_sq)) * eps
         print("latend variables z ", z)
@@ -210,7 +176,7 @@ class VanillaVAEVideoPredictionModel(BaseVideoPredictionModel):
         z_log_sigma_sq_all = []
         z_mu_all = []
         for i in range(20):
-            q, z_mu, z_log_sigma_sq, z = VanillaVAEVideoPredictionModel.vae_arc3(self.x[:, i, :, :, :], l_name = i)
+            q, z_mu, z_log_sigma_sq, z = VanillaVAEVideoPredictionModel.vae_arc3(self.x[:, i, :, :, :], l_name=i, nz=self.nz)
             X.append(q)
             z_log_sigma_sq_all.append(z_log_sigma_sq)
             z_mu_all.append(z_mu)
