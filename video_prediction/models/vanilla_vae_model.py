@@ -135,7 +135,7 @@ class VanillaVAEVideoPredictionModel(BaseVideoPredictionModel):
     @staticmethod
     def vae_arc3(x,l_name=0,nz=16):
         seq_name = "sq_" + str(l_name) + "_"
-        print("DBBUG: INPUT", x)
+        
         conv1 = ld.conv_layer(x, 3, 2, 8, seq_name + "encode_1")
         print("Encode_1_shape", conv1.shape)  # (?,2,2,8)
         # conv2
@@ -149,16 +149,16 @@ class VanillaVAEVideoPredictionModel(BaseVideoPredictionModel):
         print("Encode 4_shape, ", conv4.shape)
         conv3_shape = conv3.get_shape().as_list()
         print("conv4_shape",conv3_shape)
-        # Todo: to conv3 to 
+        
         z_mu = ld.fc_layer(conv4, hiddens = nz, idx = seq_name + "enc_fc4_m")
         z_log_sigma_sq = ld.fc_layer(conv4, hiddens = nz, idx = seq_name + "enc_fc4_m"'enc_fc4_sigma')
         eps = tf.random_normal(shape = tf.shape(z_log_sigma_sq), mean = 0, stddev = 1, dtype = tf.float32)
         z = z_mu + tf.sqrt(tf.exp(z_log_sigma_sq)) * eps
-        print("latend variables z ", z)
-        z2 = ld.fc_layer(z, hiddens = conv3_shape[1] * conv3_shape[2] * conv3_shape[3], idx = seq_name + "deenc_fc1")
-        print("latend variables z2 ", z2)
+        
+        z2 = ld.fc_layer(z, hiddens = conv3_shape[1] * conv3_shape[2] * conv3_shape[3], idx = seq_name + "decode_fc1")
+        
+        
         z3 = tf.reshape(z2, [-1, conv3_shape[1], conv3_shape[2], conv3_shape[3]])
-        print("latend variables z3 ", z3)
         # conv5
         conv5 = ld.transpose_conv_layer(z3, 3, 2, 8,
                                         seq_name + "decode_5")  # (16,1,1,8)inputs, kernel_size, stride, num_features
