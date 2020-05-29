@@ -246,7 +246,7 @@ class Norm_data:
         
         # do the denormalization and return
         if norm == "minmax":
-            return(data[...] * (getattr(self,varname+"max") - getattr(self,varname+"min")) + getattr(self,varname+"max"))
+            return(data[...] * (getattr(self,varname+"max") - getattr(self,varname+"min")) + getattr(self,varname+"min"))
         elif norm == "znorm":
             return(data[...] * getattr(self,varname+"sigma")**2 + getattr(self,varname+"avg"))
         
