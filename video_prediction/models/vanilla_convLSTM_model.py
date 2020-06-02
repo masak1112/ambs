@@ -14,14 +14,14 @@ from video_prediction.utils import tf_utils
 from datetime import datetime
 from pathlib import Path
 from video_prediction.layers import layer_def as ld
-from video_prediction.layers import BasicConvLSTMCell
+from video_prediction.layers.BasicConvLSTMCell import BasicConvLSTMCell
 
-class VanillaVAEVideoPredictionModel(BaseVideoPredictionModel):
-    def __init__(self, mode='train', hparams_dict=None,
+class VanillaConvLstmVideoPredictionModel(BaseVideoPredictionModel):
+    def __init__(self, mode='train',aggregate_nccl=None, hparams_dict=None,
                  hparams=None, **kwargs):
-        super(VanillaVAEVideoPredictionModel, self).__init__(mode, hparams_dict, hparams, **kwargs)
+        super(VanillaConvLstmVideoPredictionModel, self).__init__(mode, hparams_dict, hparams, **kwargs)
+        print ("Hparams_dict",self.hparams)
         self.mode = mode
-        self.hparams = hparams
         self.learning_rate = self.hparams.lr
         self.gen_images_enc = None
         self.recon_loss = None
@@ -30,7 +30,8 @@ class VanillaVAEVideoPredictionModel(BaseVideoPredictionModel):
         self.context_frames = 10
         self.sequence_length = 20
         self.predict_frames = self.sequence_length - self.context_frames
-
+        self.aggregate_nccl=aggregate_nccl
+    
     def get_default_hparams_dict(self):
         """
         The keys of this dict define valid hyperparameters for instances of
@@ -56,23 +57,24 @@ class VanillaVAEVideoPredictionModel(BaseVideoPredictionModel):
                 `sequence_length - context_frames` future frames. Must be
                 specified during instantiation.
         """
-        default_hparams = super(VanillaVAEVideoPredictionModel, self).get_default_hparams_dict()
+        default_hparams = super(VanillaConvLstmVideoPredictionModel, self).get_default_hparams_dict()
+        print ("default hparams",default_hparams)
         hparams = dict(
             batch_size=16,
             lr=0.001,
             end_lr=0.0,
+            nz=16,
             decay_steps=(200000, 300000),
             max_steps=350000,
         )
+
         return dict(itertools.chain(default_hparams.items(), hparams.items()))
 
     def build_graph(self, x):
-        global_step = tf.train.get_or_create_global_step()
-        original_global_variables = tf.global_variables()
-        tf.reset_default_graph()
+        self.x = x["images"]
+        #self.global_step = tf.train.get_or_create_global_step()
         self.global_step = tf.Variable(0, name = 'global_step', trainable = False)
-        self.increment_global_step = tf.assign_add(self.global_step, 1, name = 'increment_global_step')
-
+        original_global_variables = tf.global_variables()
         # ARCHITECTURE
         self.x_hat_context_frames, self.x_hat_predict_frames = self.convLSTM_network()
         self.x_hat = tf.concat([self.x_hat_context_frames, self.x_hat_predict_frames], 1)
@@ -93,7 +95,7 @@ class VanillaVAEVideoPredictionModel(BaseVideoPredictionModel):
         self.loss_summary = tf.summary.scalar("total_loss", self.total_loss)
         self.summary_op = tf.summary.merge_all()
         global_variables = [var for var in tf.global_variables() if var not in original_global_variables]
-        self.saveable_variables = [global_step] + global_variables
+        self.saveable_variables = [self.global_step] + global_variables
         return
 
 
@@ -108,8 +110,9 @@ class VanillaVAEVideoPredictionModel(BaseVideoPredictionModel):
         print("Encode 3_shape, ", conv3.shape)
         y_0 = conv3
         # conv lstm cell
+        cell_shape = y_0.get_shape().as_list()
         with tf.variable_scope('conv_lstm', initializer = tf.random_uniform_initializer(-.01, 0.1)):
-            cell = BasicConvLSTMCell(shape = [16, 16], filter_size = [3, 3], num_features = 8)
+            cell = BasicConvLSTMCell(shape = [cell_shape[1], cell_shape[2]], filter_size = [3, 3], num_features = 8)
             if hidden is None:
                 hidden = cell.zero_state(y_0, tf.float32)
                 print("hidden zero layer", hidden.shape)
@@ -133,7 +136,7 @@ class VanillaVAEVideoPredictionModel(BaseVideoPredictionModel):
 
     def convLSTM_network(self):
         network_template = tf.make_template('network',
-                                            convLSTM.convLSTM_cell)  # make the template to share the variables
+                                            VanillaConvLstmVideoPredictionModel.convLSTM_cell)  # make the template to share the variables
         # create network
         x_hat_context = []
         x_hat_predict = []

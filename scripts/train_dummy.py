@@ -164,13 +164,13 @@ def main():
     gpu_options = tf.GPUOptions(per_process_gpu_memory_fraction=args.gpu_mem_frac, allow_growth=True)
     config = tf.ConfigProto(gpu_options=gpu_options, allow_soft_placement=True)
     #global_step = tf.train.get_or_create_global_step()
+    #global_step = tf.Variable(0, name = 'global_step', trainable = False)
     max_steps = model.hparams.max_steps
     print ("max_steps",max_steps)
     with tf.Session(config=config) as sess:
         print("parameter_count =", sess.run(parameter_count))
         sess.run(tf.global_variables_initializer())
         sess.run(tf.local_variables_initializer())
-       
         #coord = tf.train.Coordinator()
         #threads = tf.train.start_queue_runners(sess = sess, coord = coord)
         print("Init done: {sess.run(tf.local_variables_initializer())}%")
@@ -188,20 +188,23 @@ def main():
         # start at one step earlier to log everything without doing any training
         # step is relative to the start_step
         for step in range(-1, max_steps - start_step):
+            global_step = sess.run(model.global_step)
+            print ("global_step:", global_step)
             val_handle_eval = sess.run(val_handle)
             print ("val_handle_val",val_handle_eval)
             if step == 1:
                 # skip step -1 and 0 for timing purposes (for warmstarting)
                 start_time = time.time()
-
-            fetches = {"global_step": model.global_step}
+            
+            fetches = {"global_step":model.global_step}
             fetches["train_op"] = model.train_op
-            fetches["latent_loss"] = model.latent_loss
+
+           # fetches["latent_loss"] = model.latent_loss
             fetches["total_loss"] = model.total_loss
 
 
-            if isinstance(model.learning_rate, tf.Tensor):
-                fetches["learning_rate"] = model.learning_rate
+           # if isinstance(model.learning_rate, tf.Tensor):
+           #     fetches["learning_rate"] = model.learning_rate
 
             fetches["summary"] = model.summary_op
 
@@ -210,21 +213,25 @@ def main():
             X = inputs["images"].eval(session=sess)           
             #results = sess.run(fetches,feed_dict={model.x:X}) #fetch the elements in dictinoary fetch
             results = sess.run(fetches)
+            print ("results global step:",results["global_step"])
             run_elapsed_time = time.time() - run_start_time
             if run_elapsed_time > 1.5 and step > 0 and set(fetches.keys()) == {"global_step", "train_op"}:
                 print('running train_op took too long (%0.1fs)' % run_elapsed_time)
 
             #Run testing results
-            val_fetches = {"global_step": model.global_step}
-            val_fetches["latent_loss"] = model.latent_loss
-            val_fetches["total_loss"] = model.total_loss
+            #val_fetches = {"global_step":global_step}
+            val_fetches = {}
+            #val_fetches["latent_loss"] = model.latent_loss
+            #val_fetches["total_loss"] = model.total_loss
             val_fetches["summary"] = model.summary_op
-            val_results = sess.run(val_fetches)
-
-            summary_writer.add_summary(results["summary"], results["global_step"])
-            summary_writer.add_summary(val_results["summary"], val_results["global_step"])
-
-
+            val_results = sess.run(val_fetches,feed_dict={train_handle: val_handle_eval})
+          
+            summary_writer.add_summary(results["summary"])
+            summary_writer.add_summary(val_results["summary"])
+             
+            #print("results_global_step", results["global_step"])
+            #print("Val_results_global_step", val_results["global_step"])
+           
             val_datasets = [val_dataset]
             val_models = [model]
 
@@ -244,8 +251,9 @@ def main():
             # global_step will have the correct step count if we resume from a checkpoint
             # global step is read before it's incremented
             steps_per_epoch = train_dataset.num_examples_per_epoch() / batch_size
-            train_epoch = results["global_step"] / steps_per_epoch
-            print("progress  global step %d  epoch %0.1f" % (results["global_step"] + 1, train_epoch))
+            #train_epoch = results["global_step"] / steps_per_epoch
+            train_epoch = global_step/steps_per_epoch
+            print("progress  global step %d  epoch %0.1f" % (global_step + 1, train_epoch))
             if step > 0:
                 elapsed_time = time.time() - start_time
                 average_time = elapsed_time / step
@@ -266,7 +274,7 @@ def main():
             print(" Results_total_loss",results["total_loss"])
             
             print("saving model to", args.output_dir)
-            saver.save(sess, os.path.join(args.output_dir, "model"), global_step=model.global_step)
+            saver.save(sess, os.path.join(args.output_dir, "model"), global_step=step)##Bing: cheat here a little bit because of the global step issue
             print("done")
             #global_step = global_step + 1
 if __name__ == '__main__':
