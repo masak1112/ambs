@@ -3,7 +3,7 @@
 
 python -u ../scripts/generate_transfer_learning_finetune.py \
 --input_dir /home/${USER}/preprocessedData/era5-Y2017M01to02-128x160-74d00N71d00E-T_MSL_gph500/tfrecords  \
---dataset_hparams sequence_length=20 --checkpoint  /home/${USER}/models/era5-Y2017M01to02-128x160-74d00N71d00E-T_MSL_gph500/vae \
+--dataset_hparams sequence_length=20 --checkpoint  /home/${USER}/models/era5-Y2017M01to02-128x160-74d00N71d00E-T_MSL_gph500/convLSTM \
 --mode test --results_dir /home/${USER}/results/era5-Y2017M01to02-128x160-74d00N71d00E-T_MSL_gph500 \
 --batch_size 2 --dataset era5   > generate_era5-out.out
 
