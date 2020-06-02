@@ -88,7 +88,8 @@ class VanillaConvLstmVideoPredictionModel(BaseVideoPredictionModel):
 
         self.train_op = tf.train.AdamOptimizer(
             learning_rate = self.learning_rate).minimize(self.total_loss, global_step = self.global_step)
-
+        self.outputs = {}
+        self.outputs["gen_images"] = self.x_hat
         # Summary op
         self.loss_summary = tf.summary.scalar("recon_loss", self.context_frames_loss)
         self.loss_summary = tf.summary.scalar("latent_loss", self.predict_frames_loss)

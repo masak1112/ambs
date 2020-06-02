@@ -1,8 +1,8 @@
 {
     "batch_size": 8,
-    "lr": 0.0002,
+    "lr": 0.001,
     "nz": 16,
-    "max_steps":20
+    "max_steps":500
 }
 
 
