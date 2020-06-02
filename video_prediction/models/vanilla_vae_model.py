@@ -79,11 +79,14 @@ class VanillaVAEVideoPredictionModel(BaseVideoPredictionModel):
         #print ("self_x:",self.x)
         #tf.reset_default_graph()
         #self.x = tf.placeholder(tf.float32, [None,20,64,64,3])
+        tf.set_random_seed(12345)
         self.x = x["images"]
-        self.global_step = tf.train.get_or_create_global_step()
+        
+        #self.global_step = tf.train.get_or_create_global_step()
+        self.global_step = tf.Variable(0, name = 'global_step', trainable = False)
         original_global_variables = tf.global_variables()
-        #self.global_step = tf.Variable(0, name = 'global_step', trainable = False)
-        #self.increment_global_step = tf.assign_add(self.global_step, 1, name = 'increment_global_step')
+        self.increment_global_step = tf.assign_add(self.global_step, 1, name = 'increment_global_step')
+
         self.x_hat, self.z_log_sigma_sq, self.z_mu = self.vae_arc_all()
         # Loss
         # Reconstruction loss
@@ -129,6 +132,7 @@ class VanillaVAEVideoPredictionModel(BaseVideoPredictionModel):
         self.outputs["gen_images"] = self.x_hat
         global_variables = [var for var in tf.global_variables() if var not in original_global_variables]
         self.saveable_variables = [self.global_step] + global_variables
+        #train_op = tf.assign_add(global_step, 1)
         return
 
 
