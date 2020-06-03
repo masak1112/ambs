@@ -1,0 +1,9 @@
+2020-06-03 16:54:21,422:DEBUG: === PyStager is started ===
+2020-06-03 16:54:21,437:WARNING:('Node', '4', 'is idle')
+2020-06-03 16:54:21,437:WARNING:('Node', '5', 'is idle')
+2020-06-03 17:07:59,395:INFO:('Node:', '1', 'finished :', 'rsync -r //home/a.mozaffari/data_era5/2017/01/ /home/a.mozaffari/data_dest/01', '\r\n')
+2020-06-03 17:11:27,336:INFO:('Node:', '3', 'finished :', 'rsync -r //home/a.mozaffari/data_era5/2017/03/ /home/a.mozaffari/data_dest/03', '\r\n')
+2020-06-03 17:11:30,417:INFO:('Node:', '2', 'finished :', 'rsync -r //home/a.mozaffari/data_era5/2017/02/ /home/a.mozaffari/data_dest/02', '\r\n')
+2020-06-03 17:11:30,417:DEBUG:1028.9953315258026
+2020-06-03 17:11:30,418:INFO:== PyStager is done ==
+2020-06-03 17:11:30,418:INFO:exit status : 0
