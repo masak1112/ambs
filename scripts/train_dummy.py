@@ -127,8 +127,8 @@ def main():
         aggregate_nccl=args.aggregate_nccl)
 
     batch_size = model.hparams.batch_size
-    train_tf_dataset = train_dataset.make_dataset_v2(batch_size)#Bing: adopt the meteo data prepartion here
-    train_iterator = train_tf_dataset.make_one_shot_iterator()#Bing:for era5, the problem happen in sess.run(feches) should come from here
+    train_tf_dataset = train_dataset.make_dataset_v2(batch_size)
+    train_iterator = train_tf_dataset.make_one_shot_iterator()
     # The `Iterator.string_handle()` method returns a tensor that can be evaluated
     # and used to feed the `handle` placeholder.
     train_handle = train_iterator.string_handle()
@@ -139,7 +139,7 @@ def main():
     #    train_handle, train_tf_dataset.output_types, train_tf_dataset.output_shapes)
     inputs = train_iterator.get_next()
     val = val_iterator.get_next()
-    # inputs comes from the training dataset by default, unless train_handle is remapped to the val_handles
+   
     model.build_graph(inputs)
 
     if not os.path.exists(args.output_dir):
@@ -163,8 +163,8 @@ def main():
 
     gpu_options = tf.GPUOptions(per_process_gpu_memory_fraction=args.gpu_mem_frac, allow_growth=True)
     config = tf.ConfigProto(gpu_options=gpu_options, allow_soft_placement=True)
-    #global_step = tf.train.get_or_create_global_step()
-    #global_step = tf.Variable(0, name = 'global_step', trainable = False)
+  
+ 
     max_steps = model.hparams.max_steps
     print ("max_steps",max_steps)
     with tf.Session(config=config) as sess:
@@ -175,15 +175,15 @@ def main():
         #threads = tf.train.start_queue_runners(sess = sess, coord = coord)
         print("Init done: {sess.run(tf.local_variables_initializer())}%")
         model.restore(sess, args.checkpoint)
-        print("Restore processed finished")
+
         #sess.run(model.post_init_ops)
-        print("Model run started")
+
         #val_handle_eval = sess.run(val_handle)
         #print ("val_handle_val",val_handle_eval)
         #print("val handle done")
         sess.graph.finalize()
         start_step = sess.run(model.global_step)
-        print("global step done")
+
 
         # start at one step earlier to log everything without doing any training
         # step is relative to the start_step
@@ -191,7 +191,7 @@ def main():
             global_step = sess.run(model.global_step)
             print ("global_step:", global_step)
             val_handle_eval = sess.run(val_handle)
-            print ("val_handle_val",val_handle_eval)
+
             if step == 1:
                 # skip step -1 and 0 for timing purposes (for warmstarting)
                 start_time = time.time()
@@ -211,9 +211,9 @@ def main():
             run_start_time = time.time()
             #Run training results
             X = inputs["images"].eval(session=sess)           
-            #results = sess.run(fetches,feed_dict={model.x:X}) #fetch the elements in dictinoary fetch
+
             results = sess.run(fetches)
-            print ("results global step:",results["global_step"])
+
             run_elapsed_time = time.time() - run_start_time
             if run_elapsed_time > 1.5 and step > 0 and set(fetches.keys()) == {"global_step", "train_op"}:
                 print('running train_op took too long (%0.1fs)' % run_elapsed_time)
@@ -229,8 +229,8 @@ def main():
             summary_writer.add_summary(results["summary"])
             summary_writer.add_summary(val_results["summary"])
              
-            #print("results_global_step", results["global_step"])
-            #print("Val_results_global_step", val_results["global_step"])
+
+
            
             val_datasets = [val_dataset]
             val_models = [model]
@@ -262,20 +262,20 @@ def main():
                 print("image/sec %0.1f  remaining %dm (%0.1fh) (%0.1fd)" %
                       (images_per_sec, remaining_time / 60, remaining_time / 60 / 60, remaining_time / 60 / 60 / 24))
 
-            # if results['d_losses']:
-            #     print("d_loss", results["d_loss"])
-            # for name, loss in results['d_losses'].items():
-            #     print("  ", name, loss)
-            # if results['g_losses']:
-            #     print("g_loss", results["g_loss"])
-            # for name, loss in results['g_losses'].items():
-            #     print("  ", name, loss)
-            #for name, loss in results['total_loss'].items():
+
+
+
+
+
+
+
+
+
             print(" Results_total_loss",results["total_loss"])
             
             print("saving model to", args.output_dir)
             saver.save(sess, os.path.join(args.output_dir, "model"), global_step=step)##Bing: cheat here a little bit because of the global step issue
             print("done")
-            #global_step = global_step + 1
+
 if __name__ == '__main__':
     main()

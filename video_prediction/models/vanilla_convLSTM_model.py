@@ -72,13 +72,13 @@ class VanillaConvLstmVideoPredictionModel(BaseVideoPredictionModel):
 
     def build_graph(self, x):
         self.x = x["images"]
-        #self.global_step = tf.train.get_or_create_global_step()
+       
         self.global_step = tf.Variable(0, name = 'global_step', trainable = False)
         original_global_variables = tf.global_variables()
         # ARCHITECTURE
         self.x_hat_context_frames, self.x_hat_predict_frames = self.convLSTM_network()
         self.x_hat = tf.concat([self.x_hat_context_frames, self.x_hat_predict_frames], 1)
-        print("x_hat,shape", self.x_hat)
+
 
         self.context_frames_loss = tf.reduce_mean(
             tf.square(self.x[:, :self.context_frames, :, :, 0] - self.x_hat_context_frames[:, :, :, :, 0]))
@@ -102,13 +102,13 @@ class VanillaConvLstmVideoPredictionModel(BaseVideoPredictionModel):
 
     @staticmethod
     def convLSTM_cell(inputs, hidden, nz=16):
-        print("Inputs shape", inputs.shape)
+
         conv1 = ld.conv_layer(inputs, 3, 2, 8, "encode_1", activate = "leaky_relu")
-        print("Encode_1_shape", conv1.shape)
+
         conv2 = ld.conv_layer(conv1, 3, 1, 8, "encode_2", activate = "leaky_relu")
-        print("Encode 2_shape,", conv2.shape)
+
         conv3 = ld.conv_layer(conv2, 3, 2, 8, "encode_3", activate = "leaky_relu")
-        print("Encode 3_shape, ", conv3.shape)
+
         y_0 = conv3
         # conv lstm cell
         cell_shape = y_0.get_shape().as_list()
@@ -116,23 +116,23 @@ class VanillaConvLstmVideoPredictionModel(BaseVideoPredictionModel):
             cell = BasicConvLSTMCell(shape = [cell_shape[1], cell_shape[2]], filter_size = [3, 3], num_features = 8)
             if hidden is None:
                 hidden = cell.zero_state(y_0, tf.float32)
-                print("hidden zero layer", hidden.shape)
+
             output, hidden = cell(y_0, hidden)
-            print("output for cell:", output)
+
 
         output_shape = output.get_shape().as_list()
-        print("output_shape,", output_shape)
+
 
         z3 = tf.reshape(output, [-1, output_shape[1], output_shape[2], output_shape[3]])
 
         conv5 = ld.transpose_conv_layer(z3, 3, 2, 8, "decode_5", activate = "leaky_relu")
-        print("conv5 shape", conv5)
+
 
         conv6 = ld.transpose_conv_layer(conv5, 3, 1, 8, "decode_6", activate = "leaky_relu")
-        print("conv6 shape", conv6)
+
 
         x_hat = ld.transpose_conv_layer(conv6, 3, 2, 3, "decode_7", activate = "sigmoid")  # set activation to linear
-        print("x hat shape", x_hat)
+
         return x_hat, hidden
 
     def convLSTM_network(self):

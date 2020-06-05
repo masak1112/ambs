@@ -73,38 +73,37 @@ class VanillaVAEVideoPredictionModel(BaseVideoPredictionModel):
 
     def build_graph(self,x):
         
-        #global_step = tf.train.get_or_create_global_step()
-        #original_global_variables = tf.global_variables()
-        # self.x = x["images"]
-        #print ("self_x:",self.x)
-        #tf.reset_default_graph()
-        #self.x = tf.placeholder(tf.float32, [None,20,64,64,3])
+        
+        
+
+
+
         tf.set_random_seed(12345)
         self.x = x["images"]
-        
-        #self.global_step = tf.train.get_or_create_global_step()
+       
+
         self.global_step = tf.Variable(0, name = 'global_step', trainable = False)
         original_global_variables = tf.global_variables()
         self.increment_global_step = tf.assign_add(self.global_step, 1, name = 'increment_global_step')
 
         self.x_hat, self.z_log_sigma_sq, self.z_mu = self.vae_arc_all()
-        # Loss
-        # Reconstruction loss
-        # Minimize the cross-entropy loss
-        #         epsilon = 1e-10
-        #         recon_loss = -tf.reduce_sum(
-        #             self.x[:,1:,:,:,:] * tf.log(epsilon+self.x_hat[:,:-1,:,:,:]) +
-        #             (1-self.x[:,1:,:,:,:]) * tf.log(epsilon+1-self.x_hat[:,:-1,:,:,:]),
-        #             axis=1
-        #         )
+       
+     
+    
+   
+  
+ 
 
-        #        self.recon_loss = tf.reduce_mean(recon_loss)
+
+
+
+
         self.recon_loss = tf.reduce_mean(tf.square(self.x[:, 1:, :, :, 0] - self.x_hat[:, :-1, :, :, 0]))
 
-        # Latent loss
-        # KL divergence: measure the difference between two distributions
-        # Here we measure the divergence between
-        # the latent distribution and N(0, 1)
+
+
+
+
         latent_loss = -0.5 * tf.reduce_sum(
             1 + self.z_log_sigma_sq - tf.square(self.z_mu) -
             tf.exp(self.z_log_sigma_sq), axis = 1)
@@ -113,7 +112,7 @@ class VanillaVAEVideoPredictionModel(BaseVideoPredictionModel):
         self.train_op = tf.train.AdamOptimizer(
             learning_rate = self.learning_rate).minimize(self.total_loss, global_step = self.global_step)
         # Build a saver
-        #self.saver = tf.train.Saver(tf.global_variables())
+
         self.losses = {
             'recon_loss': self.recon_loss,
             'latent_loss': self.latent_loss,
@@ -125,14 +124,14 @@ class VanillaVAEVideoPredictionModel(BaseVideoPredictionModel):
         self.loss_summary = tf.summary.scalar("latent_loss", self.latent_loss)
         self.loss_summary = tf.summary.scalar("total_loss", self.latent_loss)
         self.summary_op = tf.summary.merge_all()
-        # H(x, x_hat) = -\Sigma x*log(x_hat) + (1-x)*log(1-x_hat)
-        # self.ckpt = tf.train.Checkpoint(model=self.vae_arc2())
-        # self.manager = tf.train.CheckpointManager(self.ckpt,self.checkpoint_dir,max_to_keep=3)
+
+
+
         self.outputs = {}
         self.outputs["gen_images"] = self.x_hat
         global_variables = [var for var in tf.global_variables() if var not in original_global_variables]
         self.saveable_variables = [self.global_step] + global_variables
-        #train_op = tf.assign_add(global_step, 1)
+
         return
 
 
@@ -141,18 +140,18 @@ class VanillaVAEVideoPredictionModel(BaseVideoPredictionModel):
         seq_name = "sq_" + str(l_name) + "_"
         
         conv1 = ld.conv_layer(x, 3, 2, 8, seq_name + "encode_1")
-        print("Encode_1_shape", conv1.shape)  # (?,2,2,8)
-        # conv2
-        conv2 = ld.conv_layer(conv1, 3, 1, 8, seq_name + "encode_2")  # (?,2,2,8)
-        print("Encode 2_shape,", conv2.shape)
-        # conv3
-        conv3 = ld.conv_layer(conv2, 3, 2, 8, seq_name + "encode_3")  # (?,1,1,8)
-        print("Encode 3_shape, ", conv3.shape)
-        # flatten
+
+
+        conv2 = ld.conv_layer(conv1, 3, 1, 8, seq_name + "encode_2")
+
+
+        conv3 = ld.conv_layer(conv2, 3, 2, 8, seq_name + "encode_3")
+
+
         conv4 = tf.layers.Flatten()(conv3)
-        print("Encode 4_shape, ", conv4.shape)
+
         conv3_shape = conv3.get_shape().as_list()
-        print("conv4_shape",conv3_shape)
+
         
         z_mu = ld.fc_layer(conv4, hiddens = nz, idx = seq_name + "enc_fc4_m")
         z_log_sigma_sq = ld.fc_layer(conv4, hiddens = nz, idx = seq_name + "enc_fc4_m"'enc_fc4_sigma')
@@ -163,16 +162,16 @@ class VanillaVAEVideoPredictionModel(BaseVideoPredictionModel):
         
         
         z3 = tf.reshape(z2, [-1, conv3_shape[1], conv3_shape[2], conv3_shape[3]])
-        # conv5
+
         conv5 = ld.transpose_conv_layer(z3, 3, 2, 8,
-                                        seq_name + "decode_5")  # (16,1,1,8)inputs, kernel_size, stride, num_features
-        print("Decode 5 shape", conv5.shape)
+                                        seq_name + "decode_5")  
+
         conv6  = ld.transpose_conv_layer(conv5, 3, 1, 8,
-                                        seq_name + "decode_6")  # (16,1,1,8)inputs, kernel_size, stride, num_features
+                                        seq_name + "decode_6")
         
-        # x_1
-        x_hat = ld.transpose_conv_layer(conv6, 3, 2, 3, seq_name + "decode_8")  # set activation to linear
-        print("X_hat", x_hat.shape)
+
+        x_hat = ld.transpose_conv_layer(conv6, 3, 2, 3, seq_name + "decode_8")
+
         return x_hat, z_mu, z_log_sigma_sq, z
 
     def vae_arc_all(self):
@@ -187,6 +186,6 @@ class VanillaVAEVideoPredictionModel(BaseVideoPredictionModel):
         x_hat = tf.stack(X, axis = 1)
         z_log_sigma_sq_all = tf.stack(z_log_sigma_sq_all, axis = 1)
         z_mu_all = tf.stack(z_mu_all, axis = 1)
-        print("X_hat", x_hat.shape)
-        print("zlog_sigma_sq_all", z_log_sigma_sq_all.shape)
+       
+      
         return x_hat, z_log_sigma_sq_all, z_mu_all
