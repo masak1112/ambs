@@ -139,7 +139,7 @@ class MetaData:
             data[i] = mod_line(data[i],self.exp_dir)
         
         with open(batch_script) as file:
-            file.writes(data)
+            file.writeslines(data)
         
     
     def write_metadata_to_file(self):
