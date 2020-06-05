@@ -8,14 +8,20 @@ from netCDF4 import Dataset
 
 class MetaData:
     """
-        Class for handling, storing and retrieving meta-data
+     Class for handling, storing and retrieving meta-data
     """
     
     def __init__(self,json_file=None,suffix_indir=None,data_filename=None,slices=None,variables=None):
         
+        """
+         Initailizes MetaData instance by reading a corresponding json-file or by handling arguments of the Preprocessing step
+         (i.e. exemplary input file, slices defining region of interest, input variables) 
+        """
+        
         method_name = MetaData.__init__.__name__" of Class "+MetaData.__name__
         
-        if not json_file: 
+        if not json_file is None: 
+            MetaData.get_metadata_from_file(json_file)
             
         else:
             # No dictionary from json-file available, all other arguments have to set
@@ -50,24 +56,29 @@ class MetaData:
 
     def get_and_set_metadata_from_file(self,suffix_indir,datafile_name,slices,variables):
         """
-        Construct path to target directory following naming convention.
-        Note that the path to the absolute directory must be passed via the target_dir_in-argument.
-        This path will be expanded by a string completing the input argument.
+         Retrieves several meta data from netCDF-file and sets corresponding class instance attributes.
+         Besides, the name of the experiment directory is constructed following the naming convention (see below)
         
-        Naming convention:
-        [model_base]_Y[yyyy]to[yyyy]M[mm]to[mm]-[nx]x[ny]-[nnnn]N[eeee]E-[var1]_[var2]_(...)_[varN]
-        ---------------- Given ----------------|---------------- Created dynamically --------------
+         Naming convention:
+         [model_base]_Y[yyyy]to[yyyy]M[mm]to[mm]-[nx]x[ny]-[nnnn]N[eeee]E-[var1]_[var2]_(...)_[varN]
+         ---------------- Given ----------------|---------------- Created dynamically --------------
         
-        Note that the model-base as well as the date-identifiers must already be included in target_dir_in.
+         Note that the model-base as well as the date-identifiers must already be included in target_dir_in.
         """
         
-        if not suffix_indir: raise ValueError("suffix_indir must be a non-empty path.")
+        method_name = MetaData.__init__.__name__" of Class "+MetaData.__name__
+        
+        if not suffix_indir: raise ValueError(method_name+": suffix_indir must be a non-empty path.")
     
         # retrieve required information from file 
         flag_coords = ["N", "E"]
  
         print("Retrieve metadata based on file: '"+datafile_name+"'")
-        datafile = Dataset(datafile_name,'r')
+        try:
+            datafile = Dataset(datafile_name,'r')
+        except:
+            print(method_name + ": Error when handling data file: '"+datafile_name+"'".)
+            exit()
         
         # Check if all requested variables can be obtained from datafile
         MetaData.check_datafile(datafile,variables)
@@ -78,8 +89,8 @@ class MetaData:
         sw_c             = [datafile.variables['lat'][slices['lat_e']-1],datafile.variables['lon'][slices['lon_s']]]                # meridional axis lat is oriented from north to south (i.e. monotonically decreasing)
         self.sw_c        = sw_c
         
-        # Now start constructing target_dir-string
-        # switch sign and coordinate-flags to avoid negative values appearing in target_dir-name
+        # Now start constructing exp_dir-string
+        # switch sign and coordinate-flags to avoid negative values appearing in exp_dir-name
         if sw_c[0] < 0.:
             sw_c[0] = np.abs(sw_c[0])
             flag_coords[0] = "S"
@@ -88,32 +99,56 @@ class MetaData:
             flag_coords[1] = "W"
         nvar     = len(variables)
         
-        # splitting has to be done in order to avoid the occurence of the year-identifier in the target_dir-path
+        # splitting has to be done in order to avoid the occurence of the year-identifier in the exp_dir-path
         path_parts = os.path.split(suffix_indir.rstrip("/"))
         
         if (is_integer(path_parts[1])):
-            target_dir = path_parts[0]
+            exp_dir = path_parts[0]
             year = path_parts[1]
         else:
-            target_dir = suffix_indir
+            exp_dir = suffix_indir
             year = ""
 
-        # extend target_dir_in successively (splitted up for better readability)
-        target_dir += "-"+str(nx) + "x" + str(ny)
-        target_dir += "-"+(("{0: 06.2f}"+flag_coords[0]+"{1: 06.2f}"+flag_coords[1]).format(*sw_c)).strip().replace(".","")+"-"  
+        # extend exp_dir_in successively (splitted up for better readability)
+        exp_dir += "-"+str(nx) + "x" + str(ny)
+        exp_dir += "-"+(("{0: 06.2f}"+flag_coords[0]+"{1: 06.2f}"+flag_coords[1]).format(*sw_c)).strip().replace(".","")+"-"  
         
         # reduced for-loop length as last variable-name is not followed by an underscore (see above)
         for i in range(nvar-1):
-            target_dir += variables[i]+"_"
-        target_dir += variables[nvar-1]
+            exp_dir += variables[i]+"_"
+        exp_dir += variables[nvar-1]
         
-        self.target_dir = target_dir
+        self.exp_dir = exp_dir
 
     # ML 2020/04/24 E 
     
+    def write_dirs_to_batch_scripts(self,batch_script):
+        
+        """
+         Expands ('known') directory-variables in batch_script by exp_dir-attribute of class instance
+        """
+        
+        paths_to_mod = ["source_dir","destination_dir","checkpoint_dir","results_dir"]      # known directory-variables in batch-scripts
+        
+        with open(batch_script) as file:
+            data = file.readlines()
+            
+        matched_lines = [iline for iline in range(nlines) if any(str_id in data[iline] for str_id in paths_to_mod)]
+
+        for i in matched_lines:
+            data[i] = mod_line(data[i],self.exp_dir)
+        
+        with open(batch_script) as file:
+            file.writes(data)
+        
+    
     def write_metadata_to_file(self):
         
-        meta_dict = {"target_dir": self.target_dir}
+        """
+         Write meta data attributes of class instance to json-file.
+        """
+        
+        meta_dict = {"exp_dir": self.exp_dir}
         
         meta_dict["sw_corner_frame"] = {
             "lat" : self.sw_c[0]
@@ -129,7 +164,7 @@ class MetaData:
         for i in range(len(self.varnames)):
             meta_dict["variables"]["var"+str(i+1)] = self.varnames[i]
             
-        meta_fname = os.path.join(self.target_dir,"metadata.json")
+        meta_fname = os.path.join(self.exp_dir,"metadata.json")
         
         # write dictionary to file
         with open(meta_fname) as js_file:
@@ -137,10 +172,14 @@ class MetaData:
             
     def get_metadata_from_file(self,js_file):
         
+        """
+         Retrieves meta data attributes from json-file
+        """
+        
         with open(js_file) as js_file:                
             dict_in = json.load(js_file)
             
-            self.target_dir = dict_in["target_dir"]
+            self.exp_dir = dict_in["exp_dir"]
             
             self.sw_c       = [dict_in["sw_corner_frame"]["lat"],dict_in["sw_corner_frame"]["lon"] ]
             
@@ -175,8 +214,31 @@ class MetaData:
             pass
         
         
+# ----------------------------------- end of class MetaData -----------------------------------
+
+# some auxilary functions which are not bound to MetaData-class 
+
+def add_str_to_path(path_in,add_str):
     
-                       
+    """
+        Adds add_str to path_in if path_in does not already end with add_str.
+        Function is also capable to handle carriage returns for handling input-strings obtained by reading a file.
+    """
+    
+    l_linebreak = line_str.endswith("\n")   # flag for carriage return at the end of input string
+    line_str    = line_str.rstrip("\n")
+    
+    if (not line_str.endswith(add_str)) or \
+       (not line_str.endswith(add_str.rstrip("/"))):
+        
+        line_str = line_str + add_str + "/"
+    else:
+        print(add_str+" is already part of "+line_str+". No change is performed.")
+    
+    if l_linebreak:                     # re-add carriage return to string if required
+        return(line_str+"\n")
+    else:
+        return(line_str)
                        
                        
     
