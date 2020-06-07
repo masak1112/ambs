@@ -9,6 +9,7 @@ from external_function import load_distributor
 from external_function import hash_directory
 from external_function import md5
 from process_netCDF_v2 import *  
+from metadata import MetaData as md
 import os
 import argparse
 import json
@@ -99,6 +100,23 @@ def main():
             print('Critical : The source does not exist')
 
         sys.exit(1)
+        
+    # ML 2020/04/26 
+    # Expand destination_dir-variable by searching for netCDF-files in source_dir and processing the file from the first list element to obtain all relevant (meta-)data. 
+    if my_rank == 0:
+        data_files_list = glob.glob(source_dir+"/**/*.nc",recursive=True)
+        
+        if not data_files_list: raise ValueError("Could not find any data to be processed in '"+source_dir+"'")
+        
+        destination_dir= md.MetaData(suffix_indir=destination_dir,data_filename=data_files_list[0],slices=slices,variables=vars)
+        
+        # ...and create directory if necessary
+        if not os.path.exists(destination_dir):  # check if the Destination dir. is existing
+            logging.critical('The Destination does not exist')
+            logging.info('Create new destination dir')
+            os.makedirs(destination_dir,exist_ok=True)
+    
+    # ML 2020/04/24 E   
 
     if not os.path.exists(destination_dir):  # check if the Destination dir. is existing
         if my_rank == 0:
