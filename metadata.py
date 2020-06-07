@@ -49,9 +49,11 @@ class MetaData:
                 if not isinstance(variables,list):
                     raise TypeError(method_name+": 'variables'-argument must be a list.")       
                 
-            MetaData.get_and_set_metadata_from_file(suffix_indir,data_filename,slices,variables)
+            curr_dest_dir = MetaData.get_and_set_metadata_from_file(suffix_indir,data_filename,slices,variables)
             
             MetaData.write_metadata_to_file()
+            
+            return(curr_dest_dir)
             
 
     def get_and_set_metadata_from_file(self,suffix_indir,datafile_name,slices,variables):
@@ -99,26 +101,29 @@ class MetaData:
             flag_coords[1] = "W"
         nvar     = len(variables)
         
-        # splitting has to be done in order to avoid the occurence of the year-identifier in the exp_dir-path
+        # splitting has to be done in order to retrieve the expname-suffix (and the year if required)
         path_parts = os.path.split(suffix_indir.rstrip("/"))
         
         if (is_integer(path_parts[1])):
-            exp_dir = path_parts[0]
             year = path_parts[1]
+            path_parts = os.path.split(path_parts.rstrip("/"))
         else:
-            exp_dir = suffix_indir
             year = ""
+        
+        expdir, expname = path_parts[0], path_parts[1] 
 
         # extend exp_dir_in successively (splitted up for better readability)
-        exp_dir += "-"+str(nx) + "x" + str(ny)
-        exp_dir += "-"+(("{0: 06.2f}"+flag_coords[0]+"{1: 06.2f}"+flag_coords[1]).format(*sw_c)).strip().replace(".","")+"-"  
+        expname += "-"+str(nx) + "x" + str(ny)
+        expname += "-"+(("{0: 06.2f}"+flag_coords[0]+"{1: 06.2f}"+flag_coords[1]).format(*sw_c)).strip().replace(".","")+"-"  
         
         # reduced for-loop length as last variable-name is not followed by an underscore (see above)
         for i in range(nvar-1):
-            exp_dir += variables[i]+"_"
-        exp_dir += variables[nvar-1]
+            expname += variables[i]+"_"
+        expname += variables[nvar-1]
         
-        self.exp_dir = exp_dir
+        self.expname = expname
+        
+    return(os.path.join(os.path.join(expdir,expname),year))
 
     # ML 2020/04/24 E 
     
