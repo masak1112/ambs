@@ -114,10 +114,10 @@ def main():
         
         md = MetaData(suffix_indir=destination_dir,data_filename=data_files_list[0],slices=slices,variables=vars)
         # modify Batch scripts
-        md.write_dirs_to_batch_scripts(scr_dir+"DataPreprocess.sh")
-        md.write_dirs_to_batch_scripts(scr_dir+"DataPreprocess_to_tf.sh")
-        md.write_dirs_to_batch_scripts(scr_dir+"generate_era5.sh")
-        md.write_dirs_to_batch_scripts(scr_dir+"train_era5.sh")
+        md.write_dirs_to_batch_scripts(os.path.join(scr_dir,"DataPreprocess.sh"))
+        #md.write_dirs_to_batch_scripts(os.path.join(scr_dir,"DataPreprocess_to_tf.sh"))
+        #md.write_dirs_to_batch_scripts(os.path.join(scr_dir,"generate_era5.sh"))
+        #md.write_dirs_to_batch_scripts(os.path.join(scr_dir,"train_era5.sh"))
         
         
         destination_dir= os.path.join(md.expdir,md.expname,years,"hickle")
