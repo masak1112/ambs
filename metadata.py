@@ -185,8 +185,8 @@ class MetaData:
         meta_fname = os.path.join(target_dir,"metadata.json")
 
         if os.path.exists(meta_fname):                      # check if a metadata-file already exists and check its content 
-            with open(meta_fname) as js_file:
-                dict_dupl = json.loads(js_file)
+            with open(meta_fname,'r') as js_file:
+                dict_dupl = json.load(js_file)
                 
                 if dict_dupl != meta_dict:
                     print(method_name+": Already existing metadata (see '"+meta_fname+") do not fit data being processed right now. Ensure a common data base.")
