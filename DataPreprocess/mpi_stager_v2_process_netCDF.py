@@ -31,7 +31,7 @@ def main():
 
     current_path = os.getcwd()
     years        = args.years
-    source_dir   = os.path.join(args.source_dir,str(years))
+    source_dir   = os.path.join(args.source_dir,str(years))+"/"
     destination_dir = args.destination_dir
     checksum_status = args.checksum_status
     rsync_status = args.rsync_status
