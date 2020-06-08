@@ -30,8 +30,8 @@ def main():
     args = parser.parse_args()
 
     current_path = os.getcwd()
-    years           = args.years
-    source_dir = os.path.join(args.source_dir,str(years))
+    years        = args.years
+    source_dir   = os.path.join(args.source_dir,str(years))
     destination_dir = args.destination_dir
     checksum_status = args.checksum_status
     rsync_status = args.rsync_status
@@ -118,11 +118,6 @@ def main():
             logging.critical('The Destination does not exist')
             logging.info('Create new destination dir')
             os.makedirs(destination_dir,exist_ok=True)
-
-        sys.exit(1)
-
-    sys.exit(1)
-    raise ValueError("Hallo ciao")
     
     # ML 2020/04/24 E   
 
