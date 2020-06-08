@@ -88,7 +88,7 @@ def main():
     parser.add_argument("--gif_length", type = int, help = "default is sequence_length")
     parser.add_argument("--fps", type = int, default = 4)
 
-    parser.add_argument("--gpu_mem_frac", type = float, default = 0, help = "fraction of gpu memory to use")
+    parser.add_argument("--gpu_mem_frac", type = float, default = 0.95, help = "fraction of gpu memory to use")
     parser.add_argument("--seed", type = int, default = 7)
 
     args = parser.parse_args()

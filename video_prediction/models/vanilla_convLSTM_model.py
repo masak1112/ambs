@@ -44,12 +44,12 @@ class VanillaConvLstmVideoPredictionModel(BaseVideoPredictionModel):
             batch_size: batch size for training.
             lr: learning rate. if decay steps is non-zero, this is the
                 learning rate for steps <= decay_step.
-            end_lr: learning rate for steps >= end_decay_step if decay_steps
-                is non-zero, ignored otherwise.
-            decay_steps: (decay_step, end_decay_step) tuple.
+
+
+
             max_steps: number of training steps.
-            beta1: momentum term of Adam.
-            beta2: momentum term of Adam.
+
+
             context_frames: the number of ground-truth frames to pass in at
                 start. Must be specified during instantiation.
             sequence_length: the number of frames in the video sequence,

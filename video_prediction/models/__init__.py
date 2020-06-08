@@ -9,7 +9,7 @@ from .sna_model import SNAVideoPredictionModel
 from .sv2p_model import SV2PVideoPredictionModel
 from .vanilla_vae_model import VanillaVAEVideoPredictionModel
 from .vanilla_convLSTM_model import VanillaConvLstmVideoPredictionModel
-
+from .mcnet_model import McNetVideoPredictionModel
 def get_model_class(model):
     model_mappings = {
         'ground_truth': 'GroundTruthVideoPredictionModel',
@@ -19,8 +19,10 @@ def get_model_class(model):
         'sna': 'SNAVideoPredictionModel',
         'sv2p': 'SV2PVideoPredictionModel',
         'vae': 'VanillaVAEVideoPredictionModel',
-        'convLSTM': 'VanillaConvLstmVideoPredictionModel'
-    }
+        'convLSTM': 'VanillaConvLstmVideoPredictionModel',
+        'mcnet': 'McNetVideoPredictionModel',
+        
+        }
     model_class = model_mappings.get(model, model)
     model_class = globals().get(model_class)
     if model_class is None or not issubclass(model_class, BaseVideoPredictionModel):
