@@ -19,6 +19,7 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--source_dir", type=str, default="/p/scratch/deepacf/bing/extractedData/")
     parser.add_argument("--destination_dir", type=str, default="/p/scratch/deepacf/bing/processData_size_64_64_3_3t_norm")
+    parser.add_argument("--years", "-y", dest="years")
     parser.add_argument("--checksum_status", type=int, default=0)
     parser.add_argument("--rsync_status", type=int, default=1)
     parser.add_argument("--vars", nargs="+",default = ["T2","T2","T2"]) #"MSL","gph500"
@@ -29,7 +30,8 @@ def main():
     args = parser.parse_args()
 
     current_path = os.getcwd()
-    source_dir = args.source_dir
+    years           = args.years
+    source_dir = os.path.join(args.source_dir,str(years))
     destination_dir = args.destination_dir
     checksum_status = args.checksum_status
     rsync_status = args.rsync_status
@@ -109,7 +111,7 @@ def main():
         if not data_files_list: raise ValueError("Could not find any data to be processed in '"+source_dir+"'")
         
         destination_dir= md(suffix_indir=destination_dir,data_filename=data_files_list[0],slices=slices,variables=vars)
-        destination_dir= os.path.join(destination_dir,"hickle")
+        destination_dir= os.path.join(destination_dir,years,"hickle")
 
         # ...and create directory if necessary
         if not os.path.exists(destination_dir):  # check if the Destination dir. is existing
