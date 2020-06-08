@@ -50,7 +50,6 @@ class MetaData:
                 if not isinstance(variables,list):
                     raise TypeError(method_name+": 'variables'-argument must be a list.")       
             
-            print(variables)
             curr_dest_dir = MetaData.get_and_set_metadata_from_file(self,suffix_indir,data_filename,slices,variables)
             
             MetaData.write_metadata_to_file(self)
@@ -116,7 +115,7 @@ class MetaData:
 
         # extend exp_dir_in successively (splitted up for better readability)
         expname += "-"+str(self.nx) + "x" + str(self.ny)
-        expname += "-"+(("{0: 06.2f}"+flag_coords[0]+"{1: 06.2f}"+flag_coords[1]).format(*sw_c)).strip().replace(".","")+"-"  
+        expname += "-"+(("{0: 05.2f}"+flag_coords[0]+"{1:05.2f}"+flag_coords[1]).format(*sw_c)).strip().replace(".","")+"-"  
         
         # reduced for-loop length as last variable-name is not followed by an underscore (see above)
         for i in range(nvar-1):
