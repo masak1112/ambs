@@ -9,7 +9,7 @@ from external_function import load_distributor
 from external_function import hash_directory
 from external_function import md5
 from process_netCDF_v2 import *  
-from metadata import MetaData as md
+from metadata import MetaData as MetaData
 import os
 import argparse
 import json
@@ -110,8 +110,8 @@ def main():
         
         if not data_files_list: raise ValueError("Could not find any data to be processed in '"+source_dir+"'")
         
-        destination_dir= md(suffix_indir=destination_dir,data_filename=data_files_list[0],slices=slices,variables=vars)
-        destination_dir= os.path.join(destination_dir,years,"hickle")
+        md = MetaData(suffix_indir=destination_dir,data_filename=data_files_list[0],slices=slices,variables=vars)
+        destination_dir= os.path.join(md.expdir,md.expname,years,"hickle")
 
         # ...and create directory if necessary
         if not os.path.exists(destination_dir):  # check if the Destination dir. is existing
