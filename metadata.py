@@ -2,6 +2,7 @@
 Classes and routines to retrieve and handle meta-data
 """
 
+import os
 import numpy as np
 import json
 from netCDF4 import Dataset
@@ -18,7 +19,7 @@ class MetaData:
          (i.e. exemplary input file, slices defining region of interest, input variables) 
         """
         
-        method_name = MetaData.__init__.__name__" of Class "+MetaData.__name__
+        method_name = MetaData.__init__.__name__+" of Class "+MetaData.__name__
         
         if not json_file is None: 
             MetaData.get_metadata_from_file(json_file)
@@ -48,8 +49,9 @@ class MetaData:
             else:
                 if not isinstance(variables,list):
                     raise TypeError(method_name+": 'variables'-argument must be a list.")       
-                
-            curr_dest_dir = MetaData.get_and_set_metadata_from_file(suffix_indir,data_filename,slices,variables)
+            
+            print(variables)
+            curr_dest_dir = MetaData.get_and_set_metadata_from_file(self,suffix_indir,data_filename,slices,variables)
             
             MetaData.write_metadata_to_file()
             
@@ -68,7 +70,7 @@ class MetaData:
          Note that the model-base as well as the date-identifiers must already be included in target_dir_in.
         """
         
-        method_name = MetaData.__init__.__name__" of Class "+MetaData.__name__
+        method_name = MetaData.__init__.__name__+" of Class "+MetaData.__name__
         
         if not suffix_indir: raise ValueError(method_name+": suffix_indir must be a non-empty path.")
     
@@ -79,7 +81,7 @@ class MetaData:
         try:
             datafile = Dataset(datafile_name,'r')
         except:
-            print(method_name + ": Error when handling data file: '"+datafile_name+"'".)
+            print(method_name + ": Error when handling data file: '"+datafile_name+"'.")
             exit()
         
         # Check if all requested variables can be obtained from datafile
@@ -123,7 +125,7 @@ class MetaData:
         
         self.expname = expname
         
-    return(os.path.join(os.path.join(expdir,expname),year))
+        return(os.path.join(os.path.join(expdir,expname),year))
 
     # ML 2020/04/24 E 
     
@@ -156,13 +158,13 @@ class MetaData:
         meta_dict = {"exp_dir": self.exp_dir}
         
         meta_dict["sw_corner_frame"] = {
-            "lat" : self.sw_c[0]
+            "lat" : self.sw_c[0],
             "lon" : self.sw_c[1]
             }
         
         meta_dict["frame_size"] = {
-            "nx" = self.nx
-            "ny" = self.ny
+            "nx" : self.nx,
+            "ny" : self.ny
             }
         
         meta_dict["variables"] = []
