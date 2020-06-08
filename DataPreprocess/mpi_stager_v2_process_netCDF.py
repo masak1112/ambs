@@ -108,13 +108,18 @@ def main():
         
         if not data_files_list: raise ValueError("Could not find any data to be processed in '"+source_dir+"'")
         
-        destination_dir= md.MetaData(suffix_indir=destination_dir,data_filename=data_files_list[0],slices=slices,variables=vars)
+        destination_dir= md(suffix_indir=destination_dir,data_filename=data_files_list[0],slices=slices,variables=vars)
         
         # ...and create directory if necessary
         if not os.path.exists(destination_dir):  # check if the Destination dir. is existing
             logging.critical('The Destination does not exist')
             logging.info('Create new destination dir')
             os.makedirs(destination_dir,exist_ok=True)
+
+        sys.exit(1)
+
+    sys.exit(1)
+    raise ValueError("Hallo ciao")
     
     # ML 2020/04/24 E   
 
