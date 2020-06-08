@@ -12,7 +12,7 @@ parser.add_argument("--varnames","-vars",dest="varnames", nargs = '+')
 #                    help="--partition allows to control the splitting of the processed data in training, test and validation data. Pass a dictionary-like string.")
 
 args = parser.parse_args()
-target_dir = args.destination_dir
+target_dir = os.system("echo ${dest_dir_split}")#args.destination_dir
 varnames = args.varnames
 
 #partition = args.partition
