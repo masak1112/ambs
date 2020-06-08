@@ -173,11 +173,12 @@ class MetaData:
             meta_dict["variables"] = {"var"+str(i+1) : self.varnames[i]}
         
         # create directory if required
-        if not os.path.exists(self.expdir):
+        target_dir = os.path.join(self.expdir,self.expname)
+        if not os.path.exists(target_dir):
             print("Created experiment directory: '"+self.expdir+"'")
-            os.make_dirs(self.exp_dir,exist_ok=True)            
+            os.make_dirs(target_dir,exist_ok=True)            
             
-        meta_fname = os.path.join(self.expdir,os.path.join(self.expname,"metadata.json"))
+        meta_fname = os.path.join(target_dir,"metadata.json")
         
         # write dictionary to file
         with open(meta_fname) as js_file:
