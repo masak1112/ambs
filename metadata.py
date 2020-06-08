@@ -133,15 +133,15 @@ class MetaData:
          Expands ('known') directory-variables in batch_script by exp_dir-attribute of class instance
         """
         
-        paths_to_mod = ["source_dir","destination_dir","checkpoint_dir","results_dir"]      # known directory-variables in batch-scripts
+        paths_to_mod = ["source_dir=","destination_dir=","checkpoint_dir=","results_dir="]      # known directory-variables in batch-scripts
         
         with open(batch_script,'r') as file:
             data = file.readlines()
             
-        matched_lines = [iline for iline in range(nlines) if any(str_id in data[iline] for str_id in paths_to_mod)]
+        matched_lines = [iline for iline in range(nlines) if any(str_id in data[iline] for str_id in paths_to_mod)]   # list of line-number indices to be modified 
 
         for i in matched_lines:
-            data[i] = mod_line(data[i],self.exp_dir)
+            data[i] = add_str_to_path(data[i],self.exp_dir)
         
         with open(batch_script,'w') as file:
             file.writeslines(data)
