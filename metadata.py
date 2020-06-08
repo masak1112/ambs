@@ -248,6 +248,17 @@ def add_str_to_path(path_in,add_str):
         return(line_str)
                        
                        
+def is_integer(n):
+    '''
+    Checks if input string is numeric and of type integer.
+    '''
+    try:
+        float(n)
+    except ValueError:
+        return False
+    else:
+        return float(n).is_integer()                       
+                       
     
         
         
