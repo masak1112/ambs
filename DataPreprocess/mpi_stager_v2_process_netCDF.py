@@ -19,6 +19,7 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--source_dir", type=str, default="/p/scratch/deepacf/bing/extractedData/")
     parser.add_argument("--destination_dir", type=str, default="/p/scratch/deepacf/bing/processData_size_64_64_3_3t_norm")
+    parser.add_argument("--script_dir","-scr_dir",dest="script_dir",type=str)
     parser.add_argument("--years", "-y", dest="years")
     parser.add_argument("--checksum_status", type=int, default=0)
     parser.add_argument("--rsync_status", type=int, default=1)
@@ -33,6 +34,7 @@ def main():
     years        = args.years
     source_dir   = os.path.join(args.source_dir,str(years))
     destination_dir = args.destination_dir
+    scr_dir         = args.script_dir
     checksum_status = args.checksum_status
     rsync_status = args.rsync_status
 
@@ -111,6 +113,13 @@ def main():
         if not data_files_list: raise ValueError("Could not find any data to be processed in '"+source_dir+"'")
         
         md = MetaData(suffix_indir=destination_dir,data_filename=data_files_list[0],slices=slices,variables=vars)
+        # modify Batch scripts
+        md.write_dirs_to_batch_scripts(scr_dir+"DataPreprocess.sh")
+        md.write_dirs_to_batch_scripts(scr_dir+"DataPreprocess_to_tf.sh")
+        md.write_dirs_to_batch_scripts(scr_dir+"generate_era5.sh")
+        md.write_dirs_to_batch_scripts(scr_dir+"train_era5.sh")
+        
+        
         destination_dir= os.path.join(md.expdir,md.expname,years,"hickle")
 
         # ...and create directory if necessary
