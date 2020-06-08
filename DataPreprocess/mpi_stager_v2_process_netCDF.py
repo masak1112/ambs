@@ -32,7 +32,7 @@ def main():
 
     current_path = os.getcwd()
     years        = args.years
-    source_dir   = os.path.join(args.source_dir,str(years))
+    source_dir   = os.path.join(args.source_dir,str(years))+"/"
     destination_dir = args.destination_dir
     scr_dir         = args.script_dir
     checksum_status = args.checksum_status
