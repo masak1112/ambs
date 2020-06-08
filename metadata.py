@@ -54,8 +54,6 @@ class MetaData:
             
             MetaData.write_metadata_to_file(self)
             
-            return(curr_dest_dir)
-            
 
     def get_and_set_metadata_from_file(self,suffix_indir,datafile_name,slices,variables):
         """
@@ -89,7 +87,7 @@ class MetaData:
         
         
         self.nx, self.ny = np.abs(slices['lon_e'] - slices['lon_s']), np.abs(slices['lat_e'] - slices['lat_s'])    
-        sw_c             = [datafile.variables['lat'][slices['lat_e']-1],datafile.variables['lon'][slices['lon_s']]]                # meridional axis lat is oriented from north to south (i.e. monotonically decreasing)
+        sw_c             = [float(datafile.variables['lat'][slices['lat_e']-1]),float(datafile.variables['lon'][slices['lon_s']])]                # meridional axis lat is oriented from north to south (i.e. monotonically decreasing)
         self.sw_c        = sw_c
         
         # Now start constructing exp_dir-string
@@ -163,26 +161,29 @@ class MetaData:
             }
         
         meta_dict["frame_size"] = {
-            "nx" : self.nx,
-            "ny" : self.ny
+            "nx" : int(self.nx),
+            "ny" : int(self.ny)
             }
         
         meta_dict["variables"] = []
         for i in range(len(self.varnames)):
             print(self.varnames[i])
-            meta_dict["variables"] = {"var"+str(i+1) : self.varnames[i]}
+            meta_dict["variables"].append( 
+                    {"var"+str(i+1) : self.varnames[i]})
         
         # create directory if required
         target_dir = os.path.join(self.expdir,self.expname)
         if not os.path.exists(target_dir):
             print("Created experiment directory: '"+self.expdir+"'")
-            os.make_dirs(target_dir,exist_ok=True)            
+            os.makedirs(target_dir,exist_ok=True)            
             
         meta_fname = os.path.join(target_dir,"metadata.json")
         
+        print(meta_dict)
+
         # write dictionary to file
-        with open(meta_fname) as js_file:
-            json.dump(js_file,meta_dict)
+        with open(meta_fname,'w') as js_file:
+            json.dump(meta_dict,js_file)
             
     def get_metadata_from_file(self,js_file):
         
