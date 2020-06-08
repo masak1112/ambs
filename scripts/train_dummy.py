@@ -43,7 +43,7 @@ def main():
     parser.add_argument("--model_hparams", type=str, help="a string of comma separated list of model hyperparameters")
     parser.add_argument("--model_hparams_dict", type=str, help="a json file of model hyperparameters")
 
-    parser.add_argument("--aggregate_nccl", type=int, default=0, help="whether to use nccl or cpu for gradient aggregation in multi-gpu training")
+   # parser.add_argument("--aggregate_nccl", type=int, default=0, help="whether to use nccl or cpu for gradient aggregation in multi-gpu training")
     parser.add_argument("--gpu_mem_frac", type=float, default=0, help="fraction of gpu memory to use")
     parser.add_argument("--seed", type=int)
 
@@ -123,8 +123,7 @@ def main():
     })
     model = VideoPredictionModel(
         hparams_dict=hparams_dict,
-        hparams=args.model_hparams,
-        aggregate_nccl=args.aggregate_nccl)
+        hparams=args.model_hparams)
 
     batch_size = model.hparams.batch_size
     train_tf_dataset = train_dataset.make_dataset_v2(batch_size)
@@ -201,16 +200,18 @@ def main():
 
            # fetches["latent_loss"] = model.latent_loss
             fetches["total_loss"] = model.total_loss
-
-
-           # if isinstance(model.learning_rate, tf.Tensor):
-           #     fetches["learning_rate"] = model.learning_rate
+            if model.__class__.__name__ == "McNetVideoPredictionModel":
+                fetches["L_p"] = model.L_p
+                fetches["L_gdl"] = model.L_gdl
+                fetches["L_GAN"]  =model.L_GAN
+          
+         
 
             fetches["summary"] = model.summary_op
 
             run_start_time = time.time()
             #Run training results
-            X = inputs["images"].eval(session=sess)           
+            #X = inputs["images"].eval(session=sess)           
 
             results = sess.run(fetches)
 
@@ -263,15 +264,7 @@ def main():
                       (images_per_sec, remaining_time / 60, remaining_time / 60 / 60, remaining_time / 60 / 60 / 24))
 
 
-
-
-
-
-
-
-
-
-            print(" Results_total_loss",results["total_loss"])
+            print("Total_loss:{}; L_p_loss:{}; L_gdl:{}; L_GAN: {}".format(results["total_loss"],results["L_p"],results["L_gdl"],results["L_GAN"]))
             
             print("saving model to", args.output_dir)
             saver.save(sess, os.path.join(args.output_dir, "model"), global_step=step)##Bing: cheat here a little bit because of the global step issue
