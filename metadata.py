@@ -137,14 +137,15 @@ class MetaData:
         
         with open(batch_script,'r') as file:
             data = file.readlines()
-            
+        
+        nlines = len(data)
         matched_lines = [iline for iline in range(nlines) if any(str_id in data[iline] for str_id in paths_to_mod)]
 
         for i in matched_lines:
-            data[i] = mod_line(data[i],self.exp_dir)
+            data[i] = add_str_to_path(data[i],self.expdir)
         
         with open(batch_script,'w') as file:
-            file.writeslines(data)
+            file.writelines(data)
         
     
     def write_metadata_to_file(self,dest_dir = None):
@@ -241,7 +242,8 @@ class MetaData:
                 raise ValueError("Could not find the above mentioned variables.")
         else:
             pass
-        
+
+
         
 # ----------------------------------- end of class MetaData -----------------------------------
 
@@ -254,8 +256,8 @@ def add_str_to_path(path_in,add_str):
         Function is also capable to handle carriage returns for handling input-strings obtained by reading a file.
     """
     
-    l_linebreak = line_str.endswith("\n")   # flag for carriage return at the end of input string
-    line_str    = line_str.rstrip("\n")
+    l_linebreak = path_in.endswith("\n")   # flag for carriage return at the end of input string
+    line_str    = path_in.rstrip("\n")
     
     if (not line_str.endswith(add_str)) or \
        (not line_str.endswith(add_str.rstrip("/"))):
