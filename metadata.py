@@ -195,7 +195,7 @@ class MetaData:
                     pass
         else:
             # write dictionary to file
-            print(method_name+": Write dictionary to json-file: '"+js_file+"'")
+            print(method_name+": Write dictionary to json-file: '"+meta_fname+"'")
             with open(meta_fname,'w') as js_file:
                 json.dump(meta_dict,js_file)
             
