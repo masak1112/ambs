@@ -171,6 +171,11 @@ class MetaData:
         for i in range(len(self.varnames)):
             print(self.varnames[i])
             meta_dict["variables"] = {"var"+str(i+1) : self.varnames[i]}
+        
+        # create directory if required
+        if not os.path.exists(self.expdir):
+            print("Created experiment directory: '"+self.expdir+"'")
+            os.make_dirs(self.exp_dir,exist_ok=True)            
             
         meta_fname = os.path.join(self.expdir,os.path.join(self.expname,"metadata.json"))
         
