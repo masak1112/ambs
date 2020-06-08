@@ -120,8 +120,12 @@ def main():
         #md.write_dirs_to_batch_scripts(scr_dir+"train_era5.sh")
         # ML 2020/06/08: Dirty workaround as long as data-splitting is done with a seperate Python-script 
         #                called from the same parent Shell-/Batch-script
-        #                -> export env. variable to Shell which is read in 
-        os.system("export dest_dir_split="+os.path.join(md.expdir,md.expname))
+        #                -> temproary dictionary
+        dict_dirty = {"dest_dir_split": os.path.join(md.expdir,md.expname)}
+        print("Workaround for correct destination in data splitting: Write dictionary to json-file: temp'")
+        with open(os.system("pwd")"/temp",'w') as js_file:
+            json.dump(dict_dirty,js_file)
+        
         
         
         destination_dir= os.path.join(md.expdir,md.expname,years,"hickle")
