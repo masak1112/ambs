@@ -52,7 +52,7 @@ class MetaData:
             
             curr_dest_dir = MetaData.get_and_set_metadata_from_file(self,suffix_indir,data_filename,slices,variables)
             
-            MetaData.write_metadata_to_file(self,dest_dir=curr_dest_dir)
+            MetaData.write_metadata_to_file(self)
             
 
     def get_and_set_metadata_from_file(self,suffix_indir,datafile_name,slices,variables):
@@ -147,7 +147,7 @@ class MetaData:
             file.writeslines(data)
         
     
-    def write_metadata_to_file(self):
+    def write_metadata_to_file(self,dest_dir = None):
         
         """
          Write meta data attributes of class instance to json-file.
@@ -174,7 +174,10 @@ class MetaData:
                     {"var"+str(i+1) : self.varnames[i]})
         
         # create directory if required
-        target_dir = os.path.join(self.expdir,self.expname)
+        if dest_dir is None: 
+            target_dir = os.path.join(self.expdir,self.expname)
+        else:
+            target_dir = dest_dir
         if not os.path.exists(target_dir):
             print("Created experiment directory: '"+self.expdir+"'")
             os.makedirs(target_dir,exist_ok=True)            
