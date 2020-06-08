@@ -53,7 +53,7 @@ class MetaData:
             print(variables)
             curr_dest_dir = MetaData.get_and_set_metadata_from_file(self,suffix_indir,data_filename,slices,variables)
             
-            MetaData.write_metadata_to_file()
+            MetaData.write_metadata_to_file(self)
             
             return(curr_dest_dir)
             
@@ -108,14 +108,14 @@ class MetaData:
         
         if (is_integer(path_parts[1])):
             year = path_parts[1]
-            path_parts = os.path.split(path_parts.rstrip("/"))
+            path_parts = os.path.split(path_parts[0].rstrip("/"))
         else:
             year = ""
         
         expdir, expname = path_parts[0], path_parts[1] 
 
         # extend exp_dir_in successively (splitted up for better readability)
-        expname += "-"+str(nx) + "x" + str(ny)
+        expname += "-"+str(self.nx) + "x" + str(self.ny)
         expname += "-"+(("{0: 06.2f}"+flag_coords[0]+"{1: 06.2f}"+flag_coords[1]).format(*sw_c)).strip().replace(".","")+"-"  
         
         # reduced for-loop length as last variable-name is not followed by an underscore (see above)
@@ -124,6 +124,7 @@ class MetaData:
         expname += variables[nvar-1]
         
         self.expname = expname
+        self.expdir  = expdir
         
         return(os.path.join(os.path.join(expdir,expname),year))
 
@@ -155,7 +156,7 @@ class MetaData:
          Write meta data attributes of class instance to json-file.
         """
         
-        meta_dict = {"exp_dir": self.exp_dir}
+        meta_dict = {"expname": self.expname}
         
         meta_dict["sw_corner_frame"] = {
             "lat" : self.sw_c[0],
@@ -169,9 +170,10 @@ class MetaData:
         
         meta_dict["variables"] = []
         for i in range(len(self.varnames)):
-            meta_dict["variables"]["var"+str(i+1)] = self.varnames[i]
+            print(self.varnames[i])
+            meta_dict["variables"] = {"var"+str(i+1) : self.varnames[i]}
             
-        meta_fname = os.path.join(self.exp_dir,"metadata.json")
+        meta_fname = os.path.join(self.expdir,os.path.join(self.expname,"metadata.json"))
         
         # write dictionary to file
         with open(meta_fname) as js_file:
