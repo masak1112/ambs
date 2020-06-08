@@ -14,7 +14,8 @@ parser.add_argument("--varnames","-vars",dest="varnames", nargs = '+')
 args = parser.parse_args()
 # ML 2020/06/08: Dirty workaround as long as data-splitting is done with this seperate Python-script 
 #                called from the same parent Shell-/Batch-script as 'mpi_stager_v2_process_netCDF.py'
-dict_dirty = json.load(os.system("pwd")"/temp")
+with open(os.getcwd()+"/temp.json",'r') as js_file:
+    dict_dirty = json.load(js_file)
 target_dir = dict_dirty["dest_dir_split"]
 print(target_dir)
 varnames = args.varnames

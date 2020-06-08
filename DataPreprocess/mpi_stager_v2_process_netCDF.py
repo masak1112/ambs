@@ -114,8 +114,8 @@ def main():
         
         md = MetaData(suffix_indir=destination_dir,data_filename=data_files_list[0],slices=slices,variables=vars)
         # modify Batch scripts
-        md.write_dirs_to_batch_scripts(scr_dir+"/DataPreprocess.sh")
-        #md.write_dirs_to_batch_scripts(scr_dir+"DataPreprocess_to_tf.sh")
+        #md.write_dirs_to_batch_scripts(scr_dir+"/DataPreprocess.sh")
+        md.write_dirs_to_batch_scripts(scr_dir+"/DataPreprocess_to_tf.sh")
         #md.write_dirs_to_batch_scripts(scr_dir+"generate_era5.sh")
         #md.write_dirs_to_batch_scripts(scr_dir+"train_era5.sh")
         # ML 2020/06/08: Dirty workaround as long as data-splitting is done with a seperate Python-script 
@@ -123,7 +123,9 @@ def main():
         #                -> temproary dictionary
         dict_dirty = {"dest_dir_split": os.path.join(md.expdir,md.expname)}
         print("Workaround for correct destination in data splitting: Write dictionary to json-file: temp'")
-        with open(os.system("pwd")"/temp",'w') as js_file:
+        with open(os.getcwd()+"/temp.json",'w') as js_file:
+            print("Create: '"+os.getcwd()+"/temp.json'")
+            print(dict_dirty)
             json.dump(dict_dirty,js_file)
         
         
