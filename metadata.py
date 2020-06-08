@@ -52,7 +52,7 @@ class MetaData:
             
             curr_dest_dir = MetaData.get_and_set_metadata_from_file(self,suffix_indir,data_filename,slices,variables)
             
-            MetaData.write_metadata_to_file(self)
+            MetaData.write_metadata_to_file(self,dest_dir=curr_dest_dir)
             
 
     def get_and_set_metadata_from_file(self,suffix_indir,datafile_name,slices,variables):
@@ -135,7 +135,7 @@ class MetaData:
         
         paths_to_mod = ["source_dir","destination_dir","checkpoint_dir","results_dir"]      # known directory-variables in batch-scripts
         
-        with open(batch_script) as file:
+        with open(batch_script,'r') as file:
             data = file.readlines()
             
         matched_lines = [iline for iline in range(nlines) if any(str_id in data[iline] for str_id in paths_to_mod)]
@@ -143,7 +143,7 @@ class MetaData:
         for i in matched_lines:
             data[i] = mod_line(data[i],self.exp_dir)
         
-        with open(batch_script) as file:
+        with open(batch_script,'w') as file:
             file.writeslines(data)
         
     
@@ -153,6 +153,8 @@ class MetaData:
          Write meta data attributes of class instance to json-file.
         """
         
+        method_name = MetaData.__init__.__name__+" of Class "+MetaData.__name__
+        # actual work:
         meta_dict = {"expname": self.expname}
         
         meta_dict["sw_corner_frame"] = {
@@ -178,12 +180,20 @@ class MetaData:
             os.makedirs(target_dir,exist_ok=True)            
             
         meta_fname = os.path.join(target_dir,"metadata.json")
-        
-        print(meta_dict)
 
-        # write dictionary to file
-        with open(meta_fname,'w') as js_file:
-            json.dump(meta_dict,js_file)
+        if os.path.exists(meta_fname):                      # check if a metadata-file already exists and check its content 
+            with open(meta_fname) as js_file:
+                dict_dupl = json.loads(js_file)
+                
+                if dict_dupl != meta_dict:
+                    print(method_name+": Already existing metadata (see '"+meta_fname+") do not fit data being processed right now. Ensure a common data base.")
+                    sys.exit(1)
+                else: #do not need to do anything
+                    pass
+        else:
+            # write dictionary to file
+            with open(meta_fname,'w') as js_file:
+                json.dump(meta_dict,js_file)
             
     def get_metadata_from_file(self,js_file):
         
