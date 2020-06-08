@@ -142,7 +142,7 @@ class MetaData:
         matched_lines = [iline for iline in range(nlines) if any(str_id in data[iline] for str_id in paths_to_mod)]   # list of line-number indices to be modified 
 
         for i in matched_lines:
-            data[i] = add_str_to_path(data[i],self.exp_dir)
+            data[i] = add_str_to_path(data[i],self.expname)
 
         
         with open(batch_script,'w') as file:
