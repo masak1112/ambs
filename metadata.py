@@ -135,7 +135,7 @@ class MetaData:
         method_name = MetaData.__init__.__name__+" of Class "+MetaData.__name__
         # actual work:
         meta_dict = {"expname": self.expname,
-                     "expdir" : self.exp_dir}
+                     "expdir" : self.expdir}
         
         meta_dict["sw_corner_frame"] = {
             "lat" : self.sw_c[0],
