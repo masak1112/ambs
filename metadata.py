@@ -68,7 +68,7 @@ class MetaData:
          Note that the model-base as well as the date-identifiers must already be included in target_dir_in.
         """
         
-        method_name = MetaData.__init__.__name__+" of Class "+MetaData.__name__
+        method_name = MetaData.get_and_set_metadata_from_file.__name__+" of Class "+MetaData.__name__
         
         if not suffix_indir: raise ValueError(method_name+": suffix_indir must be a non-empty path.")
     
@@ -133,7 +133,7 @@ class MetaData:
          Write meta data attributes of class instance to json-file.
         """
         
-        method_name = MetaData.__init__.__name__+" of Class "+MetaData.__name__
+        method_name = MetaData.write_metadata_to_file.__name__+" of Class "+MetaData.__name__
         # actual work:
         meta_dict = {"expname": self.expname,
                      "expdir" : self.expdir}
@@ -221,12 +221,14 @@ class MetaData:
             file.writelines(data)
     
     @staticmethod
-    def write_destdir_jsontmp(dest_dir):        
+    def write_destdir_jsontmp(dest_dir, tmp_dir = None):        
         """
           Writes dest_dir to temporary json-file (temp.json) stored in the current working directory.
         """
         
-        file_tmp = os.path.join(os.getcwd(),"temp.json")
+        if not tmp_dir: tmp_dir = os.getcwd()
+        
+        file_tmp = os.path.join(tmp_dir,"temp.json")
         dict_tmp = {"destination_dir": dest_dir}
         
         with open(file_tmp,"w") as js_file:
@@ -234,14 +236,16 @@ class MetaData:
             json.dump(dict_tmp,js_file)
             
     @staticmethod
-    def get_destdir_jsontmp():
+    def get_destdir_jsontmp(tmp_dir = None):
         """
           Retrieves dest_dir from temporary json-file which is expected to exist in the current working directory and returns it.
         """
         
-        method_name = MetaData.__init__.__name__+" of Class "+MetaData.__name__
+        method_name = MetaData.get_destdir_jsontmp.__name__+" of Class "+MetaData.__name__
 
-        file_tmp = os.path.join(os.getcwd(),"temp.json")
+        if not tmp_dir: tmp_dir = os.getcwd()
+        
+        file_tmp = os.path.join(tmp_dir,"temp.json")
         
         try:
             with open(file_tmp,"r") as js_file:
