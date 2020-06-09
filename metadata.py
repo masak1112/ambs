@@ -124,29 +124,7 @@ class MetaData:
         self.expdir  = expdir
         self.status  = ""                   # uninitialized (is set when metadata is written/compared to/with json-file, see write_metadata_to_file-method)
 
-    # ML 2020/04/24 E 
-    
-    def write_dirs_to_batch_scripts(self,batch_script):
-        
-        """
-         Expands ('known') directory-variables in batch_script by exp_dir-attribute of class instance
-        """
-        
-        paths_to_mod = ["source_dir=","destination_dir=","checkpoint_dir=","results_dir="]      # known directory-variables in batch-scripts
-        
-        with open(batch_script,'r') as file:
-            data = file.readlines()
-            
-        nlines = len(data)
-        matched_lines = [iline for iline in range(nlines) if any(str_id in data[iline] for str_id in paths_to_mod)]   # list of line-number indices to be modified 
-
-        for i in matched_lines:
-            data[i] = add_str_to_path(data[i],self.expname)
-
-        
-        with open(batch_script,'w') as file:
-            file.writelines(data)
-        
+    # ML 2020/04/24 E         
     
     def write_metadata_to_file(self,dest_dir = None):
         
@@ -200,7 +178,7 @@ class MetaData:
             with open(meta_fname,'w') as js_file:
                 json.dump(meta_dict,js_file)
             self.status = "new"                             # set status to new in order to trigger modification of shell-/Batch-scripts
-            
+        
     def get_metadata_from_file(self,js_file):
         
         """
@@ -218,6 +196,62 @@ class MetaData:
             self.ny         = dict_in["frame_size"]["ny"]
             
             self.variables  = [dict_in["variables"][ivar] for ivar in dict_in["variables"].keys()]   
+            
+            
+    def write_dirs_to_batch_scripts(self,batch_script):
+        
+        """
+         Expands ('known') directory-variables in batch_script by exp_dir-attribute of class instance
+        """
+        
+        paths_to_mod = ["source_dir=","destination_dir=","checkpoint_dir=","results_dir="]      # known directory-variables in batch-scripts
+        
+        with open(batch_script,'r') as file:
+            data = file.readlines()
+            
+        nlines = len(data)
+        matched_lines = [iline for iline in range(nlines) if any(str_id in data[iline] for str_id in paths_to_mod)]   # list of line-number indices to be modified 
+
+        for i in matched_lines:
+            data[i] = add_str_to_path(data[i],self.expname)
+
+        
+        with open(batch_script,'w') as file:
+            file.writelines(data)
+    
+    @staticmethod
+    def write_destdir_jsontmp(dest_dir):        
+        """
+          Writes dest_dir to temporary json-file (temp.json) stored in the current working directory.
+        """
+        
+        file_tmp = os.path.join(os.getcwd(),"temp.json")
+        dict_tmp = {"destination_dir": dest_dir}
+        
+        with open(file_tmp,"w") as js_file:
+            print("Save destination_dir-variable in temporary json-file: '"+file_tmp+"'")
+            json.dump(dict_tmp,js_file)
+            
+    @staticmethod
+    def get_destdir_jsontmp():
+        """
+          Retrieves dest_dir from temporary json-file which is expected to exist in the current working directory and returns it.
+        """
+        
+        file_tmp = os.path.join(os.getcwd(),"temp.json")
+        
+        try:
+            with open(file_tmp,"r") as js_file:
+                dict_tmp = json.load(js_file)
+        except:
+            print(method_name+": Could not open requested json-file '"+file_tmp+"'")
+            sys.exit(1)
+            
+        if not "destination_dir" in dict_tmp.keys():
+            raise Exception(method_name+": Could not find 'destination_dir' in dictionary obtained from "+file_tmp)
+        else:
+            return(dict_tmp.get("destination_dir"))
+    
     
     @staticmethod
     def issubset(a,b):
