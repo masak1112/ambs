@@ -3,6 +3,7 @@ Classes and routines to retrieve and handle meta-data
 """
 
 import os
+import sys
 import numpy as np
 import json
 from netCDF4 import Dataset
@@ -238,6 +239,8 @@ class MetaData:
           Retrieves dest_dir from temporary json-file which is expected to exist in the current working directory and returns it.
         """
         
+        method_name = MetaData.__init__.__name__+" of Class "+MetaData.__name__
+
         file_tmp = os.path.join(os.getcwd(),"temp.json")
         
         try:
