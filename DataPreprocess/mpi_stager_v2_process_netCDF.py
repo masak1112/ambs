@@ -113,22 +113,21 @@ def main():
         if not data_files_list: raise ValueError("Could not find any data to be processed in '"+source_dir+"'")
         
         md = MetaData(suffix_indir=destination_dir,data_filename=data_files_list[0],slices=slices,variables=vars)
-        # modify Batch scripts
-        #md.write_dirs_to_batch_scripts(scr_dir+"/DataPreprocess.sh")
-        md.write_dirs_to_batch_scripts(scr_dir+"/DataPreprocess_to_tf.sh")
-        #md.write_dirs_to_batch_scripts(scr_dir+"generate_era5.sh")
-        #md.write_dirs_to_batch_scripts(scr_dir+"train_era5.sh")
-        # ML 2020/06/08: Dirty workaround as long as data-splitting is done with a seperate Python-script 
-        #                called from the same parent Shell-/Batch-script
-        #                -> temproary dictionary
-        dict_dirty = {"dest_dir_split": os.path.join(md.expdir,md.expname)}
-        print("Workaround for correct destination in data splitting: Write dictionary to json-file: temp'")
-        with open(os.getcwd()+"/temp.json",'w') as js_file:
-            print("Create: '"+os.getcwd()+"/temp.json'")
-            print(dict_dirty)
-            json.dump(dict_dirty,js_file)
-        
-        
+        # modify Batch scripts if metadata has been retrieved for the first time (md.status = "new")
+        if (md.status = "new"):
+            #md.write_dirs_to_batch_scripts(scr_dir+"/DataPreprocess.sh")
+            md.write_dirs_to_batch_scripts(scr_dir+"/DataPreprocess_to_tf.sh")
+            #md.write_dirs_to_batch_scripts(scr_dir+"generate_era5.sh")
+            #md.write_dirs_to_batch_scripts(scr_dir+"train_era5.sh")
+            # ML 2020/06/08: Dirty workaround as long as data-splitting is done with a seperate Python-script 
+            #                called from the same parent Shell-/Batch-script
+            #                -> temproary json-file in working directory
+            dict_dirty = {"dest_dir_split": os.path.join(md.expdir,md.expname)}
+            print("Workaround for correct destination in data splitting: Write dictionary to json-file: temp'")
+            with open(os.getcwd()+"/temp.json",'w') as js_file:
+                print("Create: '"+os.getcwd()+"/temp.json'")
+                json.dump(dict_dirty,js_file)
+        #else: nothing to do 
         
         destination_dir= os.path.join(md.expdir,md.expname,years,"hickle")
 
@@ -139,12 +138,6 @@ def main():
             os.makedirs(destination_dir,exist_ok=True)
     
     # ML 2020/04/24 E   
-
-    if not os.path.exists(destination_dir):  # check if the Destination dir. is existing
-        if my_rank == 0:
-            logging.critical('The Destination does not exist')
-            logging.info('Create new destination dir')
-            os.makedirs(destination_dir,exist_ok=True)
 
     if my_rank == 0:  # node is master:
         # ==================================== Master : Directory scanner ================================= #
