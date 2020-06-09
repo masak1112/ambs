@@ -114,7 +114,7 @@ def main():
         
         md = MetaData(suffix_indir=destination_dir,data_filename=data_files_list[0],slices=slices,variables=vars)
         # modify Batch scripts if metadata has been retrieved for the first time (md.status = "new")
-        if (md.status = "new"):
+        if (md.status == "new"):
             #md.write_dirs_to_batch_scripts(scr_dir+"/DataPreprocess.sh")
             md.write_dirs_to_batch_scripts(scr_dir+"/DataPreprocess_to_tf.sh")
             #md.write_dirs_to_batch_scripts(scr_dir+"generate_era5.sh")
