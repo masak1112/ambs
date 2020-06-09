@@ -121,7 +121,7 @@ def main():
             # ML 2020/06/08: Dirty workaround as long as data-splitting is done with a seperate Python-script 
             #                called from the same parent Shell-/Batch-script
             #                -> work with temproary json-file in working directory
-            md.write_destdir_jsontmp(os.path.join(md.expdir,md.expname))
+            md.write_destdir_jsontmp(os.path.join(md.expdir,md.expname),tmp_dir=current_path)
         #else: nothing to do 
         
         destination_dir= os.path.join(md.expdir,md.expname,"hickle",years)
@@ -218,7 +218,7 @@ def main():
 
                     #process_era5_in_dir(job, src_dir=source_dir, target_dir=destination_dir)
                     # ML 2020/06/09: workaround to get correct destination_dir obtained by the master node
-                    destination_dir = os.path.join(MetaData.get_destdir_jsontmp(),"hickle",years)
+                    destination_dir = os.path.join(MetaData.get_destdir_jsontmp(tmp_dir=current_path),"hickle",years)
                     process_netCDF_in_dir(job_name=job, src_dir=source_dir, target_dir=destination_dir,slices=slices,vars=vars)
 
                     if checksum_status == 1:
