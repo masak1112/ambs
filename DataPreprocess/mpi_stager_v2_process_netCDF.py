@@ -114,14 +114,14 @@ def main():
         
         md = MetaData(suffix_indir=destination_dir,data_filename=data_files_list[0],slices=slices,variables=vars)
         # modify Batch scripts if metadata has been retrieved for the first time (md.status = "new")
-        if (md.status = "new"):
+        if (md.status == "new"):
             md.write_dirs_to_batch_scripts(scr_dir+"/DataPreprocess_to_tf.sh")
             #md.write_dirs_to_batch_scripts(scr_dir+"/generate_era5.sh")
             #md.write_dirs_to_batch_scripts(scr_dir+"/train_era5.sh")
             # ML 2020/06/08: Dirty workaround as long as data-splitting is done with a seperate Python-script 
             #                called from the same parent Shell-/Batch-script
             #                -> work with temproary json-file in working directory
-            md.write_destdir_jsontmp(os.path.join(self.expdir,self.expname))
+            md.write_destdir_jsontmp(os.path.join(md.expdir,md.expname))
         #else: nothing to do 
         
         destination_dir= os.path.join(md.expdir,md.expname,"hickle",years)
