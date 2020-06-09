@@ -50,7 +50,7 @@ class MetaData:
                 if not isinstance(variables,list):
                     raise TypeError(method_name+": 'variables'-argument must be a list.")       
             
-            curr_dest_dir = MetaData.get_and_set_metadata_from_file(self,suffix_indir,data_filename,slices,variables)
+            MetaData.get_and_set_metadata_from_file(self,suffix_indir,data_filename,slices,variables)
             
             MetaData.write_metadata_to_file(self)
             
@@ -122,8 +122,7 @@ class MetaData:
         
         self.expname = expname
         self.expdir  = expdir
-        
-        return(os.path.join(os.path.join(expdir,expname),year))
+        self.status  = ""                   # uninitialized (is set when metadata is written/compared to/with json-file, see write_metadata_to_file-method)
 
     # ML 2020/04/24 E 
     
@@ -157,7 +156,8 @@ class MetaData:
         
         method_name = MetaData.__init__.__name__+" of Class "+MetaData.__name__
         # actual work:
-        meta_dict = {"expname": self.expname}
+        meta_dict = {"expname": self.expname,
+                     "expdir" : self.exp_dir}
         
         meta_dict["sw_corner_frame"] = {
             "lat" : self.sw_c[0],
@@ -177,16 +177,15 @@ class MetaData:
         
         # create directory if required
         if dest_dir is None: 
-            target_dir = os.path.join(self.expdir,self.expname)
-        else:
-            target_dir = dest_dir
-        if not os.path.exists(target_dir):
+            dest_dir = os.path.join(self.expdir,self.expname)
+        if not os.path.exists(dest_dir):
             print("Created experiment directory: '"+self.expdir+"'")
-            os.makedirs(target_dir,exist_ok=True)            
+            os.makedirs(dest_dir,exist_ok=True)            
             
-        meta_fname = os.path.join(target_dir,"metadata.json")
+        meta_fname = os.path.join(dest_dir,"metadata.json")
 
         if os.path.exists(meta_fname):                      # check if a metadata-file already exists and check its content 
+            self.status = "old"                             # set status to old in order to prevent repeated modification of shell-/Batch-scripts
             with open(meta_fname,'r') as js_file:
                 dict_dupl = json.load(js_file)
                 
@@ -200,6 +199,7 @@ class MetaData:
             print(method_name+": Write dictionary to json-file: '"+meta_fname+"'")
             with open(meta_fname,'w') as js_file:
                 json.dump(meta_dict,js_file)
+            self.status = "new"                             # set status to new in order to trigger modification of shell-/Batch-scripts
             
     def get_metadata_from_file(self,js_file):
         
