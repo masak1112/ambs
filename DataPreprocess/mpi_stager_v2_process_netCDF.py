@@ -116,8 +116,8 @@ def main():
         # modify Batch scripts if metadata has been retrieved for the first time (md.status = "new")
         if (md.status == "new"):
             md.write_dirs_to_batch_scripts(scr_dir+"/DataPreprocess_to_tf.sh")
-            #md.write_dirs_to_batch_scripts(scr_dir+"/generate_era5.sh")
-            #md.write_dirs_to_batch_scripts(scr_dir+"/train_era5.sh")
+            md.write_dirs_to_batch_scripts(scr_dir+"/generate_era5.sh")
+            md.write_dirs_to_batch_scripts(scr_dir+"/train_era5.sh")
             # ML 2020/06/08: Dirty workaround as long as data-splitting is done with a seperate Python-script 
             #                called from the same parent Shell-/Batch-script
             #                -> work with temproary json-file in working directory
