@@ -5,11 +5,13 @@ source_dir=/home/${USER}/preprocessedData/
 checkpoint_dir=/home/${USER}/models/
 results_dir=/home/${USER}/results/
 
-model=savp
+# for choosing the model
+model=mcnet
 
+# execute respective Python-script
 python -u ../scripts/generate_transfer_learning_finetune.py \
 --input_dir ${source_dir}/tfrecords  \
---dataset_hparams sequence_length=20 --checkpoint  ${checkpoint_dir}/${model}/ours_savp \
+--dataset_hparams sequence_length=20 --checkpoint  ${checkpoint_dir}/${model} \
 --mode test --results_dir ${results_dir} \
 --batch_size 2 --dataset era5   > generate_era5-out.out
 

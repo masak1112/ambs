@@ -22,7 +22,7 @@ pip3 install  mpi4py
 pip3 install netCDF4
 pip3 install  numpy
 pip3 install h5py
-pip3 install tensorflow==1.13.1
+pip3 install tensorflow-gpu==1.13.1
 #Copy the hickle package from bing's account
 #cp  -r /p/project/deepacf/deeprain/bing/hickle ${WORKING_DIR}
 

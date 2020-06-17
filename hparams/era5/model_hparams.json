@@ -1,0 +1,11 @@
+{
+    "batch_size": 8,
+    "lr": 0.001,
+    "nz": 16,
+    "max_steps":500,
+    "context_frames":10,
+    "sequence_length":20
+
+}
+
+
