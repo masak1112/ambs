@@ -174,6 +174,13 @@ def main():
             logger.info("MA{my_rank}: S{message_in} ".format(my_rank=my_rank,message_in=message_in))
             receive_counter = receive_counter + 1
 
+
+        # Cleaning up the slaves temprory log file, if it is empty.
+        if len(os.listdir(slave_log_path) ) == 0:
+            print("Temprory log file is empty, it is deleted")
+            os.removedirs(slave_log_path)
+
+
         end = time.time()
         termination_message = "MA{my_rank}: Sucssfully terminated with total time : {wall_time}".format(my_rank=my_rank,wall_time= end-start)
         logger.info(termination_message)
