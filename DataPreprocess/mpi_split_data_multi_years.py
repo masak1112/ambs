@@ -1,6 +1,7 @@
 from mpi4py import MPI
 import argparse
 from process_netCDF_v2 import *
+from metadata import MetaData
 import json
 
 #add parser arguments
@@ -12,7 +13,9 @@ parser.add_argument("--varnames","-vars",dest="varnames", nargs = '+')
 #                    help="--partition allows to control the splitting of the processed data in training, test and validation data. Pass a dictionary-like string.")
 
 args = parser.parse_args()
-target_dir = args.destination_dir
+# ML 2020/06/08: Dirty workaround as long as data-splitting is done with this seperate Python-script 
+#                called from the same parent Shell-/Batch-script as 'mpi_stager_v2_process_netCDF.py'
+target_dir = os.path.join(MetaData.get_destdir_jsontmp(),"hickle")
 varnames = args.varnames
 
 #partition = args.partition

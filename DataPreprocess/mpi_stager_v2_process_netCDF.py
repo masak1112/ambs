@@ -9,6 +9,7 @@ from external_function import load_distributor
 from external_function import hash_directory
 from external_function import md5
 from process_netCDF_v2 import *  
+from metadata import MetaData as MetaData
 import os
 import argparse
 import json
@@ -18,6 +19,8 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--source_dir", type=str, default="/p/scratch/deepacf/bing/extractedData/")
     parser.add_argument("--destination_dir", type=str, default="/p/scratch/deepacf/bing/processData_size_64_64_3_3t_norm")
+    parser.add_argument("--script_dir","-scr_dir",dest="script_dir",type=str)
+    parser.add_argument("--years", "-y", dest="years")
     parser.add_argument("--checksum_status", type=int, default=0)
     parser.add_argument("--rsync_status", type=int, default=1)
     parser.add_argument("--vars", nargs="+",default = ["T2","T2","T2"]) #"MSL","gph500"
@@ -28,8 +31,10 @@ def main():
     args = parser.parse_args()
 
     current_path = os.getcwd()
-    source_dir = args.source_dir
+    years        = args.years
+    source_dir   = os.path.join(args.source_dir,str(years))+"/"
     destination_dir = args.destination_dir
+    scr_dir         = args.script_dir
     checksum_status = args.checksum_status
     rsync_status = args.rsync_status
 
@@ -99,12 +104,35 @@ def main():
             print('Critical : The source does not exist')
 
         sys.exit(1)
+        
+    # ML 2020/04/26 
+    # Expand destination_dir-variable by searching for netCDF-files in source_dir and processing the file from the first list element to obtain all relevant (meta-)data. 
+    if my_rank == 0:
+        data_files_list = glob.glob(source_dir+"/**/*.nc",recursive=True)
+        
+        if not data_files_list: raise ValueError("Could not find any data to be processed in '"+source_dir+"'")
+        
+        md = MetaData(suffix_indir=destination_dir,data_filename=data_files_list[0],slices=slices,variables=vars)
+        # modify Batch scripts if metadata has been retrieved for the first time (md.status = "new")
+        if (md.status == "new"):
+            md.write_dirs_to_batch_scripts(scr_dir+"/DataPreprocess_to_tf.sh")
+            md.write_dirs_to_batch_scripts(scr_dir+"/generate_era5.sh")
+            md.write_dirs_to_batch_scripts(scr_dir+"/train_era5.sh")
+            # ML 2020/06/08: Dirty workaround as long as data-splitting is done with a seperate Python-script 
+            #                called from the same parent Shell-/Batch-script
+            #                -> work with temproary json-file in working directory
+            md.write_destdir_jsontmp(os.path.join(md.expdir,md.expname),tmp_dir=current_path)
+        #else: nothing to do 
+        
+        destination_dir= os.path.join(md.expdir,md.expname,"hickle",years)
 
-    if not os.path.exists(destination_dir):  # check if the Destination dir. is existing
-        if my_rank == 0:
+        # ...and create directory if necessary
+        if not os.path.exists(destination_dir):  # check if the Destination dir. is existing
             logging.critical('The Destination does not exist')
             logging.info('Create new destination dir')
             os.makedirs(destination_dir,exist_ok=True)
+    
+    # ML 2020/04/24 E   
 
     if my_rank == 0:  # node is master:
         # ==================================== Master : Directory scanner ================================= #
@@ -189,6 +217,8 @@ def main():
                     #os.system(rsync_str)
 
                     #process_era5_in_dir(job, src_dir=source_dir, target_dir=destination_dir)
+                    # ML 2020/06/09: workaround to get correct destination_dir obtained by the master node
+                    destination_dir = os.path.join(MetaData.get_destdir_jsontmp(tmp_dir=current_path),"hickle",years)
                     process_netCDF_in_dir(job_name=job, src_dir=source_dir, target_dir=destination_dir,slices=slices,vars=vars)
 
                     if checksum_status == 1:
