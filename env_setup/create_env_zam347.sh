@@ -25,6 +25,7 @@ pip3 install h5py
 pip3 install tensorflow-gpu==1.13.1
 #Copy the hickle package from bing's account
 #cp  -r /p/project/deepacf/deeprain/bing/hickle ${WORKING_DIR}
+cp -r /home/b.gong/video_prediction_savp/hickle ${WORKING_DIR}
 
 #source ${ENV_SETUP_DIR}/modules.sh
 #source ${ENV_DIR}/bin/activate
