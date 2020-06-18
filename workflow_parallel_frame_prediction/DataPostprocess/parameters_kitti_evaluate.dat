@@ -1,0 +1,14 @@
+import os
+
+# ============ input parameters =================== #
+# 0:deactivate 1: active
+
+Pleas fill the following parameters list for PyStager
+Source_Directory =  /p/fastdata/slmet/slmet111/met_data/ecmwf/era5/nc/2017/
+Destination_Directory = /p/scratch/cjjsc42/bing/pystager-development/tryData/
+Log_Directory = /p/project/cjjsc42/bing/pystager-development/log
+Rsync_Status = 1
+Checksum_Status = 0
+
+
+
