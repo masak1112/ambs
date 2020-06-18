@@ -9,16 +9,16 @@ from external_function import load_distributor
 from external_function import hash_directory
 from external_function import md5
 from prepare_era5_data import *
-# How to Run it! 
-# mpirun -np 6 python mpi_stager_v2.py  
+# How to Run it!
+# mpirun -np 6 python mpi_stager_v2.py
 import os
 from pathlib import Path
 import argparse
 
 def main():
     parser=argparse.ArgumentParser()
-    parser.add_argument("--source_dir",type=str,default="/p/fastdata/slmet/slmet111/met_data/ecmwf/era5/nc/2017/")
-    parser.add_argument("--destination_dir",type=str,default="/p/scratch/deepacf/bing/extractedData")
+    parser.add_argument("--source_dir",type=str,default="//home/a.mozaffari/data_era5/2017/")
+    parser.add_argument("--destination_dir",type=str,default="/home/a.mozaffari/data_dest")
     parser.add_argument("--checksum_status",type=int,default = 0)
     parser.add_argument("--rsync_status",type=int,default=1)
     args = parser.parse_args()
