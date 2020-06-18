@@ -1,0 +1,87 @@
+stages:
+  - build
+  - test
+  - deploy
+
+
+Loading:
+    tags: 
+     - linux
+    stage: build
+    script: 
+        - echo "dataset testing"
+
+
+Preprocessing:
+    tags: 
+     - linux
+    stage: build
+    script: 
+        - echo "Building-preprocessing"
+
+
+Training:
+    tags: 
+     - linux
+    stage: build
+    script: 
+        - echo "Building-Training"
+
+test:
+    tags: 
+     - linux
+    stage: build
+    script:
+        - echo "model testing"
+#      - zypper --non-interactive install python3-pip
+#      - zypper --non-interactive install python-devel
+#      - pip install --upgrade pip
+#      - pip install -r requirements.txt
+#      - python3 test/test_DataMgr.py
+        - echo "Testing"
+        - echo $CI_JOB_STAGE
+        
+
+coverage:
+    tags:
+     - linux
+    stage: test
+    variables:
+        FAILURE_THRESHOLD: 50
+        COVERAGE_PASS_THRESHOLD: 80
+        CODE_PATH: "foo/"
+    script:
+        - zypper --non-interactive install python3-pip
+        - zypper --non-interactive install python3-devel
+        - pip install --upgrade pip
+        - pip install pytest
+#        - pip install -r requirement.txt
+#        - pip install unnitest
+#        - python test/test_DataMgr.py
+
+job2:
+    before_script:
+        - export PATH=$PATH:/usr/local/bin
+    tags:
+        - linux
+    stage: deploy
+    script:
+        - zypper --non-interactive install python3-pip
+        - zypper --non-interactive install python3-devel
+        # - pip install sphinx
+        # - pip install --upgrade pip
+#        - pip install -r requirements.txt
+#       - mkdir documents
+#        - cd docs
+#        - make html
+#        - mkdir documents
+#        - mv _build/html documents
+    # artifacts:
+    #     paths:
+    #         - documents
+deploy:
+    tags:
+        - linux
+    stage: deploy
+    script:
+        - echo "deploy stage"
