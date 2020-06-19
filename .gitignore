@@ -13,17 +13,17 @@ build/
 develop-eggs/
 dist/
 downloads/
-eggs/
-.eggs/
-lib/
-lib64/
+#eggs/
+#.eggs/
+#lib/
+#lib64/
 parts/
 sdist/
 var/
 wheels/
-*.egg-info/
+#*.egg-info/
 .installed.cfg
-*.egg
+#*.egg
 
 # PyInstaller
 #  Usually these files are written by a python script from a template
@@ -117,7 +117,6 @@ virtual_env*/
 **/results_test_samples
 **/logs
 **/vp
-**/hickle
 *.tfrecords
 **/era5_size_64_64_3_3t_norm
 
