@@ -13,7 +13,7 @@
 #SBATCH --mail-user=b.gong@fz-juelich.de
 ##jutil env activate -p cjjsc42
 
-module --force purge 
+module  purge 
 module use $OTHERSTAGES
 module load Stages/2019a
 module load GCCcore/.8.3.0
@@ -23,5 +23,18 @@ module load TensorFlow/1.13.1-GPU-Python-3.6.8
 module load cuDNN/7.5.1.10-CUDA-10.1.105
 
 
-srun python ../scripts/train_v2.py --input_dir  /p/scratch/deepacf/video_prediction_shared_folder/preprocessedData/2017M01to12-64_64-50.00N11.50E-T_T_T/tfrecords  --dataset era5  --model savp --model_hparams_dict ../hparams/kth/ours_savp/model_hparams.json --output_dir /p/scratch/deepacf/video_prediction_shared_folder/models/2017M01to12-64_64-50.00N11.50E-T_T_T/ours_savp
+# declare directory-variables which will be modified appropriately during Preprocessing (invoked by mpi_split_data_multi_years.py)
+source_dir=/p/scratch/deepacf/video_prediction_shared_folder/preprocessedData/
+destination_dir=/p/scratch/deepacf/video_prediction_shared_folder/models/
+
+# for choosing the model
+model=mcnet
+model_hparams=../hparams/era5/model_hparams.json
+
+
+
+
+srun python ../scripts/train_dummy.py --input_dir  ${source_dir}/tfrecords/ --dataset era5  --model ${model} --model_hparams_dict ${model_hparams} --output_dir ${destination_dir}/${model}/
+
+ 
 #srun  python scripts/train.py --input_dir data/era5 --dataset era5  --model savp --model_hparams_dict hparams/kth/ours_savp/model_hparams.json --output_dir logs/era5/ours_savp

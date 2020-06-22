@@ -19,4 +19,9 @@ module load h5py/2.9.0-Python-3.6.8
 module load mpi4py/3.0.1-Python-3.6.8
 module load TensorFlow/1.13.1-GPU-Python-3.6.8
 
-srun python ../video_prediction/datasets/era5_dataset_v2.py /p/scratch/deepacf/video_prediction_shared_folder/preprocessedData/Y2016M01to12-128_160-74.00N710E-T_T_T/splits/ /p/scratch/deepacf/video_prediction_shared_folder/preprocessedData/Y2016M01to12-128_160-74.00N710E-T_T_T/tfrecords/ -vars T2 T2 T2 
+
+source_dir=/p/scratch/deepacf/video_prediction_shared_folder/preprocessedData/
+destination_dir=/p/scratch/deepacf/video_prediction_shared_folder/preprocessedData/
+
+
+srun python ../video_prediction/datasets/era5_dataset_v2.py ${source_dir}/hickle/splits ${destination_dir}/tfrecords -vars T2 MSL gph500 -height 128 -width 160 -seq_length 20 
