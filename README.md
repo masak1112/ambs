@@ -19,11 +19,17 @@ git clone https://gitlab.version.fz-juelich.de/toar/ambs.git
 
 ### Set-up env on JUWELS and ZAM347
 
-- Set up env and install packages
+- Set up env and install packages on JUWELS
 
 ```bash
-cd video_prediction_savp
-source env_setup/create_env.sh <dir_name> <env_name>
+cd video_prediction_savp/env_setup
+source create_env.sh <dir_name> <env_name>
+```
+
+- Setup env and install packages on zam347
+```bash
+cd video_prediction_savp/env_setup
+source create_env_zam347.sh <env_name>
 ```
 
 ### Run workflow on ZAM347
