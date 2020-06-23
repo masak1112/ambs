@@ -53,8 +53,8 @@ coverage:
     script:
         - zypper --non-interactive install python3-pip
         - zypper --non-interactive install python3-devel
-        - pip install --upgrade pip
-        - pip install pytest
+        - pip3 install --upgrade pip
+        - pip3 install pytest
 #        - pip install -r requirement.txt
 #        - pip install unnitest
 #        - python test/test_DataMgr.py
