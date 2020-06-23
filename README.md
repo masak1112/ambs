@@ -61,16 +61,16 @@ The details can be found [name_convention](docs/structure_name_convention.md)
 
 ### Benchmarking architectures:
 
-- convLSTM: [paper]<https://papers.nips.cc/paper/5955-convolutional-lstm-network-a-machine-learning-approach-for-precipitation-nowcasting.pdf>,[code]<https://github.com/loliverhennigh/Convolutional-LSTM-in-Tensorflow>
-- Varational Autoencoder:[paper]
-- Stochastic Adversarial Video Prediction (SAVP)
-- Motion and Content Network (MCnet)
+- convLSTM: [paper](https://papers.nips.cc/paper/5955-convolutional-lstm-network-a-machine-learning-approach-for-precipitation-nowcasting.pdf),[code])https://github.com/loliverhennigh/Convolutional-LSTM-in-Tensorflow)
+- Variational Autoencoder:[paper](https://arxiv.org/pdf/1312.6114.pdf)
+- Stochastic Adversarial Video Prediction (SAVP): [paper](https://arxiv.org/pdf/1804.01523.pdf),[code](https://github.com/alexlee-gk/video_prediction) 
+- Motion and Content Network (MCnet): [paper](https://arxiv.org/pdf/1706.08033.pdf), [code](https://github.com/rubenvillegas/iclr2017mcnet)
 
 
 
 ### Contact
 
-Amirpash Mozafarri: a.mozafarri@fz-juelich.de
-Michael Langguth: m.langguth@fz-juelich.de
-Bing Gong: b.gong@fz-juelich.de
-Scarlet Stadtler: s.stadtler@fz-juelich.de 
+- Amirpash Mozafarri: a.mozafarri@fz-juelich.de
+- Michael Langguth: m.langguth@fz-juelich.de
+- Bing Gong: b.gong@fz-juelich.de
+- Scarlet Stadtler: s.stadtler@fz-juelich.de 
