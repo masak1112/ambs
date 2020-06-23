@@ -26,8 +26,32 @@ cd video_prediction_savp
 source env_setup/create_env.sh <dir_name> <env_name>
 ```
 
-### Run on ZAM347
+### Run workflow on ZAM347
 
+- Go to zam347_scripts directory
+```bash
+cd video_prediction_savp/Zam347_scripts
+```
+- Data Extraction 
+```bash
+./DataExtraction.sh
+```
+
+- Data Preprocessing
+```bash
+./DataPreprocess.sh
+./DataPreprocess_to_tf.sh
+```
+
+- Training
+```bash
+./train_era5.sh
+```
+
+- Postprocess
+```bash
+./generate_era5.sh
+```
 
 ### Recomendation for output folder structure and name convention
 The details can be found [name_convention](docs/structure_name_convention.md)
