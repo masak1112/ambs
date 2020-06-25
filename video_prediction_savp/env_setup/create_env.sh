@@ -1,5 +1,16 @@
 #!/usr/bin/env bash
 
+# some sanity checks
+if [[ ${BASH_SOURCE[0]} != ${0} ]]; then
+  echo "'create_env.sh' must be sourced, i.e. execute by prompting 'source create_env.sh'"
+  exit 1
+fi
+
+
+echo "Bash source is: ${BASH_SOURCE[0]}"
+echo "Base of script: ${0}"
+
+
 if [[ ! -n "$1" ]]; then
   echo "Provide a name to set up the virtual environment"
   exit 1
