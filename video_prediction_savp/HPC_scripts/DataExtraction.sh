@@ -18,7 +18,9 @@ jutil env activate -p deepacf
 module purge
 module use $OTHERSTAGES
 module load Stages/2019a
-module load Intel/2019.3.199-GCC-8.3.0  ParaStationMPI/5.2.2-1
+# on HDFML: h5py requires Gcc/8.3.0 and not Intel/2019.3.199-GCC-8.3.0 
+#module load Intel/2019.3.199-GCC-8.3.0  ParaStationMPI/5.2.2-1
+module load GCC/8.3.0 ParaStationMPI/5.2.2-1
 module load h5py/2.9.0-Python-3.6.8
 module load mpi4py/3.0.1-Python-3.6.8
 module load netcdf4-python/1.5.0.1-Python-3.6.8
