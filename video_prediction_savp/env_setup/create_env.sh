@@ -1,17 +1,12 @@
 #!/usr/bin/env bash
 
-if [[ ! -n "$1" ]]; then
-  echo "Provide the user name, which will be taken as folder name"
-  exit 1
-fi
 
-if [[ ! -n "$2" ]]; then
+if [[ ! -n "$1" ]]; then
   echo "Provide the env name, which will be taken as folder name"
   exit 1
 fi
 
-ENV_NAME=$2
-FOLDER_NAME=$1
+ENV_NAME=$1
 ENV_SETUP_DIR=`pwd`
 WORKING_DIR="$(dirname "$ENV_SETUP_DIR")"
 ENV_DIR=${WORKING_DIR}/${ENV_NAME}
