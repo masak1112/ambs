@@ -1,18 +1,13 @@
 #!/usr/bin/env bash
 
 # some sanity checks
-if [[ ${BASH_SOURCE[0]} != ${0} ]]; then
-  echo "'create_env.sh' must be sourced, i.e. execute by prompting 'source create_env.sh'"
+if [[ ${BASH_SOURCE[0]} == ${0} ]]; then
+  echo "ERROR: 'create_env.sh' must be sourced, i.e. execute by prompting 'source create_env.sh'"
   exit 1
 fi
 
-
-echo "Bash source is: ${BASH_SOURCE[0]}"
-echo "Base of script: ${0}"
-
-
 if [[ ! -n "$1" ]]; then
-  echo "Provide a name to set up the virtual environment"
+  echo "ERROR: Provide a name to set up the virtual environment"
   exit 1
 fi
 
@@ -25,7 +20,7 @@ ENV_DIR=${WORKING_DIR}/${ENV_NAME}
 
 #sanity check -> ensure execution from env_setup-directory
 if [[ "${EXE_DIR}" != "env_setup"  ]]; then
-  echo "Please execute the setup-script for the virtual environment from the env_setup-directory!"
+  echo "ERROR: The setup-script for the virtual environment from the env_setup-directory!"
   exit 1
 fi
 
