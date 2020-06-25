@@ -11,7 +11,6 @@ ENV_SETUP_DIR=`pwd`
 WORKING_DIR="$(dirname "$ENV_SETUP_DIR")"
 EXE_DIR="$(basename "$ENV_SETUP_DIR")"
 ENV_DIR=${WORKING_DIR}/${ENV_NAME}
-USER_EMAIL=$(jutil user show -o json | grep email | cut -f2 -d':' | cut -f1 -d',' | cut -f2 -d'"')
 
 #sanity check -> ensure execution from env_setup-directory
 if [[ "${EXE_DIR}" != "env_setup"  ]]; then
@@ -19,10 +18,12 @@ if [[ "${EXE_DIR}" != "env_setup"  ]]; then
   exit 1
 fi
 
-#replace the email in sbatch script with the USER_EMAIL
-sed -i "s/--mail-user=.*/--mail-user=$USER_EMAIL/g" ../HPC_scripts/*.sh
 
 if [[ "${HOST_NAME}" == hdfml* || "${HOST_NAME}" == juwels* ]]; then
+    USER_EMAIL=$(jutil user show -o json | grep email | cut -f2 -d':' | cut -f1 -d',' | cut -f2 -d'"')
+    #replace the email in sbatch script with the USER_EMAIL
+    sed -i "s/--mail-user=.*/--mail-user=$USER_EMAIL/g" ../HPC_scripts/*.sh
+
     # check module availability for the first time on known HPC-systems
     source ${ENV_SETUP_DIR}/modules.sh
 elif [[ "${HOST_NAME}" == "zam347" ]]; then
