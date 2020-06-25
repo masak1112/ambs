@@ -2,12 +2,12 @@
 
 # some sanity checks
 if [[ ${BASH_SOURCE[0]} == ${0} ]]; then
-  echo "ERROR: 'create_env.sh' must be sourced, i.e. execute by prompting 'source create_env.sh'"
+  echo "ERROR: 'create_env.sh' must be sourced, i.e. execute by prompting 'source create_env.sh [virt_env_name]'"
   exit 1
 fi
 
 if [[ ! -n "$1" ]]; then
-  echo "ERROR: Provide a name to set up the virtual environment"
+  echo "ERROR: Provide a name to set up the virtual environment, i.e. execute by prompting 'source create_env.sh [virt_env_name]"
   exit 1
 fi
 
