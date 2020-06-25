@@ -7,7 +7,7 @@ module load Stages/2019a
 module load GCC/8.3.0
 if [[ "${HOST_NAME}" == hdfml* ]]; then
     module load MVAPICH2/2.3.3-GDR
-elif [[ "${HOST_NAME}" == juwels* ]];
+elif [[ "${HOST_NAME}" == juwels* ]]; then
     module load MVAPICH2/.2.3.1-GDR
 fi
 module load GCCcore/.8.3.0
