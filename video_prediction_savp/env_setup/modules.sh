@@ -1,9 +1,15 @@
 #!/usr/bin/env bash
+
+
 module purge
 module use $OTHERSTAGES
 module load Stages/2019a
 module load GCC/8.3.0
-module load MVAPICH2/.2.3.1-GDR
+if [[ "${HOST_NAME}" == hdfml* ]]; then
+    module load MVAPICH2/2.3.3-GDR
+elif [[ "${HOST_NAME}" == juwels* ]];
+    module load MVAPICH2/.2.3.1-GDR
+fi
 module load GCCcore/.8.3.0
 module load mpi4py/3.0.1-Python-3.6.8
 module load h5py/2.9.0-serial-Python-3.6.8
