@@ -18,10 +18,21 @@ WORKING_DIR="$(dirname "$ENV_SETUP_DIR")"
 EXE_DIR="$(basename "$ENV_SETUP_DIR")"
 ENV_DIR=${WORKING_DIR}/${ENV_NAME}
 
-#sanity check -> ensure execution from env_setup-directory
+# further sanity checks:
+# * ensure execution from env_setup-directory
+# * check if virtual env has already been set up
+
 if [[ "${EXE_DIR}" != "env_setup"  ]]; then
   echo "ERROR: The setup-script for the virtual environment from the env_setup-directory!"
   exit 1
+fi
+
+if [[ -d ${ENV_DIR} ]]; then
+  echo "Virtual environment has already been set up under ${ENV_DIR}. The present virtual environment is activated now."
+  echo "NOTE: If you wish to set up a new virtual environment, delete the existing one or provide a different name."
+  
+  source ${ENV_DIR}/bin/activate
+  return
 fi
 
 
