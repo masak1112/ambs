@@ -8,10 +8,10 @@
 #SBATCH --cpus-per-task=1
 #SBATCH --output=DataExtraction-out.%j
 #SBATCH --error=DataExtraction-err.%j
-#SBATCH --time=00:20:00
-#SBATCH --partition=devel
+#SBATCH --time=05:00:00
+##SBATCH --partition=devel
 #SBATCH --mail-type=ALL
-#SBATCH --mail-user=b.gong@fz-juelich.de
+#SBATCH --mail-user=m.langguth@fz-juelich.de
 
 
 jutil env activate -p deepacf
