@@ -6,15 +6,24 @@ stages:
 
 Loading:
     tags: 
-     - linux
+     - era5
     stage: build
     script: 
         - echo "dataset testing"
+        - cd /data_era5/2017
+        - ls -ls
 
+
+EnvSetup:
+   tags:
+      - era5
+   stage: build
+   script:
+       - echo "EnvSetup"
 
 Preprocessing:
     tags: 
-     - linux
+     - era5
     stage: build
     script: 
         - echo "Building-preprocessing"
@@ -22,14 +31,14 @@ Preprocessing:
 
 Training:
     tags: 
-     - linux
+     - era5
     stage: build
     script: 
         - echo "Building-Training"
 
 test:
     tags: 
-     - linux
+     - era5
     stage: build
     script:
         - echo "model testing"
@@ -44,7 +53,7 @@ test:
 
 coverage:
     tags:
-     - linux
+     - era5
     stage: test
     variables:
         FAILURE_THRESHOLD: 50
@@ -53,8 +62,8 @@ coverage:
     script:
         - zypper --non-interactive install python3-pip
         - zypper --non-interactive install python3-devel
-        - pip install --upgrade pip
-        - pip install pytest
+        - pip3 install --upgrade pip
+        - pip3 install pytest
 #        - pip install -r requirement.txt
 #        - pip install unnitest
 #        - python test/test_DataMgr.py
@@ -81,7 +90,7 @@ job2:
     #         - documents
 deploy:
     tags:
-        - linux
+        - era5
     stage: deploy
     script:
         - echo "deploy stage"
