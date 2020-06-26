@@ -31,7 +31,7 @@ if [[ "${HOST_NAME}" == hdfml* || "${HOST_NAME}" == juwels* ]]; then
     sed -i "s/--mail-user=.*/--mail-user=$USER_EMAIL/g" ../HPC_scripts/*.sh
 
     # check module availability for the first time on known HPC-systems
-    source ${ENV_SETUP_DIR}/modules.sh
+    #source ${ENV_SETUP_DIR}/modules.sh
 elif [[ "${HOST_NAME}" == "zam347" ]]; then
     unset PYTHONPATH
 fi
@@ -47,8 +47,9 @@ if [[ "${HOST_NAME}" == hdfml* || "${HOST_NAME}" == juwels* ]]; then
     #pip3 install --user netCDF4
     #pip3 install --user numpy
     
+    # check for availability of required modules
     source ${ENV_SETUP_DIR}/modules.sh
-    source ${ENV_DIR}/bin/activate
+    #source ${ENV_DIR}/bin/activate
 elif [[ "${HOST_NAME}" == "zam347" ]]; then
     pip3 install --upgrade pip
     pip3 install -r ${ENV_SETUP_DIR}/requirements.txt
