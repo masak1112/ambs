@@ -6,7 +6,11 @@
 # This script loads the required modules for ambs on Juwels and HDF-ML.
 # Note that some other packages have to be installed into a venv (see create_env.sh and requirements.txt).
 
-module --force purge
+HOST_NAME=`hostname`
+
+echo "Start loading modules on ${HOST_NAME}..."
+
+module purge
 module use $OTHERSTAGES
 module load Stages/2019a
 module load GCC/8.3.0
@@ -27,7 +31,7 @@ if [[ "${HOST_NAME}" == hdfml* ]]; then
 elif [[ "${HOST_NAME}" == juwels* ]]; then
   module load h5py/2.9.0-Python-3.6.8
 fi
-module netcdf4-python/1.5.0.1-Python-3.6.8
+module load netcdf4-python/1.5.0.1-Python-3.6.8
 module load TensorFlow/1.13.1-GPU-Python-3.6.8
 module load cuDNN/7.5.1.10-CUDA-10.1.105
 

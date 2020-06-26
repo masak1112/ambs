@@ -6,9 +6,11 @@ if [[ ${BASH_SOURCE[0]} == ${0} ]]; then
   exit 1
 fi
 
+# from now on, just return if something unexpected occurs instead of exiting
+# as the latter would close the terminal including logging out
 if [[ ! -n "$1" ]]; then
   echo "ERROR: Provide a name to set up the virtual environment, i.e. execute by prompting 'source create_env.sh [virt_env_name]"
-  exit 1
+  return
 fi
 
 HOST_NAME=`hostname`
@@ -24,7 +26,7 @@ ENV_DIR=${WORKING_DIR}/${ENV_NAME}
 
 if [[ "${EXE_DIR}" != "env_setup"  ]]; then
   echo "ERROR: The setup-script for the virtual environment from the env_setup-directory!"
-  exit 1
+  return
 fi
 
 if [[ -d ${ENV_DIR} ]]; then
@@ -40,9 +42,6 @@ if [[ "${HOST_NAME}" == hdfml* || "${HOST_NAME}" == juwels* ]]; then
     USER_EMAIL=$(jutil user show -o json | grep email | cut -f2 -d':' | cut -f1 -d',' | cut -f2 -d'"')
     #replace the email in sbatch script with the USER_EMAIL
     sed -i "s/--mail-user=.*/--mail-user=$USER_EMAIL/g" ../HPC_scripts/*.sh
-
-    # check module availability for the first time on known HPC-systems
-    #source ${ENV_SETUP_DIR}/modules.sh
 elif [[ "${HOST_NAME}" == "zam347" ]]; then
     unset PYTHONPATH
 fi
@@ -54,13 +53,13 @@ python3 -m venv $ENV_DIR
 source ${ENV_DIR}/bin/activate
 if [[ "${HOST_NAME}" == hdfml* || "${HOST_NAME}" == juwels* ]]; then
     # check module availability for the first time on known HPC-systems
+    echo "Start installing additional Python modules with pip..."
     pip3 install -r ${ENV_SETUP_DIR}/requirements.txt
     #pip3 install --user netCDF4
     #pip3 install --user numpy
     
     # check for availability of required modules
     source ${ENV_SETUP_DIR}/modules.sh
-    #source ${ENV_DIR}/bin/activate
 elif [[ "${HOST_NAME}" == "zam347" ]]; then
     pip3 install --upgrade pip
     pip3 install -r ${ENV_SETUP_DIR}/requirements.txt
