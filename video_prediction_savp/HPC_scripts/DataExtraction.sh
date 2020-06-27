@@ -1,6 +1,5 @@
 #!/bin/bash -x
-
-
+## Controlling Batch-job
 #SBATCH --account=deepacf
 #SBATCH --nodes=1
 #SBATCH --ntasks=13
@@ -15,15 +14,13 @@
 
 
 jutil env activate -p deepacf
-module purge
-module use $OTHERSTAGES
-module load Stages/2019a
-# on HDFML: h5py requires Gcc/8.3.0 and not Intel/2019.3.199-GCC-8.3.0 
-#module load Intel/2019.3.199-GCC-8.3.0  ParaStationMPI/5.2.2-1
-module load GCC/8.3.0 ParaStationMPI/5.2.2-1
-module load h5py/2.9.0-Python-3.6.8
-module load mpi4py/3.0.1-Python-3.6.8
-module load netcdf4-python/1.5.0.1-Python-3.6.8
+
+if [ -z ${VIRTUAL_ENV} ]; then
+  echo "Please activate a virtual environment..."
+  exit 1
+fi
+
+source ../env_setup/module.sh
 
 srun python ../../workflow_parallel_frame_prediction/DataExtraction/mpi_stager_v2.py --source_dir /p/fastdata/slmet/slmet111/met_data/ecmwf/era5/nc/2017/ --destination_dir /p/scratch/deepacf/${USER}/extractedData/2017
 
