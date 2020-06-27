@@ -44,12 +44,7 @@ class VanillaConvLstmVideoPredictionModel(BaseVideoPredictionModel):
             batch_size: batch size for training.
             lr: learning rate. if decay steps is non-zero, this is the
                 learning rate for steps <= decay_step.
-
-
-
             max_steps: number of training steps.
-
-
             context_frames: the number of ground-truth frames to pass in at
                 start. Must be specified during instantiation.
             sequence_length: the number of frames in the video sequence,
@@ -72,7 +67,7 @@ class VanillaConvLstmVideoPredictionModel(BaseVideoPredictionModel):
 
     def build_graph(self, x):
         self.x = x["images"]
-       
+
         self.global_step = tf.Variable(0, name = 'global_step', trainable = False)
         original_global_variables = tf.global_variables()
         # ARCHITECTURE
@@ -91,8 +86,8 @@ class VanillaConvLstmVideoPredictionModel(BaseVideoPredictionModel):
         self.outputs = {}
         self.outputs["gen_images"] = self.x_hat
         # Summary op
-        self.loss_summary = tf.summary.scalar("recon_loss", self.context_frames_loss)
-        self.loss_summary = tf.summary.scalar("latent_loss", self.predict_frames_loss)
+        self.loss_summary = tf.summary.scalar("context_frames_loss", self.context_frames_loss)
+        self.loss_summary = tf.summary.scalar("predicted_frame_loss", self.predict_frames_loss)
         self.loss_summary = tf.summary.scalar("total_loss", self.total_loss)
         self.summary_op = tf.summary.merge_all()
         global_variables = [var for var in tf.global_variables() if var not in original_global_variables]
@@ -143,13 +138,14 @@ class VanillaConvLstmVideoPredictionModel(BaseVideoPredictionModel):
         x_hat_predict = []
         seq_start = 1
         hidden = None
+        #This is for training 
         for i in range(self.context_frames):
             if i < seq_start:
                 x_1, hidden = network_template(self.x[:, i, :, :, :], hidden)
             else:
                 x_1, hidden = network_template(x_1, hidden)
             x_hat_context.append(x_1)
-
+        #This is for generating video
         for i in range(self.predict_frames):
             x_1, hidden = network_template(x_1, hidden)
             x_hat_predict.append(x_1)
