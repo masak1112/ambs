@@ -88,6 +88,7 @@ celerybeat-schedule
 venv/
 ENV/
 virtual_env*/
+virt_env*/
 
 # Spyder project settings
 .spyderproject
@@ -108,8 +109,8 @@ virtual_env*/
 *.DS_Store
 
 # Ignore log- and errorfiles 
-*-err.???????
-*-out.???????
+*-err.[0-9]*
+*-out.[0-9]*
 
 
 #Ignore the results files
