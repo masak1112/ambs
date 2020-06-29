@@ -20,6 +20,7 @@ from DataPreprocess.process_netCDF_v2 import Calc_data_stat
 #from base_dataset import VarLenFeatureVideoDataset
 from collections import OrderedDict
 from tensorflow.contrib.training import HParams
+from mpi4py import MPI
 
 class ERA5Dataset_v2(VarLenFeatureVideoDataset):
     def __init__(self, *args, **kwargs):
@@ -98,9 +99,9 @@ class ERA5Dataset_v2(VarLenFeatureVideoDataset):
             seqs["images"] = images
             return seqs
         filenames = self.filenames
-        print ("FILENAMES",filenames)
-	#TODO:
-	#temporal_filenames = self.temporal_filenames
+
+
+
         shuffle = self.mode == 'train' or (self.mode == 'val' and self.hparams.shuffle_on_val)
         if shuffle:
             random.shuffle(filenames)
@@ -321,9 +322,13 @@ def main():
     #input_dir = "/Users/gongbing/PycharmProjects/video_prediction/splits"
     #output_dir = "/Users/gongbing/PycharmProjects/video_prediction/data/era5"
     partition_names = ['train','val',  'test'] #64,64,3 val has issue#
-  
-    for partition_name in partition_names:
-        read_frames_and_save_tf_records(output_dir=args.output_dir,input_dir=args.input_dir,vars_in=args.variables,partition_name=partition_name, seq_length=args.seq_length,height=args.height,width=args.width,sequences_per_file=2) #Bing: Todo need check the N_seq
+    #Bing 20200623
+    comm = MPI.COMM_WORLD
+    rank = comm.Get_rank()
+    
+    read_frames_and_save_tf_records(output_dir=args.output_dir,input_dir=args.input_dir,vars_in=args.variables,partition_name=partition_names[rank], seq_length=args.seq_length,height=args.height,width=args.width,sequences_per_file=args.seq_length)  
+   # for partition_name in partition_names:
+   #     read_frames_and_save_tf_records(output_dir=args.output_dir,input_dir=args.input_dir,vars_in=args.variables,partition_name=partition_name, seq_length=args.seq_length,height=args.height,width=args.width,sequences_per_file=args.seq_length) #Bing: Todo need check the N_seq
         #ead_frames_and_save_tf_records(output_dir = output_dir, input_dir = input_dir,partition_name = partition_name, N_seq=20) #Bing: TODO: first try for N_seq is 10, but it met loading data issue. let's try 5
 
 if __name__ == '__main__':

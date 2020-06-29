@@ -12,6 +12,9 @@ WORKING_DIR="$(dirname "$ENV_SETUP_DIR")"
 ENV_DIR=${WORKING_DIR}/${ENV_NAME}
 USER_EMAIL=$(jutil user show -o json | grep email | cut -f2 -d':' | cut -f1 -d',' | cut -f2 -d'"')
 echo $USER_EMAIL
+#Set up global env variable "save_dir" used for define the target save path
+export SAVE_DIR=/p/scratch/deepacf/video_prediction_shared_folder/
+
 
 #replace the email in sbatch script with the USER_EMAIL
 sed -i "s/--mail-user=.*/--mail-user=$USER_EMAIL/g" ../HPC_scripts/*.sh
