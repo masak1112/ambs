@@ -6,8 +6,8 @@
 #SBATCH --cpus-per-task=1
 #SBATCH --output=DataPreprocess-out.%j
 #SBATCH --error=DataPreprocess-err.%j
-#SBATCH --time=02:20:00
-#SBATCH --partition=batch
+#SBATCH --time=00:20:00
+#SBATCH --partition=devel
 #SBATCH --mail-type=ALL
 #SBATCH --mail-user=b.gong@fz-juelich.de
 
@@ -21,8 +21,8 @@ module load mpi4py/3.0.1-Python-3.6.8
 
 
 
-source_dir=/p/scratch/deepacf/video_prediction_shared_folder/extractedData
-destination_dir=/p/scratch/deepacf/video_prediction_shared_folder/preprocessedData/era5-Y2015to2017M01to12
+source_dir=${SAVE_DIR}/extractedData
+destination_dir=${SAVE_DIR}/preprocessedData/era5-Y2015to2017M01to12
 script_dir=`pwd`
 
 declare -a years=("2015" 
