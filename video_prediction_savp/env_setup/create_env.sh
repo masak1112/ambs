@@ -47,7 +47,7 @@ elif [[ "${HOST_NAME}" == "zam347" ]]; then
     unset PYTHONPATH
 fi
 
-if [[ "$ENV_EXIST" == 1 ]]; then
+if [[ "$ENV_EXIST" == 0 ]]; then
   # Activate virtual environmen and install additional Python packages.
   echo "Configuring and activating virtual environment on ${HOST_NAME}"
     
