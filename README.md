@@ -44,7 +44,8 @@ sbatch /DataPreprocess_to_tf.sh
 ```
 
 - Setup hyperparams
-This step will setup the hyper-parameters that used for training, and create a folder named "datetime_user", where save the trained model
+
+This step will setup the hyper-parameters that used for training, and create a folder named "datetime_user" where save the trained model
 ```bash
 source hyperparam_setup.sh
 ```
