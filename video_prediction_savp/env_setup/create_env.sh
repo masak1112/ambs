@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-# some sanity checks
+# some first sanity checks
 if [[ ${BASH_SOURCE[0]} == ${0} ]]; then
   echo "ERROR: 'create_env.sh' must be sourced, i.e. execute by prompting 'source create_env.sh [virt_env_name]'"
   exit 1
@@ -33,11 +33,12 @@ if [[ -d ${ENV_DIR} ]]; then
   echo "Virtual environment has already been set up under ${ENV_DIR}. The present virtual environment is activated now."
   echo "NOTE: If you wish to set up a new virtual environment, delete the existing one or provide a different name."
   
-  source ${ENV_DIR}/bin/activate
-  return
+  ENV_EXIST=1
+else
+  ENV_EXIST=0
 fi
 
-
+# add personal email-address to Batch-scripts
 if [[ "${HOST_NAME}" == hdfml* || "${HOST_NAME}" == juwels* ]]; then
     USER_EMAIL=$(jutil user show -o json | grep email | cut -f2 -d':' | cut -f1 -d',' | cut -f2 -d'"')
     #replace the email in sbatch script with the USER_EMAIL
@@ -46,12 +47,15 @@ elif [[ "${HOST_NAME}" == "zam347" ]]; then
     unset PYTHONPATH
 fi
 
-# Activate virtual environmen and install additional Python packages.
-echo "Configuring and activating virtual environment on ${HOST_NAME}"
+if [[ "$ENV_EXIST" == 0 ]]; then
+  # Activate virtual environmen and install additional Python packages.
+  echo "Configuring and activating virtual environment on ${HOST_NAME}"
     
-python3 -m venv $ENV_DIR
-source ${ENV_DIR}/bin/activate
-if [[ "${HOST_NAME}" == hdfml* || "${HOST_NAME}" == juwels* ]]; then
+  python3 -m venv $ENV_DIR
+  source ${ENV_DIR}/bin/activate
+  
+  # install some requirements and/or check for modules
+  if [[ "${HOST_NAME}" == hdfml* || "${HOST_NAME}" == juwels* ]]; then
     # check module availability for the first time on known HPC-systems
     echo "Start installing additional Python modules with pip..."
     pip install --upgrade pip
@@ -61,7 +65,7 @@ if [[ "${HOST_NAME}" == hdfml* || "${HOST_NAME}" == juwels* ]]; then
     
     # check for availability of required modules
     source ${ENV_SETUP_DIR}/modules.sh
-elif [[ "${HOST_NAME}" == "zam347" ]]; then
+  elif [[ "${HOST_NAME}" == "zam347" ]]; then
     pip3 install --upgrade pip
     pip3 install -r ${ENV_SETUP_DIR}/requirements.txt
     pip3 install  mpi4py 
@@ -69,6 +73,10 @@ elif [[ "${HOST_NAME}" == "zam347" ]]; then
     pip3 install  numpy
     pip3 install h5py
     pip3 install tensorflow-gpu==1.13.1
+  fi
+elif [[ "$ENV_EXIST" == 1 ]]; then
+  # activating virtual env is suifficient
+  source ${ENV_DIR}/bin/activate  
 fi
 
 # expand environmental variable PYTHONPATH 
