@@ -25,8 +25,8 @@ module load cuDNN/7.5.1.10-CUDA-10.1.105
 
 
 # declare directory-variables which will be modified appropriately during Preprocessing (invoked by mpi_split_data_multi_years.py)
-source_dir=/p/scratch/deepacf/video_prediction_shared_folder/preproceesedData
-destination_dir=/p/scratch/deepacf/video_prediction_shared_folder/models
+source_dir=/p/scratch/deepacf/video_prediction_shared_folder/preprocessedData/
+destination_dir=/p/scratch/deepacf/video_prediction_shared_folder/models/
 
 #define model type, hyperparams setting up
 #source hyperparam_dir.sh 

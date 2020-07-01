@@ -22,9 +22,9 @@ module load netcdf4-python/1.5.0.1-Python-3.6.8
 module load h5py/2.9.0-Python-3.6.8
 
 
-source_dir=/p/scratch/deepacf/video_prediction_shared_folder/preproceesedData
-checkpoint_dir=/p/scratch/deepacf/video_prediction_shared_folder/models
-results_dir=/p/scratch/deepacf/video_prediction_shared_folder/results
+source_dir=/p/scratch/deepacf/video_prediction_shared_folder/preprocessedData/
+checkpoint_dir=/p/scratch/deepacf/video_prediction_shared_folder/models/
+results_dir=/p/scratch/deepacf/video_prediction_shared_folder/results/
 
 
 
