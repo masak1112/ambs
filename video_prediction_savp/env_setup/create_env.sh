@@ -57,15 +57,19 @@ if [[ "$ENV_EXIST" == 0 ]]; then
   # install some requirements and/or check for modules
   if [[ "${HOST_NAME}" == hdfml* || "${HOST_NAME}" == juwels* ]]; then
     # check module availability for the first time on known HPC-systems
-    echo "Start installing additional Python modules with pip..."
+    echo "***** Start installing additional Python modules with pip... *****"
     pip install --upgrade pip
     pip3 install --no-cache-dir -r ${ENV_SETUP_DIR}/requirements.txt
     #pip3 install --user netCDF4
     #pip3 install --user numpy
     
     # check for availability of required modules
-    source ${ENV_SETUP_DIR}/modules.sh
+    echo "***** Checking modules required for Preprocessing... *****"
+    source ${ENV_SETUP_DIR}/modules_preprocess.sh
+    echo "***** Checking modules required for training and Postprocessing... *****"
+    source ${ENV_SETUP_DIR}/modules_train.sh    
   elif [[ "${HOST_NAME}" == "zam347" ]]; then
+    echo "***** Start installing additional Python modules with pip... *****"
     pip3 install --upgrade pip
     pip3 install -r ${ENV_SETUP_DIR}/requirements.txt
     pip3 install  mpi4py 
