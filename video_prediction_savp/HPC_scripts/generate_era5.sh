@@ -14,14 +14,14 @@
 ##jutil env activate -p cjjsc42
 
 
-module purge
-module load GCC/8.3.0
-module load ParaStationMPI/5.2.2-1
-module load TensorFlow/1.13.1-GPU-Python-3.6.8
-module load netcdf4-python/1.5.0.1-Python-3.6.8
-module load h5py/2.9.0-Python-3.6.8
+if [ -z ${VIRTUAL_ENV} ]; then
+  echo "Please activate a virtual environment..."
+  exit 1
+fi
 
+source ../env_setup/modules_train.sh
 
+# declare directory-variables which will be modified appropriately during Preprocessing (invoked by mpi_split_data_multi_years.py)
 source_dir=/p/scratch/deepacf/video_prediction_shared_folder/preprocessedData/
 checkpoint_dir=/p/scratch/deepacf/video_prediction_shared_folder/models/
 results_dir=/p/scratch/deepacf/video_prediction_shared_folder/results/

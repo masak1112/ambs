@@ -8,9 +8,9 @@
 #SBATCH --output=DataExtraction-out.%j
 #SBATCH --error=DataExtraction-err.%j
 #SBATCH --time=05:00:00
-##SBATCH --partition=devel
+#SBATCH --partition=devel
 #SBATCH --mail-type=ALL
-#SBATCH --mail-user=m.langguth@fz-juelich.de
+#SBATCH --mail-user=b.gong@fz-juelich.de
 
 
 jutil env activate -p deepacf
@@ -20,7 +20,7 @@ if [ -z ${VIRTUAL_ENV} ]; then
   exit 1
 fi
 
-source ../env_setup/module.sh
+source ../env_setup/modules_preprocess.sh
 
 srun python ../../workflow_parallel_frame_prediction/DataExtraction/mpi_stager_v2.py --source_dir /p/fastdata/slmet/slmet111/met_data/ecmwf/era5/nc/2017/ --destination_dir /p/scratch/deepacf/${USER}/extractedData/2017
 

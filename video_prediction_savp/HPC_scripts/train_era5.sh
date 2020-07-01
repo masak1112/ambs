@@ -10,18 +10,15 @@
 #SBATCH --gres=gpu:1
 #SBATCH --partition=develgpus
 #SBATCH --mail-type=ALL
-#SBATCH --mail-user=b.gong@fz-juelich.de
+#SBATCH --mail-user=m.langguth@fz-juelich.de
 ##jutil env activate -p cjjsc42
 
-module  purge 
-module use $OTHERSTAGES
-module load Stages/2019a
-module load GCCcore/.8.3.0
-module load mpi4py/3.0.1-Python-3.6.8
-module load h5py/2.9.0-serial-Python-3.6.8
-module load TensorFlow/1.13.1-GPU-Python-3.6.8
-module load cuDNN/7.5.1.10-CUDA-10.1.105
+if [ -z ${VIRTUAL_ENV} ]; then
+  echo "Please activate a virtual environment..."
+  exit 1
+fi
 
+source ../env_setup/modules_train.sh
 
 # declare directory-variables which will be modified appropriately during Preprocessing (invoked by mpi_split_data_multi_years.py)
 source_dir=/p/scratch/deepacf/video_prediction_shared_folder/preprocessedData/
@@ -31,9 +28,7 @@ destination_dir=/p/scratch/deepacf/video_prediction_shared_folder/models/
 model=mcnet
 model_hparams=../hparams/era5/model_hparams.json
 
-
-
-
+# execute Python-script
 srun python ../scripts/train_dummy.py --input_dir  ${source_dir}/tfrecords/ --dataset era5  --model ${model} --model_hparams_dict ${model_hparams} --output_dir ${destination_dir}/${model}/
 
  

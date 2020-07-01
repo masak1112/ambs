@@ -17,7 +17,7 @@ if [ -z ${VIRTUAL_ENV} ]; then
   exit 1
 fi
 
-source ../env_setup/modules.sh
+source ../env_setup/modules_preprocess.sh
 
 source_dir=/p/scratch/deepacf/video_prediction_shared_folder/extractedData
 destination_dir=/p/scratch/deepacf/video_prediction_shared_folder/preprocessedData/era5-Y2015to2017M01to12
@@ -28,7 +28,7 @@ declare -a years=("2015"
                  "2017"
                   )
 
-
+# ececute Python-scripts
 for year in "${years[@]}"; 
     do 
         echo "Year $year"

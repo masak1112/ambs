@@ -11,17 +11,17 @@
 #SBATCH --mail-type=ALL
 #SBATCH --mail-user=b.gong@fz-juelich.de
 
-module purge
-module use $OTHERSTAGES
-module load Stages/2019a
-module load Intel/2019.3.199-GCC-8.3.0  ParaStationMPI/5.2.2-1
-module load h5py/2.9.0-Python-3.6.8
-module load mpi4py/3.0.1-Python-3.6.8
-module load TensorFlow/1.13.1-GPU-Python-3.6.8
 
+if [ -z ${VIRTUAL_ENV} ]; then
+  echo "Please activate a virtual environment..."
+  exit 1
+fi
 
+source ../env_setup/modules_train.sh
+
+# declare directory-variables which will be modified appropriately during Preprocessing (invoked by mpi_split_data_multi_years.py)
 source_dir=/p/scratch/deepacf/video_prediction_shared_folder/preprocessedData/
 destination_dir=/p/scratch/deepacf/video_prediction_shared_folder/preprocessedData/
 
-
+# execute Python-script
 srun python ../video_prediction/datasets/era5_dataset_v2.py ${source_dir}/hickle/splits ${destination_dir}/tfrecords -vars T2 MSL gph500 -height 128 -width 160 -seq_length 20 
