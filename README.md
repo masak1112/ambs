@@ -19,18 +19,54 @@ git clone https://gitlab.version.fz-juelich.de/toar/ambs.git
 
 ### Set-up env on JUWELS and ZAM347
 
-- Set up env and install packages on JUWELS
-
-```bash
-cd video_prediction_savp/env_setup
-source create_env.sh <dir_name> <env_name>
-```
-
-- Setup env and install packages on zam347
+- Setup env and install packages
 ```bash
 cd video_prediction_savp/env_setup
 source create_env_zam347.sh <env_name>
 ```
+
+### Run workflow on JUWELS
+
+- Go to HPC_scripts directory
+```bash
+cd video_prediction_savp/HPC_scripts
+
+```
+- Data Extraction
+```bash
+sbatch DataExtraction.sh
+```
+
+- Data Preprocessing
+```bash
+sbatch /DataPreprocess.sh
+sbatch /DataPreprocess_to_tf.sh
+```
+
+- Setup hyperparams
+This step will setup the hyper-parameters that used for training, and create a folder named "datetime_user", where save the trained model
+```bash
+source hyperparam_setup.sh
+```
+
+
+- Training
+```bash
+sbatch train_era5.sh
+```
+
+- Postprocess
+```bash
+sbatch generate_era5.sh
+```
+
+- Reset all the generated path to origin state
+
+```bash
+source reset_dirs.sh
+```
+
+
 
 ### Run workflow on ZAM347
 
