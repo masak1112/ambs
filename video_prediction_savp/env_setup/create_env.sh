@@ -54,7 +54,8 @@ source ${ENV_DIR}/bin/activate
 if [[ "${HOST_NAME}" == hdfml* || "${HOST_NAME}" == juwels* ]]; then
     # check module availability for the first time on known HPC-systems
     echo "Start installing additional Python modules with pip..."
-    pip3 install -r ${ENV_SETUP_DIR}/requirements.txt
+    pip install --upgrade pip
+    pip3 install --no-cache-dir -r ${ENV_SETUP_DIR}/requirements.txt
     #pip3 install --user netCDF4
     #pip3 install --user numpy
     
