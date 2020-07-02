@@ -12,6 +12,14 @@ import numpy as np
 import tensorflow as tf
 from video_prediction import datasets, models
 import matplotlib.pyplot as plt
+from json import JSONEncoder
+import pickle as pkl
+class NumpyArrayEncoder(JSONEncoder):
+    def default(self, obj):
+        if isinstance(obj, np.ndarray):
+            return obj.tolist()
+        return JSONEncoder.default(self, obj)
+
 
 def add_tag_suffix(summary, tag_suffix):
     summary_proto = tf.Summary()
@@ -159,8 +167,16 @@ def plot_train(train_losses,val_losses,output_dir):
     plt.legend()
     plt.savefig(os.path.join(output_dir,'plot_train.png'))
 
+def save_results_to_dict(results_dict,output_dir):
+    with open(os.path.join(output_dir,"results.json"),"w") as fp:
+        json.dump(results_dict,fp)    
 
-
+def save_results_to_pkl(train_losses,val_losses, output_dir):
+     with open(os.path.join(output_dir,"train_losses.pkl"),"wb") as f:
+        pkl.dump(train_losses,f)
+     with open(os.path.join(output_dir,"val_losses.pkl"),"wb") as f:
+        pkl.dump(val_losses,f) 
+ 
 
 def main():
     parser = argparse.ArgumentParser()
@@ -237,7 +253,10 @@ def main():
     print ("number of exmaples per epoch:",num_examples_per_epoch)
     steps_per_epoch = int(num_examples_per_epoch/batch_size)
     total_steps = steps_per_epoch * max_epochs
+    #mock total_steps only for fast debugging
+    #total_steps = 10
     print ("Total steps for training:",total_steps)
+    results_dict = {}
     with tf.Session(config=config) as sess:
         print("parameter_count =", sess.run(parameter_count))
         sess.run(tf.global_variables_initializer())
@@ -249,7 +268,7 @@ def main():
         # step is relative to the start_step
         train_losses=[]
         val_losses=[]
-        
+        run_start_time = time.time()        
         for step in range(total_steps):
             global_step = sess.run(model.global_step)
             print ("global_step:", global_step)
@@ -294,12 +313,17 @@ def main():
             else:
                 print ("The model name does not exist")
             
-            print("saving model to", args.output_dir)
+            #print("saving model to", args.output_dir)
             saver.save(sess, os.path.join(args.output_dir, "model"), global_step=step)#
+        train_time = time.time() - run_start_time
+        results_dict = {"train_time":train_time,
+                        "total_steps":total_steps}
+        save_results_to_dict(results_dict,args.output_dir)
+        save_results_to_pkl(train_losses, val_losses, args.output_dir)
         print("train_losses:",train_losses)
         print("val_losses:",val_losses) 
         plot_train(train_losses,val_losses,args.output_dir)
         print("Done")
-
+        
 if __name__ == '__main__':
     main()
