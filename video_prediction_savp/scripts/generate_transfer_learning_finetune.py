@@ -142,7 +142,7 @@ def main():
     for k, v in args._get_kwargs():
         print(k, "=", v)
     print('------------------------------------- End --------------------------------------')
-
+    
     VideoDataset = datasets.get_dataset_class(args.dataset)
     dataset = VideoDataset(
         args.input_dir,
@@ -176,12 +176,13 @@ def main():
         num_examples_per_epoch = dataset.num_examples_per_epoch()
     if num_examples_per_epoch % args.batch_size != 0:
         raise ValueError('batch_size should evenly divide the dataset size %d' % num_examples_per_epoch)
-
+    #Get inputs 
     inputs = dataset.make_batch(args.batch_size)
     input_phs = {k: tf.placeholder(v.dtype, v.shape, '%s_ph' % k) for k, v in inputs.items()}
+    # Build graph
     with tf.variable_scope(''):
         model.build_graph(input_phs)
-
+    # Setup output directory and save the config and hpamas to output directory
     for output_dir in (args.output_gif_dir, args.output_png_dir):
         if not os.path.exists(output_dir):
             os.makedirs(output_dir)
