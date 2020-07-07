@@ -54,16 +54,7 @@ if [[ "$ENV_EXIST" == 0 ]]; then
   python3 -m venv $ENV_DIR
   
   activate_virt_env=${ENV_DIR}/bin/activate
-  
-  # set up PYTHONPATH (environmental variable) in virtual environment
-  export PYTHONPATH=${WORKING_DIR}/external_package/hickle/lib/python3.6/site-packages:$PYTHONPATH >> ${activate_virt_env}
-  export PYTHONPATH=${WORKING_DIR}:$PYTHONPATH >> ${activate_virt_env}
-  #export PYTHONPATH=/p/home/jusers/${USER}/juwels/.local/bin:$PYTHONPATH
-  export PYTHONPATH=${WORKING_DIR}/external_package/lpips-tensorflow:$PYTHONPATH >> ${activate_virt_env}
-
-  if [[ "${HOST_NAME}" == hdfml* || "${HOST_NAME}" == juwels* ]]; then
-    export PYTHONPATH=${ENV_DIR}/lib/python3.6/site-packages:$PYTHONPATH >> ${activate_virt_env}
-  fi  
+  echo ${activate_virt_env}
   
   source ${activate_virt_env}
   
@@ -91,8 +82,31 @@ if [[ "$ENV_EXIST" == 0 ]]; then
     pip3 install h5py
     pip3 install tensorflow-gpu==1.13.1
   fi
+  # expand PYTHONPATH...
+  export PYTHONPATH=${WORKING_DIR}/external_package/hickle/lib/python3.6/site-packages:$PYTHONPATH >> ${activate_virt_env}
+  export PYTHONPATH=${WORKING_DIR}:$PYTHONPATH >> ${activate_virt_env}
+  #export PYTHONPATH=/p/home/jusers/${USER}/juwels/.local/bin:$PYTHONPATH
+  export PYTHONPATH=${WORKING_DIR}/external_package/lpips-tensorflow:$PYTHONPATH >> ${activate_virt_env}
+
+  if [[ "${HOST_NAME}" == hdfml* || "${HOST_NAME}" == juwels* ]]; then
+     export PYTHONPATH=${ENV_DIR}/lib/python3.6/site-packages:$PYTHONPATH >> ${activate_virt_env}
+  fi
+
+  
+  # ...and ensure that this also done when the 
+  echo "" >> ${activate_virt_env}
+  echo "# Expand PYTHONPATH..." >> ${activate_virt_env}
+  echo "export PYTHONPATH=${WORKING_DIR}/external_package/hickle/lib/python3.6/site-packages:\$PYTHONPATH" >> ${activate_virt_env}
+  echo "export PYTHONPATH=${WORKING_DIR}:\$PYTHONPATH" >> ${activate_virt_env}
+  #export PYTHONPATH=/p/home/jusers/${USER}/juwels/.local/bin:\$PYTHONPATH
+  echo "export PYTHONPATH=${WORKING_DIR}/external_package/lpips-tensorflow:\$PYTHONPATH" >> ${activate_virt_env}
+
+  if [[ "${HOST_NAME}" == hdfml* || "${HOST_NAME}" == juwels* ]]; then
+    echo "export PYTHONPATH=${ENV_DIR}/lib/python3.6/site-packages:\$PYTHONPATH" >> ${activate_virt_env}
+  fi  
 elif [[ "$ENV_EXIST" == 1 ]]; then
   # activating virtual env is suifficient
   source ${ENV_DIR}/bin/activate  
 fi
+
 
