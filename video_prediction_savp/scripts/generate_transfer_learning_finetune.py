@@ -243,15 +243,16 @@ def main():
             gen_images_stochastic = []
             if args.num_samples and sample_ind >= args.num_samples:
                 break
+            
             try:
                 input_results = sess.run(inputs)
                 input_images = input_results["images"]
-
-
             except tf.errors.OutOfRangeError:
                 break
 
             feed_dict = {input_ph: input_results[name] for name, input_ph in input_phs.items()}
+            
+            #num_stochastic_samples is the number of sampling for each test data
             for stochastic_sample_ind in range(args.num_stochastic_samples):
                 input_images_all.extend(input_images)
                 with open(os.path.join(args.output_png_dir, "input_images_all.pkl"), "wb") as input_files:
