@@ -143,6 +143,8 @@ def main():
         print(k, "=", v)
     print('------------------------------------- End --------------------------------------')
     
+    
+    #Build dataset and model object
     VideoDataset = datasets.get_dataset_class(args.dataset)
     dataset = VideoDataset(
         args.input_dir,
@@ -174,14 +176,18 @@ def main():
         num_examples_per_epoch = args.num_samples
     else:
         num_examples_per_epoch = dataset.num_examples_per_epoch()
+        
     if num_examples_per_epoch % args.batch_size != 0:
         raise ValueError('batch_size should evenly divide the dataset size %d' % num_examples_per_epoch)
     #Get inputs 
     inputs = dataset.make_batch(args.batch_size)
     input_phs = {k: tf.placeholder(v.dtype, v.shape, '%s_ph' % k) for k, v in inputs.items()}
+    
+    
     # Build graph
     with tf.variable_scope(''):
         model.build_graph(input_phs)
+        
     # Setup output directory and save the config and hpamas to output directory
     for output_dir in (args.output_gif_dir, args.output_png_dir):
         if not os.path.exists(output_dir):
@@ -192,6 +198,7 @@ def main():
             f.write(json.dumps(dataset.hparams.values(), sort_keys = True, indent = 4))
         with open(os.path.join(output_dir, "model_hparams.json"), "w") as f:
             f.write(json.dumps(model.hparams.values(), sort_keys = True, indent = 4))
+            
     # Start session and load checkpoints to recover the model
     gpu_options = tf.GPUOptions(per_process_gpu_memory_fraction = args.gpu_mem_frac)
     config = tf.ConfigProto(gpu_options = gpu_options, allow_soft_placement = True)
@@ -222,10 +229,14 @@ def main():
     with open(os.path.join(dirname(input_dir),"hickle/splits/statistics.json")) as js_file:
          norm_cls.check_and_set_norm(json.load(js_file),norm)
     #---Scarlet:20200528    
+    
+    
     while True:
         print("Sample id", sample_ind)
+        #Skip the first 24 frames, since we need persistent analysis, frames without 24 hours cannot obtained from the splited test dataset
         if sample_ind <= 24:
             pass
+        #Loop will stop if exceeds the size of test samples
         elif sample_ind >= len(X_test):
             break
         else:
