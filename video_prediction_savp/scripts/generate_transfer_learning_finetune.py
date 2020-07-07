@@ -192,7 +192,7 @@ def main():
             f.write(json.dumps(dataset.hparams.values(), sort_keys = True, indent = 4))
         with open(os.path.join(output_dir, "model_hparams.json"), "w") as f:
             f.write(json.dumps(model.hparams.values(), sort_keys = True, indent = 4))
-
+    # Start session and load checkpoints to recover the model
     gpu_options = tf.GPUOptions(per_process_gpu_memory_fraction = args.gpu_mem_frac)
     config = tf.ConfigProto(gpu_options = gpu_options, allow_soft_placement = True)
     sess = tf.Session(config = config)
