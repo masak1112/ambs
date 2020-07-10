@@ -139,7 +139,7 @@ class MetaData:
                      "expdir" : self.expdir}
         
         meta_dict["sw_corner_frame"] = {
-            "lat" : np.around(self.sw_c[0],decimals=2)
+            "lat" : np.around(self.sw_c[0],decimals=2),
             "lon" : np.around(self.sw_c[1],decimals=2)
             }
         
