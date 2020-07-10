@@ -13,13 +13,21 @@
 #SBATCH --mail-user=b.gong@fz-juelich.de
 ##jutil env activate -p cjjsc42
 
+# Name of virtual environment 
+VIRT_ENV_NAME="virt_env_hdfml"
 
-if [ -z ${VIRTUAL_ENV} ]; then
-  echo "Please activate a virtual environment..."
-  exit 1
-fi
-
+# Loading mouldes
 source ../env_setup/modules_train.sh
+# Activate virtual environment if needed (and possible)
+if [ -z ${VIRTUAL_ENV} ]; then
+   if [[ -f ../${VIRT_ENV_NAME}/bin/activate ]]; then
+      echo "Activating virtual environment..."
+      source ../${VIRT_ENV_NAME}/bin/activate
+   else 
+      echo "ERROR: Requested virtual environment ${VIRT_ENV_NAME} not found..."
+      exit 1
+   fi
+fi
 
 # declare directory-variables which will be modified appropriately during Preprocessing (invoked by mpi_split_data_multi_years.py)
 source_dir=/p/scratch/deepacf/video_prediction_shared_folder/preprocessedData/
@@ -28,6 +36,7 @@ results_dir=/p/scratch/deepacf/video_prediction_shared_folder/results/
 
 model=mcnet
 
+# run postprocessing/generation of model results including evaluation metrics
 srun python -u ../scripts/generate_transfer_learning_finetune.py \
 --input_dir ${source_dir}/tfrecords --dataset_hparams sequence_length=20 --checkpoint  ${checkpoint_dir}/${model} \
 --mode test --results_dir ${results_dir} --batch_size 2 --dataset era5   > generate_era5-out.out

@@ -12,16 +12,25 @@
 #SBATCH --mail-user=b.gong@fz-juelich.de
 
 
+# Name of virtual environment 
+VIRT_ENV_NAME="virt_env_hdfml"
+
+# Loading mouldes
+source ../env_setup/modules_train.sh
+# Activate virtual environment if needed (and possible)
 if [ -z ${VIRTUAL_ENV} ]; then
-  echo "Please activate a virtual environment..."
-  exit 1
+   if [[ -f ../${VIRT_ENV_NAME}/bin/activate ]]; then
+      echo "Activating virtual environment..."
+      source ../${VIRT_ENV_NAME}/bin/activate
+   else 
+      echo "ERROR: Requested virtual environment ${VIRT_ENV_NAME} not found..."
+      exit 1
+   fi
 fi
 
-source ../env_setup/modules_train.sh
-
-# declare directory-variables which will be modified appropriately during Preprocessing (invoked by mpi_split_data_multi_years.py)
+# declare path-variables which will be modified appropriately during Preprocessing (invoked by mpi_split_data_multi_years.py)
 source_dir=/p/scratch/deepacf/video_prediction_shared_folder/preprocessedData/
 destination_dir=/p/scratch/deepacf/video_prediction_shared_folder/preprocessedData/
 
-# execute Python-script
+# run Preprocessing (step 2 where Tf-records are generated)
 srun python ../video_prediction/datasets/era5_dataset_v2.py ${source_dir}/hickle/splits ${destination_dir}/tfrecords -vars T2 MSL gph500 -height 128 -width 160 -seq_length 20 

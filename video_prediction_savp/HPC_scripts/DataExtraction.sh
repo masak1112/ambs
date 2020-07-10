@@ -15,16 +15,31 @@
 
 jutil env activate -p deepacf
 
+# Name of virtual environment 
+VIRT_ENV_NAME="virt_env_hdfml"
+
+# Loading mouldes
+source ../env_setup/modules_preprocess.sh
+# Activate virtual environment if needed (and possible)
 if [ -z ${VIRTUAL_ENV} ]; then
-  echo "Please activate a virtual environment..."
-  exit 1
+   if [[ -f ../${VIRT_ENV_NAME}/bin/activate ]]; then
+      echo "Activating virtual environment..."
+      source ../${VIRT_ENV_NAME}/bin/activate
+   else 
+      echo "ERROR: Requested virtual environment ${VIRT_ENV_NAME} not found..."
+      exit 1
+   fi
 fi
 
-source ../env_setup/modules_preprocess.sh
+# Declare path-variables
+source_dir="/p/fastdata/slmet/slmet111/met_data/ecmwf/era5/nc/"
+dest_dir="/p/scratch/deepacf/video_prediction_shared_folder/extractedData/"
 
-srun python ../../workflow_parallel_frame_prediction/DataExtraction/mpi_stager_v2.py --source_dir /p/fastdata/slmet/slmet111/met_data/ecmwf/era5/nc/2017/ --destination_dir /p/scratch/deepacf/${USER}/extractedData/2017
+year="2010"
 
+# Run data extraction
+srun python ../../workflow_parallel_frame_prediction/DataExtraction/mpi_stager_v2.py --source_dir ${source_dir}/${year} --destination_dir ${dest_dir}/${year}/
 
 # 2tier pystager 
-#srun python ../../workflow_parallel_frame_prediction/DataExtraction/main_single_master.py --source_dir /p/fastdata/slmet/slmet111/met_data/ecmwf/era5/nc/2017/ --destination_dir /p/scratch/deepacf/${USER}/extractedData/2017
+#srun python ../../workflow_parallel_frame_prediction/DataExtraction/main_single_master.py --source_dir ${source_dir}/${year}/ --destination_dir ${dest_dir}/${year}/
 
