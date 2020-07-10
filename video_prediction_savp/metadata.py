@@ -139,8 +139,8 @@ class MetaData:
                      "expdir" : self.expdir}
         
         meta_dict["sw_corner_frame"] = {
-            "lat" : self.sw_c[0],
-            "lon" : self.sw_c[1]
+            "lat" : np.around(self.sw_c[0],decimals=2)
+            "lon" : np.around(self.sw_c[1],decimals=2)
             }
         
         meta_dict["frame_size"] = {
@@ -169,8 +169,12 @@ class MetaData:
                 dict_dupl = json.load(js_file)
                 
                 if dict_dupl != meta_dict:
-                    print(method_name+": Already existing metadata (see '"+meta_fname+") do not fit data being processed right now. Ensure a common data base.")
-                    sys.exit(1)
+                    meta_fname_dbg = os.path.join(dest_dir,"metadata_debug.json")
+                    print(method_name+": Already existing metadata (see '"+meta_fname+"') do not fit data being processed right now (see '" \
+                          +meta_fname_dbg+"'. Ensure a common data base.")
+                    with open(meta_fname_dbg,'w') as js_file:
+                        json.dump(meta_dict,js_file)                         
+                    raise ValueError
                 else: #do not need to do anything
                     pass
         else:
