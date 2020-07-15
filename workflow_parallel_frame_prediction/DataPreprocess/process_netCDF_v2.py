@@ -460,7 +460,7 @@ def split_data_multiple_years(target_dir,partition,varnames):
             pickle.dump(Temporal_X, temp_file)
         
         # ML 2020/07/15: Make use of pickle-files only
-        with open(os.path.join(splits_dir,'sources_' + split + '.pkl',"wb") as src_file:
+        with open(os.path.join(splits_dir,'sources_' + split + '.pkl'),"wb") as src_file:
             pickle.dump(files, src_file)
         #hkl.dump(files, os.path.join(splits_dir,'sources_' + split + '.hkl'))
         
