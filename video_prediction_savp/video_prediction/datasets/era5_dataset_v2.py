@@ -271,12 +271,16 @@ def read_frames_and_save_tf_records(output_dir,input_dir,partition_name,vars_in,
     # open statistics file and feed it to norm-instance
     with open(os.path.join(input_dir,"statistics.json")) as js_file:
         norm_cls.check_and_set_norm(json.load(js_file),norm)        
+    #Bing:20200716, statistics.json not exists if we remove splits
     
     sequences = []
     sequence_iter = 0
     sequence_lengths_file = open(os.path.join(output_dir, 'sequence_lengths.txt'), 'w')
     # ML 2020/07/15: Make use of pickle-files only
-    with open(os.path.join(input_dir, "X_" + partition_name + ".hkl"), "rb") as data_file:
+    #with open(os.path.join(input_dir, "X_" + partition_name + ".pkl"), "rb") as data_file:
+    #    X_train = pickle.load(data_file)
+    #Bing 2020/07/16
+    with open(os.path.join(input_dir, "X_" + partition_name + ".pkl"), "rb") as data_file:
         X_train = pickle.load(data_file)
     #X_train = hkl.load(os.path.join(input_dir, "X_" + partition_name + ".hkl"))
     X_possible_starts = [i for i in range(len(X_train) - seq_length)]
@@ -284,7 +288,7 @@ def read_frames_and_save_tf_records(output_dir,input_dir,partition_name,vars_in,
         print("Interation", sequence_iter)
         X_end = X_start + seq_length
         #seq = X_train[X_start:X_end, :, :,:]
-        seq = X_train[X_start:X_end,:,:]
+        seq = X_train[X_start:X_end,:,:,:]
         #print("*****len of seq ***.{}".format(len(seq)))
         #seq = list(np.array(seq).reshape((len(seq), 64, 64, 3)))
         seq = list(np.array(seq).reshape((seq_length, height, width, nvars)))
@@ -323,11 +327,37 @@ def main():
     current_path = os.getcwd()
     #input_dir = "/Users/gongbing/PycharmProjects/video_prediction/splits"
     #output_dir = "/Users/gongbing/PycharmProjects/video_prediction/data/era5"
-    partition_names = ['train','val',  'test'] #64,64,3 val has issue#
-  
-    for partition_name in partition_names:
-        read_frames_and_save_tf_records(output_dir=args.output_dir,input_dir=args.input_dir,vars_in=args.variables,partition_name=partition_name, seq_length=args.seq_length,height=args.height,width=args.width,sequences_per_file=2) #Bing: Todo need check the N_seq
-        #ead_frames_and_save_tf_records(output_dir = output_dir, input_dir = input_dir,partition_name = partition_name, N_seq=20) #Bing: TODO: first try for N_seq is 10, but it met loading data issue. let's try 5
+    #partition_names = ['train','val',  'test'] #64,64,3 val has issue#
+      
+    partition = {
+            "train":{
+                "2222":[1,2,3,5,6,7,8,9,10,11,12],
+                "2010_1":[1,2,3,4,5,6,7,8,9,10,11,12],
+                "2012":[1,2,3,4,5,6,7,8,9,10,11,12],
+                "2013_complete":[1,2,3,4,5,6,7,8,9,10,11,12],
+                "2015":[1,2,3,4,5,6,7,8,9,10,11,12],
+                "2017":[1,2,3,4,5,6,7,8,9,10,11,12]
+                 },
+            "val":
+                {"2016":[1,2,3,4,5,6,7,8,9,10,11,12]
+                 },
+            "test":
+                {"2019":[1,2,3,4,5,6,7,8,9,10,11,12]
+                 }
+            }
+    #TODO: search all the statistic json file correspdoing to the parition and generate a general statistic.json for normalization
+     
+
+    for partition_name in partition.keys():
+        partition_data = partition[partition_name]
+        save_output_dir = os.path.join(args.output_dir,partition_name)
+        for year,month in partition_data.items():
+            input_dir = os.path.join(args.input_dir,year)
+            input_file = "X" + str(month) + ".pkl"
+            input_dir = os.path.join(input_dir,input_file)
+            
+            read_frames_and_save_tf_records(output_dir=save_output_dir,input_dir=input_dir,vars_in=args.variables,partition_name=partition_name, seq_length=args.seq_length,height=args.height,width=args.width,sequences_per_file=2) #Bing: Todo need check the N_seq
+        #ead_frames_and_save_tf_records(output_dir = output_dir, input_dir = input_dir,partition_name = partition_name, N_seq=20) #Bing: TODO: first try for N_seq is 10, but it met loading data issue. let's try
 
 if __name__ == '__main__':
     main()
