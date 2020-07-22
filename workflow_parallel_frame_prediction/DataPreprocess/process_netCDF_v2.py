@@ -453,7 +453,7 @@ def split_data_multiple_years(target_dir,partition,varnames):
         print ("dataset shape is {}".format(np.array(X).shape))
         # ML 2020/07/15: Make use of pickle-files only
         with open(os.path.join(splits_dir , 'X_' + split + '.pkl'),"wb") as data_file:
-            pickle.dump(X,data_file)
+            pickle.dump(X,data_file,protocol=4)
         #hkl.dump(X, os.path.join(splits_dir , 'X_' + split + '.hkl'))
         
         with open(os.path.join(splits_dir,"T_"+split + ".pkl"),"wb") as temp_file:

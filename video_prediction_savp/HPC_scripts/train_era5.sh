@@ -10,7 +10,7 @@
 #SBATCH --gres=gpu:1
 #SBATCH --partition=develgpus
 #SBATCH --mail-type=ALL
-#SBATCH --mail-user=m.langguth@fz-juelich.de
+#SBATCH --mail-user=b.gong@fz-juelich.de
 ##jutil env activate -p cjjsc42
 
 # Name of virtual environment 
@@ -30,8 +30,8 @@ if [ -z ${VIRTUAL_ENV} ]; then
 fi
 
 # declare directory-variables which will be modified appropriately during Preprocessing (invoked by mpi_split_data_multi_years.py)
-source_dir=/p/scratch/deepacf/video_prediction_shared_folder/preprocessedData/
-destination_dir=/p/scratch/deepacf/video_prediction_shared_folder/models/
+source_dir=/p/scratch/deepacf/video_prediction_shared_folder/preprocessedData/era5-Y2009Y2012to2013Y2016Y2019M01to12-160x128-2970N1500W-T2_MSL_gph500/era5-Y2010Y2022M01to12-160x128-2970N1500W-T2_MSL_gph500/era5-Y2010Y2022M01to12-160x128-2970N1500W-T2_MSL_gph500/
+destination_dir=/p/scratch/deepacf/video_prediction_shared_folder/models/era5-Y2009Y2012to2013Y2016Y2019M01to12-160x128-2970N1500W-T2_MSL_gph500/era5-Y2010Y2022M01to12-160x128-2970N1500W-T2_MSL_gph500/era5-Y2010Y2022M01to12-160x128-2970N1500W-T2_MSL_gph500/
 
 # for choosing the model
 model=mcnet

@@ -28,9 +28,9 @@ if [ -z ${VIRTUAL_ENV} ]; then
    fi
 fi
 
-# declare path-variables which will be modified appropriately during Preprocessing (invoked by mpi_split_data_multi_years.py)
-source_dir=/p/scratch/deepacf/video_prediction_shared_folder/preprocessedData/
-destination_dir=/p/scratch/deepacf/video_prediction_shared_folder/preprocessedData/
+# declare directory-variables which will be modified appropriately during Preprocessing (invoked by mpi_split_data_multi_years.py)
+source_dir=/p/scratch/deepacf/video_prediction_shared_folder/preprocessedData/era5-Y2010Y2022M01to12-160x128-2970N1500W-T2_MSL_gph500/
+destination_dir=/p/scratch/deepacf/video_prediction_shared_folder/preprocessedData/era5-Y2010Y2022M01to12-160x128-2970N1500W-T2_MSL_gph500/
 
 # run Preprocessing (step 2 where Tf-records are generated)
 srun python ../video_prediction/datasets/era5_dataset_v2.py ${source_dir}/hickle/splits ${destination_dir}/tfrecords -vars T2 MSL gph500 -height 128 -width 160 -seq_length 20 

@@ -23,22 +23,51 @@ varnames = args.varnames
 #for key in all_keys:
 #    print(partition[key]) 
 
-partition = {
+cv ={}
+partition1 = {
             "train":{
-                "2017":[1]
+                "2222":[1,2,3,5,6,7,8,9,10,11,12],
+                "2010_1":[1,2,3,4,5,6,7,8,9,10,11,12],
+                "2012":[1,2,3,4,5,6,7,8,9,10,11,12],
+                "2013_complete":[1,2,3,4,5,6,7,8,9,10,11,12],
+                "2015":[1,2,3,4,5,6,7,8,9,10,11,12],
+                "2017":[1,2,3,4,5,6,7,8,9,10,11,12]
                  },
             "val":
-                {"2017":[2]
+                {"2016":[1,2,3,4,5,6,7,8,9,10,11,12]
                  },
             "test":
-                {"2017":[2]
+                {"2019":[1,2,3,4,5,6,7,8,9,10,11,12]
                  }
             }
+
+partition2 = {
+            "train":{
+                "2222":[1,2,3,5,6,7,8,9,10,11,12],
+                "2012":[1,2,3,4,5,6,7,8,9,10,11,12],
+                "2015":[1,2,3,4,5,6,7,8,9,10,11,12],
+                "2016":[1,2,3,4,5,6,7,8,9,10,11,12],
+                "2017":[1,2,3,4,5,6,7,8,9,10,11,12],
+                "2019":[1,2,3,4,5,6,7,8,9,10,11,12]
+                 },
+            "val":
+                {"2013_complete":[1,2,3,4,5,6,7,8,9,10,11,12]
+                 },
+            "test":
+                {"2010_1":[1,2,3,4,5,6,7,8,9,10,11,12]
+                 }
+            }
+
+
+
+
+#cv["1"] = partition1
+#cv2["2"] = partition2
 # ini. MPI
 comm = MPI.COMM_WORLD
 my_rank = comm.Get_rank()  # rank of the node
 p = comm.Get_size()  # number of assigned nods
 if my_rank == 0:  # node is master
-    split_data_multiple_years(target_dir=target_dir,partition=partition,varnames=varnames)
+    split_data_multiple_years(target_dir=target_dir,partition=partition1,varnames=varnames)
 else:
     pass
