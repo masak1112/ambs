@@ -69,9 +69,9 @@ def process_data(directory_to_process, target_dir, job_name, slices, vars=("T2",
             
     X = np.array(EU_stack_list)
     # ML 2020/07/15: Make use of pickle-files only
-    target_file = os.path.join(target_dir, 'X_' + str(job_name) + '.pkl')
+    target_file = os.path.join(target_dir, 'X_' + str(job_name) + '.hkl')
     with open(target_file, "wb") as data_file:
-        pickle.dump(X,data_file)
+        hkl.dump(X,data_file)
     #target_file = os.path.join(target_dir, 'X_' + str(job_name) + '.pkl')    
     #hkl.dump(X, target_file) #Not optimal!
     print(target_file, "is saved")
@@ -94,7 +94,7 @@ def process_netCDF_in_dir(src_dir,**kwargs):
     if not os.path.exists(target_dir): os.mkdir(target_dir)
     #target_file = os.path.join(target_dir, 'X_' + str(job_name) + '.hkl')
     # ML 2020/07/15: Make use of pickle-files only
-    target_file = os.path.join(target_dir, 'X_' + str(job_name) + '.pkl')
+    target_file = os.path.join(target_dir, 'X_' + str(job_name) + '.hkl')
     if os.path.exists(target_file):
         print(target_file," file exists in the directory ", target_dir)
     else:
@@ -402,7 +402,7 @@ class Calc_data_stat:
 
 def split_data_multiple_years(target_dir,partition,varnames):
     """
-    Collect all the X_*.pkl data across years and split them to training, val and testing datatset
+    Collect all the X_*.hkl data across years and split them to training, val and testing datatset
     """
     #target_dirs = [os.path.join(target_dir,year) for year in years]
     #os.chdir(target_dir)
@@ -423,8 +423,8 @@ def split_data_multiple_years(target_dir,partition,varnames):
             for month in values[year]:
                 month = "{0:0=2d}".format(month)
                 # ML 2020/07/15: Make use of pickle-files only                
-                #hickle_file = "X_{}.hkl".format(month)
-                pickle_file = "X_{}.pkl".format(month)
+                #pickle_file = "X_{}.pkl".format(month)
+                hickle_file = "X_{}.hkl".format(month)
                 #20200408:bing
                 temporal_file = "T_{}.pkl".format(month)
                 #data_file = os.path.join(file_dir,hickle_file)
@@ -434,7 +434,7 @@ def split_data_multiple_years(target_dir,partition,varnames):
                 # ML 2020/07/15: Make use of pickle-files only  
                 #data = hkl.load(data_file)
                 with open(data_file,"rb") as fdata:
-                    data = pickle.load(fdata)
+                    data = hkl.load(fdata)
                 with open(temporal_data_file,"rb") as ftemp:
                     temporal_data = pickle.load(ftemp)
                 X = X + list(data)
@@ -448,16 +448,16 @@ def split_data_multiple_years(target_dir,partition,varnames):
         print("Number of images in {} dataset is {} ".format(split,len(X)))
         print ("dataset shape is {}".format(np.array(X).shape))
         # ML 2020/07/15: Make use of pickle-files only
-        with open(os.path.join(splits_dir , 'X_' + split + '.pkl'),"wb") as data_file:
-            pickle.dump(X,data_file)
+        with open(os.path.join(splits_dir , 'X_' + split + '.hkl'),"wb") as data_file:
+            hkl.dump(X,data_file)
         #hkl.dump(X, os.path.join(splits_dir , 'X_' + split + '.hkl'))
         
         with open(os.path.join(splits_dir,"T_"+split + ".pkl"),"wb") as temp_file:
             pickle.dump(Temporal_X, temp_file)
         
         # ML 2020/07/15: Make use of pickle-files only
-        with open(os.path.join(splits_dir,'sources_' + split + '.pkl'),"wb") as src_file:
-            pickle.dump(files, src_file)
+        with open(os.path.join(splits_dir,'sources_' + split + '.hkl'),"wb") as src_file:
+            hkl.dump(files, src_file)
         #hkl.dump(files, os.path.join(splits_dir,'sources_' + split + '.hkl'))
         
     # write final statistics json-file
