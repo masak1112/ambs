@@ -163,7 +163,8 @@ class MetaData:
             
         meta_fname = os.path.join(dest_dir,"metadata.json")
 
-        if os.path.exists(meta_fname):                      # check if a metadata-file already exists and check its content 
+        if os.path.exists(meta_fname):                      # check if a metadata-file already exists and check its content
+            print(method_name+": json-file ('"+meta_fname+"' already exists. Its content will be checked...")
             self.status = "old"                             # set status to old in order to prevent repeated modification of shell-/Batch-scripts
             with open(meta_fname,'r') as js_file:
                 dict_dupl = json.load(js_file)
