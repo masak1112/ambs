@@ -18,6 +18,14 @@ import pickle
 # Create image datasets.
 # Processes images and saves them in train, val, test splits.
 def process_data(directory_to_process, target_dir, job_name, slices, vars=("T2","MSL","gph500")):
+    '''
+    :param directory_to_process: directory where netCDF-files are stored to be processed
+    :param target_dir: directory where hickle-/pickle-files will e stored
+    :param job_name: job_id passed and organized by PyStager
+    :param slices: indices defining geographical region of interest
+    :param vars: variables to be processed
+    :return: Saves hickle-/pickle-files which contain the sliced meteorological data and temporal information as well
+    '''
     desired_im_sz = (slices["lat_e"] - slices["lat_s"], slices["lon_e"] - slices["lon_s"])
     # ToDo: Define a convenient function to create a list containing all files.
     imageList = list(os.walk(directory_to_process, topdown = False))[-1][-1]
@@ -25,31 +33,19 @@ def process_data(directory_to_process, target_dir, job_name, slices, vars=("T2",
     EU_stack_list = [0] * (len(imageList))
     temporal_list = [0] * (len(imageList))
     nvars = len(vars)
-    #X = np.zeros((len(splits[split]),) + desired_im_sz + (3,), np.uint8)
-    #print(X)
-    #print('shape of X' + str(X.shape))
 
-    ##### TODO: iterate over split and read every .nc file, cut out array,
-    #####		overlay arrays for RGB like style.
-    #####		Save everything after for loop.
     # ML 2020/04/06 S
     # Some inits
     stat_obj = Calc_data_stat(nvars)
     # ML 2020/04/06 E
     for j, im_file in enumerate(imageList):
-    #20200408,Bing   
         try:
             im_path = os.path.join(directory_to_process, im_file)
             print('Open following dataset: '+im_path)
-             
-            
-            #20200408,Bing
-            
-            im = Dataset(im_path, mode = 'r')
-            times = im.variables['time']
-            time = num2date(times[:],units=times.units,calendar=times.calendar)
             vars_list = []
             with Dataset(im_path,'r') as data_file:
+                times = data_file.variables['time']
+                time = num2date(times[:],units=times.units,calendar=times.calendar)
                 for i in range(nvars):
                     var1 = data_file.variables[vars[i]][0,slices["lat_s"]:slices["lat_e"], slices["lon_s"]:slices["lon_e"]]
                     stat_obj.acc_stat_loc(i,var1)
