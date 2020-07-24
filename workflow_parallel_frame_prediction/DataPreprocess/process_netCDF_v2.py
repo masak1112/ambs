@@ -70,8 +70,7 @@ def process_data(directory_to_process, target_dir, job_name, slices, vars=("T2",
     X = np.array(EU_stack_list)
     # ML 2020/07/15: Make use of pickle-files only
     target_file = os.path.join(target_dir, 'X_' + str(job_name) + '.hkl')
-    with open(target_file, "wb") as data_file:
-        hkl.dump(X,data_file)
+    hkl.dump(X,target_file)
     #target_file = os.path.join(target_dir, 'X_' + str(job_name) + '.pkl')    
     #hkl.dump(X, target_file) #Not optimal!
     print(target_file, "is saved")
@@ -431,10 +430,7 @@ def split_data_multiple_years(target_dir,partition,varnames):
                 data_file = os.path.join(file_dir,pickle_file)
                 temporal_data_file = os.path.join(file_dir,temporal_file)
                 files.append(data_file)
-                # ML 2020/07/15: Make use of pickle-files only  
-                #data = hkl.load(data_file)
-                with open(data_file,"rb") as fdata:
-                    data = hkl.load(fdata)
+                data = hkl.load(data_file)
                 with open(temporal_data_file,"rb") as ftemp:
                     temporal_data = pickle.load(ftemp)
                 X = X + list(data)
@@ -447,18 +443,12 @@ def split_data_multiple_years(target_dir,partition,varnames):
         print ("Sources for {} dataset are {}".format(split,files))
         print("Number of images in {} dataset is {} ".format(split,len(X)))
         print ("dataset shape is {}".format(np.array(X).shape))
-        # ML 2020/07/15: Make use of pickle-files only
-        with open(os.path.join(splits_dir , 'X_' + split + '.hkl'),"wb") as data_file:
-            hkl.dump(X,data_file)
-        #hkl.dump(X, os.path.join(splits_dir , 'X_' + split + '.hkl'))
+        hkl.dump(X, os.path.join(splits_dir , 'X_' + split + '.hkl'))
         
         with open(os.path.join(splits_dir,"T_"+split + ".pkl"),"wb") as temp_file:
             pickle.dump(Temporal_X, temp_file)
         
-        # ML 2020/07/15: Make use of pickle-files only
-        with open(os.path.join(splits_dir,'sources_' + split + '.hkl'),"wb") as src_file:
-            hkl.dump(files, src_file)
-        #hkl.dump(files, os.path.join(splits_dir,'sources_' + split + '.hkl'))
+        hkl.dump(files, os.path.join(splits_dir,'sources_' + split + '.hkl'))
         
     # write final statistics json-file
     stat_obj.finalize_stat_master(target_dir,vars_uni)

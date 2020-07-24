@@ -275,10 +275,7 @@ def read_frames_and_save_tf_records(output_dir,input_dir,partition_name,vars_in,
     sequences = []
     sequence_iter = 0
     sequence_lengths_file = open(os.path.join(output_dir, 'sequence_lengths.txt'), 'w')
-    # ML 2020/07/15: Make use of pickle-files only
-    with open(os.path.join(input_dir, "X_" + partition_name + ".hkl"), "rb") as data_file:
-        X_train = pickle.load(data_file)
-    #X_train = hkl.load(os.path.join(input_dir, "X_" + partition_name + ".hkl"))
+    X_train = hkl.load(os.path.join(input_dir, "X_" + partition_name + ".hkl"))
     X_possible_starts = [i for i in range(len(X_train) - seq_length)]
     for X_start in X_possible_starts:
         print("Interation", sequence_iter)
