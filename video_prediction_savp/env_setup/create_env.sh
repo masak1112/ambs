@@ -73,7 +73,7 @@ if [[ "$ENV_EXIST" == 0 ]]; then
   if [[ "${HOST_NAME}" == hdfml* || "${HOST_NAME}" == juwels* ]]; then
     # check module availability for the first time on known HPC-systems
     echo "***** Start installing additional Python modules with pip... *****"
-    pip3 install --no-cache-dir -r ${ENV_SETUP_DIR}/requirements.txt
+    pip3 install --no-cache-dir --ignore-installed -r ${ENV_SETUP_DIR}/requirements.txt
     #pip3 install --user netCDF4
     #pip3 install --user numpy
   elif [[ "${HOST_NAME}" == "zam347" ]]; then
