@@ -20,7 +20,7 @@ from DataPreprocess.process_netCDF_v2 import Calc_data_stat
 #from base_dataset import VarLenFeatureVideoDataset
 from collections import OrderedDict
 from tensorflow.contrib.training import HParams
-
+from mpi4py import MPI
 class ERA5Dataset_v2(VarLenFeatureVideoDataset):
     def __init__(self, *args, **kwargs):
         super(ERA5Dataset_v2, self).__init__(*args, **kwargs)
@@ -145,7 +145,7 @@ def _int64_feature(value):
     return tf.train.Feature(int64_list=tf.train.Int64List(value=[value]))
 
 def save_tf_record(output_fname, sequences):
-    print('saving sequences to %s' % output_fname)
+    #print('saving sequences to %s' % output_fname)
     with tf.python_io.TFRecordWriter(output_fname) as writer:
         for sequence in sequences:
             num_frames = len(sequence)
@@ -251,27 +251,32 @@ class Norm_data:
             return(data[...] * getattr(self,varname+"sigma")**2 + getattr(self,varname+"avg"))
         
 
-def read_frames_and_save_tf_records(output_dir,input_dir,partition_name,vars_in,seq_length=20,sequences_per_file=128,height=64,width=64,channels=3,**kwargs):#Bing: original 128
+def read_frames_and_save_tf_records(stats,output_dir,input_file,vars_in,year,month,seq_length=20,sequences_per_file=128,height=64,width=64,channels=3,**kwargs):#Bing: original 128
+    """
+    Read hickle/pickle files based on month, to process and save to tfrecords
+    stats:dict, contains the stats information from hickle directory,
+    input_file: string, absolute path to hickle/pickle file
+    file_info: 1D list with three elements, partition_name(train,val or test), year, and month e.g.[train,1,2]  
+    """
     # ML 2020/04/08:
     # Include vars_in for more flexible data handling (normalization and reshaping)
     # and optional keyword argument for kind of normalization
-    
+    print ("read_frames_and_save_tf_records function") 
     if 'norm' in kwargs:
         norm = kwargs.get("norm")
     else:
         norm = "minmax"
         print("Make use of default minmax-normalization...")
-
-    output_dir = os.path.join(output_dir,partition_name)
+    
+   
     os.makedirs(output_dir,exist_ok=True)
     
     norm_cls  = Norm_data(vars_in)       # init normalization-instance
     nvars     = len(vars_in)
     
     # open statistics file and feed it to norm-instance
-    with open(os.path.join(input_dir,"statistics.json")) as js_file:
-        norm_cls.check_and_set_norm(json.load(js_file),norm)        
-    #Bing:20200716, statistics.json not exists if we remove splits
+    #with open(os.path.join(input_dir,"statistics.json")) as js_file:
+    norm_cls.check_and_set_norm(stats,norm)        
     
     sequences = []
     sequence_iter = 0
@@ -280,21 +285,23 @@ def read_frames_and_save_tf_records(output_dir,input_dir,partition_name,vars_in,
     #with open(os.path.join(input_dir, "X_" + partition_name + ".pkl"), "rb") as data_file:
     #    X_train = pickle.load(data_file)
     #Bing 2020/07/16
-    with open(os.path.join(input_dir, "X_" + partition_name + ".pkl"), "rb") as data_file:
+    #print ("open intput dir,",input_file)
+    with open(input_file, "rb") as data_file:
         X_train = pickle.load(data_file)
+    
     #X_train = hkl.load(os.path.join(input_dir, "X_" + partition_name + ".hkl"))
     X_possible_starts = [i for i in range(len(X_train) - seq_length)]
     for X_start in X_possible_starts:
-        print("Interation", sequence_iter)
+        
         X_end = X_start + seq_length
         #seq = X_train[X_start:X_end, :, :,:]
         seq = X_train[X_start:X_end,:,:,:]
         #print("*****len of seq ***.{}".format(len(seq)))
-        #seq = list(np.array(seq).reshape((len(seq), 64, 64, 3)))
+       
         seq = list(np.array(seq).reshape((seq_length, height, width, nvars)))
         if not sequences:
             last_start_sequence_iter = sequence_iter
-            print("reading sequences starting at sequence %d" % sequence_iter)
+            #print("reading sequences starting at sequence %d" % sequence_iter)
         sequences.append(seq)
         sequence_iter += 1
         sequence_lengths_file.write("%d\n" % len(seq))
@@ -306,12 +313,16 @@ def read_frames_and_save_tf_records(output_dir,input_dir,partition_name,vars_in,
             for i in range(nvars):    
                 sequences[:,:,:,:,i] = norm_cls.norm_var(sequences[:,:,:,:,i],vars_in[i],norm)
 
-            output_fname = 'sequence_{0}_to_{1}.tfrecords'.format(last_start_sequence_iter, sequence_iter - 1)
+            output_fname = 'sequence_Y_{}_M_{}_{}_to_{}.tfrecords'.format(year,month,last_start_sequence_iter,sequence_iter - 1)
             output_fname = os.path.join(output_dir, output_fname)
             save_tf_record(output_fname, list(sequences))
             sequences = []
+    print("Finished for input file",input_file)
     sequence_lengths_file.close()
+    return 
 
+def write_sequence_file(partition_name):
+    pass
 
 def main():
     parser = argparse.ArgumentParser()
@@ -331,34 +342,80 @@ def main():
       
     partition = {
             "train":{
-                "2222":[1,2,3,5,6,7,8,9,10,11,12],
-                "2010_1":[1,2,3,4,5,6,7,8,9,10,11,12],
-                "2012":[1,2,3,4,5,6,7,8,9,10,11,12],
-                "2013_complete":[1,2,3,4,5,6,7,8,9,10,11,12],
+               # "2222":[1,2,3,5,6,7,8,9,10,11,12],
+               # "2010_1":[1,2,3,4,5,6,7,8,9,10,11,12],
+               # "2012":[1,2,3,4,5,6,7,8,9,10,11,12],
+               # "2013_complete":[1,2,3,4,5,6,7,8,9,10,11,12],
                 "2015":[1,2,3,4,5,6,7,8,9,10,11,12],
-                "2017":[1,2,3,4,5,6,7,8,9,10,11,12]
+               # "2017":[1,2,3,4,5,6,7,8,9,10,11,12]
                  },
             "val":
                 {"2016":[1,2,3,4,5,6,7,8,9,10,11,12]
                  },
             "test":
-                {"2019":[1,2,3,4,5,6,7,8,9,10,11,12]
+                {"2017":[1,2,3,4,5,6,7,8,9,10,11,12]
                  }
             }
+    
+        # open statistics file and feed it to norm-instance
+    with open(os.path.join(args.input_dir,"statistics.json")) as js_file:
+        stats = json.load(js_file)
+    
     #TODO: search all the statistic json file correspdoing to the parition and generate a general statistic.json for normalization
-     
+         
 
-    for partition_name in partition.keys():
-        partition_data = partition[partition_name]
-        save_output_dir = os.path.join(args.output_dir,partition_name)
-        for year,month in partition_data.items():
-            input_dir = os.path.join(args.input_dir,year)
-            input_file = "X" + str(month) + ".pkl"
-            input_dir = os.path.join(input_dir,input_file)
-            
-            read_frames_and_save_tf_records(output_dir=save_output_dir,input_dir=input_dir,vars_in=args.variables,partition_name=partition_name, seq_length=args.seq_length,height=args.height,width=args.width,sequences_per_file=2) #Bing: Todo need check the N_seq
-        #ead_frames_and_save_tf_records(output_dir = output_dir, input_dir = input_dir,partition_name = partition_name, N_seq=20) #Bing: TODO: first try for N_seq is 10, but it met loading data issue. let's try
-
+    # ini. MPI
+    comm = MPI.COMM_WORLD
+    my_rank = comm.Get_rank()  # rank of the node
+    p = comm.Get_size()  # number of assigned nods
+    
+    if my_rank == 0 :
+        partition_year_month = [] #contain lists of list, each list includes three element [train,year,month]
+        partition_names = list(partition.keys())
+        print ("partition_names:",partition_names)
+        broadcast_lists = []
+        for partition_name in partition_names:
+            partition_data = partition[partition_name]        
+            years = list(partition_data.keys())
+            broadcast_lists.append([partition_name,years])
+        for nodes in range(1,p):
+            #ibroadcast_list = [partition_name,years,nodes]
+            #broadcast_lists.append(broadcast_list)
+            comm.send(broadcast_lists,dest=nodes) 
+           
+        message_counter = 1
+        while message_counter <= 12:
+            message_in = comm.recv()
+            message_counter = message_counter + 1 
+            print("Message in from slaver",message_in)    
+        
+        #write_sequence_file   
+    else:
+        message_in = comm.recv()
+       # partition_name = message_in[0]
+       # years = message_in[1] 
+       # month = message_in[2]
+       # save_output_dir =  os.path.join(args.output_dir,partition_name)
+      #  input_file = "X_" + '{0:02}'.format(month) + ".pkl"
+        #job_list = mesage_in.split(';')
+        print ("My rank,", my_rank)   
+        print("message_in",message_in)
+        #loop the partitions (train,val,test)
+        for partition in message_in:
+            print("partition on slave ",partition)
+            partition_name = partition[0]
+            save_output_dir =  os.path.join(args.output_dir,partition_name)
+            for year in partition[1]:
+               input_file = "X_" + '{0:02}'.format(my_rank) + ".pkl"
+               input_dir = os.path.join(args.input_dir,year)
+               input_file = os.path.join(input_dir,input_file)
+               read_frames_and_save_tf_records(year=year,month=my_rank,stats=stats,output_dir=save_output_dir,input_file=input_file,vars_in=args.variables,partition_name=partition_name, seq_length=args.seq_length,height=args.height,width=args.width,sequences_per_file=2)        
+            print("Year {} finished",year)
+        message_out = ("Node:",str(my_rank),"finished","","\r\n")
+        print ("Message out for slaves:",message_out)
+        comm.send(message_out,dest=0)
+        
+   
 if __name__ == '__main__':
-    main()
+     main()
 

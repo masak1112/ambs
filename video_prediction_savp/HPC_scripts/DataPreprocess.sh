@@ -7,8 +7,8 @@
 #SBATCH --cpus-per-task=1
 #SBATCH --output=DataPreprocess-out.%j
 #SBATCH --error=DataPreprocess-err.%j
-#SBATCH --time=02:20:00
-#SBATCH --partition=batch
+#SBATCH --time=00:20:00
+#SBATCH --partition=devel
 #SBATCH --mail-type=ALL
 #SBATCH --mail-user=b.gong@fz-juelich.de
 
@@ -20,7 +20,7 @@ fi
 source ../env_setup/modules_preprocess.sh
 
 source_dir=/p/scratch/deepacf/video_prediction_shared_folder/extractedData
-destination_dir=/p/scratch/deepacf/video_prediction_shared_folder/preprocessedData/era5-Y2009Y2012to2013Y2016Y2019M01to12
+destination_dir=/p/scratch/deepacf/video_prediction_shared_folder/preprocessedData/era5-Y2015to2017M01to12
 script_dir=`pwd`
 
 declare -a years=("2222"
@@ -33,9 +33,16 @@ declare -a years=("2222"
                  "2019"
                   )
 
+
+declare -a years=(
+                 "2015"
+                 "2016"
+                 "2017"
+                  )
+
+
 # ececute Python-scripts
-for year in "${years[@]}"; 
-    do 
+for year in "${years[@]}";     do 
         echo "Year $year"
 	echo "source_dir ${source_dir}/${year}"
 	srun python ../../workflow_parallel_frame_prediction/DataPreprocess/mpi_stager_v2_process_netCDF.py \
@@ -44,4 +51,4 @@ for year in "${years[@]}";
     done
 
 
-srun python ../../workflow_parallel_frame_prediction/DataPreprocess/mpi_split_data_multi_years.py --destination_dir ${destination_dir} --varnames T2 MSL gph500    
+#srun python ../../workflow_parallel_frame_prediction/DataPreprocess/mpi_split_data_multi_years.py --destination_dir ${destination_dir} --varnames T2 MSL gph500    

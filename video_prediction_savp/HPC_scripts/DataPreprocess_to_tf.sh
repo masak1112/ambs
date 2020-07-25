@@ -1,8 +1,8 @@
 #!/bin/bash -x
 #SBATCH --account=deepacf
 #SBATCH --nodes=1
-#SBATCH --ntasks=12
-##SBATCH --ntasks-per-node=12
+#SBATCH --ntasks=13
+##SBATCH --ntasks-per-node=13
 #SBATCH --cpus-per-task=1
 #SBATCH --output=DataPreprocess_to_tf-out.%j
 #SBATCH --error=DataPreprocess_to_tf-err.%j
@@ -13,7 +13,7 @@
 
 
 # Name of virtual environment 
-VIRT_ENV_NAME="virt_env_hdfml"
+VIRT_ENV_NAME="vp"
 
 # Loading mouldes
 source ../env_setup/modules_train.sh
@@ -29,8 +29,8 @@ if [ -z ${VIRTUAL_ENV} ]; then
 fi
 
 # declare directory-variables which will be modified appropriately during Preprocessing (invoked by mpi_split_data_multi_years.py)
-source_dir=/p/scratch/deepacf/video_prediction_shared_folder/preprocessedData/era5-Y2010Y2022M01to12-160x128-2970N1500W-T2_MSL_gph500/
-destination_dir=/p/scratch/deepacf/video_prediction_shared_folder/preprocessedData/era5-Y2010Y2022M01to12-160x128-2970N1500W-T2_MSL_gph500/
+source_dir=/p/project/deepacf/deeprain/video_prediction_shared_folder/preprocessedData/era5-Y2015to2017M01to12-160x128-2970N1500W-T2_MSL_gph500
+destination_dir=/p/project/deepacf/deeprain/video_prediction_shared_folder/preprocessedData/era5-Y2015to2017M01to12-160x128-2970N1500W-T2_MSL_gph500
 
 # run Preprocessing (step 2 where Tf-records are generated)
-srun python ../video_prediction/datasets/era5_dataset_v2.py ${source_dir}/hickle/splits ${destination_dir}/tfrecords -vars T2 MSL gph500 -height 128 -width 160 -seq_length 20 
+srun python ../video_prediction/datasets/era5_dataset_v2.py ${source_dir}/hickle ${destination_dir}/tfrecords -vars T2 MSL gph500 -height 128 -width 160 -seq_length 20 
