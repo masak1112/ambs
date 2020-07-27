@@ -14,7 +14,7 @@
 ##jutil env activate -p cjjsc42
 
 # Name of virtual environment 
-VIRT_ENV_NAME="virt_env_hdfml"
+VIRT_ENV_NAME="vp"
 
 # Loading mouldes
 source ../env_setup/modules_train.sh
@@ -30,11 +30,11 @@ if [ -z ${VIRTUAL_ENV} ]; then
 fi
 
 # declare directory-variables which will be modified appropriately during Preprocessing (invoked by mpi_split_data_multi_years.py)
-source_dir=/p/scratch/deepacf/video_prediction_shared_folder/preprocessedData/era5-Y2009Y2012to2013Y2016Y2019M01to12-160x128-2970N1500W-T2_MSL_gph500/era5-Y2010Y2022M01to12-160x128-2970N1500W-T2_MSL_gph500/era5-Y2010Y2022M01to12-160x128-2970N1500W-T2_MSL_gph500/era5-Y2015to2017M01to12-160x128-2970N1500W-T2_MSL_gph500/
-destination_dir=/p/scratch/deepacf/video_prediction_shared_folder/models/era5-Y2009Y2012to2013Y2016Y2019M01to12-160x128-2970N1500W-T2_MSL_gph500/era5-Y2010Y2022M01to12-160x128-2970N1500W-T2_MSL_gph500/era5-Y2010Y2022M01to12-160x128-2970N1500W-T2_MSL_gph500/era5-Y2015to2017M01to12-160x128-2970N1500W-T2_MSL_gph500/
+source_dir=/p/project/deepacf/deeprain/video_prediction_shared_folder/preprocessedData/era5-Y2015to2017M01to12-160x128-2970N1500W-T2_MSL_gph500
+destination_dir=/p/project/deepacf/deeprain/video_prediction_shared_folder/results/era5-Y2015to2017M01to12-160x128-2970N1500W-T2_MSL_gph500
 
 # for choosing the model
-model=mcnet
+model=convLSTM
 model_hparams=../hparams/era5/model_hparams.json
 
 # rund training

@@ -21,6 +21,10 @@ from DataPreprocess.process_netCDF_v2 import Calc_data_stat
 from collections import OrderedDict
 from tensorflow.contrib.training import HParams
 from mpi4py import MPI
+import glob
+
+
+
 class ERA5Dataset_v2(VarLenFeatureVideoDataset):
     def __init__(self, *args, **kwargs):
         super(ERA5Dataset_v2, self).__init__(*args, **kwargs)
@@ -280,7 +284,7 @@ def read_frames_and_save_tf_records(stats,output_dir,input_file,vars_in,year,mon
     
     sequences = []
     sequence_iter = 0
-    sequence_lengths_file = open(os.path.join(output_dir, 'sequence_lengths.txt'), 'w')
+    #sequence_lengths_file = open(os.path.join(output_dir, 'sequence_lengths.txt'), 'w')
     # ML 2020/07/15: Make use of pickle-files only
     #with open(os.path.join(input_dir, "X_" + partition_name + ".pkl"), "rb") as data_file:
     #    X_train = pickle.load(data_file)
@@ -304,7 +308,7 @@ def read_frames_and_save_tf_records(stats,output_dir,input_file,vars_in,year,mon
             #print("reading sequences starting at sequence %d" % sequence_iter)
         sequences.append(seq)
         sequence_iter += 1
-        sequence_lengths_file.write("%d\n" % len(seq))
+        #sequence_lengths_file.write("%d\n" % len(seq))
 
         if len(sequences) == sequences_per_file:
             ###Normalization should adpot the selected variables, here we used duplicated channel temperature variables
@@ -318,11 +322,22 @@ def read_frames_and_save_tf_records(stats,output_dir,input_file,vars_in,year,mon
             save_tf_record(output_fname, list(sequences))
             sequences = []
     print("Finished for input file",input_file)
-    sequence_lengths_file.close()
+    #sequence_lengths_file.close()
     return 
 
-def write_sequence_file(partition_name):
-    pass
+def write_sequence_file(output_dir,seq_length):
+    
+    partition_names = ["train","val","test"]
+    for partition_name in partition_names:
+        save_output_dir = os.path.join(output_dir,partition_name)
+        tfCounter = len(glob.glob1(save_output_dir,"*.tfrecords"))
+        print("Partition_name: {}, number of tfrecords: {}".format(partition_name,tfCounter))
+        sequence_lengths_file = open(os.path.join(save_output_dir, 'sequence_lengths.txt'), 'w')
+        for i in range(tfCounter):
+            sequence_lengths_file.write("%d\n" % seq_length)
+        sequence_lengths_file.close()
+    
+    
 
 def main():
     parser = argparse.ArgumentParser()
@@ -387,17 +402,13 @@ def main():
         while message_counter <= 12:
             message_in = comm.recv()
             message_counter = message_counter + 1 
-            print("Message in from slaver",message_in)    
+            print("Message in from slaver",message_in) 
+            
+        write_sequence_file(args.output_dir,args.seq_length)
         
         #write_sequence_file   
     else:
         message_in = comm.recv()
-       # partition_name = message_in[0]
-       # years = message_in[1] 
-       # month = message_in[2]
-       # save_output_dir =  os.path.join(args.output_dir,partition_name)
-      #  input_file = "X_" + '{0:02}'.format(month) + ".pkl"
-        #job_list = mesage_in.split(';')
         print ("My rank,", my_rank)   
         print("message_in",message_in)
         #loop the partitions (train,val,test)
@@ -409,12 +420,13 @@ def main():
                input_file = "X_" + '{0:02}'.format(my_rank) + ".pkl"
                input_dir = os.path.join(args.input_dir,year)
                input_file = os.path.join(input_dir,input_file)
-               read_frames_and_save_tf_records(year=year,month=my_rank,stats=stats,output_dir=save_output_dir,input_file=input_file,vars_in=args.variables,partition_name=partition_name, seq_length=args.seq_length,height=args.height,width=args.width,sequences_per_file=2)        
+               #read_frames_and_save_tf_records(year=year,month=my_rank,stats=stats,output_dir=save_output_dir,input_file=input_file,vars_in=args.variables,partition_name=partition_name, seq_length=args.seq_length,height=args.height,width=args.width,sequences_per_file=2)        
             print("Year {} finished",year)
         message_out = ("Node:",str(my_rank),"finished","","\r\n")
         print ("Message out for slaves:",message_out)
         comm.send(message_out,dest=0)
         
+    MPI.Finalize()        
    
 if __name__ == '__main__':
      main()
