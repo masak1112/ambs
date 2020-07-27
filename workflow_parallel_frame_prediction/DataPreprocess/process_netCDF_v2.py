@@ -421,13 +421,11 @@ def split_data_multiple_years(target_dir,partition,varnames):
             file_dir = os.path.join(target_dir,year)
             for month in values[year]:
                 month = "{0:0=2d}".format(month)
-                # ML 2020/07/15: Make use of pickle-files only                
-                #pickle_file = "X_{}.pkl".format(month)
                 hickle_file = "X_{}.hkl".format(month)
                 #20200408:bing
                 temporal_file = "T_{}.pkl".format(month)
                 #data_file = os.path.join(file_dir,hickle_file)
-                data_file = os.path.join(file_dir,pickle_file)
+                data_file = os.path.join(file_dir,hickle_file)
                 temporal_data_file = os.path.join(file_dir,temporal_file)
                 files.append(data_file)
                 data = hkl.load(data_file)
