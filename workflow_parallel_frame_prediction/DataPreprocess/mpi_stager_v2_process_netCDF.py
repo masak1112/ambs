@@ -131,6 +131,10 @@ def main():
             logging.critical('The Destination does not exist')
             logging.info('Create new destination dir')
             os.makedirs(destination_dir,exist_ok=True)
+            
+    else:  # node is slave and has to wait until temp.json-file (created by Master node) exists
+        MetaData.wait_for_jsontmp()
+        
     
     # ML 2020/04/24 E   
 
