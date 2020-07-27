@@ -4,6 +4,7 @@ Classes and routines to retrieve and handle meta-data
 
 import os
 import sys
+import time
 import numpy as np
 import json
 from netCDF4 import Dataset
