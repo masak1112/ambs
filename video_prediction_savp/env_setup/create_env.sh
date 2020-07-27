@@ -1,5 +1,11 @@
 #!/usr/bin/env bash
+#
+# __authors__ = Bing Gong, Michael Langguth
+# __date__  = '2020_07_24'
 
+# This script can be used for setting up the virtual environment needed for ambs-project
+# or to simply activate it.
+#
 # some first sanity checks
 if [[ ${BASH_SOURCE[0]} == ${0} ]]; then
   echo "ERROR: 'create_env.sh' must be sourced, i.e. execute by prompting 'source create_env.sh [virt_env_name]'"
@@ -43,6 +49,11 @@ if [[ "${HOST_NAME}" == hdfml* || "${HOST_NAME}" == juwels* ]]; then
     USER_EMAIL=$(jutil user show -o json | grep email | cut -f2 -d':' | cut -f1 -d',' | cut -f2 -d'"')
     #replace the email in sbatch script with the USER_EMAIL
     sed -i "s/--mail-user=.*/--mail-user=$USER_EMAIL/g" ../HPC_scripts/*.sh
+    # load modules and check for their availability
+    echo "***** Checking modules required during the workflow... *****"
+    source ${ENV_SETUP_DIR}/modules_preprocess.sh
+    source ${ENV_SETUP_DIR}/modules_train.sh
+
 elif [[ "${HOST_NAME}" == "zam347" ]]; then
     unset PYTHONPATH
 fi
@@ -62,16 +73,9 @@ if [[ "$ENV_EXIST" == 0 ]]; then
   if [[ "${HOST_NAME}" == hdfml* || "${HOST_NAME}" == juwels* ]]; then
     # check module availability for the first time on known HPC-systems
     echo "***** Start installing additional Python modules with pip... *****"
-    #pip install --upgrade pip
-    pip3 install --no-cache-dir -r ${ENV_SETUP_DIR}/requirements.txt
+    pip3 install --no-cache-dir --ignore-installed -r ${ENV_SETUP_DIR}/requirements.txt
     #pip3 install --user netCDF4
     #pip3 install --user numpy
-    
-    # check for availability of required modules
-    echo "***** Checking modules required for Preprocessing... *****"
-    source ${ENV_SETUP_DIR}/modules_preprocess.sh
-    echo "***** Checking modules required for training and Postprocessing... *****"
-    source ${ENV_SETUP_DIR}/modules_train.sh    
   elif [[ "${HOST_NAME}" == "zam347" ]]; then
     echo "***** Start installing additional Python modules with pip... *****"
     pip3 install --upgrade pip
@@ -83,7 +87,6 @@ if [[ "$ENV_EXIST" == 0 ]]; then
     pip3 install tensorflow-gpu==1.13.1
   fi
   # expand PYTHONPATH...
-  export PYTHONPATH=${WORKING_DIR}/external_package/hickle/lib/python3.6/site-packages:$PYTHONPATH >> ${activate_virt_env}
   export PYTHONPATH=${WORKING_DIR}:$PYTHONPATH >> ${activate_virt_env}
   #export PYTHONPATH=/p/home/jusers/${USER}/juwels/.local/bin:$PYTHONPATH
   export PYTHONPATH=${WORKING_DIR}/external_package/lpips-tensorflow:$PYTHONPATH >> ${activate_virt_env}
@@ -91,12 +94,9 @@ if [[ "$ENV_EXIST" == 0 ]]; then
   if [[ "${HOST_NAME}" == hdfml* || "${HOST_NAME}" == juwels* ]]; then
      export PYTHONPATH=${ENV_DIR}/lib/python3.6/site-packages:$PYTHONPATH >> ${activate_virt_env}
   fi
-
-  
   # ...and ensure that this also done when the 
   echo "" >> ${activate_virt_env}
   echo "# Expand PYTHONPATH..." >> ${activate_virt_env}
-  echo "export PYTHONPATH=${WORKING_DIR}/external_package/hickle/lib/python3.6/site-packages:\$PYTHONPATH" >> ${activate_virt_env}
   echo "export PYTHONPATH=${WORKING_DIR}:\$PYTHONPATH" >> ${activate_virt_env}
   #export PYTHONPATH=/p/home/jusers/${USER}/juwels/.local/bin:\$PYTHONPATH
   echo "export PYTHONPATH=${WORKING_DIR}/external_package/lpips-tensorflow:\$PYTHONPATH" >> ${activate_virt_env}
@@ -108,5 +108,4 @@ elif [[ "$ENV_EXIST" == 1 ]]; then
   # activating virtual env is suifficient
   source ${ENV_DIR}/bin/activate  
 fi
-
 

@@ -102,9 +102,9 @@ class ERA5Dataset_v2(VarLenFeatureVideoDataset):
             seqs["images"] = images
             return seqs
         filenames = self.filenames
-        print ("FILENAMES",filenames)
-	#TODO:
-	#temporal_filenames = self.temporal_filenames
+
+
+
         shuffle = self.mode == 'train' or (self.mode == 'val' and self.hparams.shuffle_on_val)
         if shuffle:
             random.shuffle(filenames)
@@ -353,7 +353,8 @@ def main():
     current_path = os.getcwd()
     #input_dir = "/Users/gongbing/PycharmProjects/video_prediction/splits"
     #output_dir = "/Users/gongbing/PycharmProjects/video_prediction/data/era5"
-    #partition_names = ['train','val',  'test'] #64,64,3 val has issue#
+
+
       
     partition = {
             "train":{
@@ -377,7 +378,7 @@ def main():
         stats = json.load(js_file)
     
     #TODO: search all the statistic json file correspdoing to the parition and generate a general statistic.json for normalization
-         
+
 
     # ini. MPI
     comm = MPI.COMM_WORLD

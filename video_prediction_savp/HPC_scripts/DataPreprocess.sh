@@ -19,8 +19,8 @@ fi
 
 source ../env_setup/modules_preprocess.sh
 
-source_dir=/p/scratch/deepacf/video_prediction_shared_folder/extractedData
-destination_dir=/p/scratch/deepacf/video_prediction_shared_folder/preprocessedData/era5-Y2015to2017M01to12
+source_dir=${SAVE_DIR}/extractedData
+destination_dir=${SAVE_DIR}/preprocessedData/era5-Y2015to2017M01to12
 script_dir=`pwd`
 
 declare -a years=("2222"

@@ -40,6 +40,7 @@ year="2010"
 # Run data extraction
 srun python ../../workflow_parallel_frame_prediction/DataExtraction/mpi_stager_v2.py --source_dir ${source_dir}/${year} --destination_dir ${dest_dir}/${year}/
 
-# 2tier pystager 
-#srun python ../../workflow_parallel_frame_prediction/DataExtraction/main_single_master.py --source_dir ${source_dir}/${year}/ --destination_dir ${dest_dir}/${year}/
 
+
+# 2tier pystager 
+#srun python ../../workflow_parallel_frame_prediction/DataExtraction/main_single_master.py --source_dir /p/fastdata/slmet/slmet111/met_data/ecmwf/era5/nc/${year}/ --destination_dir ${SAVE_DIR}/extractedData/${year}

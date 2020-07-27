@@ -93,19 +93,33 @@ def main():
             if clear_destination == 1:
                 shutil.rmtree(destination_dir)
                 os.mkdir(destination_dir)
-                logger.critical("Destination : {destination} exist -> Remove and Re-Cereate".format(destination=destination_dir))
-                print("Destination : {destination} exist -> Remove and Re-Cereate".format(destination=destination_dir))
+                logger.critical("Destination : {destination} exist -> Remove and Re-Create".format(destination=destination_dir))
+                print("Destination : {destination} exist -> Remove and Re-Create".format(destination=destination_dir))
 
             else:
                 logger.critical("Destination : {destination} exist -> will not be removed (caution : overwrite)".format(destination=destination_dir))
                 print("Destination : {destination} exist -> will not be rmeoved (caution : overwrite)".format(destination=destination_dir))
+                
+
+
+    # 20200630 +++ Scarlet
+    else: 
+        if my_rank == 0:
+            os.makedirs(destination_dir) #, exist_ok=True)
+            logger.info("Destination : {destination} does not exist -> Create".format(destination=destination_dir))
+            print("Destination : {destination} does not exist -> Create".format(destination=destination_dir))
+
+    # 20200630 --- Scarlet
+
 
     # Create a log folder for slave-nodes to write down their processes
     slave_log_path = os.path.join(destination_dir,log_temp)
 
     if my_rank == 0:
         if os.path.exists(slave_log_path) == False:
-            os.mkdir(slave_log_path)
+            # 20200630 Scarlet
+            #os.mkdir(slave_log_path)
+            os.makedirs(slave_log_path)
 
     if my_rank == 0:  # node is master
 
