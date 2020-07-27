@@ -133,7 +133,7 @@ def main():
             os.makedirs(destination_dir,exist_ok=True)
             
     else:  # node is slave and has to wait until temp.json-file (created by Master node) exists
-        MetaData.wait_for_jsontmp()
+        MetaData.wait_for_jsontmp(tmp_dir=current_path)
         
     
     # ML 2020/04/24 E   
