@@ -289,7 +289,7 @@ class MetaData:
             else:
                 time.sleep(delay)
             
-            counter += counter
+            counter += 1
                                 
         if status != "ok": raise IOError(method_name+": '"+file_tmp+ \
                            "' does not exist after waiting for "+str(waittime)+" sec.") 
