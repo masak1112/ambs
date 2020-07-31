@@ -401,7 +401,7 @@ def main():
             init_date_str = ts[0].strftime("%Y%m%d%H")
             save_to_netcdf_per_sequence(args.results_dir,input_images_denorm,gen_images_denorm,lons,lats,ts[1:],args.model,fl_name="vfp_{}.nc".format(init_date_str))
             
-    
+        sample_ind += args.batch_size
             #for input_image in input_images_:
 
 #             for stochastic_sample_ind in range(args.num_stochastic_samples):
