@@ -323,6 +323,7 @@ def main():
     
     print("Step 2 finished")
     VideoPredictionModel = models.get_model_class(model)
+    
     hparams_dict = dict(model_hparams_dict)
     hparams_dict.update({
         'context_frames': dataset.hparams.context_frames,
@@ -341,14 +342,17 @@ def main():
 
     num_examples_per_epoch = setup_num_samples_per_epoch(args.num_samples,dataset)
     
-    #set up input placeholder
     inputs = dataset.make_batch(args.batch_size)
     input_phs = {k: tf.placeholder(v.dtype, v.shape, '%s_ph' % k) for k, v in inputs.items()}
+    
+    
+    # Build graph
     with tf.variable_scope(''):
         model.build_graph(input_phs)
 
     #Write the update hparameters into results_dir    
     write_params_to_results_dir(args=args,output_dir=args.results_dir,dataset=dataset,model=model)
+        
     gpu_options = tf.GPUOptions(per_process_gpu_memory_fraction = args.gpu_mem_frac)
     config = tf.ConfigProto(gpu_options = gpu_options, allow_soft_placement = True)
     sess = tf.Session(config = config)
@@ -397,9 +401,7 @@ def main():
             init_date_str = ts[0].strftime("%Y%m%d%H")
             save_to_netcdf_per_sequence(args.results_dir,input_images_denorm,gen_images_denorm,lons,lats,ts[1:],args.model,fl_name="vfp_{}.nc".format(init_date_str))
             
-
-        sample_ind += args.batch_size
-
+    
             #for input_image in input_images_:
 
 #             for stochastic_sample_ind in range(args.num_stochastic_samples):
@@ -408,7 +410,6 @@ def main():
 #                     pickle.dump(list(input_images_all), input_files)
 
 
-#                 gen_images = sess.run(model.outputs['gen_images'], feed_dict = feed_dict)
 #                 gen_images_stochastic.append(gen_images)
 #                 #print("Stochastic_sample,", stochastic_sample_ind)
 #                 for i in range(args.batch_size):
