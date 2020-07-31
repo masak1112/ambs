@@ -109,7 +109,6 @@ def main():
     # Expand destination_dir-variable by searching for netCDF-files in source_dir and processing the file from the first list element to obtain all relevant (meta-)data. 
     if my_rank == 0:
         data_files_list = glob.glob(source_dir+"/**/*.nc",recursive=True)
-        
         if not data_files_list: raise ValueError("Could not find any data to be processed in '"+source_dir+"'")
         
         md = MetaData(suffix_indir=destination_dir,data_filename=data_files_list[0],slices=slices,variables=vars)
@@ -118,15 +117,26 @@ def main():
             md.write_dirs_to_batch_scripts(scr_dir+"/DataPreprocess_to_tf.sh")
             md.write_dirs_to_batch_scripts(scr_dir+"/generate_era5.sh")
             md.write_dirs_to_batch_scripts(scr_dir+"/train_era5.sh")
-            # ML 2020/06/08: Dirty workaround as long as data-splitting is done with a seperate Python-script 
-            #                called from the same parent Shell-/Batch-script
-            #                -> work with temproary json-file in working directory
-            md.write_destdir_jsontmp(os.path.join(md.expdir,md.expname),tmp_dir=current_path)
-        #else: nothing to do 
+
+        elif (md.status == "old"):      # meta-data file already exists and is ok
+                                        # check for temp.json in working directory (required by slave nodes)
+            tmp_file = os.path.join(current_path,"temp.json")
+            if os.path.isfile(tmp_file):
+                os.remove(tmp_file)
+                mess_tmp_file = "Auxiliary file '"+tmp_file+"' already exists, but is cleaned up to be updated" + \
+                                " for safety reasons."
+                logging.info(mess_tmp_file)
+
+        # ML 2019/06/08: Dirty workaround as long as data-splitting is done with a seperate Python-script
+        #                called from the same parent Shell-/Batch-script
+        #                -> work with temproary json-file in working directory
+        # create or update temp.json, respectively
+        md.write_destdir_jsontmp(os.path.join(md.expdir, md.expname), tmp_dir=current_path)
         
+        # expand destination directory by hickle-subfolder and...
         destination_dir= os.path.join(md.expdir,md.expname,"hickle",years)
 
-        # ...and create directory if necessary
+        # ...create directory if necessary
         if not os.path.exists(destination_dir):  # check if the Destination dir. is existing
             logging.critical('The Destination does not exist')
             logging.info('Create new destination dir')

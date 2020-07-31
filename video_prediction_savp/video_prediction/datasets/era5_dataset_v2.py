@@ -285,9 +285,6 @@ def read_frames_and_save_tf_records(stats,output_dir,input_file,vars_in,year,mon
     sequences = []
     sequence_iter = 0
     #sequence_lengths_file = open(os.path.join(output_dir, 'sequence_lengths.txt'), 'w')
-    # ML 2020/07/15: Make use of pickle-files only
-    #with open(os.path.join(input_dir, "X_" + partition_name + ".pkl"), "rb") as data_file:
-    #    X_train = pickle.load(data_file)
     #Bing 2020/07/16
     #print ("open intput dir,",input_file)
     with open(input_file, "rb") as data_file:
