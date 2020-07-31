@@ -6,8 +6,8 @@
 #SBATCH --cpus-per-task=1
 #SBATCH --output=DataPreprocess_to_tf-out.%j
 #SBATCH --error=DataPreprocess_to_tf-err.%j
-#SBATCH --time=01:20:00
-#SBATCH --partition=batch
+#SBATCH --time=00:20:00
+#SBATCH --partition=devel
 #SBATCH --mail-type=ALL
 #SBATCH --mail-user=b.gong@fz-juelich.de
 

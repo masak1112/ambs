@@ -41,10 +41,7 @@ def process_data(directory_to_process, target_dir, job_name, slices, vars=("T2",
         try:
             im_path = os.path.join(directory_to_process, im_file)
             print('Open following dataset: '+im_path)
-             
-            
             #20200408,Bing
-            
             im = Dataset(im_path, mode = 'r')
             times = im.variables['time']
             time = num2date(times[:],units=times.units,calendar=times.calendar)

@@ -14,7 +14,7 @@
 ##jutil env activate -p cjjsc42
 
 # Name of virtual environment 
-VIRT_ENV_NAME="virt_env_hdfml"
+VIRT_ENV_NAME="vp"
 
 # Loading mouldes
 source ../env_setup/modules_train.sh
@@ -29,17 +29,17 @@ if [ -z ${VIRTUAL_ENV} ]; then
    fi
 fi
 
+
 # declare directory-variables which will be modified appropriately during Preprocessing (invoked by mpi_split_data_multi_years.py)
-source_dir=/p/scratch/deepacf/video_prediction_shared_folder/preprocessedData/era5-Y2009Y2012to2013Y2016Y2019M01to12-160x128-2970N1500W-T2_MSL_gph500/era5-Y2010Y2022M01to12-160x128-2970N1500W-T2_MSL_gph500/era5-Y2010Y2022M01to12-160x128-2970N1500W-T2_MSL_gph500/era5-Y2015to2017M01to12-160x128-2970N1500W-T2_MSL_gph500/
-checkpoint_dir=/p/scratch/deepacf/video_prediction_shared_folder/models/era5-Y2009Y2012to2013Y2016Y2019M01to12-160x128-2970N1500W-T2_MSL_gph500/era5-Y2010Y2022M01to12-160x128-2970N1500W-T2_MSL_gph500/era5-Y2010Y2022M01to12-160x128-2970N1500W-T2_MSL_gph500/era5-Y2015to2017M01to12-160x128-2970N1500W-T2_MSL_gph500/
-results_dir=/p/scratch/deepacf/video_prediction_shared_folder/results/era5-Y2009Y2012to2013Y2016Y2019M01to12-160x128-2970N1500W-T2_MSL_gph500/era5-Y2010Y2022M01to12-160x128-2970N1500W-T2_MSL_gph500/era5-Y2010Y2022M01to12-160x128-2970N1500W-T2_MSL_gph500/era5-Y2015to2017M01to12-160x128-2970N1500W-T2_MSL_gph500/
-
-
-
+source_dir=/p/project/deepacf/deeprain/video_prediction_shared_folder/preprocessedData/era5-Y2015to2017M01to12-160x128-2970N1500W-T2_MSL_gph500
+checkpoint_dir=/p/project/deepacf/deeprain/video_prediction_shared_folder/models/era5-Y2015to2017M01to12-160x128-2970N1500W-T2_MSL_gph500
+results_dir=/p/project/deepacf/deeprain/video_prediction_shared_folder/results/era5-Y2015to2017M01to12-160x128-2970N1500W-T2_MSL_gph500
+#TODO: remove this after testing
+model=convLSTM
 
 # run postprocessing/generation of model results including evaluation metrics
 srun python -u ../scripts/generate_transfer_learning_finetune.py \
---input_dir ${source_dir}/tfrecords --dataset_hparams sequence_length=20 --checkpoint  ${checkpoint_dir}/${model}/${hyperdir} \
---mode test --results_dir ${results_dir}/${model} --batch_size 2 --dataset era5   > generate_era5-out.out
+--input_dir ${source_dir}/tfrecords --dataset_hparams sequence_length=20 --checkpoint  ${checkpoint_dir}/${model} \
+--mode test --model ${model} --results_dir ${results_dir}/${model}/ --batch_size 2 --dataset era5   > generate_era5-out.out
 
 #srun  python scripts/train.py --input_dir data/era5 --dataset era5  --model savp --model_hparams_dict hparams/kth/ours_savp/model_hparams.json --output_dir logs/era5/ours_savp
