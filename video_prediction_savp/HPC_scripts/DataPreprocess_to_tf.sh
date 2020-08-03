@@ -33,4 +33,4 @@ source_dir=/p/project/deepacf/deeprain/video_prediction_shared_folder/preprocess
 destination_dir=/p/project/deepacf/deeprain/video_prediction_shared_folder/preprocessedData/
 
 # run Preprocessing (step 2 where Tf-records are generated)
-srun python ../video_prediction/datasets/era5_dataset_v2.py ${source_dir}/hickle ${destination_dir}/tfrecords -vars T2 MSL gph500 -height 128 -width 160 -seq_length 20 
+srun python ../video_prediction/datasets/era5_dataset_v2.py ${source_dir}/pickle ${destination_dir}/tfrecords -vars T2 MSL gph500 -height 128 -width 160 -seq_length 20 
