@@ -351,8 +351,9 @@ def main():
     #input_dir = "/Users/gongbing/PycharmProjects/video_prediction/splits"
     #output_dir = "/Users/gongbing/PycharmProjects/video_prediction/data/era5"
 
-
-      
+    ############################################################
+    # CONTROLLING variable! Needs to be adapted manually!!!
+    ############################################################
     partition = {
             "train":{
                # "2222":[1,2,3,5,6,7,8,9,10,11,12],
@@ -370,12 +371,33 @@ def main():
                  }
             }
     
-        # open statistics file and feed it to norm-instance
+    
+    # working section of the script:
+    
+    # retrieve final statistics first (not parallelized!)
+    # some preparatory steps
+    stat_dir_prefix = os.path.join(MetaData.get_destdir_jsontmp(),"hickle")
+    varnames        = args.variables
+    
+    vars_uni, varsind, nvars = get_unique_vars(varnames)
+    stat_obj = Calc_data_stat(nvars)                            # init statistic-instance
+    
+    # loop over whole data set (training, dev and test set) to collect the intermediate statistics
+    for split in partition.keys():
+        values = partition[split]
+        for year in values.keys():
+            file_dir = os.path.join(stat_dir_prefix,year)
+            for month in values[year]:
+                # process stat-file:
+                stat_obj.acc_stat_master(file_dir,int(month))  # process monthly statistic-file  
+
+    # finalize statistics and write to json-file
+    stat_obj.finalize_stat_master(vars_uni)
+    stat_obj.write_stat_json(args.input_dir)
+    
+    # open statistics file and feed it to norm-instance
     with open(os.path.join(args.input_dir,"statistics.json")) as js_file:
         stats = json.load(js_file)
-    
-    #TODO: search all the statistic json file correspdoing to the parition and generate a general statistic.json for normalization
-
 
     # ini. MPI
     comm = MPI.COMM_WORLD
