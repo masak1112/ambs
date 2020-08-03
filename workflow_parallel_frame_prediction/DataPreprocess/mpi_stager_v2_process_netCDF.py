@@ -133,8 +133,8 @@ def main():
         # create or update temp.json, respectively
         md.write_destdir_jsontmp(os.path.join(md.expdir, md.expname), tmp_dir=current_path)
         
-        # expand destination directory by hickle-subfolder and...
-        destination_dir= os.path.join(md.expdir,md.expname,"hickle",years)
+        # expand destination directory by pickle-subfolder and...
+        destination_dir= os.path.join(md.expdir,md.expname,"pickle",years)
 
         # ...create directory if necessary
         if not os.path.exists(destination_dir):  # check if the Destination dir. is existing
@@ -228,7 +228,7 @@ def main():
 
                     #process_era5_in_dir(job, src_dir=source_dir, target_dir=destination_dir)
                     # ML 2020/06/09: workaround to get correct destination_dir obtained by the master node
-                    destination_dir = os.path.join(MetaData.get_destdir_jsontmp(tmp_dir=current_path),"hickle",years)
+                    destination_dir = os.path.join(MetaData.get_destdir_jsontmp(tmp_dir=current_path),"pickle",years)
                     process_netCDF_in_dir(job_name=job, src_dir=source_dir, target_dir=destination_dir,slices=slices,vars=vars)
 
                     if checksum_status == 1:

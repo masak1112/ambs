@@ -5,7 +5,6 @@ import os
 import pickle
 import random
 import re
-import hickle as hkl
 import numpy as np
 import json
 import tensorflow as tf
@@ -257,9 +256,9 @@ class Norm_data:
 
 def read_frames_and_save_tf_records(stats,output_dir,input_file,vars_in,year,month,seq_length=20,sequences_per_file=128,height=64,width=64,channels=3,**kwargs):#Bing: original 128
     """
-    Read hickle/pickle files based on month, to process and save to tfrecords
-    stats:dict, contains the stats information from hickle directory,
-    input_file: string, absolute path to hickle/pickle file
+    Read pickle files based on month, to process and save to tfrecords
+    stats:dict, contains the stats information from pickle directory,
+    input_file: string, absolute path to pickle file
     file_info: 1D list with three elements, partition_name(train,val or test), year, and month e.g.[train,1,2]  
     """
     # ML 2020/04/08:
@@ -376,7 +375,7 @@ def main():
     
     # retrieve final statistics first (not parallelized!)
     # some preparatory steps
-    stat_dir_prefix = os.path.join(MetaData.get_destdir_jsontmp(),"hickle")
+    stat_dir_prefix = os.path.join(MetaData.get_destdir_jsontmp(),"pickle")
     varnames        = args.variables
     
     vars_uni, varsind, nvars = get_unique_vars(varnames)

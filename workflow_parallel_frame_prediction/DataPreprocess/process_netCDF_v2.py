@@ -11,7 +11,6 @@ from netCDF4 import Dataset,num2date
 import numpy as np
 #from imageio import imread
 #from scipy.misc import imresize
-import hickle as hkl
 import json
 import pickle
 
@@ -20,11 +19,11 @@ import pickle
 def process_data(directory_to_process, target_dir, job_name, slices, vars=("T2","MSL","gph500")):
     '''
     :param directory_to_process: directory where netCDF-files are stored to be processed
-    :param target_dir: directory where hickle-/pickle-files will e stored
+    :param target_dir: directory where pickle-files will e stored
     :param job_name: job_id passed and organized by PyStager
     :param slices: indices defining geographical region of interest
     :param vars: variables to be processed
-    :return: Saves hickle-/pickle-files which contain the sliced meteorological data and temporal information as well
+    :return: Saves pickle-files which contain the sliced meteorological data and temporal information as well
     '''
     desired_im_sz = (slices["lat_e"] - slices["lat_s"], slices["lon_e"] - slices["lon_s"])
     # ToDo: Define a convenient function to create a list containing all files.
@@ -398,61 +397,62 @@ class Calc_data_stat:
 # ML 2020/05/15 E
                  
 
-def split_data_multiple_years(target_dir,partition,varnames):
-    """
-    Collect all the X_*.hkl data across years and split them to training, val and testing datatset
-    """
-    #target_dirs = [os.path.join(target_dir,year) for year in years]
-    #os.chdir(target_dir)
-    splits_dir = os.path.join(target_dir,"splits")
-    os.makedirs(splits_dir, exist_ok=True) 
-    splits = {s: [] for s in list(partition.keys())}
-    # ML 2020/05/19 S
-    vars_uni, varsind, nvars = get_unique_vars(varnames)
-    stat_obj = Calc_data_stat(nvars)
+# ML 2020/08/03 Not used anymore!
+#def split_data_multiple_years(target_dir,partition,varnames):
+    #"""
+    #Collect all the X_*.hkl data across years and split them to training, val and testing datatset
+    #"""
+    ##target_dirs = [os.path.join(target_dir,year) for year in years]
+    ##os.chdir(target_dir)
+    #splits_dir = os.path.join(target_dir,"splits")
+    #os.makedirs(splits_dir, exist_ok=True) 
+    #splits = {s: [] for s in list(partition.keys())}
+    ## ML 2020/05/19 S
+    #vars_uni, varsind, nvars = get_unique_vars(varnames)
+    #stat_obj = Calc_data_stat(nvars)
     
-    for split in partition.keys():
-        values = partition[split]
-        files = []
-        X = []
-        Temporal_X = []
-        for year in values.keys():
-            file_dir = os.path.join(target_dir,year)
-            for month in values[year]:
-                month = "{0:0=2d}".format(month)
-                hickle_file = "X_{}.hkl".format(month)
-                #20200408:bing
-                temporal_file = "T_{}.pkl".format(month)
+    #for split in partition.keys():
+        #values = partition[split]
+        #files = []
+        #X = []
+        #Temporal_X = []
+        #for year in values.keys():
+            #file_dir = os.path.join(target_dir,year)
+            #for month in values[year]:
+                #month = "{0:0=2d}".format(month)
+                #hickle_file = "X_{}.hkl".format(month)
+                ##20200408:bing
+                #temporal_file = "T_{}.pkl".format(month)
+                ##data_file = os.path.join(file_dir,hickle_file)
                 #data_file = os.path.join(file_dir,hickle_file)
-                data_file = os.path.join(file_dir,hickle_file)
-                temporal_data_file = os.path.join(file_dir,temporal_file)
-                files.append(data_file)
-                data = hkl.load(data_file)
-                with open(temporal_data_file,"rb") as ftemp:
-                    temporal_data = pickle.load(ftemp)
-                X = X + list(data)
-                Temporal_X = Temporal_X + list(temporal_data)
-                # process stat-file:
-                stat_obj.acc_stat_master(file_dir,int(month))
-        X = np.array(X) 
-        Temporal_X = np.array(Temporal_X)
-        print("==================={}=====================".format(split))
-        print ("Sources for {} dataset are {}".format(split,files))
-        print("Number of images in {} dataset is {} ".format(split,len(X)))
-        print ("dataset shape is {}".format(np.array(X).shape))
-        # ML 2020/07/15: Make use of pickle-files only
-        with open(os.path.join(splits_dir , 'X_' + split + '.pkl'),"wb") as data_file:
-            pickle.dump(X,data_file,protocol=4)
-        #hkl.dump(X, os.path.join(splits_dir , 'X_' + split + '.hkl'))
+                #temporal_data_file = os.path.join(file_dir,temporal_file)
+                #files.append(data_file)
+                #data = hkl.load(data_file)
+                #with open(temporal_data_file,"rb") as ftemp:
+                    #temporal_data = pickle.load(ftemp)
+                #X = X + list(data)
+                #Temporal_X = Temporal_X + list(temporal_data)
+                ## process stat-file:
+                #stat_obj.acc_stat_master(file_dir,int(month))
+        #X = np.array(X) 
+        #Temporal_X = np.array(Temporal_X)
+        #print("==================={}=====================".format(split))
+        #print ("Sources for {} dataset are {}".format(split,files))
+        #print("Number of images in {} dataset is {} ".format(split,len(X)))
+        #print ("dataset shape is {}".format(np.array(X).shape))
+        ## ML 2020/07/15: Make use of pickle-files only
+        #with open(os.path.join(splits_dir , 'X_' + split + '.pkl'),"wb") as data_file:
+            #pickle.dump(X,data_file,protocol=4)
+        ##hkl.dump(X, os.path.join(splits_dir , 'X_' + split + '.hkl'))
 
-        with open(os.path.join(splits_dir,"T_"+split + ".pkl"),"wb") as temp_file:
-            pickle.dump(Temporal_X, temp_file)
+        #with open(os.path.join(splits_dir,"T_"+split + ".pkl"),"wb") as temp_file:
+            #pickle.dump(Temporal_X, temp_file)
         
-        hkl.dump(files, os.path.join(splits_dir,'sources_' + split + '.hkl'))
+        #hkl.dump(files, os.path.join(splits_dir,'sources_' + split + '.hkl'))
         
-    # write final statistics json-file
-    stat_obj.finalize_stat_master(target_dir,vars_uni)
-    stat_obj.write_stat_json(splits_dir)
+    ## write final statistics json-file
+    #stat_obj.finalize_stat_master(target_dir,vars_uni)
+    #stat_obj.write_stat_json(splits_dir)
 
         
     
