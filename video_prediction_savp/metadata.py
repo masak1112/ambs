@@ -23,7 +23,9 @@ class MetaData:
         method_name = MetaData.__init__.__name__+" of Class "+MetaData.__name__
         
         if not json_file is None: 
-            MetaData.get_metadata_from_file(json_file)
+            print(json_file)
+            print(type(json_file))
+            MetaData.get_metadata_from_file(self,json_file)
             
         else:
             # No dictionary from json-file available, all other arguments have to set
@@ -93,8 +95,8 @@ class MetaData:
         self.lat = datafile.variables['lat'][slices['lat_s']:slices['lat_e']]
         self.lon = datafile.variables['lon'][slices['lon_s']:slices['lon_e']]
         
-        # Now start constructing exp_dir-string
-        # switch sign and coordinate-flags to avoid negative values appearing in exp_dir-name
+        # Now start constructing expdir-string
+        # switch sign and coordinate-flags to avoid negative values appearing in expdir-name
         if sw_c[0] < 0.:
             sw_c[0] = np.abs(sw_c[0])
             flag_coords[0] = "S"
@@ -114,7 +116,7 @@ class MetaData:
         
         expdir, expname = path_parts[0], path_parts[1] 
 
-        # extend exp_dir_in successively (splitted up for better readability)
+        # extend expdir_in successively (splitted up for better readability)
         expname += "-"+str(self.nx) + "x" + str(self.ny)
         expname += "-"+(("{0: 05.2f}"+flag_coords[0]+"{1:05.2f}"+flag_coords[1]).format(*sw_c)).strip().replace(".","")+"-"  
         
@@ -200,22 +202,24 @@ class MetaData:
         with open(js_file) as js_file:                
             dict_in = json.load(js_file)
             
-            self.exp_dir = dict_in["exp_dir"]
+            self.expdir = dict_in["expdir"]
             
             self.sw_c       = [dict_in["sw_corner_frame"]["lat"],dict_in["sw_corner_frame"]["lon"] ]
             self.lat        = dict_in["coordinates"]["lat"]
-            self.lat        = dict_in["coordinates"]["lon"]
+            self.lon        = dict_in["coordinates"]["lon"]
             
             self.nx         = dict_in["frame_size"]["nx"]
             self.ny         = dict_in["frame_size"]["ny"]
-            
-            self.variables  = [dict_in["variables"][ivar] for ivar in dict_in["variables"].keys()]   
-            
+            # dict_in["variables"] is a list like [{var1: varname1},{var2: varname2},...]
+            list_of_dict_aux = dict_in["variables"] 
+            # iterate through the list with an integer ivar
+            # note: the naming of the variables starts with var1, thus add 1 to the iterator
+            self.variables = [list_of_dict_aux[ivar]["var"+str(ivar+1)] for ivar in range(len(list_of_dict_aux))]
             
     def write_dirs_to_batch_scripts(self,batch_script):
         
         """
-         Expands ('known') directory-variables in batch_script by exp_dir-attribute of class instance
+         Expands ('known') directory-variables in batch_script by expdir-attribute of class instance
         """
         
         paths_to_mod = ["source_dir=","destination_dir=","checkpoint_dir=","results_dir="]      # known directory-variables in batch-scripts
