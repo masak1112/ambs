@@ -68,8 +68,9 @@ def process_data(directory_to_process, target_dir, job_name, slices, vars=("T2",
             
     X = np.array(EU_stack_list)
     # ML 2020/07/15: Make use of pickle-files only
-    target_file = os.path.join(target_dir, 'X_' + str(job_name) + '.hkl')
-    hkl.dump(X,target_file)
+    target_file = os.path.join(target_dir, 'X_' + str(job_name) + '.pkl')
+    with open(target_file, "wb") as data_file:
+        pickle.dump(X,data_file)
     #target_file = os.path.join(target_dir, 'X_' + str(job_name) + '.pkl')    
     #hkl.dump(X, target_file) #Not optimal!
     print(target_file, "is saved")
