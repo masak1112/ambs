@@ -11,7 +11,6 @@ from netCDF4 import Dataset,num2date
 import numpy as np
 #from imageio import imread
 #from scipy.misc import imresize
-import hickle as hkl
 import json
 import pickle
 

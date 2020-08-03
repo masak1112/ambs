@@ -5,7 +5,6 @@ import os
 import pickle
 import random
 import re
-import hickle as hkl
 import numpy as np
 import json
 import tensorflow as tf
