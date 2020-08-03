@@ -90,6 +90,8 @@ class MetaData:
         self.nx, self.ny = np.abs(slices['lon_e'] - slices['lon_s']), np.abs(slices['lat_e'] - slices['lat_s'])    
         sw_c             = [float(datafile.variables['lat'][slices['lat_e']-1]),float(datafile.variables['lon'][slices['lon_s']])]                # meridional axis lat is oriented from north to south (i.e. monotonically decreasing)
         self.sw_c        = sw_c
+        self.lat = datafile.variables['lat'][slices['lat_s']:slices['lat_e']]
+        self.lon = datafile.variables['lon'][slices['lon_s']:slices['lon_e']]
         
         # Now start constructing exp_dir-string
         # switch sign and coordinate-flags to avoid negative values appearing in exp_dir-name
@@ -143,6 +145,11 @@ class MetaData:
             "lon" : np.around(self.sw_c[1],decimals=2)
             }
         
+        meta_dict["coordinates"] = {
+            "lat" : np.around(self.lat,decimals=2).tolist(),
+            "lon" : np.around(self.lon,decimals=2).tolist()
+            }
+            
         meta_dict["frame_size"] = {
             "nx" : int(self.nx),
             "ny" : int(self.ny)
@@ -150,7 +157,7 @@ class MetaData:
         
         meta_dict["variables"] = []
         for i in range(len(self.varnames)):
-            print(self.varnames[i])
+            #print(self.varnames[i])
             meta_dict["variables"].append( 
                     {"var"+str(i+1) : self.varnames[i]})
         
@@ -196,6 +203,8 @@ class MetaData:
             self.exp_dir = dict_in["exp_dir"]
             
             self.sw_c       = [dict_in["sw_corner_frame"]["lat"],dict_in["sw_corner_frame"]["lon"] ]
+            self.lat        = dict_in["coordinates"]["lat"]
+            self.lat        = dict_in["coordinates"]["lon"]
             
             self.nx         = dict_in["frame_size"]["nx"]
             self.ny         = dict_in["frame_size"]["ny"]
