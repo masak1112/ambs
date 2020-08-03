@@ -12,11 +12,21 @@
 #SBATCH --mail-type=ALL
 #SBATCH --mail-user=b.gong@fz-juelich.de
 
-if [ -z ${VIRTUAL_ENV} ]; then
-  echo "Please activate a virtual environment..."
-  exit 1
-fi
 
+# Name of virtual environment 
+VIRT_ENV_NAME="virt_env_hdfml"
+
+# Activate virtual environment if needed (and possible)
+if [ -z ${VIRTUAL_ENV} ]; then
+   if [[ -f ../${VIRT_ENV_NAME}/bin/activate ]]; then
+      echo "Activating virtual environment..."
+      source ../${VIRT_ENV_NAME}/bin/activate
+   else 
+      echo "ERROR: Requested virtual environment ${VIRT_ENV_NAME} not found..."
+      exit 1
+   fi
+fi
+# Loading mouldes
 source ../env_setup/modules_preprocess.sh
 
 source_dir=${SAVE_DIR}/extractedData
