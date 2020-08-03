@@ -282,7 +282,7 @@ class Calc_data_stat:
             print("Statistics file '"+file_name+"' has already been processed. Thus, just pass here...")
             pass
             
-    def finalize_stat_master(self,path_out,vars_uni):
+    def finalize_stat_master(self,vars_uni):
         """
          Performs final compuattion of statistics after accumulation from slave nodes.
         """
@@ -292,7 +292,6 @@ class Calc_data_stat:
         if len(vars_uni) > len(set(vars_uni)):
             raise ValueError("Input variable names are not unique.")
                 
-        js_file = os.path.join(path_out,"statistics.json")
         nvars     = len(vars_uni)
         n_jsfiles = len(self.nfiles)
         nfiles_all= np.sum(self.nfiles)
