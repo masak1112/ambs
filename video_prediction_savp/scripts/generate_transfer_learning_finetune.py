@@ -193,11 +193,16 @@ def generate_seq_timestamps(t_start,len_seq=20):
     return seq_ts
     
     
-def save_to_netcdf_per_sequence(output_dir,input_images_,gen_images_,lons,lats,ts, model_name,fl_name="test.nc"):
+def save_to_netcdf_per_sequence(output_dir,input_images_,gen_images_,lons,lats,ts,context_frames,future_length,model_name,fl_name="test.nc"):
     
     y_len = len(lats)
     x_len = len(lons)
     ts_len = len(ts)
+    ts_input = ts[:context_frames]
+    ts_forecast = ts[context_frames:]
+    print("context_frame:",context_frames)
+    print("future_frame",future_length)
+    print("length of ts input:",len(ts_input))
   
     print("input_images_ shape in netcdf,",input_images_.shape)
     gen_images_ = np.array(gen_images_)
@@ -205,8 +210,8 @@ def save_to_netcdf_per_sequence(output_dir,input_images_,gen_images_,lons,lats,t
     output_file = os.path.join(output_dir,fl_name)
     with Dataset(output_file, "w", format="NETCDF4") as nc_file:
         nc_file.title = 'ERA5 hourly reanalysis data and the forecasting data by deep learning for 2-m above sea level temperatures'
-        nc_file.author = "Bing Gong"
-        nc_file.create_date = "2020-07-29"
+        nc_file.author = "Bing Gong, Michael Langguth"
+        nc_file.create_date = "2020-08-04"
 
         #create groups forecasts and analysis 
         fcst = nc_file.createGroup("forecasts")
@@ -215,7 +220,8 @@ def save_to_netcdf_per_sequence(output_dir,input_images_,gen_images_,lons,lats,t
         #create dims for all the data(forecast and analysis)
         latD = nc_file.createDimension('lat', y_len)
         lonD = nc_file.createDimension('lon', x_len)
-        timeD = nc_file.createDimension('time', ts_len) 
+        timeD = nc_file.createDimension('time_input', context_frames) 
+        timeF = nc_file.createDimension('time_forecast', future_length)
 
         #Latitude
         lat  = nc_file.createVariable('lat', float, ('lat',), zlib = True)
@@ -228,48 +234,72 @@ def save_to_netcdf_per_sequence(output_dir,input_images_,gen_images_,lons,lats,t
         lon.units = 'degrees_east'
         lon[:] = lons
 
-        #Time
-        time = nc_file.createVariable('time', 'f8', ('time',), zlib = True)
+        #Time for input
+        time = nc_file.createVariable('time_input', 'f8', ('time_input',), zlib = True)
         time.units = "hours since 1970-01-01 00:00:00" 
         time.calendar = "gregorian"
-        time[:] = date2num(ts, units = time.units, calendar = time.calendar)
-
-
+        time[:] = date2num(ts_input, units = time.units, calendar = time.calendar)
+        
+        #time for forecast
+        time_f = nc_file.createVariable('time_forecast', 'f8', ('time_forecast',), zlib = True)
+        time_f.units = "hours since 1970-01-01 00:00:00" 
+        time_f.calendar = "gregorian"
+        time_f[:] = date2num(ts_forecast, units = time.units, calendar = time.calendar)
+        
         ################ analysis group  #####################
+        
+        #####sub group for inputs
         # create variables for non-meta data
         #Temperature
-        t2 = nc_file.createVariable("/analysis/T2","f4",("time","lat","lon"), zlib = True)
+        t2 = nc_file.createVariable("/analysis/inputs/T2","f4",("time_input","lat","lon"), zlib = True)
         t2.units = 'K'
-        t2[:,:,:] = input_images_[:,:,:,0]
+        t2[:,:,:] = input_images_[:context_frames,:,:,0]
 
         #mean sea level pressure
-        msl = nc_file.createVariable("/analysis/MSL","f4",("time","lat","lon"), zlib = True)
+        msl = nc_file.createVariable("/analysis/inputs/MSL","f4",("time_input","lat","lon"), zlib = True)
         msl.units = 'Pa'
-        msl[:,:,:] = input_images_[:,:,:,1]
+        msl[:,:,:] = input_images_[:context_frames,:,:,1]
 
         #Geopotential at 500 
-        gph500 = nc_file.createVariable("/analysis/GPH500","f4",("time","lat","lon"), zlib = True)
+        gph500 = nc_file.createVariable("/analysis/inputs/GPH500","f4",("time_input","lat","lon"), zlib = True)
         gph500.units = 'm'
-        gph500[:,:,:] = input_images_[:,:,:,2]
+        gph500[:,:,:] = input_images_[:context_frames,:,:,2]
+        
+        #####sub group for reference(ground truth)
+        #Temperature
+        t2_r = nc_file.createVariable("/analysis/reference/T2","f4",("time_forecast","lat","lon"), zlib = True)
+        t2_r.units = 'K'
+        t2_r[:,:,:] = input_images_[context_frames:,:,:,0]
 
+        #mean sea level pressure
+        msl_r = nc_file.createVariable("/analysis/reference/MSL","f4",("time_forecast","lat","lon"), zlib = True)
+        msl_r.units = 'Pa'
+        msl_r[:,:,:] = input_images_[context_frames:,:,:,1]
+
+        #Geopotential at 500 
+        gph500_r = nc_file.createVariable("/analysis/reference/GPH500","f4",("time_forecast","lat","lon"), zlib = True)
+        gph500_r.units = 'm'
+        gph500_r[:,:,:] = input_images_[context_frames:,:,:,2]
+        
+        
 
         ################ forecast group  #####################
 
         #Temperature:
-        t2 = nc_file.createVariable("/forecast/{}/T2".format(model_name),"f4",("time","lat","lon"), zlib = True)
+        t2 = nc_file.createVariable("/forecast/{}/T2".format(model_name),"f4",("time_forecast","lat","lon"), zlib = True)
         t2.units = 'K'
-        t2[:,:,:] = gen_images_[:,:,:,0]
+        t2[:,:,:] = gen_images_[context_frames:,:,:,0]
         print("NetCDF created")
         
         #mean sea level pressure
-        msl = nc_file.createVariable("/forecast/{}/MSL".format(model_name),"f4",("time","lat","lon"), zlib = True)
+        msl = nc_file.createVariable("/forecast/{}/MSL".format(model_name),"f4",("time_forecast","lat","lon"), zlib = True)
         msl.units = 'Pa'
-        msl[:,:,:] = gen_images_[:,:,:,1]
+        msl[:,:,:] = gen_images_[context_frames:,:,:,1]
         
         #Geopotential at 500 
-        gph500 = nc_file.createVariable("/forecast/{}/GPH500".format(model_name),"f4",("time","lat","lon"), zlib = True)
+        gph500 = nc_file.createVariable("/forecast/{}/GPH500".format(model_name),"f4",("time_forecast","lat","lon"), zlib = True)
         gph500.units = 'm'
-        gph500[:,:,:] = gen_images_[:,:,:,2]        
+        gph500[:,:,:] = gen_images_[context_frames:,:,:,2]        
         
         print("{} created".format(output_file))        
         
@@ -386,15 +416,15 @@ def main():
             #get one seq and the corresponding start time point
             input_images_,t_start = get_one_seq_and_time(input_images,t_starts,i)
             #generate time stamps for sequences
-            ts = generate_seq_timestamps(t_start,len_seq=sequence_length)[context_frames-1:] #This will include the intia time  
+            ts = generate_seq_timestamps(t_start,len_seq=sequence_length)
             #Renormalized data for inputs
             stat_fl = os.path.join(args.input_dir,"statistics.json")
-            input_images_denorm = denorm_images_all_channels(stat_fl,input_images_,["T2","MSL","gph500"])[context_frames:,:,:,:]
+            input_images_denorm = denorm_images_all_channels(stat_fl,input_images_,["T2","MSL","gph500"])
             #TODO: Just for creating the netCDF file and we copy the input_image_denorm as generate_images_denorm before we got our trained data
             gen_images_denorm = input_images_denorm #(seq,lat,lon,var)            
             #Save input to netCDF file
             init_date_str = ts[0].strftime("%Y%m%d%H")
-            save_to_netcdf_per_sequence(args.results_dir,input_images_denorm,gen_images_denorm,lons,lats,ts[1:],args.model,fl_name="vfp_{}.nc".format(init_date_str))
+            save_to_netcdf_per_sequence(args.results_dir,input_images_denorm,gen_images_denorm,lons,lats,ts,context_frames,future_length,args.model,fl_name="vfp_{}.nc".format(init_date_str))
             
         sample_ind += args.batch_size
             #for input_image in input_images_:
