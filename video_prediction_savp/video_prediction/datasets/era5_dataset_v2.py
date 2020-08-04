@@ -374,14 +374,11 @@ def main():
     
     
     # ini. MPI
-    print("Hallo dude...") 
     comm = MPI.COMM_WORLD
     my_rank = comm.Get_rank()  # rank of the node
     p = comm.Get_size()  # number of assigned nods
   
-    print("Hallo dude 2...") 
     if my_rank == 0 :
-        print("Hello, I'm master")
         # retrieve final statistics first (not parallelized!)
         # some preparatory steps
         stat_dir_prefix = args.input_dir
