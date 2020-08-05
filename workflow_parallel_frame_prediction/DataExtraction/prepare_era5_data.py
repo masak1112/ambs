@@ -105,7 +105,9 @@ def prepare_era5_data_one_file(src_file,directory_to_process,target_dir, target=
         lon_new = test.createVariable('lon', float, ('lon',), zlib = True)
         lon_new.units = 'degrees_east'
         time_new = test.createVariable('time', 'f8', ('time',), zlib = True)
-        time_new.units = "hours since 2000-01-01 00:00:00"
+        #TODO: THIS SHOULD BE CHANGED TO "since 1970-01-01 00:00:00",BECAUSE ERA5 REANALYSIS DATA IS IN PRINCIPLE FROM 1979
+        #WITH "2000-01-01 00:00:00" WE WOULD END UP HANDLING NEGATIVE TIME VALUES
+        time_new.units = "hours since 2000-01-01 00:00:00" 
         time_new.calendar = "gregorian"
         p3d_new = test.createVariable('p3d', float, ('lev', 'lat', 'lon'), zlib = True)
 

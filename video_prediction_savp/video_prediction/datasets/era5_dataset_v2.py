@@ -32,6 +32,7 @@ class ERA5Dataset_v2(VarLenFeatureVideoDataset):
         example = next(tf.python_io.tf_record_iterator(self.filenames[0]))
         dict_message = MessageToDict(tf.train.Example.FromString(example))
         feature = dict_message['features']['feature']
+        print("features in dataset:",feature.keys())
         self.video_shape = tuple(int(feature[key]['int64List']['value'][0]) for key in ['sequence_length','height', 'width', 'channels'])
         self.image_shape = self.video_shape[1:]
         self.state_like_names_and_shapes['images'] = 'images/encoded', self.image_shape
@@ -74,7 +75,8 @@ class ERA5Dataset_v2(VarLenFeatureVideoDataset):
                 'height': tf.FixedLenFeature([], tf.int64),
                 'sequence_length': tf.FixedLenFeature([], tf.int64),
                 'channels': tf.FixedLenFeature([],tf.int64),
-                # 'images/encoded':  tf.FixedLenFeature([], tf.string)
+                #'t_start':  tf.FixedLenFeature([], tf.string),
+                't_start':  tf.VarLenFeature(tf.int64),
                 'images/encoded': tf.VarLenFeature(tf.float32)
             }
             
@@ -83,28 +85,22 @@ class ERA5Dataset_v2(VarLenFeatureVideoDataset):
             parsed_features = tf.parse_single_example(serialized_example, keys_to_features)
             print ("Parse features", parsed_features)
             seq = tf.sparse_tensor_to_dense(parsed_features["images/encoded"])
-           # width = tf.sparse_tensor_to_dense(parsed_features["width"])
+            T_start = tf.sparse_tensor_to_dense(parsed_features["t_start"])
+            print("T_start in make dataset_v2", T_start)
+            #width = tf.sparse_tensor_to_dense(parsed_features["width"])
            # height = tf.sparse_tensor_to_dense(parsed_features["height"])
            # channels  = tf.sparse_tensor_to_dense(parsed_features["channels"])
            # sequence_length = tf.sparse_tensor_to_dense(parsed_features["sequence_length"])
             images = []
-            # for i in range(20):
-            #    images.append(parsed_features["images/encoded"].values[i])
-            # images = parsed_features["images/encoded"]
-            # images = tf.map_fn(lambda i: tf.image.decode_jpeg(parsed_features["images/encoded"].values[i]),offsets)
-            # seq = tf.sparse_tensor_to_dense(parsed_features["images/encoded"], '')
-            # Parse the string into an array of pixels corresponding to the image
-            # images = tf.decode_raw(parsed_features["images/encoded"],tf.int32)
-
-            # images = seq
             print("Image shape {}, {},{},{}".format(self.video_shape[0],self.image_shape[0],self.image_shape[1], self.image_shape[2]))
             images = tf.reshape(seq, [self.video_shape[0],self.image_shape[0],self.image_shape[1], self.image_shape[2]], name = "reshape_new")
             seqs["images"] = images
+            seqs["T_start"] = T_start
             return seqs
         filenames = self.filenames
-
-
-
+        print ("FILENAMES",filenames)
+	    #TODO:
+	    #temporal_filenames = self.temporal_filenames
         shuffle = self.mode == 'train' or (self.mode == 'val' and self.hparams.shuffle_on_val)
         if shuffle:
             random.shuffle(filenames)
@@ -125,7 +121,6 @@ class ERA5Dataset_v2(VarLenFeatureVideoDataset):
         # dataset = dataset.apply(tf.contrib.data.map_and_batch(
         #    _parser, batch_size, drop_remainder=True, num_parallel_calls=num_parallel_calls)) #  Bing: Parallel data mapping, num_parallel_calls normally depends on the hardware, however, normally should be equal to be the usalbe number of CPUs
         dataset = dataset.prefetch(batch_size)  # Bing: Take the data to buffer inorder to save the waiting time for GPU
-
         return dataset
 
 
@@ -143,24 +138,26 @@ def _bytes_list_feature(values):
     return tf.train.Feature(bytes_list=tf.train.BytesList(value=values))
 
 def _floats_feature(value):
-  return tf.train.Feature(float_list=tf.train.FloatList(value=value))
+    return tf.train.Feature(float_list=tf.train.FloatList(value=value))
 
 def _int64_feature(value):
     return tf.train.Feature(int64_list=tf.train.Int64List(value=[value]))
 
-def save_tf_record(output_fname, sequences):
-    #print('saving sequences to %s' % output_fname)
+def save_tf_record(output_fname, sequences,T_start_points):
     with tf.python_io.TFRecordWriter(output_fname) as writer:
-        for sequence in sequences:
+        for i in range(len(sequences)):
+            sequence = sequences[i]
+            T_start = T_start_points[i][0].strftime("%Y%m%d%H")
+            print("T_start:",T_start)
             num_frames = len(sequence)
             height, width, channels = sequence[0].shape
             encoded_sequence = np.array([list(image) for image in sequence])
-
             features = tf.train.Features(feature={
                 'sequence_length': _int64_feature(num_frames),
                 'height': _int64_feature(height),
                 'width': _int64_feature(width),
                 'channels': _int64_feature(channels),
+                't_start': _int64_feature(int(T_start)),
                 'images/encoded': _floats_feature(encoded_sequence.flatten()),
             })
             example = tf.train.Example(features=features)
@@ -211,51 +208,51 @@ class Norm_data:
             for stat_name in self.known_norms[norm]:
                 #setattr(self,varname+stat_name,stat_dict[varname][0][stat_name])
                 setattr(self,varname+stat_name,Calc_data_stat.get_stat_vars(stat_dict,stat_name,varname))
-                
+
         self.status_ok = True           # set status for normalization -> ready
-                
+
     def norm_var(self,data,varname,norm):
         """ 
          Performs given normalization on input data (given that the instance is already set up)
         """
-        
+
         # some sanity checks
         if not self.status_ok: raise ValueError("Norm_data-instance needs to be initialized and checked first.") # status ready?
-        
+
         if not norm in self.known_norms.keys():                                # valid normalization requested?
             print("Please select one of the following known normalizations: ")
             for norm_avail in self.known_norms.keys():
                 print(norm_avail)
             raise ValueError("Passed normalization '"+norm+"' is unknown.")
-        
+
         # do the normalization and return
         if norm == "minmax":
             return((data[...] - getattr(self,varname+"min"))/(getattr(self,varname+"max") - getattr(self,varname+"min")))
         elif norm == "znorm":
             return((data[...] - getattr(self,varname+"avg"))/getattr(self,varname+"sigma")**2)
-        
+
     def denorm_var(self,data,varname,norm):
         """ 
          Performs given denormalization on input data (given that the instance is already set up), i.e. inverse method to norm_var
         """
-        
+
         # some sanity checks
         if not self.status_ok: raise ValueError("Norm_data-instance needs to be initialized and checked first.") # status ready?        
-        
+
         if not norm in self.known_norms.keys():                                # valid normalization requested?
             print("Please select one of the following known normalizations: ")
             for norm_avail in self.known_norms.keys():
                 print(norm_avail)
             raise ValueError("Passed normalization '"+norm+"' is unknown.")
-        
+
         # do the denormalization and return
         if norm == "minmax":
             return(data[...] * (getattr(self,varname+"max") - getattr(self,varname+"min")) + getattr(self,varname+"min"))
         elif norm == "znorm":
             return(data[...] * getattr(self,varname+"sigma")**2 + getattr(self,varname+"avg"))
-        
 
-def read_frames_and_save_tf_records(stats,output_dir,input_file,vars_in,year,month,seq_length=20,sequences_per_file=128,height=64,width=64,channels=3,**kwargs):#Bing: original 128
+
+def read_frames_and_save_tf_records(stats,output_dir,input_file, temp_input_file, vars_in,year,month,seq_length=20,sequences_per_file=128,height=64,width=64,channels=3,**kwargs):#Bing: original 128
     """
     Read pickle files based on month, to process and save to tfrecords
     stats:dict, contains the stats information from pickle directory,
@@ -271,42 +268,47 @@ def read_frames_and_save_tf_records(stats,output_dir,input_file,vars_in,year,mon
     else:
         norm = "minmax"
         print("Make use of default minmax-normalization...")
-    
-   
+
+
     os.makedirs(output_dir,exist_ok=True)
-    
+
     norm_cls  = Norm_data(vars_in)       # init normalization-instance
     nvars     = len(vars_in)
     
     # open statistics file and feed it to norm-instance
     #with open(os.path.join(input_dir,"statistics.json")) as js_file:
-    norm_cls.check_and_set_norm(stats,norm)        
-    
+    norm_cls.check_and_set_norm(stats,norm)
     sequences = []
+    T_start_points = []
     sequence_iter = 0
     #sequence_lengths_file = open(os.path.join(output_dir, 'sequence_lengths.txt'), 'w')
     #Bing 2020/07/16
     #print ("open intput dir,",input_file)
     with open(input_file, "rb") as data_file:
         X_train = pickle.load(data_file)
+    with open(temp_input_file,"rb") as temp_file:
+        T_train = pickle.load(temp_file)
+    #print("T_train:",T_train) 
+    #check to make sure the X_train and T_train has the same length 
+    assert (len(X_train) == len(T_train))
     
-    #X_train = hkl.load(os.path.join(input_dir, "X_" + partition_name + ".hkl"))
     X_possible_starts = [i for i in range(len(X_train) - seq_length)]
     for X_start in X_possible_starts:
-        
         X_end = X_start + seq_length
         #seq = X_train[X_start:X_end, :, :,:]
         seq = X_train[X_start:X_end,:,:,:]
-        #print("*****len of seq ***.{}".format(len(seq)))
-       
+        #Recored the start point of the timestamps
+        T_start = T_train[X_start]
+        #print("T_start:",T_start)  
         seq = list(np.array(seq).reshape((seq_length, height, width, nvars)))
         if not sequences:
             last_start_sequence_iter = sequence_iter
-            #print("reading sequences starting at sequence %d" % sequence_iter)
+           
+       
         sequences.append(seq)
-        sequence_iter += 1
-        #sequence_lengths_file.write("%d\n" % len(seq))
-
+        T_start_points.append(T_start)
+        sequence_iter += 1    
+        
         if len(sequences) == sequences_per_file:
             ###Normalization should adpot the selected variables, here we used duplicated channel temperature variables
             sequences = np.array(sequences)
@@ -316,7 +318,9 @@ def read_frames_and_save_tf_records(stats,output_dir,input_file,vars_in,year,mon
 
             output_fname = 'sequence_Y_{}_M_{}_{}_to_{}.tfrecords'.format(year,month,last_start_sequence_iter,sequence_iter - 1)
             output_fname = os.path.join(output_dir, output_fname)
-            save_tf_record(output_fname, list(sequences))
+            print("T_start_points:",T_start_points)
+            save_tf_record(output_fname, list(sequences), T_start_points)
+            T_start_points = []
             sequences = []
     print("Finished for input file",input_file)
     #sequence_lengths_file.close()
@@ -337,7 +341,6 @@ def write_sequence_file(output_dir,seq_length):
     
 
 def main():
-    print("I'm living...")
     parser = argparse.ArgumentParser()
     parser.add_argument("input_dir", type=str, help="directory containing the processed directories ""boxing, handclapping, handwaving, ""jogging, running, walking")
     parser.add_argument("output_dir", type=str)
@@ -351,6 +354,7 @@ def main():
     current_path = os.getcwd()
     #input_dir = "/Users/gongbing/PycharmProjects/video_prediction/splits"
     #output_dir = "/Users/gongbing/PycharmProjects/video_prediction/data/era5"
+    #partition_names = ['train','val',  'test'] #64,64,3 val has issue#
 
     ############################################################
     # CONTROLLING variable! Needs to be adapted manually!!!
@@ -371,7 +375,6 @@ def main():
                 {"2017":[12]
                  }
             }
-    
     
     # ini. MPI
     comm = MPI.COMM_WORLD
@@ -401,6 +404,7 @@ def main():
         stat_obj.finalize_stat_master(vars_uni)
         stat_obj.write_stat_json(args.input_dir)
 
+        # organize parallelized partioning 
         partition_year_month = [] #contain lists of list, each list includes three element [train,year,month]
         partition_names = list(partition.keys())
         print ("partition_names:",partition_names)
@@ -421,7 +425,6 @@ def main():
             print("Message in from slaver",message_in) 
             
         write_sequence_file(args.output_dir,args.seq_length)
-        
         #write_sequence_file   
     else:
         message_in = comm.recv()
@@ -438,9 +441,16 @@ def main():
             save_output_dir =  os.path.join(args.output_dir,partition_name)
             for year in partition[1]:
                input_file = "X_" + '{0:02}'.format(my_rank) + ".pkl"
+               temp_file = "T_" + '{0:02}'.format(my_rank) + ".pkl"
                input_dir = os.path.join(args.input_dir,year)
+               temp_file = os.path.join(input_dir,temp_file )
                input_file = os.path.join(input_dir,input_file)
-               read_frames_and_save_tf_records(year=year,month=my_rank,stats=stats,output_dir=save_output_dir,input_file=input_file,vars_in=args.variables,partition_name=partition_name, seq_length=args.seq_length,height=args.height,width=args.width,sequences_per_file=20)        
+               # create the tfrecords-files
+               read_frames_and_save_tf_records(year=year,month=my_rank,stats=stats,output_dir=save_output_dir, \
+                                               input_file=input_file,temp_input_file=temp_file,vars_in=args.variables, \
+                                               partition_name=partition_name,seq_length=args.seq_length, \
+                                               height=args.height,width=args.width,sequences_per_file=20)   
+                                                  
             print("Year {} finished",year)
         message_out = ("Node:",str(my_rank),"finished","","\r\n")
         print ("Message out for slaves:",message_out)
