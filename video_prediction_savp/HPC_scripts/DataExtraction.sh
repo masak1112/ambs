@@ -38,7 +38,7 @@ dest_dir="/p/scratch/deepacf/video_prediction_shared_folder/extractedData/"
 year="2010"
 
 # Run data extraction
-srun python ../../workflow_parallel_frame_prediction/DataExtraction/mpi_stager_v2.py --source_dir ${source_dir}/${year} --destination_dir ${dest_dir}/${year}/
+srun python ../../workflow_parallel_frame_prediction/DataExtraction/mpi_stager_v2.py --source_dir ${source_dir}/${year}/ --destination_dir ${dest_dir}/${year}/
 
 
 

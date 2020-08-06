@@ -34,8 +34,9 @@ fi
 
 
 # declare directory-variables which will be modified appropriately during Preprocessing (invoked by mpi_split_data_multi_years.py)
-source_dir=/p/project/deepacf/deeprain/video_prediction_shared_folder/preprocessedData/scarlet_era5-Y2017_testM01to12-160x128-2970N1500W-T2_MSL_gph500
-destination_dir=/p/project/deepacf/deeprain/video_prediction_shared_folder/models/bing_era5-Y2017_testM01to12-160x128-2970N1500W-T2_MSL_gph500
+source_dir=/p/project/deepacf/deeprain/video_prediction_shared_folder/preprocessedData/
+destination_dir=/p/project/deepacf/deeprain/video_prediction_shared_folder/models/
+
 # for choosing the model
 model=convLSTM
 model_hparams=../hparams/era5/${model}/model_hparams.json
