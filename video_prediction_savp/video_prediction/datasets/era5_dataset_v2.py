@@ -16,6 +16,7 @@ sys.path.append(path.abspath('../../workflow_parallel_frame_prediction/'))
 import DataPreprocess.process_netCDF_v2 
 from DataPreprocess.process_netCDF_v2 import get_unique_vars
 from DataPreprocess.process_netCDF_v2 import Calc_data_stat
+from metadata import MetaData
 #from base_dataset import VarLenFeatureVideoDataset
 from collections import OrderedDict
 from tensorflow.contrib.training import HParams
@@ -60,7 +61,6 @@ class ERA5Dataset_v2(VarLenFeatureVideoDataset):
             sequence_lengths = sequence_lengths_file.readlines()
         sequence_lengths = [int(sequence_length.strip()) for sequence_length in sequence_lengths]
         return np.sum(np.array(sequence_lengths) >= self.hparams.sequence_length)
-
 
     def filter(self, serialized_example):
         return tf.convert_to_tensor(True)
@@ -253,9 +253,9 @@ class Norm_data:
 
 def read_frames_and_save_tf_records(stats,output_dir,input_file, temp_input_file, vars_in,year,month,seq_length=20,sequences_per_file=128,height=64,width=64,channels=3,**kwargs):#Bing: original 128
     """
-    Read hickle/pickle files based on month, to process and save to tfrecords
-    stats:dict, contains the stats information from hickle directory,
-    input_file: string, absolute path to hickle/pickle file
+    Read pickle files based on month, to process and save to tfrecords
+    stats:dict, contains the stats information from pickle directory,
+    input_file: string, absolute path to pickle file
     file_info: 1D list with three elements, partition_name(train,val or test), year, and month e.g.[train,1,2]  
     """
     # ML 2020/04/08:
@@ -281,9 +281,6 @@ def read_frames_and_save_tf_records(stats,output_dir,input_file, temp_input_file
     T_start_points = []
     sequence_iter = 0
     #sequence_lengths_file = open(os.path.join(output_dir, 'sequence_lengths.txt'), 'w')
-    # ML 2020/07/15: Make use of pickle-files only
-    #with open(os.path.join(input_dir, "X_" + partition_name + ".pkl"), "rb") as data_file:
-    #    X_train = pickle.load(data_file)
     #Bing 2020/07/16
     #print ("open intput dir,",input_file)
     with open(input_file, "rb") as data_file:
@@ -328,7 +325,7 @@ def read_frames_and_save_tf_records(stats,output_dir,input_file, temp_input_file
     #sequence_lengths_file.close()
     return 
 
-def write_sequence_file(output_dir,seq_length):
+def write_sequence_file(output_dir,seq_length,sequences_per_file):
     
     partition_names = ["train","val","test"]
     for partition_name in partition_names:
@@ -336,7 +333,7 @@ def write_sequence_file(output_dir,seq_length):
         tfCounter = len(glob.glob1(save_output_dir,"*.tfrecords"))
         print("Partition_name: {}, number of tfrecords: {}".format(partition_name,tfCounter))
         sequence_lengths_file = open(os.path.join(save_output_dir, 'sequence_lengths.txt'), 'w')
-        for i in range(tfCounter):
+        for i in range(tfCounter*sequences_per_file):
             sequence_lengths_file.write("%d\n" % seq_length)
         sequence_lengths_file.close()
     
@@ -352,41 +349,62 @@ def main():
     parser.add_argument("-height",type=int,default=64)
     parser.add_argument("-width",type = int,default=64)
     parser.add_argument("-seq_length",type=int,default=20)
+    parser.add_argument("-sequences_per_file",type=int,default=2)
     args = parser.parse_args()
     current_path = os.getcwd()
     #input_dir = "/Users/gongbing/PycharmProjects/video_prediction/splits"
     #output_dir = "/Users/gongbing/PycharmProjects/video_prediction/data/era5"
     #partition_names = ['train','val',  'test'] #64,64,3 val has issue#
 
+    ############################################################
+    # CONTROLLING variable! Needs to be adapted manually!!!
+    ############################################################
     partition = {
             "train":{
                # "2222":[1,2,3,5,6,7,8,9,10,11,12],
                # "2010_1":[1,2,3,4,5,6,7,8,9,10,11,12],
                # "2012":[1,2,3,4,5,6,7,8,9,10,11,12],
                # "2013_complete":[1,2,3,4,5,6,7,8,9,10,11,12],
-                "2015":[1,2,3,4,5,6,7,8,9,10,11,12],
-               # "2017":[1,2,3,4,5,6,7,8,9,10,11,12]
+               # "2015":[1,2,3,4,5,6,7,8,9,10,11,12],
+                "2017_test":[1,2,3,4,5,6,7,8,9,10]
                  },
             "val":
-                {"2016":[1,2,3,4,5,6,7,8,9,10,11,12]
+                {"2017_test":[11]
                  },
             "test":
-                {"2017":[1,2,3,4,5,6,7,8,9,10,11,12]
+                {"2017_test":[12]
                  }
             }
     
-    # open statistics file and feed it to norm-instance
-    with open(os.path.join(args.input_dir,"statistics.json")) as js_file:
-        stats = json.load(js_file)
-    
-    #TODO: search all the statistic json file correspdoing to the parition and generate a general statistic.json for normalization
-         
     # ini. MPI
     comm = MPI.COMM_WORLD
     my_rank = comm.Get_rank()  # rank of the node
     p = comm.Get_size()  # number of assigned nods
-    
+  
     if my_rank == 0 :
+        # retrieve final statistics first (not parallelized!)
+        # some preparatory steps
+        stat_dir_prefix = args.input_dir
+        varnames        = args.variables
+    
+        vars_uni, varsind, nvars = get_unique_vars(varnames)
+        stat_obj = Calc_data_stat(nvars)                            # init statistic-instance
+    
+        # loop over whole data set (training, dev and test set) to collect the intermediate statistics
+        print("Start collecting statistics from the whole datset to be processed...")
+        for split in partition.keys():
+            values = partition[split]
+            for year in values.keys():
+                file_dir = os.path.join(stat_dir_prefix,year)
+                for month in values[year]:
+                    # process stat-file:
+                    stat_obj.acc_stat_master(file_dir,int(month))  # process monthly statistic-file  
+        
+        # finalize statistics and write to json-file
+        stat_obj.finalize_stat_master(vars_uni)
+        stat_obj.write_stat_json(args.input_dir)
+
+        # organize parallelized partioning 
         partition_year_month = [] #contain lists of list, each list includes three element [train,year,month]
         partition_names = list(partition.keys())
         print ("partition_names:",partition_names)
@@ -406,12 +424,17 @@ def main():
             message_counter = message_counter + 1 
             print("Message in from slaver",message_in) 
             
-        write_sequence_file(args.output_dir,args.seq_length)
+        write_sequence_file(args.output_dir,args.seq_length,args.sequences_per_file)
+        
         #write_sequence_file   
     else:
         message_in = comm.recv()
         print ("My rank,", my_rank)   
         print("message_in",message_in)
+        # open statistics file and feed it to norm-instance
+        print("Opening json-file: "+os.path.join(args.input_dir,"statistics.json"))
+        with open(os.path.join(args.input_dir,"statistics.json")) as js_file:
+            stats = json.load(js_file)
         #loop the partitions (train,val,test)
         for partition in message_in:
             print("partition on slave ",partition)
@@ -423,7 +446,11 @@ def main():
                input_dir = os.path.join(args.input_dir,year)
                temp_file = os.path.join(input_dir,temp_file )
                input_file = os.path.join(input_dir,input_file)
-               read_frames_and_save_tf_records(year=year,month=my_rank,stats=stats,output_dir=save_output_dir,input_file=input_file,temp_input_file=temp_file,vars_in=args.variables,partition_name=partition_name,seq_length=args.seq_length,height=args.height,width=args.width,sequences_per_file=2)   
+               # create the tfrecords-files
+               read_frames_and_save_tf_records(year=year,month=my_rank,stats=stats,output_dir=save_output_dir, \
+                                               input_file=input_file,temp_input_file=temp_file,vars_in=args.variables, \
+                                               partition_name=partition_name,seq_length=args.seq_length, \
+                                               height=args.height,width=args.width,sequences_per_file=args.sequences_per_file)   
                                                   
             print("Year {} finished",year)
         message_out = ("Node:",str(my_rank),"finished","","\r\n")

@@ -29,8 +29,8 @@ if [ -z ${VIRTUAL_ENV} ]; then
 fi
 
 # declare directory-variables which will be modified appropriately during Preprocessing (invoked by mpi_split_data_multi_years.py)
-source_dir=/p/project/deepacf/deeprain/video_prediction_shared_folder/preprocessedData/era5-Y2015to2017M01to12-160x128-2970N1500W-T2_MSL_gph500
-destination_dir=/p/project/deepacf/deeprain/video_prediction_shared_folder/preprocessedData/era5-Y2015to2017M01to12-160x128-2970N1500W-T2_MSL_gph500
+source_dir=/p/project/deepacf/deeprain/video_prediction_shared_folder/preprocessedData/
+destination_dir=/p/project/deepacf/deeprain/video_prediction_shared_folder/preprocessedData/
 
 # run Preprocessing (step 2 where Tf-records are generated)
-srun python ../video_prediction/datasets/era5_dataset_v2.py ${source_dir}/hickle ${destination_dir}/tfrecords -vars T2 MSL gph500 -height 128 -width 160 -seq_length 20 
+srun python ../video_prediction/datasets/era5_dataset_v2.py ${source_dir}/pickle ${destination_dir}/tfrecords -vars T2 MSL gph500 -height 128 -width 160 -seq_length 20 

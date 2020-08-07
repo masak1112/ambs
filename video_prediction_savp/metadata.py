@@ -4,6 +4,7 @@ Classes and routines to retrieve and handle meta-data
 
 import os
 import sys
+import time
 import numpy as np
 import json
 from netCDF4 import Dataset
@@ -172,7 +173,8 @@ class MetaData:
             
         meta_fname = os.path.join(dest_dir,"metadata.json")
 
-        if os.path.exists(meta_fname):                      # check if a metadata-file already exists and check its content 
+        if os.path.exists(meta_fname):                      # check if a metadata-file already exists and check its content
+            print(method_name+": json-file ('"+meta_fname+"' already exists. Its content will be checked...")
             self.status = "old"                             # set status to old in order to prevent repeated modification of shell-/Batch-scripts
             with open(meta_fname,'r') as js_file:
                 dict_dupl = json.load(js_file)
@@ -241,6 +243,7 @@ class MetaData:
     def write_destdir_jsontmp(dest_dir, tmp_dir = None):        
         """
           Writes dest_dir to temporary json-file (temp.json) stored in the current working directory.
+          To be executed by Master node in parallel mode.
         """
         
         if not tmp_dir: tmp_dir = os.getcwd()
@@ -275,6 +278,34 @@ class MetaData:
             raise Exception(method_name+": Could not find 'destination_dir' in dictionary obtained from "+file_tmp)
         else:
             return(dict_tmp.get("destination_dir"))
+    
+    @staticmethod
+    def wait_for_jsontmp(tmp_dir = None, waittime = 10, delay=0.5):
+        """
+          Waits at max. waittime (in sec) until temp.json-file becomes available
+        """
+        
+        method_name = MetaData.wait_for_jsontmp.__name__+" of Class "+MetaData.__name__
+        
+        if not tmp_dir: tmp_dir = os.getcwd()
+        
+        file_tmp = os.path.join(tmp_dir,"temp.json")
+                                
+        counter_max = waittime/delay
+        counter = 0
+        status  = "not_ok" 
+        
+        while (counter <= counter_max):
+            if os.path.isfile(file_tmp):
+                status = "ok"
+                break
+            else:
+                time.sleep(delay)
+            
+            counter += 1
+                                
+        if status != "ok": raise IOError(method_name+": '"+file_tmp+ \
+                           "' does not exist after waiting for "+str(waittime)+" sec.") 
     
     
     @staticmethod
