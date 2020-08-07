@@ -7,21 +7,41 @@
 #SBATCH --output=train_era5-out.%j
 #SBATCH --error=train_era5-err.%j
 #SBATCH --time=00:20:00
-#SBATCH --gres=gpu:1
+#SBATCH --gres=gpu:2
 #SBATCH --partition=develgpus
 #SBATCH --mail-type=ALL
 #SBATCH --mail-user=b.gong@fz-juelich.de
 ##jutil env activate -p cjjsc42
 
-module --force purge 
-module use $OTHERSTAGES
-module load Stages/2019a
-module load GCCcore/.8.3.0
-module load mpi4py/3.0.1-Python-3.6.8
-module load h5py/2.9.0-serial-Python-3.6.8
-module load TensorFlow/1.13.1-GPU-Python-3.6.8
-module load cuDNN/7.5.1.10-CUDA-10.1.105
+
+# Name of virtual environment 
+VIRT_ENV_NAME="vp"
+
+# Loading mouldes
+source ../env_setup/modules_train.sh
+# Activate virtual environment if needed (and possible)
+if [ -z ${VIRTUAL_ENV} ]; then
+   if [[ -f ../${VIRT_ENV_NAME}/bin/activate ]]; then
+      echo "Activating virtual environment..."
+      source ../${VIRT_ENV_NAME}/bin/activate
+   else 
+      echo "ERROR: Requested virtual environment ${VIRT_ENV_NAME} not found..."
+      exit 1
+   fi
+fi
 
 
-srun python ../scripts/train_v2.py --input_dir  /p/scratch/deepacf/video_prediction_shared_folder/preprocessedData/2017M01to12-64_64-50.00N11.50E-T_T_T/tfrecords  --dataset era5  --model savp --model_hparams_dict ../hparams/kth/ours_savp/model_hparams.json --output_dir /p/scratch/deepacf/video_prediction_shared_folder/models/2017M01to12-64_64-50.00N11.50E-T_T_T/ours_savp
-#srun  python scripts/train.py --input_dir data/era5 --dataset era5  --model savp --model_hparams_dict hparams/kth/ours_savp/model_hparams.json --output_dir logs/era5/ours_savp
+
+
+# declare directory-variables which will be modified appropriately during Preprocessing (invoked by mpi_split_data_multi_years.py)
+source_dir=/p/project/deepacf/deeprain/video_prediction_shared_folder/preprocessedData/
+destination_dir=/p/project/deepacf/deeprain/video_prediction_shared_folder/models/
+
+# for choosing the model
+model=convLSTM
+model_hparams=../hparams/era5/${model}/model_hparams.json
+
+# rund training
+srun python ../scripts/train_dummy.py --input_dir  ${source_dir}/tfrecords/ --dataset era5  --model ${model} --model_hparams_dict ${model_hparams} --output_dir ${destination_dir}/${model}/
+
+ 

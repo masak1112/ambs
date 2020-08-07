@@ -13,19 +13,33 @@
 #SBATCH --mail-user=b.gong@fz-juelich.de
 ##jutil env activate -p cjjsc42
 
+# Name of virtual environment 
+VIRT_ENV_NAME="vp"
 
-module purge
-module load GCC/8.3.0
-module load ParaStationMPI/5.2.2-1
-module load TensorFlow/1.13.1-GPU-Python-3.6.8
-module load netcdf4-python/1.5.0.1-Python-3.6.8
-module load h5py/2.9.0-Python-3.6.8
+# Loading mouldes
+source ../env_setup/modules_train.sh
+# Activate virtual environment if needed (and possible)
+if [ -z ${VIRTUAL_ENV} ]; then
+   if [[ -f ../${VIRT_ENV_NAME}/bin/activate ]]; then
+      echo "Activating virtual environment..."
+      source ../${VIRT_ENV_NAME}/bin/activate
+   else 
+      echo "ERROR: Requested virtual environment ${VIRT_ENV_NAME} not found..."
+      exit 1
+   fi
+fi
 
+# declare directory-variables which will be modified appropriately during Preprocessing (invoked by mpi_split_data_multi_years.py)
+source_dir=/p/scratch/deepacf/video_prediction_shared_folder/preprocessedData/
+checkpoint_dir=/p/scratch/deepacf/video_prediction_shared_folder/models/
+results_dir=/p/scratch/deepacf/video_prediction_shared_folder/results/
 
-python -u ../scripts/generate_transfer_learning_finetune.py \
---input_dir /p/scratch/deepacf/video_prediction_shared_folder/preprocessedData/era5-Y2017M01to12-64x64-50d00N11d50E-T_T_T/tfrecords/  \
---dataset_hparams sequence_length=20 --checkpoint  /p/scratch/deepacf/video_prediction_shared_folder/models/era5-Y2017M01to12-64x64-50d00N11d50E-T_T_T/ours_gan \
---mode test --results_dir /p/scratch/deepacf/video_prediction_shared_folder/results/era5-Y2017M01to12-64x64-50d00N11d50E-T_T_T \
---batch_size 4 --dataset era5   > generate_era5-out.out
+# name of model
+model=convLSTM
+
+# run postprocessing/generation of model results including evaluation metrics
+srun python -u ../scripts/generate_transfer_learning_finetune.py \
+--input_dir ${source_dir}/tfrecords --dataset_hparams sequence_length=20 --checkpoint  ${checkpoint_dir}/${model} \
+--mode test --model ${model} --results_dir ${results_dir}/${model}/ --batch_size 2 --dataset era5   > generate_era5-out.out
 
 #srun  python scripts/train.py --input_dir data/era5 --dataset era5  --model savp --model_hparams_dict hparams/kth/ours_savp/model_hparams.json --output_dir logs/era5/ours_savp

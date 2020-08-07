@@ -4,6 +4,7 @@ Classes and routines to retrieve and handle meta-data
 
 import os
 import sys
+import time
 import numpy as np
 import json
 from netCDF4 import Dataset
@@ -23,7 +24,9 @@ class MetaData:
         method_name = MetaData.__init__.__name__+" of Class "+MetaData.__name__
         
         if not json_file is None: 
-            MetaData.get_metadata_from_file(json_file)
+            print(json_file)
+            print(type(json_file))
+            MetaData.get_metadata_from_file(self,json_file)
             
         else:
             # No dictionary from json-file available, all other arguments have to set
@@ -90,9 +93,11 @@ class MetaData:
         self.nx, self.ny = np.abs(slices['lon_e'] - slices['lon_s']), np.abs(slices['lat_e'] - slices['lat_s'])    
         sw_c             = [float(datafile.variables['lat'][slices['lat_e']-1]),float(datafile.variables['lon'][slices['lon_s']])]                # meridional axis lat is oriented from north to south (i.e. monotonically decreasing)
         self.sw_c        = sw_c
+        self.lat = datafile.variables['lat'][slices['lat_s']:slices['lat_e']]
+        self.lon = datafile.variables['lon'][slices['lon_s']:slices['lon_e']]
         
-        # Now start constructing exp_dir-string
-        # switch sign and coordinate-flags to avoid negative values appearing in exp_dir-name
+        # Now start constructing expdir-string
+        # switch sign and coordinate-flags to avoid negative values appearing in expdir-name
         if sw_c[0] < 0.:
             sw_c[0] = np.abs(sw_c[0])
             flag_coords[0] = "S"
@@ -112,7 +117,7 @@ class MetaData:
         
         expdir, expname = path_parts[0], path_parts[1] 
 
-        # extend exp_dir_in successively (splitted up for better readability)
+        # extend expdir_in successively (splitted up for better readability)
         expname += "-"+str(self.nx) + "x" + str(self.ny)
         expname += "-"+(("{0: 05.2f}"+flag_coords[0]+"{1:05.2f}"+flag_coords[1]).format(*sw_c)).strip().replace(".","")+"-"  
         
@@ -139,10 +144,15 @@ class MetaData:
                      "expdir" : self.expdir}
         
         meta_dict["sw_corner_frame"] = {
-            "lat" : self.sw_c[0],
-            "lon" : self.sw_c[1]
+            "lat" : np.around(self.sw_c[0],decimals=2),
+            "lon" : np.around(self.sw_c[1],decimals=2)
             }
         
+        meta_dict["coordinates"] = {
+            "lat" : np.around(self.lat,decimals=2).tolist(),
+            "lon" : np.around(self.lon,decimals=2).tolist()
+            }
+            
         meta_dict["frame_size"] = {
             "nx" : int(self.nx),
             "ny" : int(self.ny)
@@ -150,7 +160,7 @@ class MetaData:
         
         meta_dict["variables"] = []
         for i in range(len(self.varnames)):
-            print(self.varnames[i])
+            #print(self.varnames[i])
             meta_dict["variables"].append( 
                     {"var"+str(i+1) : self.varnames[i]})
         
@@ -163,14 +173,19 @@ class MetaData:
             
         meta_fname = os.path.join(dest_dir,"metadata.json")
 
-        if os.path.exists(meta_fname):                      # check if a metadata-file already exists and check its content 
+        if os.path.exists(meta_fname):                      # check if a metadata-file already exists and check its content
+            print(method_name+": json-file ('"+meta_fname+"' already exists. Its content will be checked...")
             self.status = "old"                             # set status to old in order to prevent repeated modification of shell-/Batch-scripts
             with open(meta_fname,'r') as js_file:
                 dict_dupl = json.load(js_file)
                 
                 if dict_dupl != meta_dict:
-                    print(method_name+": Already existing metadata (see '"+meta_fname+") do not fit data being processed right now. Ensure a common data base.")
-                    sys.exit(1)
+                    meta_fname_dbg = os.path.join(dest_dir,"metadata_debug.json")
+                    print(method_name+": Already existing metadata (see '"+meta_fname+"') do not fit data being processed right now (see '" \
+                          +meta_fname_dbg+"'. Ensure a common data base.")
+                    with open(meta_fname_dbg,'w') as js_file:
+                        json.dump(meta_dict,js_file)                         
+                    raise ValueError
                 else: #do not need to do anything
                     pass
         else:
@@ -189,20 +204,24 @@ class MetaData:
         with open(js_file) as js_file:                
             dict_in = json.load(js_file)
             
-            self.exp_dir = dict_in["exp_dir"]
+            self.expdir = dict_in["expdir"]
             
             self.sw_c       = [dict_in["sw_corner_frame"]["lat"],dict_in["sw_corner_frame"]["lon"] ]
+            self.lat        = dict_in["coordinates"]["lat"]
+            self.lon        = dict_in["coordinates"]["lon"]
             
             self.nx         = dict_in["frame_size"]["nx"]
             self.ny         = dict_in["frame_size"]["ny"]
-            
-            self.variables  = [dict_in["variables"][ivar] for ivar in dict_in["variables"].keys()]   
-            
+            # dict_in["variables"] is a list like [{var1: varname1},{var2: varname2},...]
+            list_of_dict_aux = dict_in["variables"] 
+            # iterate through the list with an integer ivar
+            # note: the naming of the variables starts with var1, thus add 1 to the iterator
+            self.variables = [list_of_dict_aux[ivar]["var"+str(ivar+1)] for ivar in range(len(list_of_dict_aux))]
             
     def write_dirs_to_batch_scripts(self,batch_script):
         
         """
-         Expands ('known') directory-variables in batch_script by exp_dir-attribute of class instance
+         Expands ('known') directory-variables in batch_script by expdir-attribute of class instance
         """
         
         paths_to_mod = ["source_dir=","destination_dir=","checkpoint_dir=","results_dir="]      # known directory-variables in batch-scripts
@@ -224,6 +243,7 @@ class MetaData:
     def write_destdir_jsontmp(dest_dir, tmp_dir = None):        
         """
           Writes dest_dir to temporary json-file (temp.json) stored in the current working directory.
+          To be executed by Master node in parallel mode.
         """
         
         if not tmp_dir: tmp_dir = os.getcwd()
@@ -258,6 +278,34 @@ class MetaData:
             raise Exception(method_name+": Could not find 'destination_dir' in dictionary obtained from "+file_tmp)
         else:
             return(dict_tmp.get("destination_dir"))
+    
+    @staticmethod
+    def wait_for_jsontmp(tmp_dir = None, waittime = 10, delay=0.5):
+        """
+          Waits at max. waittime (in sec) until temp.json-file becomes available
+        """
+        
+        method_name = MetaData.wait_for_jsontmp.__name__+" of Class "+MetaData.__name__
+        
+        if not tmp_dir: tmp_dir = os.getcwd()
+        
+        file_tmp = os.path.join(tmp_dir,"temp.json")
+                                
+        counter_max = waittime/delay
+        counter = 0
+        status  = "not_ok" 
+        
+        while (counter <= counter_max):
+            if os.path.isfile(file_tmp):
+                status = "ok"
+                break
+            else:
+                time.sleep(delay)
+            
+            counter += 1
+                                
+        if status != "ok": raise IOError(method_name+": '"+file_tmp+ \
+                           "' does not exist after waiting for "+str(waittime)+" sec.") 
     
     
     @staticmethod

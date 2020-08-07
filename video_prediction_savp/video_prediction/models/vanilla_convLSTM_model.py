@@ -17,21 +17,17 @@ from video_prediction.layers import layer_def as ld
 from video_prediction.layers.BasicConvLSTMCell import BasicConvLSTMCell
 
 class VanillaConvLstmVideoPredictionModel(BaseVideoPredictionModel):
-    def __init__(self, mode='train',aggregate_nccl=None, hparams_dict=None,
+    def __init__(self, mode='train', hparams_dict=None,
                  hparams=None, **kwargs):
         super(VanillaConvLstmVideoPredictionModel, self).__init__(mode, hparams_dict, hparams, **kwargs)
         print ("Hparams_dict",self.hparams)
         self.mode = mode
         self.learning_rate = self.hparams.lr
-        self.gen_images_enc = None
-        self.recon_loss = None
-        self.latent_loss = None
         self.total_loss = None
-        self.context_frames = 10
-        self.sequence_length = 20
+        self.context_frames = self.hparams.context_frames
+        self.sequence_length = self.hparams.sequence_length
         self.predict_frames = self.sequence_length - self.context_frames
-        self.aggregate_nccl=aggregate_nccl
-    
+        self.max_epochs = self.hparams.max_epochs
     def get_default_hparams_dict(self):
         """
         The keys of this dict define valid hyperparameters for instances of
@@ -44,13 +40,8 @@ class VanillaConvLstmVideoPredictionModel(BaseVideoPredictionModel):
             batch_size: batch size for training.
             lr: learning rate. if decay steps is non-zero, this is the
                 learning rate for steps <= decay_step.
-
-
-
             max_steps: number of training steps.
-
-
-            context_frames: the number of ground-truth frames to pass in at
+            context_frames: the number of ground-truth frames to pass :qin at
                 start. Must be specified during instantiation.
             sequence_length: the number of frames in the video sequence,
                 including the context frames, so this model predicts
@@ -62,46 +53,40 @@ class VanillaConvLstmVideoPredictionModel(BaseVideoPredictionModel):
         hparams = dict(
             batch_size=16,
             lr=0.001,
-            end_lr=0.0,
-            nz=16,
-            decay_steps=(200000, 300000),
-            max_steps=350000,
+            max_epochs=3000,
         )
 
         return dict(itertools.chain(default_hparams.items(), hparams.items()))
 
     def build_graph(self, x):
         self.x = x["images"]
-       
+
         self.global_step = tf.Variable(0, name = 'global_step', trainable = False)
         original_global_variables = tf.global_variables()
         # ARCHITECTURE
-        self.x_hat_context_frames, self.x_hat_predict_frames = self.convLSTM_network()
-        self.x_hat = tf.concat([self.x_hat_context_frames, self.x_hat_predict_frames], 1)
-
-
-        self.context_frames_loss = tf.reduce_mean(
-            tf.square(self.x[:, :self.context_frames, :, :, 0] - self.x_hat_context_frames[:, :, :, :, 0]))
-        self.predict_frames_loss = tf.reduce_mean(
-            tf.square(self.x[:, self.context_frames:, :, :, 0] - self.x_hat_predict_frames[:, :, :, :, 0]))
-        self.total_loss = self.context_frames_loss + self.predict_frames_loss
+        self.convLSTM_network()
+        #print("self.x",self.x)
+        #print("self.x_hat_context_frames,",self.x_hat_context_frames)
+        #self.context_frames_loss = tf.reduce_mean(
+        #    tf.square(self.x[:, :self.context_frames, :, :, 0] - self.x_hat_context_frames[:, :, :, :, 0]))
+        # This is the loss function (RMSE):
+        self.total_loss = tf.reduce_mean(
+            tf.square(self.x[:, self.context_frames:, :, :, 0] - self.x_hat_context_frames[:, (self.context_frames-1):-1, :, :, 0]))
 
         self.train_op = tf.train.AdamOptimizer(
             learning_rate = self.learning_rate).minimize(self.total_loss, global_step = self.global_step)
         self.outputs = {}
         self.outputs["gen_images"] = self.x_hat
         # Summary op
-        self.loss_summary = tf.summary.scalar("recon_loss", self.context_frames_loss)
-        self.loss_summary = tf.summary.scalar("latent_loss", self.predict_frames_loss)
         self.loss_summary = tf.summary.scalar("total_loss", self.total_loss)
         self.summary_op = tf.summary.merge_all()
         global_variables = [var for var in tf.global_variables() if var not in original_global_variables]
         self.saveable_variables = [self.global_step] + global_variables
-        return
+        return None
 
 
     @staticmethod
-    def convLSTM_cell(inputs, hidden, nz=16):
+    def convLSTM_cell(inputs, hidden):
 
         conv1 = ld.conv_layer(inputs, 3, 2, 8, "encode_1", activate = "leaky_relu")
 
@@ -140,23 +125,28 @@ class VanillaConvLstmVideoPredictionModel(BaseVideoPredictionModel):
                                             VanillaConvLstmVideoPredictionModel.convLSTM_cell)  # make the template to share the variables
         # create network
         x_hat_context = []
-        x_hat_predict = []
-        seq_start = 1
+        x_hat = []
         hidden = None
-        for i in range(self.context_frames):
-            if i < seq_start:
+        #This is for training 
+        for i in range(self.sequence_length):
+            if i < self.context_frames:
                 x_1, hidden = network_template(self.x[:, i, :, :, :], hidden)
             else:
                 x_1, hidden = network_template(x_1, hidden)
             x_hat_context.append(x_1)
-
-        for i in range(self.predict_frames):
-            x_1, hidden = network_template(x_1, hidden)
-            x_hat_predict.append(x_1)
-
+        
+        #This is for generating video
+        hidden_g = None
+        for i in range(self.sequence_length):
+            if i < self.context_frames:
+                x_1_g, hidden_g = network_template(self.x[:, i, :, :, :], hidden_g)
+            else:
+                x_1_g, hidden_g = network_template(x_1_g, hidden_g)
+            x_hat.append(x_1_g)
+        
         # pack them all together
         x_hat_context = tf.stack(x_hat_context)
-        x_hat_predict = tf.stack(x_hat_predict)
-        self.x_hat_context = tf.transpose(x_hat_context, [1, 0, 2, 3, 4])  # change first dim with sec dim
-        self.x_hat_predict = tf.transpose(x_hat_predict, [1, 0, 2, 3, 4])  # change first dim with sec dim
-        return self.x_hat_context, self.x_hat_predict
+        x_hat = tf.stack(x_hat)
+        self.x_hat_context_frames = tf.transpose(x_hat_context, [1, 0, 2, 3, 4])  # change first dim with sec dim
+        self.x_hat= tf.transpose(x_hat, [1, 0, 2, 3, 4])  # change first dim with sec dim
+        self.x_hat_predict_frames = self.x_hat[:,self.context_frames:,:,:,:]

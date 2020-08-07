@@ -1,4 +1,5 @@
 #!/bin/bash -x
+## Controlling Batch-job
 #SBATCH --account=deepacf
 #SBATCH --nodes=1
 #SBATCH --ntasks=13
@@ -6,18 +7,40 @@
 #SBATCH --cpus-per-task=1
 #SBATCH --output=DataExtraction-out.%j
 #SBATCH --error=DataExtraction-err.%j
-#SBATCH --time=00:20:00
+#SBATCH --time=05:00:00
 #SBATCH --partition=devel
 #SBATCH --mail-type=ALL
-#SBATCH --mail-user=s.stadtler@fz-juelich.de
-##jutil env activate -p deepacf
+#SBATCH --mail-user=b.gong@fz-juelich.de
 
-module purge
-module use $OTHERSTAGES
-module load Stages/2019a
-module addad Intel/2019.3.199-GCC-8.3.0  ParaStationMPI/5.2.2-1
-module load h5py/2.9.0-Python-3.6.8
-module load mpi4py/3.0.1-Python-3.6.8
-module load netcdf4-python/1.5.0.1-Python-3.6.8
 
-srun python ../../workflow_parallel_frame_prediction/DataExtraction/mpi_stager_v2.py --source_dir /p/fastdata/slmet/slmet111/met_data/ecmwf/era5/nc/2017/ --destination_dir /p/scratch/deepacf/scarlet/extractedData
+jutil env activate -p deepacf
+
+# Name of virtual environment 
+VIRT_ENV_NAME="virt_env_hdfml"
+
+# Loading mouldes
+source ../env_setup/modules_preprocess.sh
+# Activate virtual environment if needed (and possible)
+if [ -z ${VIRTUAL_ENV} ]; then
+   if [[ -f ../${VIRT_ENV_NAME}/bin/activate ]]; then
+      echo "Activating virtual environment..."
+      source ../${VIRT_ENV_NAME}/bin/activate
+   else 
+      echo "ERROR: Requested virtual environment ${VIRT_ENV_NAME} not found..."
+      exit 1
+   fi
+fi
+
+# Declare path-variables
+source_dir="/p/fastdata/slmet/slmet111/met_data/ecmwf/era5/nc/"
+dest_dir="/p/scratch/deepacf/video_prediction_shared_folder/extractedData/"
+
+year="2010"
+
+# Run data extraction
+srun python ../../workflow_parallel_frame_prediction/DataExtraction/mpi_stager_v2.py --source_dir ${source_dir}/${year}/ --destination_dir ${dest_dir}/${year}/
+
+
+
+# 2tier pystager 
+#srun python ../../workflow_parallel_frame_prediction/DataExtraction/main_single_master.py --source_dir /p/fastdata/slmet/slmet111/met_data/ecmwf/era5/nc/${year}/ --destination_dir ${SAVE_DIR}/extractedData/${year}
