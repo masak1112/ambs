@@ -357,6 +357,7 @@ def main():
     sess.graph.as_default()
     sess.run(tf.global_variables_initializer())
     sess.run(tf.local_variables_initializer())
+    model.restore(sess, args.checkpoint)
     
     #model.restore(sess, args.checkpoint)#Bing: Todo: 20200728 Let's only focus on true and persistend data
     sample_ind, gen_images_all, persistent_images_all, input_images_all = initia_save_data()

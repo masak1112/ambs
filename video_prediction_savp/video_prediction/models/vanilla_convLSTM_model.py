@@ -41,7 +41,7 @@ class VanillaConvLstmVideoPredictionModel(BaseVideoPredictionModel):
             lr: learning rate. if decay steps is non-zero, this is the
                 learning rate for steps <= decay_step.
             max_steps: number of training steps.
-            context_frames: the number of ground-truth frames to pass in at
+            context_frames: the number of ground-truth frames to pass :qin at
                 start. Must be specified during instantiation.
             sequence_length: the number of frames in the video sequence,
                 including the context frames, so this model predicts
