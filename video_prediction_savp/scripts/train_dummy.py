@@ -158,11 +158,11 @@ def make_dataset_iterator(train_dataset, val_dataset, batch_size ):
 
 
 def plot_train(train_losses,val_losses,output_dir):
-    epochs = list(range(len(train_losses))) 
-    plt.plot(epochs, train_losses, 'g', label='Training loss')
-    plt.plot(epochs, val_losses, 'b', label='validation loss')
+    iterations = list(range(len(train_losses))) 
+    plt.plot(iterations, train_losses, 'g', label='Training loss')
+    plt.plot(iterations, val_losses, 'b', label='validation loss')
     plt.title('Training and Validation loss')
-    plt.xlabel('Epochs')
+    plt.xlabel('Iterations')
     plt.ylabel('Loss')
     plt.legend()
     plt.savefig(os.path.join(output_dir,'plot_train.png'))
