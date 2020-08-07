@@ -69,6 +69,7 @@ class VanillaConvLstmVideoPredictionModel(BaseVideoPredictionModel):
         print("self.x_hat_context_frames,",self.x_hat_context_frames)
         #self.context_frames_loss = tf.reduce_mean(
         #    tf.square(self.x[:, :self.context_frames, :, :, 0] - self.x_hat_context_frames[:, :, :, :, 0]))
+        # This is the loss function (RMSE):
         self.total_loss = tf.reduce_mean(
             tf.square(self.x[:, self.context_frames:, :, :, 0] - self.x_hat_context_frames[:, (self.context_frames-1):-1, :, :, 0]))
 
