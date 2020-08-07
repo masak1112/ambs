@@ -65,8 +65,8 @@ class VanillaConvLstmVideoPredictionModel(BaseVideoPredictionModel):
         original_global_variables = tf.global_variables()
         # ARCHITECTURE
         self.convLSTM_network()
-        print("self.x",self.x)
-        print("self.x_hat_context_frames,",self.x_hat_context_frames)
+        #print("self.x",self.x)
+        #print("self.x_hat_context_frames,",self.x_hat_context_frames)
         #self.context_frames_loss = tf.reduce_mean(
         #    tf.square(self.x[:, :self.context_frames, :, :, 0] - self.x_hat_context_frames[:, :, :, :, 0]))
         self.total_loss = tf.reduce_mean(
@@ -81,7 +81,7 @@ class VanillaConvLstmVideoPredictionModel(BaseVideoPredictionModel):
         self.summary_op = tf.summary.merge_all()
         global_variables = [var for var in tf.global_variables() if var not in original_global_variables]
         self.saveable_variables = [self.global_step] + global_variables
-        return
+        return None
 
 
     @staticmethod

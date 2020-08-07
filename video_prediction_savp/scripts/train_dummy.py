@@ -14,6 +14,8 @@ from video_prediction import datasets, models
 import matplotlib.pyplot as plt
 from json import JSONEncoder
 import pickle as pkl
+
+
 class NumpyArrayEncoder(JSONEncoder):
     def default(self, obj):
         if isinstance(obj, np.ndarray):
@@ -261,9 +263,10 @@ def main():
         print("parameter_count =", sess.run(parameter_count))
         sess.run(tf.global_variables_initializer())
         sess.run(tf.local_variables_initializer())
-        model.restore(sess, args.checkpoint)
+        #model.restore(sess, args.checkpoint)
         sess.graph.finalize()
         start_step = sess.run(model.global_step)
+        print("start_step", start_step)
         # start at one step earlier to log everything without doing any training
         # step is relative to the start_step
         train_losses=[]
@@ -285,6 +288,10 @@ def main():
                 fetches["L_p"] = model.L_p
                 fetches["L_gdl"] = model.L_gdl
                 fetches["L_GAN"]  =model.L_GAN
+            
+            if model.__class__.__name__ == "SAVP":
+                #todo
+                pass
             
             fetches["summary"] = model.summary_op       
             results = sess.run(fetches)
