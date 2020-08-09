@@ -72,7 +72,7 @@ class McNetVideoPredictionModel(BaseVideoPredictionModel):
         hparams = dict(
             batch_size=16,
             lr=0.001,
-            max_steps=350000,
+            max_epochs=350000,
             context_frames = 10,
             sequence_length = 20,
             nz = 16,
@@ -96,7 +96,8 @@ class McNetVideoPredictionModel(BaseVideoPredictionModel):
         self.is_train = True
        
 
-        self.global_step = tf.Variable(0, name='global_step', trainable=False)
+        #self.global_step = tf.Variable(0, name='global_step', trainable=False)
+        self.global_step = tf.train.get_or_create_global_step()
         original_global_variables = tf.global_variables()
 
         # self.xt = tf.placeholder(tf.float32, self.xt_shape, name='xt')

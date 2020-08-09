@@ -63,7 +63,7 @@ class VanillaVAEVideoPredictionModel(BaseVideoPredictionModel):
             end_lr=0.0,
             decay_steps=(200000, 300000),
             lr_boundaries=(0,),
-            max_steps=350000,
+            max_epochs=35,
             nz=10,
             context_frames=-1,
             sequence_length=-1,
@@ -71,42 +71,16 @@ class VanillaVAEVideoPredictionModel(BaseVideoPredictionModel):
         )
         return dict(itertools.chain(default_hparams.items(), hparams.items()))
 
-    def build_graph(self,x):
-        
-        
-        
-
-
-
-        tf.set_random_seed(12345)
+    def build_graph(self,x)  
         self.x = x["images"]
-       
-
-        self.global_step = tf.Variable(0, name = 'global_step', trainable = False)
+        #self.global_step = tf.Variable(0, name = 'global_step', trainable = False)
+        self.global_step = tf.train.get_or_create_global_step()
         original_global_variables = tf.global_variables()
-        self.increment_global_step = tf.assign_add(self.global_step, 1, name = 'increment_global_step')
-
         self.x_hat, self.z_log_sigma_sq, self.z_mu = self.vae_arc_all()
-       
-     
-    
-   
-  
- 
-
-
-
-
-
         self.recon_loss = tf.reduce_mean(tf.square(self.x[:, 1:, :, :, 0] - self.x_hat[:, :-1, :, :, 0]))
-
-
-
-
-
         latent_loss = -0.5 * tf.reduce_sum(
             1 + self.z_log_sigma_sq - tf.square(self.z_mu) -
-            tf.exp(self.z_log_sigma_sq), axis = 1)
+            tf.exp(self.z_log_sigma_sq), axis=1)
         self.latent_loss = tf.reduce_mean(latent_loss)
         self.total_loss = self.recon_loss + self.latent_loss
         self.train_op = tf.train.AdamOptimizer(
@@ -125,51 +99,33 @@ class VanillaVAEVideoPredictionModel(BaseVideoPredictionModel):
         self.loss_summary = tf.summary.scalar("total_loss", self.latent_loss)
         self.summary_op = tf.summary.merge_all()
 
-
-
         self.outputs = {}
         self.outputs["gen_images"] = self.x_hat
         global_variables = [var for var in tf.global_variables() if var not in original_global_variables]
         self.saveable_variables = [self.global_step] + global_variables
 
-        return
+        return None
 
 
     @staticmethod
     def vae_arc3(x,l_name=0,nz=16):
         seq_name = "sq_" + str(l_name) + "_"
-        
+
         conv1 = ld.conv_layer(x, 3, 2, 8, seq_name + "encode_1")
-
-
         conv2 = ld.conv_layer(conv1, 3, 1, 8, seq_name + "encode_2")
-
-
         conv3 = ld.conv_layer(conv2, 3, 2, 8, seq_name + "encode_3")
-
-
         conv4 = tf.layers.Flatten()(conv3)
-
         conv3_shape = conv3.get_shape().as_list()
-
-        
         z_mu = ld.fc_layer(conv4, hiddens = nz, idx = seq_name + "enc_fc4_m")
         z_log_sigma_sq = ld.fc_layer(conv4, hiddens = nz, idx = seq_name + "enc_fc4_m"'enc_fc4_sigma')
         eps = tf.random_normal(shape = tf.shape(z_log_sigma_sq), mean = 0, stddev = 1, dtype = tf.float32)
-        z = z_mu + tf.sqrt(tf.exp(z_log_sigma_sq)) * eps
-        
-        z2 = ld.fc_layer(z, hiddens = conv3_shape[1] * conv3_shape[2] * conv3_shape[3], idx = seq_name + "decode_fc1")
-        
-        
+        z = z_mu + tf.sqrt(tf.exp(z_log_sigma_sq)) * eps        
+        z2 = ld.fc_layer(z, hiddens = conv3_shape[1] * conv3_shape[2] * conv3_shape[3], idx = seq_name + "decode_fc1") 
         z3 = tf.reshape(z2, [-1, conv3_shape[1], conv3_shape[2], conv3_shape[3]])
-
         conv5 = ld.transpose_conv_layer(z3, 3, 2, 8,
                                         seq_name + "decode_5")  
-
         conv6  = ld.transpose_conv_layer(conv5, 3, 1, 8,
                                         seq_name + "decode_6")
-        
-
         x_hat = ld.transpose_conv_layer(conv6, 3, 2, 3, seq_name + "decode_8")
 
         return x_hat, z_mu, z_log_sigma_sq, z
@@ -186,6 +142,5 @@ class VanillaVAEVideoPredictionModel(BaseVideoPredictionModel):
         x_hat = tf.stack(X, axis = 1)
         z_log_sigma_sq_all = tf.stack(z_log_sigma_sq_all, axis = 1)
         z_mu_all = tf.stack(z_mu_all, axis = 1)
-       
-      
+
         return x_hat, z_log_sigma_sq_all, z_mu_all

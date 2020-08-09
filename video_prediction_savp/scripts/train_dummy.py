@@ -199,7 +199,7 @@ def main():
     parser.add_argument("--model_hparams", type=str, help="a string of comma separated list of model hyperparameters") 
     parser.add_argument("--model_hparams_dict", type=str, help="a json file of model hyperparameters")
 
-    parser.add_argument("--gpu_mem_frac", type=float, default=0, help="fraction of gpu memory to use")
+    parser.add_argument("--gpu_mem_frac", type=float, default=0.99, help="fraction of gpu memory to use")
     parser.add_argument("--seed",default=1234, type=int)
 
     args = parser.parse_args()
@@ -232,6 +232,7 @@ def main():
     inputs, train_handle, val_handle = make_dataset_iterator(train_dataset, val_dataset, batch_size)
     
     #build model graph
+    del inputs["T_start"]
     model.build_graph(inputs)
     
     #save all the model, data params to output dirctory
@@ -255,6 +256,7 @@ def main():
     print ("number of exmaples per epoch:",num_examples_per_epoch)
     steps_per_epoch = int(num_examples_per_epoch/batch_size)
     total_steps = steps_per_epoch * max_epochs
+    global_step = tf.train.get_or_create_global_step()
     #mock total_steps only for fast debugging
     #total_steps = 10
     print ("Total steps for training:",total_steps)
@@ -263,63 +265,77 @@ def main():
         print("parameter_count =", sess.run(parameter_count))
         sess.run(tf.global_variables_initializer())
         sess.run(tf.local_variables_initializer())
-        #model.restore(sess, args.checkpoint)
+        model.restore(sess, args.checkpoint)
         sess.graph.finalize()
-        start_step = sess.run(model.global_step)
+        #start_step = sess.run(model.global_step)
+        start_step = sess.run(global_step)
         print("start_step", start_step)
         # start at one step earlier to log everything without doing any training
         # step is relative to the start_step
         train_losses=[]
         val_losses=[]
         run_start_time = time.time()        
-        for step in range(total_steps):
-            global_step = sess.run(model.global_step)
-            print ("global_step:", global_step)
+        for step in range(start_step,total_steps):
+            #global_step = sess.run(global_step):q
+ 
+            print ("step:", step)
             val_handle_eval = sess.run(val_handle)
-            
-            #Fetch variables in the graph
-            fetches = {"global_step":model.global_step}
-            fetches["train_op"] = model.train_op
-            #fetches["latent_loss"] = model.latent_loss
-            fetches["total_loss"] = model.total_loss
 
-            #fetch the specific loss function only for mcnet
-            if model.__class__.__name__ == "McNetVideoPredictionModel":
-                fetches["L_p"] = model.L_p
-                fetches["L_gdl"] = model.L_gdl
-                fetches["L_GAN"]  =model.L_GAN
+            #Fetch variables in the graph
+
+            fetches = {"train_op": model.train_op}
+            #fetches["latent_loss"] = model.latent_loss
+            fetches["summary"] = model.summary_op 
             
-            if model.__class__.__name__ == "SAVP":
-                #todo
-                pass
-            
-            fetches["summary"] = model.summary_op       
-            results = sess.run(fetches)
-            train_losses.append(results["total_loss"])          
-            #Fetch losses for validation data
-            val_fetches = {}
-            #val_fetches["latent_loss"] = model.latent_loss
-            val_fetches["total_loss"] = model.total_loss
+            if model.__class__.__name__ == "McNetVideoPredictionModel" or model.__class__.__name__ == "VanillaConvLstmVideoPredictionModel":
+                fetches["global_step"] = model.global_step
+                fetches["total_loss"] = model.total_loss
+                #fetch the specific loss function only for mcnet
+                if model.__class__.__name__ == "McNetVideoPredictionModel":
+                    fetches["L_p"] = model.L_p
+                    fetches["L_gdl"] = model.L_gdl
+                    fetches["L_GAN"]  =model.L_GAN                    
+                results = sess.run(fetches)
+                train_losses.append(results["total_loss"])
+                #Fetch losses for validation data
+                val_fetches = {}
+                #val_fetches["latent_loss"] = model.latent_loss
+                val_fetches["total_loss"] = model.total_loss
+
+
+            if model.__class__.__name__ == "SAVPVideoPredictionModel":
+                fetches['d_loss'] = model.d_loss
+                fetches['g_loss'] = model.g_loss
+                fetches['d_losses'] = model.d_losses
+                fetches['g_losses'] = model.g_losses
+                results = sess.run(fetches)
+                train_losses.append(results["g_losses"])
+                val_fetches = {}
+                #val_fetches["latent_loss"] = model.latent_loss
+                #For SAVP the total loss is the generator loses
+                val_fetches["total_loss"] = model.g_losses
+
             val_fetches["summary"] = model.summary_op
             val_results = sess.run(val_fetches,feed_dict={train_handle: val_handle_eval})
             val_losses.append(val_results["total_loss"])
-            
+
             summary_writer.add_summary(results["summary"])
             summary_writer.add_summary(val_results["summary"])
             summary_writer.flush()
-             
+
             # global_step will have the correct step count if we resume from a checkpoint
             # global step is read before it's incemented
-            train_epoch = global_step/steps_per_epoch
-            print("progress  global step %d  epoch %0.1f" % (global_step + 1, train_epoch))
-
+            train_epoch = step/steps_per_epoch
+            print("progress  global step %d  epoch %0.1f" % (step + 1, train_epoch))
             if model.__class__.__name__ == "McNetVideoPredictionModel":
-              print("Total_loss:{}; L_p_loss:{}; L_gdl:{}; L_GAN: {}".format(results["total_loss"],results["L_p"],results["L_gdl"],results["L_GAN"]))
+                print("Total_loss:{}; L_p_loss:{}; L_gdl:{}; L_GAN: {}".format(results["total_loss"],results["L_p"],results["L_gdl"],results["L_GAN"]))
             elif model.__class__.__name__ == "VanillaConvLstmVideoPredictionModel":
                 print ("Total_loss:{}".format(results["total_loss"]))
+            elif model.__class__.__name__ == "SAVPVideoPredictionModel":
+                print("Total_loss/g_losses:{}; d_losses:{}; g_loss:{}; d_loss: {}".format(results["g_losses"],results["d_losses"],results["g_loss"],results["d_loss"]))
             else:
                 print ("The model name does not exist")
-            
+
             #print("saving model to", args.output_dir)
             saver.save(sess, os.path.join(args.output_dir, "model"), global_step=step)#
         train_time = time.time() - run_start_time
