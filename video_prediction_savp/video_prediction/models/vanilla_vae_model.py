@@ -45,7 +45,7 @@ class VanillaVAEVideoPredictionModel(BaseVideoPredictionModel):
             end_lr: learning rate for steps >= end_decay_step if decay_steps
                 is non-zero, ignored otherwise.
             decay_steps: (decay_step, end_decay_step) tuple.
-            max_steps: number of training steps.
+            max_epochs: number of training epochs.
             beta1: momentum term of Adam.
             beta2: momentum term of Adam.
             context_frames: the number of ground-truth frames to pass in at
@@ -84,7 +84,7 @@ class VanillaVAEVideoPredictionModel(BaseVideoPredictionModel):
         self.latent_loss = tf.reduce_mean(latent_loss)
         self.total_loss = self.recon_loss + self.latent_loss
         self.train_op = tf.train.AdamOptimizer(
-            learning_rate = self.learning_rate).minimize(self.total_loss, global_step = self.global_step)
+            learning_rate = self.learning_rate).minimize(self.total_loss, global_step=self.global_step)
         # Build a saver
 
         self.losses = {
@@ -103,7 +103,6 @@ class VanillaVAEVideoPredictionModel(BaseVideoPredictionModel):
         self.outputs["gen_images"] = self.x_hat
         global_variables = [var for var in tf.global_variables() if var not in original_global_variables]
         self.saveable_variables = [self.global_step] + global_variables
-
         return None
 
 
