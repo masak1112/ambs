@@ -37,7 +37,7 @@ fi
 source_dir=/p/project/deepacf/deeprain/video_prediction_shared_folder/preprocessedData/
 destination_dir=/p/project/deepacf/deeprain/video_prediction_shared_folder/models/
 
-# for choosing the model
+# for choosing the model for choosing the model, convLSTM,savp, mcnet,vae
 model=convLSTM
 model_hparams=../hparams/era5/${model}/model_hparams.json
 

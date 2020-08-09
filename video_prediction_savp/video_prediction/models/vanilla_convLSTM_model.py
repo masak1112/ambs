@@ -60,8 +60,8 @@ class VanillaConvLstmVideoPredictionModel(BaseVideoPredictionModel):
 
     def build_graph(self, x):
         self.x = x["images"]
-
-        self.global_step = tf.Variable(0, name = 'global_step', trainable = False)
+        #self.global_step = tf.Variable(0, name = 'global_step', trainable = False)
+        self.global_step = tf.train.get_or_create_global_step()
         original_global_variables = tf.global_variables()
         # ARCHITECTURE
         self.convLSTM_network()

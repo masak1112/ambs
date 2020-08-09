@@ -366,7 +366,7 @@ class VideoPredictionModel(BaseVideoPredictionModel):
             end_lr=0.0,
             decay_steps=(200000, 300000),
             lr_boundaries=(0,),
-            max_steps=350000,
+            max_epochs=35,
             beta1=0.9,
             beta2=0.999,
             context_frames=-1,
