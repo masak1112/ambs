@@ -71,7 +71,7 @@ class VanillaVAEVideoPredictionModel(BaseVideoPredictionModel):
         )
         return dict(itertools.chain(default_hparams.items(), hparams.items()))
 
-    def build_graph(self,x)  
+    def build_graph(self,x):  
         self.x = x["images"]
         #self.global_step = tf.Variable(0, name = 'global_step', trainable = False)
         self.global_step = tf.train.get_or_create_global_step()
