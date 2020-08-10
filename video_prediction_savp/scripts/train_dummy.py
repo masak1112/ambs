@@ -287,14 +287,17 @@ def main():
             #fetches["latent_loss"] = model.latent_loss
             fetches["summary"] = model.summary_op 
             
-            if model.__class__.__name__ == "McNetVideoPredictionModel" or model.__class__.__name__ == "VanillaConvLstmVideoPredictionModel":
+            if model.__class__.__name__ == "McNetVideoPredictionModel" or model.__class__.__name__ == "VanillaConvLstmVideoPredictionModel" or model.__class__.__name__ == "VanillaVAEVideoPredictionModel":
                 fetches["global_step"] = model.global_step
                 fetches["total_loss"] = model.total_loss
                 #fetch the specific loss function only for mcnet
                 if model.__class__.__name__ == "McNetVideoPredictionModel":
                     fetches["L_p"] = model.L_p
                     fetches["L_gdl"] = model.L_gdl
-                    fetches["L_GAN"]  =model.L_GAN                    
+                    fetches["L_GAN"]  =model.L_GAN
+                if model.__class__.__name__ == "VanillaVAEVideoPredictionModel":
+                    fetches["latent_loss"] = model.latent_loss
+                    fetches["recon_loss"] = model.recon_loss
                 results = sess.run(fetches)
                 train_losses.append(results["total_loss"])
                 #Fetch losses for validation data
@@ -333,6 +336,8 @@ def main():
                 print ("Total_loss:{}".format(results["total_loss"]))
             elif model.__class__.__name__ == "SAVPVideoPredictionModel":
                 print("Total_loss/g_losses:{}; d_losses:{}; g_loss:{}; d_loss: {}".format(results["g_losses"],results["d_losses"],results["g_loss"],results["d_loss"]))
+            elif model.__class__.__name__ == "VanillaVAEVideoPredictionModel":
+                print("Total_loss:{}; latent_losses:{}; reconst_loss:{}".format(results["total_loss"],results["latent_loss"],results["recon_loss"]))
             else:
                 print ("The model name does not exist")
 
