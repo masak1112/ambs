@@ -18,7 +18,7 @@ def _activation_summary(x):
     tf.summary.histogram(tensor_name + '/activations', x)
     tf.summary.scalar(tensor_name + '/sparsity', tf.nn.zero_fraction(x))
 
-def _variable_on_cpu(name, shape, initializer):
+def _variable_on_gpu(name, shape, initializer):
     """Helper to create a Variable stored on CPU memory.
     Args:
       name: name of the variable
@@ -27,7 +27,7 @@ def _variable_on_cpu(name, shape, initializer):
     Returns:
       Variable Tensor
     """
-    with tf.device('/cpu:0'):
+    with tf.device('/gpu:0'):
         var = tf.get_variable(name, shape, initializer=initializer)
     return var
 
@@ -45,8 +45,8 @@ def _variable_with_weight_decay(name, shape, stddev, wd,initializer=tf.contrib.l
     Returns:
       Variable Tensor
     """
-    #var = _variable_on_cpu(name, shape,tf.truncated_normal_initializer(stddev = stddev))
-    var = _variable_on_cpu(name, shape, initializer)
+    #var = _variable_on_gpu(name, shape,tf.truncated_normal_initializer(stddev = stddev))
+    var = _variable_on_gpu(name, shape, initializer)
     if wd:
         weight_decay = tf.multiply(tf.nn.l2_loss(var), wd, name = 'weight_loss')
         weight_decay.set_shape([])
@@ -63,7 +63,7 @@ def conv_layer(inputs, kernel_size, stride, num_features, idx, initializer=tf.co
         weights = _variable_with_weight_decay('weights',shape = [kernel_size, kernel_size, 
                                                                  input_channels, num_features],
                                               stddev = 0.01, wd = weight_decay)
-        biases = _variable_on_cpu('biases', [num_features], initializer)
+        biases = _variable_on_gpu('biases', [num_features], initializer)
         conv = tf.nn.conv2d(inputs, weights, strides = [1, stride, stride, 1], padding = 'SAME')
         conv_biased = tf.nn.bias_add(conv, biases)
         if activate == "linear":
@@ -88,7 +88,7 @@ def transpose_conv_layer(inputs, kernel_size, stride, num_features, idx, initial
         weights = _variable_with_weight_decay('weights',
                                               shape = [kernel_size, kernel_size, num_features, input_channels],
                                               stddev = 0.1, wd = weight_decay)
-        biases = _variable_on_cpu('biases', [num_features],initializer)
+        biases = _variable_on_gpu('biases', [num_features],initializer)
         batch_size = tf.shape(inputs)[0]
 
         output_shape = tf.stack(
@@ -122,7 +122,7 @@ def fc_layer(inputs, hiddens, idx, flat=False, activate="relu",weight_init=0.01,
 
         weights = _variable_with_weight_decay('weights', shape = [dim, hiddens], stddev = weight_init,
                                               wd = weight_decay)
-        biases = _variable_on_cpu('biases', [hiddens],initializer)
+        biases = _variable_on_gpu('biases', [hiddens],initializer)
         if activate == "linear":
             return tf.add(tf.matmul(inputs_processed, weights), biases, name = str(idx) + '_fc')
         elif activate == "sigmoid":
