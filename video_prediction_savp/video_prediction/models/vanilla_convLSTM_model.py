@@ -71,7 +71,7 @@ class VanillaConvLstmVideoPredictionModel(BaseVideoPredictionModel):
         #    tf.square(self.x[:, :self.context_frames, :, :, 0] - self.x_hat_context_frames[:, :, :, :, 0]))
         # This is the loss function (RMSE):
         self.total_loss = tf.reduce_mean(
-            tf.square(self.x[:, self.context_frames:, :, :, 0] - self.x_hat_context_frames[:, (self.context_frames-1):-1, :, :, 0]))
+            tf.square(self.x[:, self.context_frames:, :, :, 0] - self.x_hat_context_frames[:, (self.context_frames-1):, :, :, 0]))
 
         self.train_op = tf.train.AdamOptimizer(
             learning_rate = self.learning_rate).minimize(self.total_loss, global_step = self.global_step)
@@ -87,7 +87,7 @@ class VanillaConvLstmVideoPredictionModel(BaseVideoPredictionModel):
 
     @staticmethod
     def convLSTM_cell(inputs, hidden):
-
+        channels = inputs.get_shape()[-1]
         conv1 = ld.conv_layer(inputs, 3, 2, 8, "encode_1", activate = "leaky_relu")
 
         conv2 = ld.conv_layer(conv1, 3, 1, 8, "encode_2", activate = "leaky_relu")
@@ -116,7 +116,7 @@ class VanillaConvLstmVideoPredictionModel(BaseVideoPredictionModel):
         conv6 = ld.transpose_conv_layer(conv5, 3, 1, 8, "decode_6", activate = "leaky_relu")
 
 
-        x_hat = ld.transpose_conv_layer(conv6, 3, 2, 3, "decode_7", activate = "sigmoid")  # set activation to linear
+        x_hat = ld.transpose_conv_layer(conv6, 3, 2, channels, "decode_7", activate = "sigmoid")  # set activation to linear
 
         return x_hat, hidden
 
@@ -128,7 +128,7 @@ class VanillaConvLstmVideoPredictionModel(BaseVideoPredictionModel):
         x_hat = []
         hidden = None
         #This is for training 
-        for i in range(self.sequence_length):
+        for i in range(self.sequence_length-1):
             if i < self.context_frames:
                 x_1, hidden = network_template(self.x[:, i, :, :, :], hidden)
             else:
@@ -137,7 +137,7 @@ class VanillaConvLstmVideoPredictionModel(BaseVideoPredictionModel):
         
         #This is for generating video
         hidden_g = None
-        for i in range(self.sequence_length):
+        for i in range(self.sequence_length-1):
             if i < self.context_frames:
                 x_1_g, hidden_g = network_template(self.x[:, i, :, :, :], hidden_g)
             else:
