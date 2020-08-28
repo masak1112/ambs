@@ -89,9 +89,7 @@ class VanillaConvLstmVideoPredictionModel(BaseVideoPredictionModel):
     def convLSTM_cell(inputs, hidden):
         channels = inputs.get_shape()[-1]
         conv1 = ld.conv_layer(inputs, 3, 2, 8, "encode_1", activate = "leaky_relu")
-
         conv2 = ld.conv_layer(conv1, 3, 1, 8, "encode_2", activate = "leaky_relu")
-
         conv3 = ld.conv_layer(conv2, 3, 2, 8, "encode_3", activate = "leaky_relu")
 
         y_0 = conv3

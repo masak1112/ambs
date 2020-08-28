@@ -202,11 +202,6 @@ def save_to_netcdf_per_sequence(output_dir,input_images_,gen_images_,lons,lats,t
     ts_len = len(ts)
     ts_input = ts[:context_frames]
     ts_forecast = ts[context_frames:]
-    #print("context_frame:",context_frames)
-    #print("future_frame",future_length)
-    #print("length of ts input:",len(ts_input))
-
-    print("input_images_ shape in netcdf,",input_images_.shape)
     gen_images_ = np.array(gen_images_)
 
     output_file = os.path.join(output_dir,fl_name)
@@ -289,18 +284,19 @@ def save_to_netcdf_per_sequence(output_dir,input_images_,gen_images_,lons,lats,t
         #Temperature:
         t2 = nc_file.createVariable("/forecast/{}/T2".format(model_name),"f4",("time_forecast","lat","lon"), zlib = True)
         t2.units = 'K'
-        t2[:,:,:] = gen_images_[context_frames:,:,:,0]
+        print ("gen_images_ 20200822:",np.array(gen_images_).shape)
+        t2[:,:,:] = gen_images_[context_frames-1:,:,:,0]
         print("NetCDF created")
 
         #mean sea level pressure
         msl = nc_file.createVariable("/forecast/{}/MSL".format(model_name),"f4",("time_forecast","lat","lon"), zlib = True)
         msl.units = 'Pa'
-        msl[:,:,:] = gen_images_[context_frames:,:,:,1]
+        msl[:,:,:] = gen_images_[context_frames-1:,:,:,1]
 
         #Geopotential at 500 
         gph500 = nc_file.createVariable("/forecast/{}/GPH500".format(model_name),"f4",("time_forecast","lat","lon"), zlib = True)
         gph500.units = 'm'
-        gph500[:,:,:] = gen_images_[context_frames:,:,:,2]        
+        gph500[:,:,:] = gen_images_[context_frames-1:,:,:,2]        
 
         print("{} created".format(output_file)) 
 
@@ -451,7 +447,8 @@ def main():
         #Get prediction values 
         feed_dict = {input_ph: input_results[name] for name, input_ph in input_phs.items()}
         gen_images = sess.run(model.outputs['gen_images'], feed_dict = feed_dict)#return [batchsize,seq_len,lat,lon,channel]
-        
+        assert gen_images.shape[1] = sequence_length-1 #The generate images seq_len should be sequence_len -1, since the last one is not used for comparing with groud truth 
+        print("gen_images 20200822:",np.array(gen_images).shape)       
         #Loop in batch size
         for i in range(args.batch_size):
             
@@ -459,26 +456,26 @@ def main():
             input_images_,t_start = get_one_seq_and_time(input_images,t_starts,i)
             #generate time stamps for sequences
             ts = generate_seq_timestamps(t_start,len_seq=sequence_length)
-            
+             
             #Renormalized data for inputs
             stat_fl = os.path.join(args.input_dir,"pickle/statistics.json")
             input_images_denorm = denorm_images_all_channels(stat_fl,input_images_,["T2","MSL","gph500"])  
-            print("input_images_denorm",input_images_denorm[0][0])
+            print("input_images_denorm shape",np.array(input_images_denorm).shape)
                                                              
             #Renormalized data for inputs
             gen_images_ = gen_images[i]
             gen_images_denorm = denorm_images_all_channels(stat_fl,gen_images_,["T2","MSL","gph500"])
-            print("gene_images_denorm:",gen_images_denorm[0][0])
+            print("gene_images_denorm shape",np.array(gen_images_denorm).shape)
             
             #Save input to netCDF file
             init_date_str = ts[0].strftime("%Y%m%d%H")
             save_to_netcdf_per_sequence(args.results_dir,input_images_denorm,gen_images_denorm,lons,lats,ts,context_frames,future_length,args.model,fl_name="vfp_{}.nc".format(init_date_str))
                                                              
             #Generate images inputs
-            plot_seq_imgs(imgs=input_images_denorm[:context_frames-1,:,:,0],lats=lats,lons=lons,ts=ts[:context_frames-1],label="Ground Truth",output_png_dir=args.results_dir)  
+            plot_seq_imgs(imgs=input_images_denorm[context_frames+1:,:,:,0],lats=lats,lons=lons,ts=ts[context_frames+1:],label="Ground Truth",output_png_dir=args.results_dir)  
                                                              
             #Generate forecast images
-            plot_seq_imgs(imgs=gen_images_denorm[context_frames:,:,:,0],lats=lats,lons=lons,ts=ts[context_frames:],label="Forecast by Model " + args.model,output_png_dir=args.results_dir) 
+            plot_seq_imgs(imgs=gen_images_denorm[context_frames:,:,:,0],lats=lats,lons=lons,ts=ts[context_frames+1:],label="Forecast by Model " + args.model,output_png_dir=args.results_dir) 
             
             #TODO: Scaret plot persistence image
             #implment get_persistence() function

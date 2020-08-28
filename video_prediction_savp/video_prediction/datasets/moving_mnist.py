@@ -207,7 +207,6 @@ def plot_seq_imgs(imgs,output_png_dir,idx,label="Ground Truth"):
 
     
     
-
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("input_dir", type=str, help="directory containing the processed directories ""boxing, handclapping, handwaving, ""jogging, running, walking")
@@ -221,12 +220,15 @@ def main():
     height = data.shape[2]
     width = data.shape[3]
     num_samples = data.shape[1] 
-    
+    max_npz = np.max(data)
+    min_npz = np.min(data)
+    print("max_npz,",max_npz)
+    print("min_npz",min_npz)
     #Todo need to discuss how to split the data, since we have totally 10000 samples, the origin paper convLSTM used 10000 as training, 2000 as validation and 3000 for testing
     dat_train = data[:,:6000,:,:]
     dat_val = data[:,6000:7000,:,:]
     dat_test = data[:,7000:,:]
-    plot_seq_imgs(dat_test[10:,0,:,:],output_png_dir="/p/project/deepacf/deeprain/video_prediction_shared_folder/results/moving_mnist/convLSTM",idx=1,label="Ground Truth from npz")
+    #plot_seq_imgs(dat_test[10:,0,:,:],output_png_dir="/p/project/deepacf/deeprain/video_prediction_shared_folder/results/moving_mnist/convLSTM",idx=1,label="Ground Truth from npz")
     #save train
     #read_frames_and_save_tf_records(os.path.join(args.output_dir,"train"),dat_train, seq_length=20, sequences_per_file=40, height=height, width=width)
     #save val
