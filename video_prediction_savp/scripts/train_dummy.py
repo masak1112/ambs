@@ -276,8 +276,10 @@ def main():
         val_losses=[]
         run_start_time = time.time()        
         for step in range(start_step,total_steps):
-            #global_step = sess.run(global_step):q
- 
+            #global_step = sess.run(global_step)
+            # +++ Scarlet 20200813
+            timeit_start = time.time()  
+            # --- Scarlet 20200813
             print ("step:", step)
             val_handle_eval = sess.run(val_handle)
 
@@ -342,7 +344,11 @@ def main():
                 print ("The model name does not exist")
 
             #print("saving model to", args.output_dir)
-            saver.save(sess, os.path.join(args.output_dir, "model"), global_step=step)#
+            saver.save(sess, os.path.join(args.output_dir, "model"), global_step=step)
+            # +++ Scarlet 20200813
+            timeit_end = time.time()  
+            # --- Scarlet 20200813
+            print("time needed for this step", timeit_end - timeit_start, ' s')
         train_time = time.time() - run_start_time
         results_dict = {"train_time":train_time,
                         "total_steps":total_steps}
@@ -352,6 +358,9 @@ def main():
         print("val_losses:",val_losses) 
         plot_train(train_losses,val_losses,args.output_dir)
         print("Done")
+        # +++ Scarlet 20200814
+        print("Total training time:", train_time/60., "min")
+        # +++ Scarlet 20200814
         
 if __name__ == '__main__':
     main()
