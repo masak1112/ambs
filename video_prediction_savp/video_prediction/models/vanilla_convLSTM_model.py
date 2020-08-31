@@ -94,6 +94,7 @@ class VanillaConvLstmVideoPredictionModel(BaseVideoPredictionModel):
     def convLSTM_cell(inputs, hidden):
 
         y_0 = inputs #we only usd patch 1, but the original paper use patch 4 for the moving mnist case, but use 2 for Radar Echo Dataset
+        channels = inputs.get_shape()[-1]
         # conv lstm cell
         cell_shape = y_0.get_shape().as_list()
         channels = cell_shape[-1]

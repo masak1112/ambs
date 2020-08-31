@@ -4,15 +4,14 @@
 #SBATCH --ntasks=1
 ##SBATCH --ntasks-per-node=1
 #SBATCH --cpus-per-task=1
-#SBATCH --output=train_era5-out.%j
-#SBATCH --error=train_era5-err.%j
+#SBATCH --output=generate_era5-out.%j
+#SBATCH --error=generate_era5-err.%j
 #SBATCH --time=00:20:00
 #SBATCH --gres=gpu:1
 #SBATCH --partition=develgpus
 #SBATCH --mail-type=ALL
-#SBATCH --mail-user=s.stadtler@fz-juelich.de
+#SBATCH --mail-user=b.gong@fz-juelich.de
 ##jutil env activate -p cjjsc42
-
 
 # Name of virtual environment 
 VIRT_ENV_NAME="vp"
@@ -30,15 +29,16 @@ if [ -z ${VIRTUAL_ENV} ]; then
    fi
 fi
 
-
 # declare directory-variables which will be modified appropriately during Preprocessing (invoked by mpi_split_data_multi_years.py)
-
 source_dir=/p/project/deepacf/deeprain/video_prediction_shared_folder/preprocessedData/moving_mnist
-destination_dir=/p/project/deepacf/deeprain/video_prediction_shared_folder/models/moving_mnist
-
-# for choosing the model, convLSTM,savp, mcnet,vae,convLSTM_Loliver
+checkpoint_dir=/p/project/deepacf/deeprain/video_prediction_shared_folder/models/moving_mnist
+results_dir=/p/project/deepacf/deeprain/video_prediction_shared_folder/results/moving_mnist
+# name of model
 model=convLSTM
-model_hparams=../hparams/era5/${model}/model_hparams.json
 
-# rund training
-srun python ../scripts/train_moving_mnist.py --input_dir  ${source_dir}/tfrecords/ --dataset moving_mnist  --model ${model} --model_hparams_dict ${model_hparams} --output_dir ${destination_dir}/${model}/  --checkpoint ${destination_dir}/${model}/ 
+# run postprocessing/generation of model results including evaluation metrics
+srun python -u ../scripts/generate_movingmnist.py \
+--input_dir ${source_dir}/ --dataset_hparams sequence_length=20 --checkpoint  ${checkpoint_dir}/${model} \
+--mode test --model ${model} --results_dir ${results_dir}/${model} --batch_size 2 --dataset era5   > generate_era5-out.out
+
+#srun  python scripts/train.py --input_dir data/era5 --dataset era5  --model savp --model_hparams_dict hparams/kth/ours_savp/model_hparams.json --output_dir logs/era5/ours_savp

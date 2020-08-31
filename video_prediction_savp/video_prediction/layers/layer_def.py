@@ -3,8 +3,8 @@
 
 import tensorflow as tf
 import numpy as np
-
 weight_decay = 0.0005
+
 def _activation_summary(x):
     """Helper to create summaries for activations.
     Creates a summary that provides a histogram of activations.

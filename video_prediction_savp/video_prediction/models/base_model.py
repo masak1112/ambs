@@ -487,6 +487,7 @@ class VideoPredictionModel(BaseVideoPredictionModel):
         # skip_vars = {" discriminator_encoder/video_sn_fc4/dense/bias"}
 
         if self.num_gpus <= 1:  # cpu or 1 gpu
+            print("self.inputs:>20200822",self.inputs)
             outputs_tuple, losses_tuple, loss_tuple, metrics_tuple = self.tower_fn(self.inputs)
             self.outputs, self.eval_outputs = outputs_tuple
             self.d_losses, self.g_losses, g_losses_post = losses_tuple

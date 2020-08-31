@@ -689,6 +689,10 @@ class SAVPCell(tf.nn.rnn_cell.RNNCell):
 def generator_given_z_fn(inputs, mode, hparams):
     # all the inputs needs to have the same length for unrolling the rnn
     print("inputs.items",inputs.items())
+    #20200822 bing
+    inputs ={"images":inputs["images"]}
+    print("inputs 20200822:",inputs)
+    #20200822
     inputs = {name: tf_utils.maybe_pad_or_slice(input, hparams.sequence_length - 1)
               for name, input in inputs.items()}
     cell = SAVPCell(inputs, mode, hparams)
