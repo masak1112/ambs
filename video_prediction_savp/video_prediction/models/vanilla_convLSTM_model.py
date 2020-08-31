@@ -70,9 +70,14 @@ class VanillaConvLstmVideoPredictionModel(BaseVideoPredictionModel):
         #self.context_frames_loss = tf.reduce_mean(
         #    tf.square(self.x[:, :self.context_frames, :, :, 0] - self.x_hat_context_frames[:, :, :, :, 0]))
         # This is the loss function (RMSE):
+        #This is loss function only for 1 channel (temperature RMSE)
         self.total_loss = tf.reduce_mean(
-            tf.square(self.x[:, self.context_frames:, :, :, 0] - self.x_hat_context_frames[:, (self.context_frames-1):-1, :, :, 0]))
-
+            tf.square(self.x[:, self.context_frames:,:,:,0] - self.x_hat_predict_frames[:,:,:,:,0]))
+            
+        #This is the loss for only all the channels(temperature, geo500, pressure)
+        #self.total_loss = tf.reduce_mean(
+        #    tf.square(self.x[:, self.context_frames:,:,:,:] - self.x_hat_predict_frames[:,:,:,:,:]))            
+ 
         self.train_op = tf.train.AdamOptimizer(
             learning_rate = self.learning_rate).minimize(self.total_loss, global_step = self.global_step)
         self.outputs = {}
@@ -88,35 +93,19 @@ class VanillaConvLstmVideoPredictionModel(BaseVideoPredictionModel):
     @staticmethod
     def convLSTM_cell(inputs, hidden):
 
-        conv1 = ld.conv_layer(inputs, 3, 2, 8, "encode_1", activate = "leaky_relu")
-
-        conv2 = ld.conv_layer(conv1, 3, 1, 8, "encode_2", activate = "leaky_relu")
-
-        conv3 = ld.conv_layer(conv2, 3, 2, 8, "encode_3", activate = "leaky_relu")
-
-        y_0 = conv3
+        y_0 = inputs #we only usd patch 1, but the original paper use patch 4 for the moving mnist case, but use 2 for Radar Echo Dataset
         # conv lstm cell
         cell_shape = y_0.get_shape().as_list()
+        channels = cell_shape[-1]
         with tf.variable_scope('conv_lstm', initializer = tf.random_uniform_initializer(-.01, 0.1)):
-            cell = BasicConvLSTMCell(shape = [cell_shape[1], cell_shape[2]], filter_size = [3, 3], num_features = 8)
+            cell = BasicConvLSTMCell(shape = [cell_shape[1], cell_shape[2]], filter_size = [5, 5], num_features = 256)
             if hidden is None:
                 hidden = cell.zero_state(y_0, tf.float32)
-
             output, hidden = cell(y_0, hidden)
-
-
         output_shape = output.get_shape().as_list()
-
-
         z3 = tf.reshape(output, [-1, output_shape[1], output_shape[2], output_shape[3]])
-
-        conv5 = ld.transpose_conv_layer(z3, 3, 2, 8, "decode_5", activate = "leaky_relu")
-
-
-        conv6 = ld.transpose_conv_layer(conv5, 3, 1, 8, "decode_6", activate = "leaky_relu")
-
-
-        x_hat = ld.transpose_conv_layer(conv6, 3, 2, 3, "decode_7", activate = "sigmoid")  # set activation to linear
+        #we feed the learn representation into a 1 × 1 convolutional layer to generate the final prediction
+        x_hat = ld.conv_layer(z3, 1, 1, channels, "decode_1", activate="sigmoid")
 
         return x_hat, hidden
 
@@ -124,20 +113,18 @@ class VanillaConvLstmVideoPredictionModel(BaseVideoPredictionModel):
         network_template = tf.make_template('network',
                                             VanillaConvLstmVideoPredictionModel.convLSTM_cell)  # make the template to share the variables
         # create network
-        x_hat_context = []
         x_hat = []
-        hidden = None
-        #This is for training 
-        for i in range(self.sequence_length):
-            if i < self.context_frames:
-                x_1, hidden = network_template(self.x[:, i, :, :, :], hidden)
-            else:
-                x_1, hidden = network_template(x_1, hidden)
-            x_hat_context.append(x_1)
+
+        # for i in range(self.sequence_length-1):
+        #     if i < self.context_frames:
+        #         x_1, hidden = network_template(self.x[:, i, :, :, :], hidden)
+        #     else:
+        #         x_1, hidden = network_template(x_1, hidden)
+        #     x_hat_context.append(x_1)
         
-        #This is for generating video
+        #This is for training (optimization of convLSTM layer)
         hidden_g = None
-        for i in range(self.sequence_length):
+        for i in range(self.sequence_length-1):
             if i < self.context_frames:
                 x_1_g, hidden_g = network_template(self.x[:, i, :, :, :], hidden_g)
             else:
@@ -145,8 +132,6 @@ class VanillaConvLstmVideoPredictionModel(BaseVideoPredictionModel):
             x_hat.append(x_1_g)
         
         # pack them all together
-        x_hat_context = tf.stack(x_hat_context)
         x_hat = tf.stack(x_hat)
-        self.x_hat_context_frames = tf.transpose(x_hat_context, [1, 0, 2, 3, 4])  # change first dim with sec dim
         self.x_hat= tf.transpose(x_hat, [1, 0, 2, 3, 4])  # change first dim with sec dim
-        self.x_hat_predict_frames = self.x_hat[:,self.context_frames:,:,:,:]
+        self.x_hat_predict_frames = self.x_hat[:,self.context_frames-1:,:,:,:]
