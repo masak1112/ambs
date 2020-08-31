@@ -4,8 +4,8 @@
 #SBATCH --ntasks=1
 ##SBATCH --ntasks-per-node=1
 #SBATCH --cpus-per-task=1
-#SBATCH --output=train_era5-out.%j
-#SBATCH --error=train_era5-err.%j
+#SBATCH --output=train_moving_mnist-out.%j
+#SBATCH --error=train_moving_mnist-err.%j
 #SBATCH --time=00:20:00
 #SBATCH --gres=gpu:1
 #SBATCH --partition=develgpus
@@ -36,9 +36,9 @@ fi
 source_dir=/p/project/deepacf/deeprain/video_prediction_shared_folder/preprocessedData/moving_mnist
 destination_dir=/p/project/deepacf/deeprain/video_prediction_shared_folder/models/moving_mnist
 
-# for choosing the model, convLSTM,savp, mcnet,vae,convLSTM_Loliver
+# for choosing the model, convLSTM,savp, mcnet,vae
 model=convLSTM
 model_hparams=../hparams/era5/${model}/model_hparams.json
 
 # rund training
-srun python ../scripts/train_moving_mnist.py --input_dir  ${source_dir}/tfrecords/ --dataset moving_mnist  --model ${model} --model_hparams_dict ${model_hparams} --output_dir ${destination_dir}/${model}/  --checkpoint ${destination_dir}/${model}/ 
+srun python ../scripts/train_dummy_moving_mnist.py --input_dir  ${source_dir}/tfrecords/ --dataset moving_mnist  --model ${model} --model_hparams_dict ${model_hparams} --output_dir ${destination_dir}/${model}/ 
