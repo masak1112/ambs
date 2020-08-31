@@ -330,9 +330,80 @@ def plot_seq_imgs(imgs,lats,lons,ts,output_png_dir,label="Ground Truth"):
     print("image {} saved".format(output_fname))
 
     
-def get_persistence(ts):
-    pass
-
+def get_persistence(ts, input_dir_pkl):
+    """This function gets the persistence forecast.
+    'Today's weather will be like yesterday's weather.
+    
+    Inputs:
+    ts: output by generate_seq_timestamps(t_start,len_seq=sequence_length)
+        Is a list containing dateime objects
+    
+    Ouputs:
+    ts_persistence:    list containing the dates and times of the 
+                       persistence forecast.
+    peristence_images: sequence of images corresponding to the times
+                       in ts_persistence
+    """
+    ts_persistence = []
+    for t in range(len(ts)): # Scarlet: this certainly can be made nicer with list comprehension 
+        ts_temp = ts[t] - datetime.timedelta(days=1)
+        ts_persistence.append(ts_temp)
+    t_persistence_start = ts_persistence[0]
+    t_persistence_end = ts_persistence[-1]
+    year_start = t_persistence_start.year
+    month_start = t_persistence_start.month
+    month_end = t_persistence_end.month
+    
+    if month_start == month_end:
+        pass
+    else: # case that we need to derive the data from two pickle files
+        t_persistence_first_m  = [] # should hold dates of the first month
+        t_persistence_second_m = [] # should hold dates of the second month
+        for t in range(len(ts)):
+            m = ts_persistence[t].month
+            if m == month_start:
+                t_persistence_first_m.append(ts_persistence[t])
+            if m == month_end:
+                t_persistence_second_m.append(ts_persistence[t])
+        # Open files to search for the indizes
+        path_to_pickle = input_dir_pkl+'/'+str(year_start)+'/T_{:02}.pkl'.format(month_start)        
+        infile = open(path_to_pickle,'rb')
+        time_pickle_fist = pickle.load(infile)
+        
+        # Open file to search for the correspoding meteorological fields
+        path_to_pickle = input_dir_pkl+'/'+str(year_start)+'/X_{:02}.pkl'.format(month_start)        
+        infile = open(path_to_pickle,'rb')
+        var_pickle_fist = pickle.load(infile)
+        
+        # Retrieve starting index
+        ind_fist_m = list(time_pickle_fist).index(np.array(t_persistence_first_m[0]))
+        print('Scarlet this is the indx', ind_fist_m)
+        # The other indices can be constructed using the len(t_persistence_first_m)
+        # Same for the second month!
+        
+        
+        
+        
+        # Oder stuff: 
+        # Retrieve indizes
+        #print(list(time_pickle))
+        #for item in time_pickle:
+        #    time_pickle_list.append(item)
+        #print(time_pickle_list)
+        #print(time_pickle)
+        #print(t_persistence_first_m)
+        #idx_first_m = time_pickle_list.index(t_persistence_first_m) 
+        #print('Scarlet, indizes', idx_first_m)
+        
+    #persistent_idx = list(test_temporal_pkl).index(np.array(persistent_ts))
+    #path_to_pickle = input_dir_pkl+'/'+str(year_start)+'/X_{:02}.pkl'.format(month_start)
+    #print('hypothetical path', path_to_pickle)
+    
+    #infile = open(path_to_pickle,'rb')
+    #print('Scarlet start persistence and start regular', t_persistence_start, ts[0] )
+    
+    
+    #return ts_persistence, peristence_images
 
 def main():
     parser = argparse.ArgumentParser()
@@ -377,6 +448,11 @@ def main():
     #setup dataset and model object
     input_dir_tf = os.path.join(args.input_dir, "tfrecords") # where tensorflow records are stored
     dataset = setup_dataset(dataset,input_dir_tf,args.mode,args.seed,args.num_epochs,args.dataset_hparams,dataset_hparams_dict)
+    
+    # +++Scarlet 20200828
+    input_dir_pkl = os.path.join(args.input_dir, "pickle") 
+    # where pickle files records are stored, needed for the persistance forecast.
+    # ---Scarlet 20200828
     
     print("Step 2 finished")
     VideoPredictionModel = models.get_model_class(model)
@@ -477,9 +553,9 @@ def main():
             #Generate forecast images
             plot_seq_imgs(imgs=gen_images_denorm[context_frames:,:,:,0],lats=lats,lons=lons,ts=ts[context_frames+1:],label="Forecast by Model " + args.model,output_png_dir=args.results_dir) 
             
-            #TODO: Scaret plot persistence image
-            #implment get_persistence() function
-
+            #+++ Scarlet 20200828
+            get_persistence(ts, input_dir_pkl)
+            #--- Scarlet 20200528
             #in case of generate the images for all the input, we just generate the first 5 sampe_ind examples for visuliation
 
         sample_ind += args.batch_size
