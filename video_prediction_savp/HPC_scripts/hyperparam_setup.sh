@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-# for choosing the model
+# for choosing the model convLSTM vae mcnet savp
 export model=convLSTM
 export model_hparams=../hparams/era5/${model}/model_hparams.json
 
