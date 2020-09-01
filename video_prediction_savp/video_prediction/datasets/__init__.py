@@ -7,6 +7,7 @@ from .kth_dataset import KTHVideoDataset
 from .ucf101_dataset import UCF101VideoDataset
 from .cartgripper_dataset import CartgripperVideoDataset
 from .era5_dataset_v2 import ERA5Dataset_v2
+from .moving_mnist import MovingMnist
 #from .era5_dataset_v2_anomaly import ERA5Dataset_v2_anomaly
 
 def get_dataset_class(dataset):
@@ -19,6 +20,7 @@ def get_dataset_class(dataset):
         'ucf101': 'UCF101VideoDataset',
         'cartgripper': 'CartgripperVideoDataset',
         "era5":"ERA5Dataset_v2",
+        "moving_mnist":"MovingMnist"
 #        "era5_anomaly":"ERA5Dataset_v2_anomaly",
     }
     dataset_class = dataset_mappings.get(dataset, dataset)

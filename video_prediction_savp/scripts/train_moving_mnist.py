@@ -232,7 +232,7 @@ def main():
     inputs, train_handle, val_handle = make_dataset_iterator(train_dataset, val_dataset, batch_size)
     
     #build model graph
-    del inputs["T_start"]
+    #del inputs["T_start"]
     model.build_graph(inputs)
     
     #save all the model, data params to output dirctory

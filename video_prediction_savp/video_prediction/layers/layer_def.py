@@ -3,8 +3,8 @@
 
 import tensorflow as tf
 import numpy as np
-
 weight_decay = 0.0005
+
 def _activation_summary(x):
     """Helper to create summaries for activations.
     Creates a summary that provides a histogram of activations.
@@ -74,6 +74,8 @@ def conv_layer(inputs, kernel_size, stride, num_features, idx, initializer=tf.co
             conv_rect = tf.nn.elu(conv_biased, name = '{0}_conv'.format(idx))   
         elif activate == "leaky_relu":
             conv_rect = tf.nn.leaky_relu(conv_biased, name = '{0}_conv'.format(idx))
+        elif activate == "sigmoid":
+            conv_rect = tf.nn.sigmoid(conv_biased, name = '{0}_conv'.format(idx)) 
         else:
             raise ("activation function is not correct")
         return conv_rect
