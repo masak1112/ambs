@@ -5,8 +5,7 @@
     "max_epochs":2,
     "context_frames":10,
     "sequence_length":20,
-    "loss_fun":"rmse"
-
+    "loss_fun":"cross_entropy"
 }
 
 
