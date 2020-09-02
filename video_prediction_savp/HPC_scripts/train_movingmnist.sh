@@ -38,7 +38,8 @@ destination_dir=/p/project/deepacf/deeprain/video_prediction_shared_folder/model
 
 # for choosing the model, convLSTM,savp, mcnet,vae
 model=convLSTM
-model_hparams=../hparams/era5/${model}/model_hparams.json
+dataset=moving_mnist
+model_hparams=../hparams/${dataset}/${model}/model_hparams.json
 
 # rund training
-srun python ../scripts/train_dummy_moving_mnist.py --input_dir  ${source_dir}/tfrecords/ --dataset moving_mnist  --model ${model} --model_hparams_dict ${model_hparams} --output_dir ${destination_dir}/${model}/ 
+srun python ../scripts/train_moving_mnist.py --input_dir  ${source_dir}/tfrecords/ --dataset moving_mnist  --model ${model} --model_hparams_dict ${model_hparams} --output_dir ${destination_dir}/${model}_bing_20200902/ 
