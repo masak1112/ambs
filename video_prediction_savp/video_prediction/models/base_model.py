@@ -3,12 +3,10 @@ import itertools
 import os
 import re
 from collections import OrderedDict
-
 import numpy as np
 import tensorflow as tf
 from tensorflow.contrib.training import HParams
 from tensorflow.python.util import nest
-
 import video_prediction as vp
 from video_prediction.utils import tf_utils
 from video_prediction.utils.tf_utils import compute_averaged_gradients, reduce_tensors, local_device_setter, \
@@ -244,7 +242,9 @@ class BaseVideoPredictionModel(object):
                 savers.append(saver)
             restore_op = [saver.saver_def.restore_op_name for saver in savers]
             sess.run(restore_op)
-
+            return True
+        else:
+            return False
 
 class VideoPredictionModel(BaseVideoPredictionModel):
     def __init__(self,

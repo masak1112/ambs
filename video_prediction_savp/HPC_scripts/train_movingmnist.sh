@@ -4,8 +4,13 @@
 #SBATCH --ntasks=1
 ##SBATCH --ntasks-per-node=1
 #SBATCH --cpus-per-task=1
+<<<<<<< Updated upstream
 #SBATCH --output=train_moving_mnist-out.%j
 #SBATCH --error=train_moving_mnist-err.%j
+=======
+#SBATCH --output=train_era5-out.%j
+#SBATCH --error=train_era5-err.%j
+>>>>>>> Stashed changes
 #SBATCH --time=00:20:00
 #SBATCH --gres=gpu:1
 #SBATCH --partition=develgpus
@@ -42,4 +47,6 @@ dataset=moving_mnist
 model_hparams=../hparams/${dataset}/${model}/model_hparams.json
 
 # rund training
+
 srun python ../scripts/train_dummy.py --input_dir  ${source_dir}/tfrecords/ --dataset moving_mnist  --model ${model} --model_hparams_dict ${model_hparams} --output_dir ${destination_dir}/${model}_bing_20200902/ 
+

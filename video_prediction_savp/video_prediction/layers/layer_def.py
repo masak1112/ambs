@@ -55,8 +55,7 @@ def _variable_with_weight_decay(name, shape, stddev, wd,initializer=tf.contrib.l
 
 
 def conv_layer(inputs, kernel_size, stride, num_features, idx, initializer=tf.contrib.layers.xavier_initializer() , activate="relu"):
-    print("conv_layer activation function",activate)
-    
+    print("conv_layer activation function",activate) 
     with tf.variable_scope('{0}_conv'.format(idx)) as scope:
  
         input_channels = inputs.get_shape()[-1]
@@ -75,7 +74,7 @@ def conv_layer(inputs, kernel_size, stride, num_features, idx, initializer=tf.co
         elif activate == "leaky_relu":
             conv_rect = tf.nn.leaky_relu(conv_biased, name = '{0}_conv'.format(idx))
         elif activate == "sigmoid":
-            conv_rect = tf.nn.sigmoid(conv_biased, name = '{0}_conv'.format(idx)) 
+            conv_rect = tf.nn.sigmoid(conv_biased, name = '{0}_conv'.format(idx))
         else:
             raise ("activation function is not correct")
         return conv_rect
