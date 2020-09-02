@@ -232,7 +232,9 @@ def main():
     inputs, train_handle, val_handle = make_dataset_iterator(train_dataset, val_dataset, batch_size)
     
     #build model graph
-    del inputs["T_start"]
+    #since era5 tfrecords include T_start, we need to remove it from the tfrecord when we train the model, otherwise the model will raise error 
+    if args.dataset == "era5":
+       del inputs["T_start"]
     model.build_graph(inputs)
     
     #save all the model, data params to output dirctory
