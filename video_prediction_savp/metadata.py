@@ -1,5 +1,5 @@
 """ 
-Classes and routines to retrieve and handle meta-data
+Class to retrieve and handle meta-data
 """
 
 import os
