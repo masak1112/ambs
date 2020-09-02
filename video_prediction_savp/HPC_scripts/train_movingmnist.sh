@@ -42,4 +42,4 @@ dataset=moving_mnist
 model_hparams=../hparams/${dataset}/${model}/model_hparams.json
 
 # rund training
-srun python ../scripts/train_moving_mnist.py --input_dir  ${source_dir}/tfrecords/ --dataset moving_mnist  --model ${model} --model_hparams_dict ${model_hparams} --output_dir ${destination_dir}/${model}_bing_20200902/ 
+srun python ../scripts/train_dummy.py --input_dir  ${source_dir}/tfrecords/ --dataset moving_mnist  --model ${model} --model_hparams_dict ${model_hparams} --output_dir ${destination_dir}/${model}_bing_20200902/ 
