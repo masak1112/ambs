@@ -13,9 +13,9 @@ from video_prediction.datasets.base_dataset import VarLenFeatureVideoDataset
 from os import path
 import sys
 sys.path.append(path.abspath('../../workflow_parallel_frame_prediction/'))
-import DataPreprocess.process_netCDF_v2 
-from DataPreprocess.process_netCDF_v2 import get_unique_vars
-from DataPreprocess.process_netCDF_v2 import Calc_data_stat
+import DataPreprocess.process_netCDF_v2
+from helper import get_unique_vars
+from statistics import Calc_data_stat
 from metadata import MetaData
 from normalization import Norm_data
 #from base_dataset import VarLenFeatureVideoDataset

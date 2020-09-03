@@ -32,8 +32,7 @@ import datetime
 # Scarlet 2020/05/28: access to statistical values in json file 
 from os import path
 import sys
-sys.path.append(path.abspath('../video_prediction/datasets/'))
-from era5_dataset_v2 import Norm_data
+from normalization import Norm_data
 from os.path import dirname
 from netCDF4 import Dataset,date2num
 from metadata import MetaData as MetaData
