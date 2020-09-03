@@ -30,15 +30,14 @@ class VanillaConvLstmVideoPredictionModel(BaseVideoPredictionModel):
         self.max_epochs = self.hparams.max_epochs
         self.loss_fun = self.hparams.loss_fun
 
+
     def get_default_hparams_dict(self):
         """
         The keys of this dict define valid hyperparameters for instances of
         this class. A class inheriting from this one should override this
         method if it has a different set of hyperparameters.
-
         Returns:
             A dict with the following hyperparameters.
-
             batch_size: batch size for training.
             lr: learning rate. if decay steps is non-zero, this is the
                 learning rate for steps <= decay_step.
@@ -80,7 +79,6 @@ class VanillaConvLstmVideoPredictionModel(BaseVideoPredictionModel):
         else:
             raise ValueError("Loss function is not selected properly, you should chose either 'rmse' or 'cross_entropy'")
 
-        
         #This is the loss for only all the channels(temperature, geo500, pressure)
         #self.total_loss = tf.reduce_mean(
         #    tf.square(self.x[:, self.context_frames:,:,:,:] - self.x_hat_predict_frames[:,:,:,:,:]))            
@@ -96,10 +94,8 @@ class VanillaConvLstmVideoPredictionModel(BaseVideoPredictionModel):
         self.saveable_variables = [self.global_step] + global_variables
         return None
 
-
     @staticmethod
     def convLSTM_cell(inputs, hidden):
-
         y_0 = inputs #we only usd patch 1, but the original paper use patch 4 for the moving mnist case, but use 2 for Radar Echo Dataset
         channels = inputs.get_shape()[-1]
         # conv lstm cell
@@ -114,7 +110,6 @@ class VanillaConvLstmVideoPredictionModel(BaseVideoPredictionModel):
         z3 = tf.reshape(output, [-1, output_shape[1], output_shape[2], output_shape[3]])
         #we feed the learn representation into a 1 × 1 convolutional layer to generate the final prediction
         x_hat = ld.conv_layer(z3, 1, 1, channels, "decode_1", activate="sigmoid")
-
         return x_hat, hidden
 
     def convLSTM_network(self):
@@ -143,3 +138,4 @@ class VanillaConvLstmVideoPredictionModel(BaseVideoPredictionModel):
         x_hat = tf.stack(x_hat)
         self.x_hat= tf.transpose(x_hat, [1, 0, 2, 3, 4])  # change first dim with sec dim
         self.x_hat_predict_frames = self.x_hat[:,self.context_frames-1:,:,:,:]
+

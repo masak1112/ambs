@@ -318,7 +318,7 @@ def main():
             print("gene_images_denorm:",gen_images_denorm[0][0])
             
             #Generate images inputs
-            plot_seq_imgs(imgs=input_images_denorm[:context_frames-1,:,:,0],idx = sample_ind + i, label="Ground Truth",output_png_dir=args.results_dir)  
+            plot_seq_imgs(imgs=input_images_denorm[context_frames+1:,:,:,0],idx = sample_ind + i, label="Ground Truth",output_png_dir=args.results_dir)  
                                                              
             #Generate forecast images
             plot_seq_imgs(imgs=gen_images_denorm[context_frames:,:,:,0],idx = sample_ind + i,label="Forecast by Model " + args.model,output_png_dir=args.results_dir) 
