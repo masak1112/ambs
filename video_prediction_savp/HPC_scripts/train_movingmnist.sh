@@ -6,7 +6,7 @@
 #SBATCH --cpus-per-task=1
 #SBATCH --output=train_moving_mnist-out.%j
 #SBATCH --error=train_moving_mnist-err.%j
-#SBATCH --time=23:20:00
+#SBATCH --time=20:20:00
 #SBATCH --gres=gpu:1
 #SBATCH --partition=gpus
 #SBATCH --mail-type=ALL
@@ -40,8 +40,8 @@ destination_dir=/p/project/deepacf/deeprain/video_prediction_shared_folder/model
 model=convLSTM
 dataset=moving_mnist
 model_hparams=../hparams/${dataset}/${model}/model_hparams.json
+destination_dir=${destination_dir}/${model}/"$(date +"%Y%m%dT%H%M")_"$USER""
 
 # rund training
 
-srun python ../scripts/train_dummy.py --input_dir  ${source_dir}/tfrecords/ --dataset moving_mnist  --model ${model} --model_hparams_dict ${model_hparams} --output_dir ${destination_dir}/${model}
-
+srun python ../scripts/train_dummy.py --input_dir  ${source_dir}/tfrecords/ --dataset moving_mnist  --model ${model} --model_hparams_dict ${model_hparams} --output_dir ${destination_dir}/
