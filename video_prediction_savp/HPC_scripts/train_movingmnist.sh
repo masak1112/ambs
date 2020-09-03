@@ -6,7 +6,7 @@
 #SBATCH --cpus-per-task=1
 #SBATCH --output=train_moving_mnist-out.%j
 #SBATCH --error=train_moving_mnist-err.%j
-#SBATCH --time=20:20:00
+#SBATCH --time=00:20:00
 #SBATCH --gres=gpu:1
 #SBATCH --partition=gpus
 #SBATCH --mail-type=ALL
