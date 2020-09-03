@@ -4,13 +4,8 @@
 #SBATCH --ntasks=1
 ##SBATCH --ntasks-per-node=1
 #SBATCH --cpus-per-task=1
-<<<<<<< Updated upstream
 #SBATCH --output=train_moving_mnist-out.%j
 #SBATCH --error=train_moving_mnist-err.%j
-=======
-#SBATCH --output=train_era5-out.%j
-#SBATCH --error=train_era5-err.%j
->>>>>>> Stashed changes
 #SBATCH --time=00:20:00
 #SBATCH --gres=gpu:1
 #SBATCH --partition=develgpus
