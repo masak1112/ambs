@@ -98,7 +98,7 @@ class VanillaConvLstmVideoPredictionModel(BaseVideoPredictionModel):
         # conv lstm cell
         cell_shape = y_0.get_shape().as_list()
         with tf.variable_scope('conv_lstm', initializer = tf.random_uniform_initializer(-.01, 0.1)):
-            cell = BasicConvLSTMCell(shape = [cell_shape[1], cell_shape[2]], filter_size = [3, 3], num_features = 8)
+            cell = BasicConvLSTMCell(shape = [cell_shape[1], cell_shape[2]], filter_size = [3, 3], num_features = 256)
             if hidden is None:
                 hidden = cell.zero_state(y_0, tf.float32)
 
