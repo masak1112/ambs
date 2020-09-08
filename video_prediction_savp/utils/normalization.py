@@ -3,7 +3,7 @@
  created with the calc_data_stat-class (see 'process_netCDF_v2.py'.
 """
 
-from helper import get_unique_vars
+from general_utils import get_unique_vars
 from statistics import Calc_data_stat
 import numpy as np
 

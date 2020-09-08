@@ -8,7 +8,7 @@ import sys
 import time
 import numpy as np
 import json
-from helper import get_unique_vars
+from general_utils import get_unique_vars
 
 class Calc_data_stat:
 

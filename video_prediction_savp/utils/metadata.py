@@ -8,7 +8,7 @@ import time
 import numpy as np
 import json
 from netCDF4 import Dataset
-from helper import is_integer, add_str_to_path
+from general_utils import is_integer, add_str_to_path
 
 class MetaData:
     """
