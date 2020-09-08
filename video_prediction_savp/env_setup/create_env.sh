@@ -19,6 +19,10 @@ if [[ ! -n "$1" ]]; then
   return
 fi
 
+# list of (Batch) scripts used for the steps in the workflow
+# !!! Expects that a template named [script_name]_template.sh exists!!!
+workflow_scripts=(DataExtraction DataPreprocess DataPreprocess2tf train_era5 generate_era5)
+
 HOST_NAME=`hostname`
 ENV_NAME=$1
 ENV_SETUP_DIR=`pwd`
@@ -86,6 +90,28 @@ if [[ "$ENV_EXIST" == 0 ]]; then
     pip3 install h5py
     pip3 install tensorflow-gpu==1.13.1
   fi
+
+  # After checking and setting up the system, create user-specific runscripts for all steps of the workflow
+  if [[ "${HOST_NAME}" == hdfml* || "${HOST_NAME}" == juwels* ]]; then
+    echo "***** Creating Batch-scripts for running workflow... *****"
+    script_dir=../HPC_scripts
+    for wf_script in "${workflow_scripts[@]}"; do
+      curr_script=${script_dir}/${wf_script}
+      if ! [[ -f ${curr_script}_template.sh ]]; then
+        echo "WARNING: Could not find expected Batch script '${curr_script}_template.sh'."
+        echo "Thus, no corresponding executable script is created!"
+      else
+        cp ${curr_script}_template.sh ${curr_script}_op.sh
+        # remove template identifiers
+        num_lines=`awk '/Template identifiers/{ print NR }'
+        line_s=`echo ${num_lines} | cut -d' ' -f 1`
+        line_e=`echo ${num_lines} | cut -d' ' -f 2`
+        sed -e '${line_s},${line_e}d' ${curr_script}_op.sh
+        # set correct e-mail address
+        sed -i "s/--mail-user=.*/--mail-user=$USER_EMAIL/g" ${curr_script}_op.sh
+      fi
+    done
+
   # expand PYTHONPATH...
   export PYTHONPATH=${WORKING_DIR}:$PYTHONPATH >> ${activate_virt_env}
   #export PYTHONPATH=/p/home/jusers/${USER}/juwels/.local/bin:$PYTHONPATH
