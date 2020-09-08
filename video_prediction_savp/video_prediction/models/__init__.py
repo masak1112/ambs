@@ -21,7 +21,6 @@ def get_model_class(model):
         'vae': 'VanillaVAEVideoPredictionModel',
         'convLSTM': 'VanillaConvLstmVideoPredictionModel',
         'mcnet': 'McNetVideoPredictionModel',
-        
         }
     model_class = model_mappings.get(model, model)
     model_class = globals().get(model_class)

@@ -196,46 +196,56 @@ def read_frames_and_save_tf_records(stats,output_dir,input_file, temp_input_file
     #sequence_lengths_file = open(os.path.join(output_dir, 'sequence_lengths.txt'), 'w')
     #Bing 2020/07/16
     #print ("open intput dir,",input_file)
-    with open(input_file, "rb") as data_file:
-        X_train = pickle.load(data_file)
-    with open(temp_input_file,"rb") as temp_file:
-        T_train = pickle.load(temp_file)
-    #print("T_train:",T_train) 
-    #check to make sure the X_train and T_train has the same length 
-    assert (len(X_train) == len(T_train))
-    
-    X_possible_starts = [i for i in range(len(X_train) - seq_length)]
-    for X_start in X_possible_starts:
-        X_end = X_start + seq_length
-        #seq = X_train[X_start:X_end, :, :,:]
-        seq = X_train[X_start:X_end,:,:,:]
-        #Recored the start point of the timestamps
-        T_start = T_train[X_start]
-        #print("T_start:",T_start)  
-        seq = list(np.array(seq).reshape((seq_length, height, width, nvars)))
-        if not sequences:
-            last_start_sequence_iter = sequence_iter
-           
-       
-        sequences.append(seq)
-        T_start_points.append(T_start)
-        sequence_iter += 1    
-        
-        if len(sequences) == sequences_per_file:
-            ###Normalization should adpot the selected variables, here we used duplicated channel temperature variables
-            sequences = np.array(sequences)
-            ### normalization
-            for i in range(nvars):    
-                sequences[:,:,:,:,i] = norm_cls.norm_var(sequences[:,:,:,:,i],vars_in[i],norm)
+    try:
+        with open(input_file, "rb") as data_file:
+            X_train = pickle.load(data_file)
+        with open(temp_input_file,"rb") as temp_file:
+            T_train = pickle.load(temp_file)
+            
+        #print("T_train:",T_train) 
+        #check to make sure the X_train and T_train has the same length 
+        assert (len(X_train) == len(T_train))
 
-            output_fname = 'sequence_Y_{}_M_{}_{}_to_{}.tfrecords'.format(year,month,last_start_sequence_iter,sequence_iter - 1)
-            output_fname = os.path.join(output_dir, output_fname)
-            print("T_start_points:",T_start_points)
-            save_tf_record(output_fname, list(sequences), T_start_points)
-            T_start_points = []
-            sequences = []
-    print("Finished for input file",input_file)
-    #sequence_lengths_file.close()
+        X_possible_starts = [i for i in range(len(X_train) - seq_length)]
+        for X_start in X_possible_starts:
+            X_end = X_start + seq_length
+            #seq = X_train[X_start:X_end, :, :,:]
+            seq = X_train[X_start:X_end,:,:,:]
+            #Recored the start point of the timestamps
+            T_start = T_train[X_start]
+            #print("T_start:",T_start)  
+            seq = list(np.array(seq).reshape((seq_length, height, width, nvars)))
+            if not sequences:
+                last_start_sequence_iter = sequence_iter
+
+
+            sequences.append(seq)
+            T_start_points.append(T_start)
+            sequence_iter += 1    
+
+            if len(sequences) == sequences_per_file:
+                ###Normalization should adpot the selected variables, here we used duplicated channel temperature variables
+                sequences = np.array(sequences)
+                ### normalization
+                for i in range(nvars):    
+                    sequences[:,:,:,:,i] = norm_cls.norm_var(sequences[:,:,:,:,i],vars_in[i],norm)
+
+                output_fname = 'sequence_Y_{}_M_{}_{}_to_{}.tfrecords'.format(year,month,last_start_sequence_iter,sequence_iter - 1)
+                output_fname = os.path.join(output_dir, output_fname)
+                print("T_start_points:",T_start_points)
+                if os.path.isfile(output_fname):
+                    print(output_fname, ' already exists, skip it')
+                else:
+                    save_tf_record(output_fname, list(sequences), T_start_points)
+                T_start_points = []
+                sequences = []
+        print("Finished for input file",input_file)
+        #sequence_lengths_file.close()
+    
+    except FileNotFoundError as fnf_error:
+        print(fnf_error)
+        pass
+
     return 
 
 def write_sequence_file(output_dir,seq_length,sequences_per_file):
@@ -274,18 +284,18 @@ def main():
     ############################################################
     partition = {
             "train":{
-               # "2222":[1,2,3,5,6,7,8,9,10,11,12],
-               # "2010_1":[1,2,3,4,5,6,7,8,9,10,11,12],
-               # "2012":[1,2,3,4,5,6,7,8,9,10,11,12],
-               # "2013_complete":[1,2,3,4,5,6,7,8,9,10,11,12],
-               # "2015":[1,2,3,4,5,6,7,8,9,10,11,12],
-                "2017_test":[1,2,3,4,5,6,7,8,9,10]
+           #     "2222":[1,2,3,5,6,7,8,9,10,11,12], # Issue due to month 04, it is missing
+                "2010":[1,2,3,4,5,6,7,8,9,10,11,12],
+           #     "2012":[1,2,3,4,5,6,7,8,9,10,11,12],
+                "2013":[1,2,3,4,5,6,7,8,9,10,11,12],
+                "2015":[1,2,3,4,5,6,7,8,9,10,11,12],
+                "2019":[1,2,3,4,5,6,7,8,9,10,11,12]
                  },
             "val":
-                {"2017_test":[11]
+                {"2017":[1,2,3,4,5,6,7,8,9,10,11,12]
                  },
             "test":
-                {"2017_test":[12]
+                {"2016":[1,2,3,4,5,6,7,8,9,10,11,12]
                  }
             }
     
