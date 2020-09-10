@@ -55,7 +55,7 @@ for year in "${years[@]}";     do
         echo "Year $year"
 	echo "source_dir ${source_dir}/${year}"
 	srun python ../../workflow_parallel_frame_prediction/DataPreprocess/mpi_stager_v2_process_netCDF.py \
-        --source_dir ${source_dir} -scr_dir ${script_dir} --exp_id ${exp_id} \
+        --source_dir ${source_dir} -scr_dir ${script_dir} -exp_id ${exp_id} \
         --destination_dir ${destination_dir} --years ${year} --vars T2 MSL gph500 --lat_s 74 --lat_e 202 --lon_s 550 --lon_e 710     
     done
 
