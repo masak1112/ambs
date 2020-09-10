@@ -45,7 +45,7 @@ max_year=`echo "${years[*]}" | sort -nr | head -n1`
 min_year=`echo "${years[*]}" | sort -nr | tail -n1`
 # set some paths
 # note, that destination_dir is used during runtime to set a proper experiment directory
-exp_id=xxx
+exp_id=xxx                                          # experiment identifier is set by 'generate_workflow_runscripts.sh'
 source_dir=${SAVE_DIR}/extractedData
 destination_dir=${SAVE_DIR}/preprocessedData/era5-Y${min_year}to${max_year}M01to12
 script_dir=`pwd`
