@@ -1,10 +1,16 @@
 #!/bin/bash -x
 
+######### Template identifier (don't remove) #########
+echo "Do not run the template scripts"
+exit 99
+######### Template identifier (don't remove) #########
 
+# some path variables
 source_dir=/home/$USER/extractedData
-destination_dir=/home/$USER/preprocessedData/era5-Y2017M01to02
+destination_dir=/home/$USER/preprocessedData/era5-Y2017M01to02            # adapt suffix manually!
 script_dir=`pwd`
 
+# select years to process
 declare -a years=("2017")
 
 for year in "${years[@]}";
