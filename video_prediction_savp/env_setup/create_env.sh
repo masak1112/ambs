@@ -121,7 +121,7 @@ if [[ "$ENV_EXIST" == 0 ]]; then
   if [[ "${HOST_NAME}" == hdfml* || "${HOST_NAME}" == juwels* ]]; then
     echo "***** Creating Batch-scripts for running workflow... *****"
     script_dir=../HPC_scripts
-  elif [[ "${HOST_NAME}" == "zam347" ]];
+  elif [[ "${HOST_NAME}" == "zam347" ]]; then
     echo "***** Creating Batch-scripts for running workflow... *****"
     script_dir=../Zam347_scripts
   fi
@@ -129,9 +129,9 @@ if [[ "$ENV_EXIST" == 0 ]]; then
   for wf_script in "${workflow_scripts[@]}"; do
     curr_script=${script_dir}/${wf_script}
     if [[ -z "${exp_id}" ]]; then
-      ./generate_workflow_scripts ${curr_script}
-    elif
-      ./generate_workflow_scripts ${curr_script} ${exp_id}
+      ./generate_workflow_runscripts.sh ${curr_script}
+    else
+      ./generate_workflow_runscripts.sh ${curr_script} ${exp_id}
     fi
   done
   # *** finished ***
