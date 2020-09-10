@@ -1,10 +1,15 @@
 #!/usr/bin/env bash
 #
 # __authors__ = Bing Gong, Michael Langguth
-# __date__  = '2020_07_24'
-
+# __date__  = '2020_09_10'
+#
+# **************** Description ****************
 # This script can be used for setting up the virtual environment needed for ambs-project
 # or to simply activate it.
+# In the former case, it also converts the (Batch) script templates to executable runscripts.
+# Note, that you may pass an experiment identifier as second argument to this runscript
+# which will also be used as suffix in the executable runscripts.
+# **************** Description ****************
 #
 # some first sanity checks
 if [[ ${BASH_SOURCE[0]} == ${0} ]]; then
@@ -17,6 +22,12 @@ fi
 if [[ ! -n "$1" ]]; then
   echo "ERROR: Provide a name to set up the virtual environment, i.e. execute by prompting 'source create_env.sh [virt_env_name]"
   return
+fi
+
+if [[ -n "$2" ]]; then
+  exp_id=$2
+else
+  exp_id=""
 fi
 
 # list of (Batch) scripts used for the steps in the workflow
@@ -50,9 +61,6 @@ fi
 
 # add personal email-address to Batch-scripts
 if [[ "${HOST_NAME}" == hdfml* || "${HOST_NAME}" == juwels* ]]; then
-    USER_EMAIL=$(jutil user show -o json | grep email | cut -f2 -d':' | cut -f1 -d',' | cut -f2 -d'"')
-    #replace the email in sbatch script with the USER_EMAIL
-    sed -i "s/--mail-user=.*/--mail-user=$USER_EMAIL/g" ../HPC_scripts/*.sh
     # load modules and check for their availability
     echo "***** Checking modules required during the workflow... *****"
     source ${ENV_SETUP_DIR}/modules_preprocess.sh
@@ -91,27 +99,6 @@ if [[ "$ENV_EXIST" == 0 ]]; then
     pip3 install tensorflow-gpu==1.13.1
   fi
 
-  # After checking and setting up the system, create user-specific runscripts for all steps of the workflow
-  if [[ "${HOST_NAME}" == hdfml* || "${HOST_NAME}" == juwels* ]]; then
-    echo "***** Creating Batch-scripts for running workflow... *****"
-    script_dir=../HPC_scripts
-    for wf_script in "${workflow_scripts[@]}"; do
-      curr_script=${script_dir}/${wf_script}
-      if ! [[ -f ${curr_script}_template.sh ]]; then
-        echo "WARNING: Could not find expected Batch script '${curr_script}_template.sh'."
-        echo "Thus, no corresponding executable script is created!"
-      else
-        cp ${curr_script}_template.sh ${curr_script}_op.sh
-        # remove template identifiers
-        num_lines=`awk '/Template identifiers/{ print NR }'
-        line_s=`echo ${num_lines} | cut -d' ' -f 1`
-        line_e=`echo ${num_lines} | cut -d' ' -f 2`
-        sed -e '${line_s},${line_e}d' ${curr_script}_op.sh
-        # set correct e-mail address
-        sed -i "s/--mail-user=.*/--mail-user=$USER_EMAIL/g" ${curr_script}_op.sh
-      fi
-    done
-
   # expand PYTHONPATH...
   export PYTHONPATH=${WORKING_DIR}:$PYTHONPATH >> ${activate_virt_env}
   #export PYTHONPATH=/p/home/jusers/${USER}/juwels/.local/bin:$PYTHONPATH
@@ -129,7 +116,25 @@ if [[ "$ENV_EXIST" == 0 ]]; then
 
   if [[ "${HOST_NAME}" == hdfml* || "${HOST_NAME}" == juwels* ]]; then
     echo "export PYTHONPATH=${ENV_DIR}/lib/python3.6/site-packages:\$PYTHONPATH" >> ${activate_virt_env}
-  fi  
+  fi
+ # After checking and setting up the virt env, create user-specific runscripts for all steps of the workflow
+  if [[ "${HOST_NAME}" == hdfml* || "${HOST_NAME}" == juwels* ]]; then
+    echo "***** Creating Batch-scripts for running workflow... *****"
+    script_dir=../HPC_scripts
+  elif [[ "${HOST_NAME}" == "zam347" ]];
+    echo "***** Creating Batch-scripts for running workflow... *****"
+    script_dir=../Zam347_scripts
+  fi
+
+  for wf_script in "${workflow_scripts[@]}"; do
+    curr_script=${script_dir}/${wf_script}
+    if [[ -z "${exp_id}" ]]; then
+      ./generate_workflow_scripts ${curr_script}
+    elif
+      ./generate_workflow_scripts ${curr_script} ${exp_id}
+    fi
+  done
+  # *** finished ***
 elif [[ "$ENV_EXIST" == 1 ]]; then
   # activating virtual env is suifficient
   source ${ENV_DIR}/bin/activate  
