@@ -16,13 +16,6 @@ from json import JSONEncoder
 import pickle as pkl
 
 
-class NumpyArrayEncoder(JSONEncoder):
-    def default(self, obj):
-        if isinstance(obj, np.ndarray):
-            return obj.tolist()
-        return JSONEncoder.default(self, obj)
-
-
 def add_tag_suffix(summary, tag_suffix):
     summary_proto = tf.Summary()
     summary_proto.ParseFromString(summary)
@@ -80,7 +73,6 @@ def set_seed(seed):
         random.seed(seed)
 
 def load_params_from_checkpoints_dir(model_hparams_dict,checkpoint,dataset,model):
-   
     model_hparams_dict_load = {}
     if model_hparams_dict:
         with open(model_hparams_dict) as f:
@@ -159,8 +151,19 @@ def make_dataset_iterator(train_dataset, val_dataset, batch_size ):
     return inputs,train_handle, val_handle
 
 
-def plot_train(train_losses,val_losses,output_dir):
-    iterations = list(range(len(train_losses))) 
+def plot_train(train_losses,val_losses,step,output_dir):
+    """
+    Function to plot training losses for train and val datasets against steps
+    params:
+    train_losses/val_losses (list): train losses, which length should be equal to the number of training steps
+    step (int): current training step
+    output_dir (str): the path to save the plot
+    
+    return: None
+    """
+   
+    iterations = list(range(len(train_losses)))
+    if len(train_losses) != len(val_losses) or len(train_losses) != step +1 : raise ValueError("The length of training losses must be equal to the length of val losses and  step +1 !")  
     plt.plot(iterations, train_losses, 'g', label='Training loss')
     plt.plot(iterations, val_losses, 'b', label='validation loss')
     plt.title('Training and Validation loss')
@@ -168,6 +171,8 @@ def plot_train(train_losses,val_losses,output_dir):
     plt.ylabel('Loss')
     plt.legend()
     plt.savefig(os.path.join(output_dir,'plot_train.png'))
+    plt.close()
+    return None
 
 def save_results_to_dict(results_dict,output_dir):
     with open(os.path.join(output_dir,"results.json"),"w") as fp:
@@ -232,7 +237,9 @@ def main():
     inputs, train_handle, val_handle = make_dataset_iterator(train_dataset, val_dataset, batch_size)
     
     #build model graph
-    del inputs["T_start"]
+    #since era5 tfrecords include T_start, we need to remove it from the tfrecord when we train the model, otherwise the model will raise error 
+    if args.dataset == "era5":
+       del inputs["T_start"]
     model.build_graph(inputs)
     
     #save all the model, data params to output dirctory
@@ -255,6 +262,7 @@ def main():
     num_examples_per_epoch = train_dataset.num_examples_per_epoch()
     print ("number of exmaples per epoch:",num_examples_per_epoch)
     steps_per_epoch = int(num_examples_per_epoch/batch_size)
+    #number of steps totally equal to the number of steps per each echo multiple by number of epochs
     total_steps = steps_per_epoch * max_epochs
     global_step = tf.train.get_or_create_global_step()
     #mock total_steps only for fast debugging
@@ -276,17 +284,18 @@ def main():
         val_losses=[]
         run_start_time = time.time()        
         for step in range(start_step,total_steps):
-            #global_step = sess.run(global_step):q
- 
+            #global_step = sess.run(global_step)
+            # +++ Scarlet 20200813
+            timeit_start = time.time()  
+            # --- Scarlet 20200813
             print ("step:", step)
             val_handle_eval = sess.run(val_handle)
-
             #Fetch variables in the graph
-
             fetches = {"train_op": model.train_op}
             #fetches["latent_loss"] = model.latent_loss
             fetches["summary"] = model.summary_op 
-            
+            fetches["global_step"] = model.global_step
+
             if model.__class__.__name__ == "McNetVideoPredictionModel" or model.__class__.__name__ == "VanillaConvLstmVideoPredictionModel" or model.__class__.__name__ == "VanillaVAEVideoPredictionModel":
                 fetches["global_step"] = model.global_step
                 fetches["total_loss"] = model.total_loss
@@ -322,8 +331,8 @@ def main():
             val_results = sess.run(val_fetches,feed_dict={train_handle: val_handle_eval})
             val_losses.append(val_results["total_loss"])
 
-            summary_writer.add_summary(results["summary"])
-            summary_writer.add_summary(val_results["summary"])
+            summary_writer.add_summary(results["summary"],results["global_step"])
+            summary_writer.add_summary(val_results["summary"],results["global_step"])
             summary_writer.flush()
 
             # global_step will have the correct step count if we resume from a checkpoint
@@ -342,16 +351,30 @@ def main():
                 print ("The model name does not exist")
 
             #print("saving model to", args.output_dir)
-            saver.save(sess, os.path.join(args.output_dir, "model"), global_step=step)#
+
+            saver.save(sess, os.path.join(args.output_dir, "model"), global_step=step)
+            # +++ Scarlet 20200813
+            timeit_end = time.time()  
+            # --- Scarlet 20200813
+            print("time needed for this step", timeit_end - timeit_start, ' s')
+            if step % 20 == 0:
+                # I save the pickle file and plot here inside the loop in case the training process cannot finished after job is done.
+                save_results_to_pkl(train_losses,val_losses,args.output_dir)
+                plot_train(train_losses,val_losses,step,args.output_dir)
+                                
+
         train_time = time.time() - run_start_time
         results_dict = {"train_time":train_time,
                         "total_steps":total_steps}
         save_results_to_dict(results_dict,args.output_dir)
-        save_results_to_pkl(train_losses, val_losses, args.output_dir)
+        #save_results_to_pkl(train_losses, val_losses, args.output_dir)
         print("train_losses:",train_losses)
         print("val_losses:",val_losses) 
-        plot_train(train_losses,val_losses,args.output_dir)
+        #plot_train(train_losses,val_losses,args.output_dir)
         print("Done")
+        # +++ Scarlet 20200814
+        print("Total training time:", train_time/60., "min")
+        # +++ Scarlet 20200814
         
 if __name__ == '__main__':
     main()
