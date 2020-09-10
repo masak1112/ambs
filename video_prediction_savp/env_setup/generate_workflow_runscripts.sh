@@ -16,25 +16,32 @@ HOST_NAME=`hostname`
 
 ### some sanity checks ###
 # check input arguments
-if ! [ $# -lt 1]; then
-  echo "ERROR: Pass path to workflow script to be generated..."
+if [[ "$#" -lt 1 ]]; then
+  echo "ERROR: Pass path to workflow runscript (without '_template.sh') to be generated..."
+  exit 1
 else
   curr_script=$1
-  if [ $# -gt 1]; then
+  if [[ "$#" -gt 1 ]]; then
     exp_id=$2
   else
     exp_id="exp1"
   fi
 fi
+
 # check existence of template script
 if ! [[ -f ${curr_script}_template.sh ]]; then
   echo "WARNING: Could not find expected Batch script '${curr_script}_template.sh'."
   echo "Thus, no corresponding executable script is created!"
-  exit 0              # still ok, i.e. only a WARNING is raised
+  if [[ ${curr_script} == *"template"* ||  ${curr_script} == *".sh"* ]]; then
+    echo "ERROR: Omit '_template' and/or '.sh'  from Bash script argument."
+    exit 1
+  else
+    exit 0              # still ok, i.e. only a WARNING is raised
+  fi
 fi
 # check if target script is unique
 target_script=${curr_script}_${exp_id}.sh
-if [[ ]]; then
+if [[ -f ${target_script} ]]; then
   echo "ERROR: ${target_script} already exist."
   echo "Set explicitly a different experiment identifier."
   exit 1
@@ -43,21 +50,21 @@ fi
 # create copy of template which is modified subsequently
 cp ${curr_script}_template.sh ${target_script}
 # remove template identifiers
-num_lines=`awk '/Template identifiers/{ print NR }' ${target_script}`
+num_lines=`awk '/Template identifier/{ print NR }' ${target_script}`
 line_s=`echo ${num_lines} | cut -d' ' -f 1`
 line_e=`echo ${num_lines} | cut -d' ' -f 2`
 if [[ ${line_s} == "" || ${line_e} == "" ]]; then
   echo "ERROR: ${curr_script}_template.sh exists, but does not seem to be a valid template script."
+  rm ${target_script}     # remove copy again
   exit 1
 else
-  sed -e '${line_s},${line_e}d' ${target_script}
+  sed -i "${line_s},${line_e}d" ${target_script}
 fi
 # set exp_id in (Batch) script if present
 if [[ `grep "exp_id=" ${target_script}` ]]; then
   sed -i "s/exp_id=.*/exp_id=$exp_id/g" ${target_script}
 fi
 
-grep -Fxq "$FILENAME" my_list.txt
 # set correct e-mail address in Batch scripts on Juwels and HDF-ML
 if [[ "${HOST_NAME}" == hdfml* || "${HOST_NAME}" == juwels* ]]; then
   if [ command -v jutil ]; then
