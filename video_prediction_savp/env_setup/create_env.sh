@@ -32,7 +32,7 @@ fi
 
 # list of (Batch) scripts used for the steps in the workflow
 # !!! Expects that a template named [script_name]_template.sh exists!!!
-workflow_scripts=(DataExtraction DataPreprocess DataPreprocess2tf train_era5 generate_era5)
+workflow_scripts=(DataExtraction DataPreprocess DataPreprocess2tf train_era5 generate_era5 DatePreprocess2tf_movingmnist train_movingmnist generate_movingmnist)
 
 HOST_NAME=`hostname`
 ENV_NAME=$1
