@@ -1,8 +1,8 @@
 #!/bin/bash -x
 #SBATCH --account=deepacf
 #SBATCH --nodes=1
-#SBATCH --ntasks=1
-##SBATCH --ntasks-per-node=1
+#SBATCH --ntasks=13
+##SBATCH --ntasks-per-node=13
 #SBATCH --cpus-per-task=1
 #SBATCH --output=DataPreprocess_to_tf-out.%j
 #SBATCH --error=DataPreprocess_to_tf-err.%j
@@ -11,6 +11,10 @@
 #SBATCH --mail-type=ALL
 #SBATCH --mail-user=b.gong@fz-juelich.de
 
+######### Template identifier (don't remove) #########
+echo "Do not run the template scripts"
+exit 99
+######### Template identifier (don't remove) #########
 
 # Name of virtual environment 
 VIRT_ENV_NAME="vp"
@@ -29,9 +33,8 @@ if [ -z ${VIRTUAL_ENV} ]; then
 fi
 
 # declare directory-variables which will be modified appropriately during Preprocessing (invoked by mpi_split_data_multi_years.py)
-
-source_dir=/p/project/deepacf/deeprain/video_prediction_shared_folder/preprocessedData/moving_mnist 
-destination_dir=/p/project/deepacf/deeprain/video_prediction_shared_folder/preprocessedData/moving_mnist
+source_dir=/p/project/deepacf/deeprain/video_prediction_shared_folder/preprocessedData/
+destination_dir=/p/project/deepacf/deeprain/video_prediction_shared_folder/preprocessedData/
 
 # run Preprocessing (step 2 where Tf-records are generated)
-srun python ../video_prediction/datasets/moving_mnist.py ${source_dir} ${destination_dir}/tfrecords
+srun python ../video_prediction/datasets/era5_dataset_v2.py ${source_dir}/pickle ${destination_dir}/tfrecords -vars T2 MSL gph500 -height 128 -width 160 -seq_length 20 

@@ -15,11 +15,17 @@ class MetaData:
      Class for handling, storing and retrieving meta-data
     """
     
-    def __init__(self,json_file=None,suffix_indir=None,data_filename=None,slices=None,variables=None):
-        
+    def __init__(self,json_file=None,suffix_indir=None,exp_id=None,data_filename=None,slices=None,variables=None):
+
         """
          Initailizes MetaData instance by reading a corresponding json-file or by handling arguments of the Preprocessing step
-         (i.e. exemplary input file, slices defining region of interest, input variables) 
+         (i.e. exemplary input file, slices defining region of interest, input variables)
+        :param json_file: already existing json-file with metadata, if present the following arguments are not needed
+        :param suffix_indir: suffix of directory where processed data is stored for running the models
+        :param exp_id: experiment identifier
+        :param data_filename: name of netCDF-file serving as base for metadata retrieval
+        :param slices: indices defining the region of interest
+        :param variables: predictor variables
         """
         
         method_name = MetaData.__init__.__name__+" of Class "+MetaData.__name__
@@ -36,6 +42,12 @@ class MetaData:
             else:
                 if not isinstance(suffix_indir,str):
                     raise TypeError(method_name+": 'suffix_indir'-argument must be a string.")
+
+            if not exp_id:
+                raise TypeError(method_name+": 'exp_id'-argument is required if 'json_file' is not passed.")
+            else:
+                if not isinstance(exp_id,str):
+                    raise TypeError(method_name+": 'exp_id'-argument must be a string.")
             
             if not data_filename:
                 raise TypeError(method_name+": 'data_filename'-argument is required if 'json_file' is not passed.")
@@ -55,12 +67,12 @@ class MetaData:
                 if not isinstance(variables,list):
                     raise TypeError(method_name+": 'variables'-argument must be a list.")       
             
-            MetaData.get_and_set_metadata_from_file(self,suffix_indir,data_filename,slices,variables)
+            MetaData.get_and_set_metadata_from_file(self,suffix_indir,exp_id,data_filename,slices,variables)
             
             MetaData.write_metadata_to_file(self)
             
 
-    def get_and_set_metadata_from_file(self,suffix_indir,datafile_name,slices,variables):
+    def get_and_set_metadata_from_file(self,suffix_indir,exp_id,datafile_name,slices,variables):
         """
          Retrieves several meta data from netCDF-file and sets corresponding class instance attributes.
          Besides, the name of the experiment directory is constructed following the naming convention (see below)
@@ -89,7 +101,6 @@ class MetaData:
         # Check if all requested variables can be obtained from datafile
         MetaData.check_datafile(datafile,variables)
         self.varnames    = variables
-        
         
         self.nx, self.ny = np.abs(slices['lon_e'] - slices['lon_s']), np.abs(slices['lat_e'] - slices['lat_s'])    
         sw_c             = [float(datafile.variables['lat'][slices['lat_e']-1]),float(datafile.variables['lon'][slices['lon_s']])]                # meridional axis lat is oriented from north to south (i.e. monotonically decreasing)
@@ -129,6 +140,7 @@ class MetaData:
         
         self.expname = expname
         self.expdir  = expdir
+        self.exp_id  = exp_id
         self.status  = ""                   # uninitialized (is set when metadata is written/compared to/with json-file, see write_metadata_to_file-method)
 
     # ML 2020/04/24 E         
@@ -142,7 +154,8 @@ class MetaData:
         method_name = MetaData.write_metadata_to_file.__name__+" of Class "+MetaData.__name__
         # actual work:
         meta_dict = {"expname": self.expname,
-                     "expdir" : self.expdir}
+                     "expdir" : self.expdir,
+                     "exp_id" : self.exp_id}
         
         meta_dict["sw_corner_frame"] = {
             "lat" : np.around(self.sw_c[0],decimals=2),
@@ -206,6 +219,8 @@ class MetaData:
             dict_in = json.load(js_file)
             
             self.expdir = dict_in["expdir"]
+            if "exp_id" in dict_in:
+                self.exp_id = dict_in["exp_id"]
             
             self.sw_c       = [dict_in["sw_corner_frame"]["lat"],dict_in["sw_corner_frame"]["lon"] ]
             self.lat        = dict_in["coordinates"]["lat"]
@@ -226,7 +241,13 @@ class MetaData:
         """
         
         paths_to_mod = ["source_dir=","destination_dir=","checkpoint_dir=","results_dir="]      # known directory-variables in batch-scripts
-        
+
+        # For backward compability:
+        # Check if exp_id (if present) needs to be added to batch_script in order to access the file
+        if hasattr(self,"exp_id"):
+            sep_idx = batch_script.index(".sh")
+            batch_script = batch_script[:sep_idx] + "_" + self.exp_id + batch_script[sep_idx:]
+
         with open(batch_script,'r') as file:
             data = file.readlines()
             

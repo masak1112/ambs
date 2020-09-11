@@ -28,6 +28,8 @@ def main():
     parser.add_argument("--lat_e", type=int, default=202-32)
     parser.add_argument("--lon_s", type=int, default=550+16+32)
     parser.add_argument("--lon_e", type=int, default=710-16-32)
+    parser.add_argument("--experimental_id","-exp_id",dest="exp_id",type=str, default="exp1",\
+                        help="Experimental identifier helping to distinguish between different experiments.")
     args = parser.parse_args()
 
     current_path = os.getcwd()
@@ -51,6 +53,8 @@ def main():
               }
     print("Selected variables",vars)
     print("Selected Slices",slices)
+
+    exp_id = args.exp_id
 
     os.chdir(current_path)
     time.sleep(0)
@@ -111,12 +115,12 @@ def main():
         data_files_list = glob.glob(source_dir+"/**/*.nc",recursive=True)
         if not data_files_list: raise ValueError("Could not find any data to be processed in '"+source_dir+"'")
         
-        md = MetaData(suffix_indir=destination_dir,data_filename=data_files_list[0],slices=slices,variables=vars)
+        md = MetaData(suffix_indir=destination_dir,exp_id=exp_id,data_filename=data_files_list[0],slices=slices,variables=vars)
         # modify Batch scripts if metadata has been retrieved for the first time (md.status = "new")
         if (md.status == "new"):
-            md.write_dirs_to_batch_scripts(scr_dir+"/DataPreprocess_to_tf.sh")
+            md.write_dirs_to_batch_scripts(scr_dir+"/DataPreprocess2tf.sh")
+            md.write_dirs_to_batch_scripts(scr_dir + "/train_era5.sh")
             md.write_dirs_to_batch_scripts(scr_dir+"/generate_era5.sh")
-            md.write_dirs_to_batch_scripts(scr_dir+"/train_era5.sh")
 
         elif (md.status == "old"):      # meta-data file already exists and is ok
                                         # check for temp.json in working directory (required by slave nodes)

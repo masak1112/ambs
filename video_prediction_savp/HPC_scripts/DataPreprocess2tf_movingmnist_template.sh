@@ -4,15 +4,17 @@
 #SBATCH --ntasks=1
 ##SBATCH --ntasks-per-node=1
 #SBATCH --cpus-per-task=1
-#SBATCH --output=train_era5-out.%j
-#SBATCH --error=train_era5-err.%j
+#SBATCH --output=DataPreprocess_to_tf-out.%j
+#SBATCH --error=DataPreprocess_to_tf-err.%j
 #SBATCH --time=00:20:00
-#SBATCH --gres=gpu:2
-#SBATCH --partition=develgpus
+#SBATCH --partition=devel
 #SBATCH --mail-type=ALL
 #SBATCH --mail-user=b.gong@fz-juelich.de
-##jutil env activate -p cjjsc42
 
+######### Template identifier (don't remove) #########
+echo "Do not run the template scripts"
+exit 99
+######### Template identifier (don't remove) #########
 
 # Name of virtual environment 
 VIRT_ENV_NAME="vp"
@@ -30,18 +32,10 @@ if [ -z ${VIRTUAL_ENV} ]; then
    fi
 fi
 
-
-
-
 # declare directory-variables which will be modified appropriately during Preprocessing (invoked by mpi_split_data_multi_years.py)
-source_dir=/p/project/deepacf/deeprain/video_prediction_shared_folder/preprocessedData/
-destination_dir=/p/project/deepacf/deeprain/video_prediction_shared_folder/models/
 
-# for choosing the model for choosing the model, convLSTM,savp, mcnet,vae
-model=convLSTM
-model_hparams=../hparams/era5/${model}/model_hparams.json
+source_dir=/p/project/deepacf/deeprain/video_prediction_shared_folder/preprocessedData/moving_mnist 
+destination_dir=/p/project/deepacf/deeprain/video_prediction_shared_folder/preprocessedData/moving_mnist
 
-# rund training
-srun python ../scripts/train_dummy.py --input_dir  ${source_dir}/tfrecords/ --dataset era5  --model ${model} --model_hparams_dict ${model_hparams} --output_dir ${destination_dir}/${model}/
-
- 
+# run Preprocessing (step 2 where Tf-records are generated)
+srun python ../video_prediction/datasets/moving_mnist.py ${source_dir} ${destination_dir}/tfrecords

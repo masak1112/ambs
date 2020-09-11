@@ -10,8 +10,13 @@
 #SBATCH --gres=gpu:1
 #SBATCH --partition=develgpus
 #SBATCH --mail-type=ALL
-#SBATCH --mail-user=s.stadtler@fz-juelich.de
+#SBATCH --mail-user=b.gong@fz-juelich.de
 ##jutil env activate -p cjjsc42
+
+######### Template identifier (don't remove) #########
+echo "Do not run the template scripts"
+exit 99
+######### Template identifier (don't remove) #########
 
 # Name of virtual environment 
 VIRT_ENV_NAME="vp"
