@@ -122,8 +122,8 @@ virt_env*/
 **/era5_size_64_64_3_3t_norm
 
 # Ignore (Batch) runscripts
-HPC_scripts/
+HPC_scripts/*.sh
 !HPC_scripts/*_template.sh
-Zam347_scripts/
+Zam347_scripts/*.sh
 !Zam347_scripts/*_template.sh
  
