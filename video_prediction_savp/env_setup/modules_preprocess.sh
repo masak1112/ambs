@@ -9,7 +9,7 @@
 HOST_NAME=`hostname`
 
 echo "Start loading modules on ${HOST_NAME} required for preprocessing..."
-echo "This script is used by: "
+echo "modules_preprocess.sh is subject to: "
 echo "* DataExtraction.sh"
 echo "* DataPreprocess.sh"
 

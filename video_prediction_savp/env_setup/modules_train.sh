@@ -9,6 +9,10 @@
 HOST_NAME=`hostname`
 
 echo "Start loading modules on ${HOST_NAME}..."
+echo "modules_train.sh is subject to: "
+echo "* DataPreprocess_to_tf.sh"
+echo "* train_era5.sh"
+echo "* generate_era5.sh"
 
 module purge
 module use $OTHERSTAGES

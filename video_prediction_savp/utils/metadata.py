@@ -1,5 +1,5 @@
 """ 
-Classes and routines to retrieve and handle meta-data
+Class to retrieve and handle meta-data
 """
 
 import os
@@ -8,6 +8,7 @@ import time
 import numpy as np
 import json
 from netCDF4 import Dataset
+from general_utils import is_integer, add_str_to_path
 
 class MetaData:
     """
@@ -358,41 +359,6 @@ class MetaData:
         
 # ----------------------------------- end of class MetaData -----------------------------------
 
-# some auxilary functions which are not bound to MetaData-class 
-
-def add_str_to_path(path_in,add_str):
-    
-    """
-        Adds add_str to path_in if path_in does not already end with add_str.
-        Function is also capable to handle carriage returns for handling input-strings obtained by reading a file.
-    """
-    
-    l_linebreak = path_in.endswith("\n")   # flag for carriage return at the end of input string
-    line_str    = path_in.rstrip("\n")
-    
-    if (not line_str.endswith(add_str)) or \
-       (not line_str.endswith(add_str.rstrip("/"))):
-        
-        line_str = line_str + add_str + "/"
-    else:
-        print(add_str+" is already part of "+line_str+". No change is performed.")
-    
-    if l_linebreak:                     # re-add carriage return to string if required
-        return(line_str+"\n")
-    else:
-        return(line_str)
-                       
-                       
-def is_integer(n):
-    '''
-    Checks if input string is numeric and of type integer.
-    '''
-    try:
-        float(n)
-    except ValueError:
-        return False
-    else:
-        return float(n).is_integer()                       
                        
     
         
