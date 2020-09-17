@@ -366,25 +366,54 @@ def get_persistence(ts, input_dir_pkl):
             if m == month_end:
                 t_persistence_second_m.append(ts_persistence[t])
         # Open files to search for the indizes
-        path_to_pickle = input_dir_pkl+'/'+str(year_start)+'/T_{:02}.pkl'.format(month_start)        
-        infile = open(path_to_pickle,'rb')
-        time_pickle_fist = pickle.load(infile)
+        #path_to_pickle = input_dir_pkl+'/'+str(year_start)+'/T_{:02}.pkl'.format(month_start)        
+        #infile = open(path_to_pickle,'rb')
+        time_pickle_first  = load_pickle_for_persistence(input_dir_pkl, year_start, month_start, 'T')
+        time_pickle_second = load_pickle_for_persistence(input_dir_pkl, year_start, month_end, 'T')
         
         # Open file to search for the correspoding meteorological fields
-        path_to_pickle = input_dir_pkl+'/'+str(year_start)+'/X_{:02}.pkl'.format(month_start)        
-        infile = open(path_to_pickle,'rb')
-        var_pickle_fist = pickle.load(infile)
+        #path_to_pickle = input_dir_pkl+'/'+str(year_start)+'/X_{:02}.pkl'.format(month_start)        
+        #infile = open(path_to_pickle,'rb')
+        var_pickle_first  = load_pickle_for_persistence(input_dir_pkl, year_start, month_start, 'X')
+        var_pickle_second = load_pickle_for_persistence(input_dir_pkl, year_start, month_end, 'X')
         
         # Retrieve starting index
-        ind_fist_m = list(time_pickle_fist).index(np.array(t_persistence_first_m[0]))
-        print('Scarlet this is the indx', ind_fist_m)
-        # The other indices can be constructed using the len(t_persistence_first_m)
-        # Same for the second month!
+        ind_first_m = list(time_pickle_first).index(np.array(t_persistence_first_m[0]))
+        ind_second_m = list(time_pickle_second).index(np.array(t_persistence_second_m[0]))
         
+        # construct following indices and store them in a list - DO I NEED THAT?
+        idx_fist = construct_index(ind_second_m, t_persistence_second_m)
+        idx_second = construct_index(ind_second_m, t_persistence_second_m)
+        print('Scarlet this is the index {} in month {}'.format(ind_first_m, month_start))
+        print('length sequence first month', len(t_persistence_first_m))
+        print('Scarlet this is the index {} in month {}'.format(ind_second_m, month_end))
+        print('length sequence second month', len(t_persistence_second_m))
+        print('Original', ts_persistence)
+        print('From Pickle', time_pickle_first[ind_first_m:ind_first_m+len(t_persistence_first_m)])
         
+def load_pickle_for_persistence(input_dir_pkl, year_start, month_start, pkl_type):
+    """Helper to get the content of the pickle files. There are two types in our workflow:
+    T_[month].pkl where the time stamp is stored
+    X_[month].pkl where the variables are stored, e.g. temperature, geopotential and pressure
+    This helper function constructs the directory, opens the file to read it, returns the variable. 
+    """
+    path_to_pickle = input_dir_pkl+'/'+str(year_start)+'/'+pkl_type+'_{:02}.pkl'.format(month_start)
+    infile = open(path_to_pickle,'rb')    
+    var = pickle.load(infile)
+    return var
+
+def construct_index(first_idx, sequence):
+    """Helper function to construct the idx sequences from the starting index and the lenght 
+    of the squence.
+    Wait do I even need a sequence????"""
+    idx_list = []
+    for i in range(first_idx, first_idx+len(sequence)):
+        #print(i)
+        idx_list.append(i)
+    return idx_list
         
-        
-        # Oder stuff: 
+    
+    # Oder stuff: 
         # Retrieve indizes
         #print(list(time_pickle))
         #for item in time_pickle:
