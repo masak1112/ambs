@@ -23,14 +23,14 @@ The following commands will setup a user-specific virtual environment
 either on Juwels, HDF-ML (HPC clusters) or on zam347 for you.
 The script `create_env.sh` automatically detects on which machine it is executed and loads/installs
 all required Python (binary) modules and packages.
-The virtual environment is set up under the subfolder `video_prediction_savp/<dir_name>`.
+The virtual environment is set up under the subfolder `video_prediction_savp/<env_name>`.
 Besides, user-specific runscripts for each step of the workflow may be created,
 e.g. `train_era5_exp1.sh` where `exp1` denotes the default experiment identifier.
 The name of this identifier can be controlled by the optional second argument `<exp_id>`.
 
 ```bash
 cd video_prediction_savp/env_setup
-source create_env.sh <dir_name> <env_name>
+source create_env.sh <env_name> [<exp_id>]
 ```
 
 ### Run workflow the workflow
