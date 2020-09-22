@@ -4,11 +4,11 @@ import sys
 import subprocess
 import logging
 import time
-from external_function import directory_scanner
-from external_function import load_distributor
-from external_function import hash_directory
-from external_function import md5
-from prepare_era5_data import *
+from utils.external_function import directory_scanner
+from utils.external_function import load_distributor
+from utils.external_function import hash_directory
+from utils.external_function import md5
+from utils.prepare_era5_data import *
 # How to Run it!
 # mpirun -np 6 python mpi_stager_v2.py
 import os

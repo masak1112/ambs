@@ -4,11 +4,11 @@ import sys
 import subprocess
 import logging
 import time
-from external_function import directory_scanner
-from external_function import load_distributor
-from external_function import hash_directory
-from external_function import md5
-from process_netCDF_v2 import *  
+from utils.external_function import directory_scanner
+from utils.external_function import load_distributor
+from utils.external_function import hash_directory
+from utils.external_function import md5
+from utils.process_netCDF_v2 import *  
 from metadata import MetaData as MetaData
 import os
 import argparse
