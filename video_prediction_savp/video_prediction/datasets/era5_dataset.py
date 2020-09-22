@@ -12,8 +12,7 @@ from video_prediction.datasets.base_dataset import VarLenFeatureVideoDataset
 # ML 2020/04/14: hack for getting functions of process_netCDF_v2:
 from os import path
 import sys
-sys.path.append(path.abspath('../../workflow_parallel_frame_prediction/'))
-import DataPreprocess.process_netCDF_v2
+import video_prediction.datasets.process_netCDF_v2
 from general_utils import get_unique_vars
 from statistics import Calc_data_stat
 from metadata import MetaData
@@ -26,9 +25,9 @@ import glob
 
 
 
-class ERA5Dataset_v2(VarLenFeatureVideoDataset):
+class ERA5Dataset(VarLenFeatureVideoDataset):
     def __init__(self, *args, **kwargs):
-        super(ERA5Dataset_v2, self).__init__(*args, **kwargs)
+        super(ERA5Dataset, self).__init__(*args, **kwargs)
         from google.protobuf.json_format import MessageToDict
         example = next(tf.python_io.tf_record_iterator(self.filenames[0]))
         dict_message = MessageToDict(tf.train.Example.FromString(example))
@@ -39,7 +38,7 @@ class ERA5Dataset_v2(VarLenFeatureVideoDataset):
         self.state_like_names_and_shapes['images'] = 'images/encoded', self.image_shape
 
     def get_default_hparams_dict(self):
-        default_hparams = super(ERA5Dataset_v2, self).get_default_hparams_dict()
+        default_hparams = super(ERA5Dataset, self).get_default_hparams_dict()
         hparams = dict(
             context_frames=10,#Bing: Todo oriignal is 10
             sequence_length=20,#bing: TODO original is 20,
@@ -122,6 +121,9 @@ class ERA5Dataset_v2(VarLenFeatureVideoDataset):
         #    _parser, batch_size, drop_remainder=True, num_parallel_calls=num_parallel_calls)) #  Bing: Parallel data mapping, num_parallel_calls normally depends on the hardware, however, normally should be equal to be the usalbe number of CPUs
         dataset = dataset.prefetch(batch_size)  # Bing: Take the data to buffer inorder to save the waiting time for GPU
         return dataset
+/V2
+
+
 
 
 

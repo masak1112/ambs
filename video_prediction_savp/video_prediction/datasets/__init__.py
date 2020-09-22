@@ -6,7 +6,7 @@ from .softmotion_dataset import SoftmotionVideoDataset
 from .kth_dataset import KTHVideoDataset
 from .ucf101_dataset import UCF101VideoDataset
 from .cartgripper_dataset import CartgripperVideoDataset
-from .era5_dataset_v2 import ERA5Dataset_v2
+from .era5_dataset import ERA5Dataset
 from .moving_mnist import MovingMnist
 #from .era5_dataset_v2_anomaly import ERA5Dataset_v2_anomaly
 
