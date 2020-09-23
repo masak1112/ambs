@@ -121,7 +121,7 @@ class ERA5Dataset(VarLenFeatureVideoDataset):
         #    _parser, batch_size, drop_remainder=True, num_parallel_calls=num_parallel_calls)) #  Bing: Parallel data mapping, num_parallel_calls normally depends on the hardware, however, normally should be equal to be the usalbe number of CPUs
         dataset = dataset.prefetch(batch_size)  # Bing: Take the data to buffer inorder to save the waiting time for GPU
         return dataset
-/V2
+
 
 
 
