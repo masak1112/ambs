@@ -19,7 +19,7 @@ def get_dataset_class(dataset):
         'kth': 'KTHVideoDataset',
         'ucf101': 'UCF101VideoDataset',
         'cartgripper': 'CartgripperVideoDataset',
-        "era5":"ERA5Dataset_v2",
+        "era5":"ERA5Dataset",
         "moving_mnist":"MovingMnist"
 #        "era5_anomaly":"ERA5Dataset_v2_anomaly",
     }
