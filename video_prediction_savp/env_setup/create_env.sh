@@ -131,9 +131,9 @@ if [[ "$ENV_EXIST" == 0 ]]; then
   for wf_script in "${workflow_scripts[@]}"; do
     curr_script=${script_dir}/${wf_script}
     if [[ -z "${exp_id}" ]]; then
-      ./generate_workflow_runscripts.sh ${curr_script}
+      ./generate_workflow_runscripts.sh ${curr_script} ${ENV_NAME}
     else
-      ./generate_workflow_runscripts.sh ${curr_script} ${exp_id}
+      ./generate_workflow_runscripts.sh ${curr_script}  ${ENV_NAME} -exp_id=${exp_id}
     fi
   done
   # *** finished ***
