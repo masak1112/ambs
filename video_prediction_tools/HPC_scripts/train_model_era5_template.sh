@@ -41,11 +41,13 @@ fi
 source_dir=/p/project/deepacf/deeprain/video_prediction_shared_folder/preprocessedData/
 destination_dir=/p/project/deepacf/deeprain/video_prediction_shared_folder/models/
 
-# for choosing the model for choosing the model, convLSTM,savp, mcnet,vae
+
+# valid identifiers for model-argument are: convLSTM, savp, mcnet and vae
 model=convLSTM
 model_hparams=../hparams/era5/${model}/model_hparams.json
+destination_dir=${destination_dir}/${model}/"$(date +"%Y%m%dT%H%M")_"$USER"/"
 
-# rund training
-srun python ../scripts/train_dummy.py --input_dir  ${source_dir}/tfrecords/ --dataset era5  --model ${model} --model_hparams_dict ${model_hparams} --output_dir ${destination_dir}/${model}/
+# run training
+srun python ../main_scripts/main_train_models.py --input_dir  ${source_dir}/tfrecords/ --dataset era5  --model ${model} --model_hparams_dict ${model_hparams} --output_dir ${destination_dir}/
 
  
