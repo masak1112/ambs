@@ -13,12 +13,12 @@ from collections import OrderedDict
 from tensorflow.contrib.training import HParams
 from mpi4py import MPI
 from video_prediction.datasets.base_dataset import VarLenFeatureVideoDataset
-import data_preproces.process_netCDF_v2
+import data_preprocess.process_netCDF_v2
 from general_utils import get_unique_vars
 from statistics import Calc_data_stat
 from metadata import MetaData
 from normalization import Norm_data
-from video_prediction.datasets import era5_dataset
+from video_prediction.datasets.era5_dataset import *
 
 
 def main():
@@ -43,9 +43,7 @@ def main():
     ############################################################
     partition = {
             "train":{
-           #     "2222":[1,2,3,5,6,7,8,9,10,11,12], # Issue due to month 04, it is missing
                 "2010":[1,2,3,4,5,6,7,8,9,10,11,12],
-           #     "2012":[1,2,3,4,5,6,7,8,9,10,11,12],
                 "2013":[1,2,3,4,5,6,7,8,9,10,11,12],
                 "2015":[1,2,3,4,5,6,7,8,9,10,11,12],
                 "2019":[1,2,3,4,5,6,7,8,9,10,11,12]
