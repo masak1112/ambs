@@ -64,19 +64,19 @@ whose order is the following:
 ```
 
 ### Create additional runscripts ###
-In case that you want to perform experiments with varying configuration (e.g. another region of interest),
-it is convenient to create individual runscripts from the templates. 
+In case that you want to perform experiments with varying configuration (e.g. another set of hyperparameters, but still the same input dataset for training), it is convenient to create individual runscripts from the templates. 
 This can be done with the help of `generate_workflow_runscripts.sh`. 
 The first argument `<runscript_name>` defines the (relative) path to the template runscript
 which should be converted to an executable one. Note that only the suffix of the 
 template's name must be passed, e.g. `../HPC_scripts/train_era5` in order to create 
 a runscript for the training substep.
-The second argument `<exp_id>` denotes again the experiment identifier. If this argument is omitted,
-the default value `exp1` is used which might conflict the step where the virtual environment itself 
-is set up. 
+The second argument `<venv_name>` denotes the name of the virtual environment which has to be set up in advanceand which should be used by the runscript.
+Additional optional arguments can be passed to control the experimental identifier and to set manually the path to the 
+directory where the preprocessed data is stored (used for the training and postprocessing substep). These optional arguments have to follow a naming convention in order to be identified by `generate_workflow_runscripts.sh`.
+The experimental identifer can be passed by adding `-exp_id=<id>`while the path to the preprocessed data requires passing of `-exp_dir=<path_to_dir>`. Note, that the default value `exp1` is used as experimental identifier if the `-exp_id=<id>` is omitted.
 
 ``` bash
-./generate_workflow_runscripts.sh <runscript_name> [<exp_id>]
+./generate_workflow_runscripts.sh <runscript_name> <venv_name> [-exp_id=<id>] [-exp_dir=<dir_to_path>]
 ```
 
 ### Output folder structure and naming convention
