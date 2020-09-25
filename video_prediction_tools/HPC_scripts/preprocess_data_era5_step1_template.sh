@@ -41,8 +41,8 @@ declare -a years=(
                  "2017"
                   )
 
-max_year=`echo "${years[*]}" | sort -nr | head -n1`
-min_year=`echo "${years[*]}" | sort -nr | tail -n1`
+max_year=$( printf "%d\n" "${years[@]}" | sort -n | tail -1 )
+min_year=$( printf "%d\n" "${years[@]}" | sort -nr | tail -1 )
 # set some paths
 # note, that destination_dir is used during runtime to set a proper experiment directory
 exp_id=xxx                                          # experiment identifier is set by 'generate_workflow_runscripts.sh'
