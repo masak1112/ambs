@@ -118,9 +118,9 @@ def main():
         md = MetaData(suffix_indir=destination_dir,exp_id=exp_id,data_filename=data_files_list[0],slices=slices,variables=vars)
         # modify Batch scripts if metadata has been retrieved for the first time (md.status = "new")
         if (md.status == "new"):
-            md.write_dirs_to_batch_scripts(scr_dir+"/DataPreprocess2tf.sh")
-            md.write_dirs_to_batch_scripts(scr_dir + "/train_era5.sh")
-            md.write_dirs_to_batch_scripts(scr_dir+"/generate_era5.sh")
+            md.write_dirs_to_batch_scripts(scr_dir+"/preprocess_data_era5_step2.sh")
+            md.write_dirs_to_batch_scripts(scr_dir + "/train_model_era5.sh")
+            md.write_dirs_to_batch_scripts(scr_dir+"/visualize_postprocess_era5.sh")
 
         elif (md.status == "old"):      # meta-data file already exists and is ok
                                         # check for temp.json in working directory (required by slave nodes)
