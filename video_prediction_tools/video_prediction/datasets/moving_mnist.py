@@ -1,4 +1,5 @@
 import argparse
+import sys
 import glob
 import itertools
 import os
@@ -8,22 +9,16 @@ import re
 import numpy as np
 import json
 import tensorflow as tf
+from tensorflow.contrib.training import HParams
+from mpi4py import MPI
+from collections import OrderedDict
+import matplotlib.pyplot as plt
+import matplotlib.gridspec as gridspec
 from video_prediction.datasets.base_dataset import VarLenFeatureVideoDataset
-# ML 2020/04/14: hack for getting functions of process_netCDF_v2:
-from os import path
-import sys
-sys.path.append(path.abspath('../../workflow_parallel_frame_prediction/'))
-import DataPreprocess.process_netCDF_v2 
+import data_preprocess.process_netCDF_v2 
 from general_utils import get_unique_vars
 from statistics import Calc_data_stat 
 from metadata import MetaData
-#from base_dataset import VarLenFeatureVideoDataset
-from collections import OrderedDict
-from tensorflow.contrib.training import HParams
-from mpi4py import MPI
-import glob
-import matplotlib.pyplot as plt
-import matplotlib.gridspec as gridspec
 
 class MovingMnist(VarLenFeatureVideoDataset):
     def __init__(self, *args, **kwargs):
