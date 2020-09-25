@@ -43,8 +43,8 @@ results_dir=/p/scratch/deepacf/video_prediction_shared_folder/results/
 model=convLSTM
 
 # run postprocessing/generation of model results including evaluation metrics
-srun python -u ../scripts/generate_transfer_learning_finetune.py \
---input_dir ${source_dir}/tfrecords --dataset_hparams sequence_length=20 --checkpoint  ${checkpoint_dir}/${model} \
---mode test --model ${model} --results_dir ${results_dir}/${model}/ --batch_size 2 --dataset era5   > generate_era5-out.out
+srun python -u ../main_scripts/main_visualize_postprocess.py \
+--input_dir ${source_dir}/tfrecords --dataset_hparams sequence_length=20 --checkpoint  ${checkpoint_dir}/ \
+--mode test --model ${model} --results_dir ${results_dir}/ --batch_size 2 --dataset era5   > generate_era5-out.out
 
 #srun  python scripts/train.py --input_dir data/era5 --dataset era5  --model savp --model_hparams_dict hparams/kth/ours_savp/model_hparams.json --output_dir logs/era5/ours_savp
