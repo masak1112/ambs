@@ -35,16 +35,15 @@ if [ -z ${VIRTUAL_ENV} ]; then
 fi
 
 # declare directory-variables which will be modified appropriately during Preprocessing (invoked by mpi_split_data_multi_years.py)
-source_dir=/p/scratch/deepacf/video_prediction_shared_folder/preprocessedData/
-checkpoint_dir=/p/scratch/deepacf/video_prediction_shared_folder/models/
-results_dir=/p/scratch/deepacf/video_prediction_shared_folder/results/
+source_dir=/p/project/deepacf/deeprain/video_prediction_shared_folder/preprocessedData/
+checkpoint_dir=/p/project/deepacf/deeprain/video_prediction_shared_folder/models/
+results_dir=/p/project/deepacf/deeprain/video_prediction_shared_folder/results/
 
 # name of model
 model=convLSTM
-
+exp=[specify experiment name]
 # run postprocessing/generation of model results including evaluation metrics
 srun python -u ../main_scripts/main_visualize_postprocess.py \
---input_dir ${source_dir}/tfrecords --dataset_hparams sequence_length=20 --checkpoint  ${checkpoint_dir}/ \
---mode test --model ${model} --results_dir ${results_dir}/ --batch_size 2 --dataset era5   > generate_era5-out.out
+--input_dir ${source_dir} --dataset_hparams sequence_length=20 --checkpoint  ${checkpoint_dir}/${model}/${exp} \
+--mode test --model ${model} --results_dir ${results_dir}/${model}/${exp}/ --batch_size 2 --dataset era5   > generate_era5-out.out
 
-#srun  python scripts/train.py --input_dir data/era5 --dataset era5  --model savp --model_hparams_dict hparams/kth/ours_savp/model_hparams.json --output_dir logs/era5/ours_savp
