@@ -6,8 +6,8 @@
 # **************** Description ****************
 # This script can be used for setting up the virtual environment needed for ambs-project
 # or to simply activate it.
-# In the former case, it also converts the (Batch) script templates to executable runscripts.
-# Note, that you may pass an experiment identifier as second argument to this runscript
+# It also converts the (Batch) runscript templates to executable runscripts.
+# Note, that you may pass an experiment identifier as second argument (default 'exp1') to this runscript
 # which will also be used as suffix in the executable runscripts.
 # **************** Description ****************
 #

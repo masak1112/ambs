@@ -4,14 +4,16 @@
 # __date__  = '2020_09_24'
 #
 # **************** Description ****************
-# Converts a given template workflow script (path has to be passed as first argument) to
+# Converts a given template workflow script (path/name has to be passed as first argument) to
 # an executable workflow (Batch) script.
 # Note, that the first argument has to be passed with "_template.sh" omitted!
 # The second argument denotes the name of the virtual environment to be used.
 # Additionally, -exp_id=[some_id] and -exp_dir=[some_dir] can be optionally passed as NON-POSITIONAL arguments.
 # -exp_id allows to set an experimental identifier explicitly (default is -exp_id=exp1) while 
-# -exp_dir allows setting manually the experimental directory where the preprocessed era5-data is stored.
-# Note that the latter is helpful when the preprocessing step is skipped (since the data already exists!)
+# -exp_dir allows setting manually the experimental directory.
+# Note, that the latter is done during the preprocessing step in an end-to-end workflow.
+# However, if the preprocessing step can be skipped (i.e. preprocessed data already exists),
+# one may wish to set the experimental directory explicitly
 #
 # Examples:
 #    ./generate_workflow_scripts.sh ../HPC_scripts/generate_era5 venv_hdfml -exp_id=exp5
@@ -19,11 +21,11 @@
 #    venv_hdfml is the virtual environment for operation.
 #
 #    ./generate_workflow_scripts.sh ../HPC_scripts/generate_era5 venv_hdfml -exp_id=exp5 -exp_dir=testdata
-#    ... does the same as the previous example, but additionally extends source_dir=[...]/preprocessedData/
-#    by testdata/
+#    ... does the same as the previous example, but additionally extends source_dir=[...]/preprocessedData/,
+#    checkpoint_dir=[...]/models/ and results_dir=[...]/results/ by testdata/
 # **************** Description ****************
 #
-# **************** Auxilary function ****************
+# **************** Auxilary functions ****************
 check_argin() {
 # Handle input arguments and check if one of them holds -exp_id= 
 # or -exp_dir= to emulate them as non-positional arguments
@@ -37,6 +39,7 @@ check_argin() {
 }
 
 add_exp_dir() {
+# Add exp_dir to paths in <target_script> which end with /<prefix>/
   prefix=$1
   if [[ `grep "/${prefix}/$" ${target_script}` ]]; then
    echo "Add experimental directory after '${prefix}/' in runscript '${target_script}'"
@@ -44,7 +47,7 @@ add_exp_dir() {
    status=1
   fi
 }
-# **************** Auxilary function ****************
+# **************** Auxilary functions ****************
 
 HOST_NAME=`hostname`
 BASE_DIR=`pwd`
@@ -141,17 +144,12 @@ fi
 
 # finally set experimental directory if exp_dir is present
 if [[ ! -z "${exp_dir}" ]]; then
-  status=0
-
+  status=0                        # status to check if exp_dir is added to the runscript at hand
+                                  # -> will be set to one by add_exp_dir if modifictaion takes place
   add_exp_dir preprocessedData
   add_exp_dir models
   add_exp_dir results
 
-  #if [[ `grep "/preprocessedData/$" ${target_script}` ]]; then    # the dollar-signs ensures that /preprocessedData/ is the suffix
-  #                                                                # i.e. this prevents us from modifying anything in DataPreprocess_[exp_id].sh
-  #                                                                # where this is supposed to be done during the Preprocessing step itself
-  # sed -i "s|/preprocessedData/$|/preprocessedData/${exp_dir}/|g" ${target_script}
-  #fi
   if [[ ${status} == 0 ]]; then
     echo "WARNING: -exp_dir has been passed, but no addition to any path in runscript at hand done..."
   fi
