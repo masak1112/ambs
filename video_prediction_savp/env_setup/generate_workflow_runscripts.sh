@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 #
 # __authors__ = Michael Langguth
-# __date__  = '2020_09_24'
+# __date__  = '2020_09_29'
 #
 # **************** Description ****************
 # Converts a given template workflow script (path/name has to be passed as first argument) to
@@ -52,8 +52,14 @@ add_exp_dir() {
 HOST_NAME=`hostname`
 BASE_DIR=`pwd`
 WORKING_DIR="$(dirname "$BASE_DIR")"
+EXE_DIR="$(basename "$BASE_DIR")"
 
 ### Some sanity checks ###
+# ensure that the script is executed from the env_setup-subdirectory
+if [[ "${EXE_DIR}" != "env_setup"  ]]; then
+  echo "ERROR: Execute 'generate_workflow_scripts.sh' from the env_setup-subdirectory only!"
+  exit 1
+fi
 # check input arguments
 if [[ "$#" -lt 2 ]]; then
   echo "ERROR: Pass path to workflow runscript (without '_template.sh') and pass name of virtual environment..."

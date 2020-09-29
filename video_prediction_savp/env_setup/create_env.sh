@@ -46,7 +46,7 @@ ENV_DIR=${WORKING_DIR}/${ENV_NAME}
 # * check if virtual env has already been set up
 
 if [[ "${EXE_DIR}" != "env_setup"  ]]; then
-  echo "ERROR: The setup-script for the virtual environment from the env_setup-directory!"
+  echo "ERROR: Execute 'create_env.sh' from the env_setup-subdirectory only!"
   return
 fi
 
