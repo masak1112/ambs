@@ -1,6 +1,6 @@
 
 #export PYTHONPATH=/p/project/deepacf/deeprain/bing/ambs/workflow_parallel_frame_prediction:$PYTHONPATH
-from DataPreprocess.process_netCDF_v2 import *
+from data_preprocess.process_netCDF_v2 import *
 import pytest
 import numpy as np
 
