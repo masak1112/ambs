@@ -35,6 +35,15 @@ check_argin() {
         fi
     done
 }
+
+add_exp_dir() {
+  prefix=$1
+  if [[ `grep "/${prefix}/$" ${target_script}` ]]; then
+   echo "Add experimental directory after '${prefix}/' in runscript '${target_script}'"
+   sed -i "s|/${prefix}/$|/${prefix}/${exp_dir}/|g" ${target_script}
+   status=1
+  fi
+}
 # **************** Auxilary function ****************
 
 HOST_NAME=`hostname`
@@ -132,12 +141,19 @@ fi
 
 # finally set experimental directory if exp_dir is present
 if [[ ! -z "${exp_dir}" ]]; then
-  if [[ `grep "/preprocessedData/$" ${target_script}` ]]; then    # the dollar-signs ensures that /preprocessedData/ is the suffix
-                                                                  # i.e. this prevents us from modifying anything in DataPreprocess_[exp_id].sh 
-                                                                  # where thsi is supposed to be done automatically
-   sed -i "s|/preprocessedData/$|/preprocessedData/${exp_dir}/|g" ${target_script}
-  else
-   echo "WARNING: -exp_dir was passed, but no path with .../preprocessedData/ found in ${target_script}"
+  status=0
+
+  add_exp_dir preprocessedData
+  add_exp_dir models
+  add_exp_dir results
+
+  #if [[ `grep "/preprocessedData/$" ${target_script}` ]]; then    # the dollar-signs ensures that /preprocessedData/ is the suffix
+  #                                                                # i.e. this prevents us from modifying anything in DataPreprocess_[exp_id].sh
+  #                                                                # where this is supposed to be done during the Preprocessing step itself
+  # sed -i "s|/preprocessedData/$|/preprocessedData/${exp_dir}/|g" ${target_script}
+  #fi
+  if [[ ${status} == 0 ]]; then
+    echo "WARNING: -exp_dir has been passed, but no addition to any path in runscript at hand done..."
   fi
 fi
 
