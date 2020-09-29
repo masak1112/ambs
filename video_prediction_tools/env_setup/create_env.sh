@@ -141,5 +141,5 @@ for wf_script in "${workflow_scripts[@]}"; do
   else
     ./generate_workflow_runscripts.sh ${curr_script}  ${ENV_NAME} -exp_id=${exp_id}
   fi
-
+done
 
