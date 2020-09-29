@@ -6,8 +6,8 @@
 # **************** Description ****************
 # This script can be used for setting up the virtual environment needed for ambs-project
 # or to simply activate it.
-# In the former case, it also converts the (Batch) script templates to executable runscripts.
-# Note, that you may pass an experiment identifier as second argument to this runscript
+# It also converts the (Batch) runscript templates to executable runscripts.
+# Note, that you may pass an experiment identifier as second argument (default 'exp1') to this runscript
 # which will also be used as suffix in the executable runscripts.
 # **************** Description ****************
 #
@@ -46,7 +46,7 @@ ENV_DIR=${WORKING_DIR}/${ENV_NAME}
 # * check if virtual env has already been set up
 
 if [[ "${EXE_DIR}" != "env_setup"  ]]; then
-  echo "ERROR: The setup-script for the virtual environment from the env_setup-directory!"
+  echo "ERROR: Execute 'create_env.sh' from the env_setup-subdirectory only!"
   return
 fi
 
@@ -119,26 +119,27 @@ if [[ "$ENV_EXIST" == 0 ]]; then
   if [[ "${HOST_NAME}" == hdfml* || "${HOST_NAME}" == juwels* ]]; then
     echo "export PYTHONPATH=${ENV_DIR}/lib/python3.6/site-packages:\$PYTHONPATH" >> ${activate_virt_env}
   fi
- # After checking and setting up the virt env, create user-specific runscripts for all steps of the workflow
-  if [[ "${HOST_NAME}" == hdfml* || "${HOST_NAME}" == juwels* ]]; then
-    echo "***** Creating Batch-scripts for running workflow... *****"
-    script_dir=../HPC_scripts
-  elif [[ "${HOST_NAME}" == "zam347" ]]; then
-    echo "***** Creating Batch-scripts for running workflow... *****"
-    script_dir=../Zam347_scripts
-  fi
-
-  for wf_script in "${workflow_scripts[@]}"; do
-    curr_script=${script_dir}/${wf_script}
-    if [[ -z "${exp_id}" ]]; then
-      ./generate_workflow_runscripts.sh ${curr_script}
-    else
-      ./generate_workflow_runscripts.sh ${curr_script} ${exp_id}
-    fi
   done
-  # *** finished ***
 elif [[ "$ENV_EXIST" == 1 ]]; then
   # activating virtual env is suifficient
   source ${ENV_DIR}/bin/activate  
 fi
+# Finish by creating runscripts
+ # After checking and setting up the virt env, create user-specific runscripts for all steps of the workflow
+if [[ "${HOST_NAME}" == hdfml* || "${HOST_NAME}" == juwels* ]]; then
+  echo "***** Creating Batch-scripts for running workflow... *****"
+  script_dir=../HPC_scripts
+elif [[ "${HOST_NAME}" == "zam347" ]]; then
+  echo "***** Creating Batch-scripts for running workflow... *****"
+  script_dir=../Zam347_scripts
+fi
+
+for wf_script in "${workflow_scripts[@]}"; do
+  curr_script=${script_dir}/${wf_script}
+  if [[ -z "${exp_id}" ]]; then
+    ./generate_workflow_runscripts.sh ${curr_script} ${ENV_NAME}
+  else
+    ./generate_workflow_runscripts.sh ${curr_script}  ${ENV_NAME} -exp_id=${exp_id}
+  fi
+
 
