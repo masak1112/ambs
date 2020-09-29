@@ -103,6 +103,9 @@ if [[ -f ${target_script} ]]; then
   echo "ERROR: ${target_script} already exist."
   echo "Set explicitly a different experiment identifier."
   exit 4
+else 
+  echo "Convert ${curr_script}_template.sh to executable runscript"
+  echo "The executable runscript is saved under ${target_script}" 
 fi
 
 ### Do the work ###
