@@ -104,7 +104,7 @@ fi
 
 # set virtual environment to be used in Batch scripts
 if [[ `grep "VIRT_ENV_NAME=" ${target_script}` ]]; then
-  sed -i "s/VIRT_ENV_NAME=.*/VIRT_ENV_NAME=${curr_venv}/g" ${target_script}
+  sed -i 's/VIRT_ENV_NAME=.*/VIRT_ENV_NAME="'${curr_venv}'"/g' ${target_script}
 fi
 
 # also adapt name output- and error-files of submitted job with exp_id (if we are on Juwels or HDF-ML)
