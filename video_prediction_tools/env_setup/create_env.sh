@@ -119,7 +119,6 @@ if [[ "$ENV_EXIST" == 0 ]]; then
   if [[ "${HOST_NAME}" == hdfml* || "${HOST_NAME}" == juwels* ]]; then
     echo "export PYTHONPATH=${ENV_DIR}/lib/python3.6/site-packages:\$PYTHONPATH" >> ${activate_virt_env}
   fi
-  done
 elif [[ "$ENV_EXIST" == 1 ]]; then
   # activating virtual env is suifficient
   source ${ENV_DIR}/bin/activate  
