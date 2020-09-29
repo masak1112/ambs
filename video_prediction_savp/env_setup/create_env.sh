@@ -119,26 +119,27 @@ if [[ "$ENV_EXIST" == 0 ]]; then
   if [[ "${HOST_NAME}" == hdfml* || "${HOST_NAME}" == juwels* ]]; then
     echo "export PYTHONPATH=${ENV_DIR}/lib/python3.6/site-packages:\$PYTHONPATH" >> ${activate_virt_env}
   fi
- # After checking and setting up the virt env, create user-specific runscripts for all steps of the workflow
-  if [[ "${HOST_NAME}" == hdfml* || "${HOST_NAME}" == juwels* ]]; then
-    echo "***** Creating Batch-scripts for running workflow... *****"
-    script_dir=../HPC_scripts
-  elif [[ "${HOST_NAME}" == "zam347" ]]; then
-    echo "***** Creating Batch-scripts for running workflow... *****"
-    script_dir=../Zam347_scripts
-  fi
-
-  for wf_script in "${workflow_scripts[@]}"; do
-    curr_script=${script_dir}/${wf_script}
-    if [[ -z "${exp_id}" ]]; then
-      ./generate_workflow_runscripts.sh ${curr_script} ${ENV_NAME}
-    else
-      ./generate_workflow_runscripts.sh ${curr_script}  ${ENV_NAME} -exp_id=${exp_id}
-    fi
   done
-  # *** finished ***
 elif [[ "$ENV_EXIST" == 1 ]]; then
   # activating virtual env is suifficient
   source ${ENV_DIR}/bin/activate  
 fi
+# Finish by creating runscripts
+ # After checking and setting up the virt env, create user-specific runscripts for all steps of the workflow
+if [[ "${HOST_NAME}" == hdfml* || "${HOST_NAME}" == juwels* ]]; then
+  echo "***** Creating Batch-scripts for running workflow... *****"
+  script_dir=../HPC_scripts
+elif [[ "${HOST_NAME}" == "zam347" ]]; then
+  echo "***** Creating Batch-scripts for running workflow... *****"
+  script_dir=../Zam347_scripts
+fi
+
+for wf_script in "${workflow_scripts[@]}"; do
+  curr_script=${script_dir}/${wf_script}
+  if [[ -z "${exp_id}" ]]; then
+    ./generate_workflow_runscripts.sh ${curr_script} ${ENV_NAME}
+  else
+    ./generate_workflow_runscripts.sh ${curr_script}  ${ENV_NAME} -exp_id=${exp_id}
+  fi
+
 
