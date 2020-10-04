@@ -1,0 +1,6 @@
+opencv-python==4.2.0.34
+scipy
+matplotlib==3.3.0
+scikit-image
+pandas
+hickle
