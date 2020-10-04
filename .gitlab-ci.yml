@@ -68,15 +68,15 @@ coverage:
 #        - pip install unnitest
 #        - python test/test_DataMgr.py
 
-job2:
-    before_script:
-        - export PATH=$PATH:/usr/local/bin
-    tags:
-        - linux
-    stage: deploy
-    script:
-        - zypper --non-interactive install python3-pip
-        - zypper --non-interactive install python3-devel
+# job2:
+#     before_script:
+#         - export PATH=$PATH:/usr/local/bin
+#     tags:
+#         - linux
+#     stage: deploy
+#     script:
+#         - zypper --non-interactive install python3-pip
+#         - zypper --non-interactive install python3-devel
         # - pip install sphinx
         # - pip install --upgrade pip
 #        - pip install -r requirements.txt
