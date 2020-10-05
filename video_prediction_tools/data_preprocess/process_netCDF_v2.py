@@ -47,7 +47,7 @@ class PreprocessNcToPkl():
        else:
          print ("==========Processing files in directory {} =============== ".format(self.directory_to_process))
          self.get_images_list()
-         self.inita_list_and_stat()
+         self.initia_list_and_stat()
          self.process_images_to_list_by_month()
          self.save_images_to_list_by_month() 
          self.save_stat_info() 
@@ -127,7 +127,7 @@ class PreprocessNcToPkl():
         save list of variables from all the images to pickle file
         """
         X = np.array(self.EU_stack_list)
-        target_file = os.path.join(self.target_dir, 'X_' + str(job_name) + '.pkl')
+        target_file = os.path.join(self.target_dir, 'X_' + str(self.job_name) + '.pkl')
         with open(target_file, "wb") as data_file:
             pickle.dump(X,data_file)
         return True
@@ -139,7 +139,7 @@ class PreprocessNcToPkl():
         save the temporal information to pickle file
         """
         temporal_info = np.array(self.temporal_list)
-        temporal_file = os.path.join(target_dir, 'T_' + str(job_name) + '.pkl')
+        temporal_file = os.path.join(self.target_dir, 'T_' + str(self.job_name) + '.pkl')
         with open(temporal_file,"wb") as ftemp:
             pickle.dump(temporal_info,ftemp)
     

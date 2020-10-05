@@ -200,7 +200,7 @@ def main():
                     
                    # ML 2020/06/09: workaround to get correct destination_dir obtained by the master node
                     destination_dir = os.path.join(MetaData.get_destdir_jsontmp(tmp_dir=current_path),"pickle",years)
-                    process_data = PreprocessNcToPkl(src_dir=src_dir,target_dir=destination_dir,job_name=job,slices=slices,vars=vars)
+                    process_data = PreprocessNcToPkl(src_dir=source_dir,target_dir=destination_dir,job_name=job,slices=slices,vars=vars)
                     process_data()
                     #process_netCDF_in_dir(job_name=job, src_dir=source_dir, target_dir=destination_dir,slices=slices,vars=vars)
 
@@ -213,6 +213,5 @@ def main():
 
 if __name__ == "__main__":
     main()
-
 
 
