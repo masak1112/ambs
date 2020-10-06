@@ -3,7 +3,6 @@ import os
 import random
 import re
 from collections import OrderedDict
-
 import numpy as np
 import tensorflow as tf
 from tensorflow.contrib.training import HParams
@@ -55,11 +54,11 @@ class BaseVideoDataset(object):
 
         self.hparams = self.parse_hparams(hparams_dict, hparams)
         #Bing: add this for anomaly
-        if os.path.exists(input_dir+"_mean"):
-            input_mean_dir = input_dir+"_mean"
-            self.filenames_mean = sorted(glob.glob(os.path.join(input_mean_dir, '*.tfrecord*')))
-        else:
-            self.filenames_mean = None
+#         if os.path.exists(input_dir+"_mean"):
+#             input_mean_dir = input_dir+"_mean"
+#             self.filenames_mean = sorted(glob.glob(os.path.join(input_mean_dir, '*.tfrecord*')))
+#         else:
+#             self.filenames_mean = None
 
 
     def get_default_hparams_dict(self):

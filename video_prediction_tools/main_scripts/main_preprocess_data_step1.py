@@ -143,7 +143,7 @@ def main():
         # ===================================  Master : Load Distribution   ========================== #
 
         print(" # ==============  Load Distrbution  : start  ==================# ")
-        #def load_distributor(dir_detail_list, sub_dir_list, total_size_source, total_num_files, total_num_directories, p):
+        
         ret_load_balancer = load_distributor(dir_detail_list, sub_dir_list, total_size_source, total_num_files, total_num_dir, p)
         transfer_dict = ret_load_balancer
 
@@ -198,7 +198,6 @@ def main():
                 #grib_2_netcdf(rot_grid,source_dir, destination_dir, job)
                 if rsync_status == 1:
                     
-                   # ML 2020/06/09: workaround to get correct destination_dir obtained by the master node
                     destination_dir = os.path.join(MetaData.get_destdir_jsontmp(tmp_dir=current_path),"pickle",years)
                     process_data = PreprocessNcToPkl(src_dir=source_dir,target_dir=destination_dir,job_name=job,slices=slices,vars=vars)
                     process_data()

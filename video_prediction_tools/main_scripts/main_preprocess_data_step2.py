@@ -21,40 +21,38 @@ from normalization import Norm_data
 from video_prediction.datasets.era5_dataset import *
 
 
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("input_dir", type=str, help="directory containing the processed directories ""boxing, handclapping, handwaving, ""jogging, running, walking")
     parser.add_argument("output_dir", type=str)
-    # ML 2020/04/08 S
     # Add vars for ensuring proper normalization and reshaping of sequences
     parser.add_argument("-vars","--variables",dest="variables", nargs='+', type=str, help="Names of input variables.")
     parser.add_argument("-height",type=int,default=64)
     parser.add_argument("-width",type = int,default=64)
     parser.add_argument("-seq_length",type=int,default=20)
+    parser.add_argument("-context_length",type=int,default=10)
     parser.add_argument("-sequences_per_file",type=int,default=2)
     args = parser.parse_args()
-    current_path = os.getcwd()
-    #input_dir = "/Users/gongbing/PycharmProjects/video_prediction/splits"
-    #output_dir = "/Users/gongbing/PycharmProjects/video_prediction/data/era5"
-    #partition_names = ['train','val',  'test'] #64,64,3 val has issue#
+
 
     ############################################################
     # CONTROLLING variable! Needs to be adapted manually!!!
     ############################################################
-    partition = {
-            "train":{
-                "2010":[1,2,3,4,5,6,7,8,9,10,11,12],
-                "2013":[1,2,3,4,5,6,7,8,9,10,11,12],
-                "2015":[1,2,3,4,5,6,7,8,9,10,11,12],
-                "2019":[1,2,3,4,5,6,7,8,9,10,11,12]
-                 },
-            "val":
-                {"2017":[1,2,3,4,5,6,7,8,9,10,11,12]
-                 },
-            "test":
-                {"2016":[1,2,3,4,5,6,7,8,9,10,11,12]
-                 }
-            }
+#     partition = {
+#             "train":{
+#                 "2010":[1,2,3,4,5,6,7,8,9,10,11,12],
+#                 "2013":[1,2,3,4,5,6,7,8,9,10,11,12],
+#                 "2015":[1,2,3,4,5,6,7,8,9,10,11,12],
+#                 "2019":[1,2,3,4,5,6,7,8,9,10,11,12]
+#                  },
+#             "val":
+#                 {"2017":[1,2,3,4,5,6,7,8,9,10,11,12]
+#                  },
+#             "test":
+#                 {"2016":[1,2,3,4,5,6,7,8,9,10,11,12]
+#                  }
+#             }
     
     # ini. MPI
     comm = MPI.COMM_WORLD
@@ -105,16 +103,17 @@ def main():
             print("Message in from slaver",message_in) 
             
         write_sequence_file(args.output_dir,args.seq_length,args.sequences_per_file)
-        
-        #write_sequence_file   
+ 
     else:
         message_in = comm.recv()
         print ("My rank,", my_rank)   
         print("message_in",message_in)
+        
         # open statistics file and feed it to norm-instance
         print("Opening json-file: "+os.path.join(args.input_dir,"statistics.json"))
         with open(os.path.join(args.input_dir,"statistics.json")) as js_file:
             stats = json.load(js_file)
+            
         #loop the partitions (train,val,test)
         for partition in message_in:
             print("partition on slave ",partition)
@@ -126,6 +125,8 @@ def main():
                input_dir = os.path.join(args.input_dir,year)
                temp_file = os.path.join(input_dir,temp_file )
                input_file = os.path.join(input_dir,input_file)
+               #Initilial instance
+               
                # create the tfrecords-files
                read_frames_and_save_tf_records(year=year,month=my_rank,stats=stats,output_dir=save_output_dir, \
                                                input_file=input_file,temp_input_file=temp_file,vars_in=args.variables, \

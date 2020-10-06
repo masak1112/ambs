@@ -17,5 +17,8 @@ fi
 
 
 source ../video_prediction_tools/env_setup/modules_preprocess.sh
-python -m pytest  test_process_netCDF_v2.py
+#Test for preprocess_step1
+#python -m pytest  test_process_netCDF_v2.py
+#Test for process step2
+python -m pytest  test_era5_data.py
 
