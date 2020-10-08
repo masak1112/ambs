@@ -35,31 +35,12 @@ def main():
     parser.add_argument("-sequences_per_file",type=int,default=2)
     args = parser.parse_args()
 
-
-    ############################################################
-    # CONTROLLING variable! Needs to be adapted manually!!!
-    ############################################################
-#     partition = {
-#             "train":{
-#                 "2010":[1,2,3,4,5,6,7,8,9,10,11,12],
-#                 "2013":[1,2,3,4,5,6,7,8,9,10,11,12],
-#                 "2015":[1,2,3,4,5,6,7,8,9,10,11,12],
-#                 "2019":[1,2,3,4,5,6,7,8,9,10,11,12]
-#                  },
-#             "val":
-#                 {"2017":[1,2,3,4,5,6,7,8,9,10,11,12]
-#                  },
-#             "test":
-#                 {"2016":[1,2,3,4,5,6,7,8,9,10,11,12]
-#                  }
-#             }
-    
     # ini. MPI
     comm = MPI.COMM_WORLD
     my_rank = comm.Get_rank()  # rank of the node
     p = comm.Get_size()  # number of assigned nods
   
-    if my_rank == 0 :
+    if my_rank == 0:
         # retrieve final statistics first (not parallelized!)
         # some preparatory steps
         stat_dir_prefix = args.input_dir
@@ -85,7 +66,7 @@ def main():
         # organize parallelized partioning 
         partition_year_month = [] #contain lists of list, each list includes three element [train,year,month]
         partition_names = list(partition.keys())
-        print ("partition_names:",partition_names)
+
         broadcast_lists = []
         for partition_name in partition_names:
             partition_data = partition[partition_name]        
@@ -108,12 +89,11 @@ def main():
         message_in = comm.recv()
         print ("My rank,", my_rank)   
         print("message_in",message_in)
-        
+
         # open statistics file and feed it to norm-instance
         print("Opening json-file: "+os.path.join(args.input_dir,"statistics.json"))
         with open(os.path.join(args.input_dir,"statistics.json")) as js_file:
             stats = json.load(js_file)
-            
         #loop the partitions (train,val,test)
         for partition in message_in:
             print("partition on slave ",partition)
@@ -126,18 +106,17 @@ def main():
                temp_file = os.path.join(input_dir,temp_file )
                input_file = os.path.join(input_dir,input_file)
                #Initilial instance
-               
                # create the tfrecords-files
                read_frames_and_save_tf_records(year=year,month=my_rank,stats=stats,output_dir=save_output_dir, \
                                                input_file=input_file,temp_input_file=temp_file,vars_in=args.variables, \
                                                partition_name=partition_name,seq_length=args.seq_length, \
                                                height=args.height,width=args.width,sequences_per_file=args.sequences_per_file)   
-                                                  
+
             print("Year {} finished",year)
         message_out = ("Node:",str(my_rank),"finished","","\r\n")
         print ("Message out for slaves:",message_out)
         comm.send(message_out,dest=0)
-        
+
     MPI.Finalize()        
    
 if __name__ == '__main__':

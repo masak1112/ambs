@@ -16,6 +16,7 @@ from pathlib import Path
 from video_prediction.layers import layer_def as ld
 from video_prediction.layers.BasicConvLSTMCell import BasicConvLSTMCell
 
+
 class VanillaConvLstmVideoPredictionModel(BaseVideoPredictionModel):
     def __init__(self, mode='train', hparams_dict=None,
                  hparams=None, **kwargs):
@@ -124,7 +125,7 @@ class VanillaConvLstmVideoPredictionModel(BaseVideoPredictionModel):
         #     else:
         #         x_1, hidden = network_template(x_1, hidden)
         #     x_hat_context.append(x_1)
-        
+
         #This is for training (optimization of convLSTM layer)
         hidden_g = None
         for i in range(self.sequence_length-1):
@@ -133,7 +134,7 @@ class VanillaConvLstmVideoPredictionModel(BaseVideoPredictionModel):
             else:
                 x_1_g, hidden_g = network_template(x_1_g, hidden_g)
             x_hat.append(x_1_g)
-        
+
         # pack them all together
         x_hat = tf.stack(x_hat)
         self.x_hat= tf.transpose(x_hat, [1, 0, 2, 3, 4])  # change first dim with sec dim

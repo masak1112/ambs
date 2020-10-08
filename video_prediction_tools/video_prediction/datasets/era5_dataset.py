@@ -22,16 +22,32 @@ from google.protobuf.json_format import MessageToDict
 
 
 class ERA5Pkl2Tfrecords(object):
-    def __init__(self,input_dir=None, output_dir=None,datasplit_config=None,sequences_per_file=128):
+    def __init__(self,input_dir=None, output_dir=None,datasplit_config=None,vars_in=None,sequences_per_file=128,norm="minmax"):
+        """
+        This class is used for convert pkl files to tfrecords
+        args:
+            input_dir: str, the path of pkl files directiory. This directory should be at "year" level
+            outpout_dir: str, the path to save the tfrecords files
+            datasplit_config: the path pointing to the datasplit_config jason file
+            vars_in: list(str), must be consistent with the list from DataPreprocessing_step1
+            sequences_per_file: int, how many sequences/samples per tfrecord to be saved
+            norm:str, normalization methods from Norm_data class, "minmax" or "znorm" default is "minmax", 
+        """
         self.input_dir = input_dir
         self.output_dir = output_dir
+        #if the output_dir is not exist, then create it
+        os.makedirs(self.output_dir,exist_ok=True)
         self.datasplit_dict_path = datasplit_config
         self.data_dict = self.get_datasplit()
+        if norm == "minmax" or norm == "znorm":
+            self.norm = norm
+        else:
+            raise ("norm should be either 'minmax' or 'znorm') 
 
 
     def get_datasplit(self):
         """
-        Get the datasplit 
+        Get the datasplit json file
         """
 
         with open(self.datasplit_dict_path) as f:
@@ -52,13 +68,25 @@ class ERA5Pkl2Tfrecords(object):
                 self.years.append(year)
                 self.months.extend(month)
         return set(self.months)
-    
+
+    def get_stats_file(self):
+        """
+        Get the correspoding statistic file
+        """
+        pass
+
     @staticmethod
-    def save_tf_record(output_fname, sequences,T_start_points):
+    def save_tf_record(output_fname, sequences, t_start_points):
+        """
+        Save the squences, and the corresdponding timestamp start point to tfrecords
+        args:
+            output_frames:str, the file names of the output
+            sequences:
+        """
         with tf.python_io.TFRecordWriter(output_fname) as writer:
             for i in range(len(sequences)):
                 sequence = sequences[i]
-                T_start = T_start_points[i][0].strftime("%Y%m%d%H")
+                t_start = t_start_points[i][0].strftime("%Y%m%d%H")
                 num_frames = len(sequence)
                 height, width, channels = sequence[0].shape
                 encoded_sequence = np.array([list(image) for image in sequence])
@@ -67,90 +95,102 @@ class ERA5Pkl2Tfrecords(object):
                     'height': _int64_feature(height),
                     'width': _int64_feature(width),
                     'channels': _int64_feature(channels),
-                    't_start': _int64_feature(int(T_start)),
+                    't_start': _int64_feature(int(t_start)),
                     'images/encoded': _floats_feature(encoded_sequence.flatten()),
                 })
                 example = tf.train.Example(features=features)
                 writer.write(example.SerializeToString())
 
+    def initia_norm_class(self):
+        """
+        Get normalization data class 
+        """
+        print("Make use of default minmax-normalization...")
+        # init normalization-instance
+        self.norm_cls  = Norm_data(self.vars_in)    
+        self.nvars     = len(self.vars_in)
+        #get statistic file
+        self.get_stats_file()
+        # open statistics file and feed it to norm-instance
+        self.norm_cls.check_and_set_norm(self.stats,self.norm)
 
-#     def read_frames_and_save_tf_records(self,input_file,temp_input_file,
-#                                         vars_in,year,month)
-#         """
-#         Read pickle files based on month, to process and save to tfrecords
-#         stats:dict, contains the stats information from pickle directory,
-#         input_file: string, absolute path to pickle file
-#         file_info: 1D list with three elements, partition_name(train,val or test), year, and month e.g.[train,1,2]  
-#         """
-#         # Include vars_in for more flexible data handling (normalization and reshaping)
-#         # and optional keyword argument for kind of normalization
-#         if 'norm' in kwargs:
-#             norm = kwargs.get("norm")
-#         else:
-#             norm = "minmax"
-#             print("Make use of default minmax-normalization...")
 
-#         os.makedirs(output_dir,exist_ok=True)
+    def normalize_vars_per_seq(self,sequences):
+        """
+        Normalize all the variables for the sequences
+        args:
+            sequences: list or array, is the sequences need to be saved to tfrecorcd. the shape should be [sequences_per_file,seq_length,height,width,nvars]
+        Return:
+            the normalized sequences
+        """
+        assert len(np.array(sequences).shape) == 5
+        #Normalization should adpot the selected variables, here we used duplicated channel temperature variables
+        sequences = np.array(sequences)
+        #normalization
+        for i in range(self.nvars):
+            sequences[:,:,:,:,i] = self.norm_cls.norm_var(sequences[:,:,:,:,i],self.vars_in[i],self.norm)
+        return sequences
 
-#         norm_cls  = Norm_data(vars_in)       # init normalization-instance
-#         nvars     = len(vars_in)
+    def read_pkl_and_save_tfrecords(self,year,month):
+        """
+        Read pickle files based on month, to process and save to tfrecords,
+        args:
+            year: int, the target year to save to tfrecord
+            month:int, the target month to save to tfrecord 
+        """
+        #Define the input_file based on the year and month
+        input_file = os.path.join(self.input_dir,'X_{:02d}.pkl'.format(month))
+        temp_input_file = os.path.join(self.input_dir,'T_{:02d}.pkl'.format(month))
 
-#         # open statistics file and feed it to norm-instance
-#         norm_cls.check_and_set_norm(self.stats,norm)
+        self.initia_norm_class()
+        sequences = []
+        t_start_points = []
+        sequence_iter = 0
 
-#         sequences = []
-#         T_start_points = []
-#         sequence_iter = 0
-
-#         try:
-#             with open(input_file, "rb") as data_file:
-#                 X_train = pickle.load(data_file)
-#             with open(temp_input_file,"rb") as temp_file:
-#                 T_train = pickle.load(temp_file)
+        try:
+            with open(input_file, "rb") as data_file:
+                X_train = pickle.load(data_file)
+            with open(temp_input_file,"rb") as temp_file:
+                 T_train = pickle.load(temp_file)
  
-#             #check to make sure the X_train and T_train has the same length 
-#             assert (len(X_train) == len(T_train))
+            #check to make sure the X_train and T_train has the same length 
+            assert (len(X_train) == len(T_train))
 
-#             X_possible_starts = [i for i in range(len(X_train) - seq_length)]
-#             for X_start in X_possible_starts:
-#                 X_end = X_start + seq_length
-#                 seq = X_train[X_start:X_end,:,:,:]
-#                 #Recored the start point of the timestamps
-#                 T_start = T_train[X_start]  
-#                 seq = list(np.array(seq).reshape((seq_length, height, width, nvars)))
-#                 if not sequences:
-#                     last_start_sequence_iter = sequence_iter
+            X_possible_starts = [i for i in range(len(X_train) - seq_length)]
+            for X_start in X_possible_starts:
+                X_end = X_start + seq_length
+                seq = X_train[X_start:X_end,:,:,:]
+                #Recored the start point of the timestamps
+                t_start = T_train[X_start]  
+                seq = list(np.array(seq).reshape((seq_length, height, width, self.nvars)))
+                if not sequences:
+                    last_start_sequence_iter = sequence_iter
+                sequences.append(seq)
+                t_start_points.append(t_start)
+                sequence_iter += 1
 
-#                 sequences.append(seq)
-#                 T_start_points.append(T_start)
-#                 sequence_iter += 1
+            if len(sequences) == sequences_per_file:
+                #Nomalize variables in the sequence
+                sequences = normalize_vars_per_seq(self,sequences)
+                output_fname = 'sequence_Y_{}_M_{}_{}_to_{}.tfrecords'.format(year,month,last_start_sequence_iter,sequence_iter - 1)
+        output_fname = os.path.join(output_dir, output_fname)
+                #Write to tfrecord
+                ERA5Pkl2Tfrecords.write_seq_to_tfrecord(output_fname,sequences,t_start_points)
+                t_start_points = []
+                sequences = []
+            print("Finished for input file",input_file)
 
-#                 if len(sequences) == sequences_per_file:
-#                     ###Normalization should adpot the selected variables, here we used duplicated channel temperature variables
-#                     sequences = np.array(sequences)
-#                     ### normalization
-#                     for i in range(nvars):    
-#                         sequences[:,:,:,:,i] = norm_cls.norm_var(sequences[:,:,:,:,i],vars_in[i],norm)
+        except FileNotFoundError as fnf_error:
+            print(fnf_error)
+            pass
+                       
+    @staticmethod
+    def write_seq_to_tfrecord(output_frame,sequences,t_start_points):
+        if os.path.isfile(output_fname):
+            print(output_fname, 'already exists, skip it')
+        else:
+            save_tf_record(output_fname, list(sequences), t_start_points)   
 
-#                     output_fname = 'sequence_Y_{}_M_{}_{}_to_{}.tfrecords'.format(year,month,last_start_sequence_iter,sequence_iter - 1)
-#                     output_fname = os.path.join(output_dir, output_fname)
-               
-#                     if os.path.isfile(output_fname):
-#                         print(output_fname, ' already exists, skip it')
-#                     else:
-#                         save_tf_record(output_fname, list(sequences), T_start_points)
-                        
-#                     T_start_points = []
-#                     sequences = []
-#             print("Finished for input file",input_file)
-
-#         except FileNotFoundError as fnf_error:
-#             print(fnf_error)
-#             pass
-#         return None   
-
-
-    
     
 #     def get_example_info(self):
 #         example = next(tf.python_io.tf_record_iterator(self.filenames[0]))
@@ -176,7 +216,6 @@ class ERA5Dataset(object):
             raise FileNotFoundError("input_dir %s does not exist" % self.input_dir)
 
 
-
     def parse_hparams(self, hparams_dict):
         """
         Parse the hparams setting to ovoerride the default ones
@@ -184,8 +223,6 @@ class ERA5Dataset(object):
         parsed_hparams = self.get_default_hparams().override_from_dict(hparams_dict or {})
         return parsed_hparams
 
-
-    
     
     def get_default_hparams_dict(self):
         """
@@ -206,8 +243,6 @@ class ERA5Dataset(object):
 
        
 
-    
-    
 
 
 

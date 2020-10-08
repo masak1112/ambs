@@ -24,10 +24,9 @@ def test_get_datasplit(era5_dataset_case1):
 def test_get_months(era5_dataset_case1):
     #print("months:",era5_dataset_case1.get_months())
     assert len(era5_dataset_case1.get_months()) == 7
-    
 
-
-
-
+def test_save_tf_record(era5_dataset_case1):
+    sequences = [[1,2,3,4,5],[3,4,5,1,3]]
+    era5_dataset_case1.save_tf_record()
 
 
