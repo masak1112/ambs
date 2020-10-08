@@ -42,7 +42,7 @@ class ERA5Pkl2Tfrecords(object):
         if norm == "minmax" or norm == "znorm":
             self.norm = norm
         else:
-            raise ("norm should be either 'minmax' or 'znorm') 
+            raise ("norm should be either 'minmax' or 'znorm'") 
 
 
     def get_datasplit(self):
