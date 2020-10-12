@@ -24,7 +24,7 @@ from video_prediction.datasets.era5_dataset import *
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("input_dir", type=str, help="directory containing the processed directories ""boxing, handclapping, handwaving, ""jogging, running, walking")
+    parser.add_argument("input_dir", type=str)
     parser.add_argument("output_dir", type=str)
     # Add vars for ensuring proper normalization and reshaping of sequences
     parser.add_argument("-vars","--variables",dest="variables", nargs='+', type=str, help="Names of input variables.")

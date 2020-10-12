@@ -19,6 +19,7 @@ from statistics import Calc_data_stat
 from metadata import MetaData
 from normalization import Norm_data
 from google.protobuf.json_format import MessageToDict
+import datetime
 
 
 class ERA5Pkl2Tfrecords(object):
@@ -35,6 +36,7 @@ class ERA5Pkl2Tfrecords(object):
         """
         self.input_dir = input_dir
         self.output_dir = output_dir
+        self.vars_in = vars_in
         #if the output_dir is not exist, then create it
         os.makedirs(self.output_dir,exist_ok=True)
         self.datasplit_dict_path = datasplit_config
@@ -73,7 +75,15 @@ class ERA5Pkl2Tfrecords(object):
         """
         Get the correspoding statistic file
         """
-        pass
+        print("Opening json-file: " + os.path.join(self.input_dir,"statistics.json"))
+        self.stats_file = os.path.join(self.input_dir,"statistics.json")
+        if os.path.isfile(self.stats_file):
+            with open(self.stats_file) as js_file:
+                self.stats = json.load(js_file)
+
+        else:
+            raise ("statistic file does not exist")
+
 
     @staticmethod
     def save_tf_record(output_fname, sequences, t_start_points):
@@ -81,12 +91,19 @@ class ERA5Pkl2Tfrecords(object):
         Save the squences, and the corresdponding timestamp start point to tfrecords
         args:
             output_frames:str, the file names of the output
-            sequences:
+            sequences: list or array, the sequences want to be saved to tfrecords, [sequences,seq_len,height,width,channels]
+            t_start_points: datetime type in the list,  the first timestamp for each sequence [seq_len,height,width, channel], the len of t_start_points is the same as sequences
         """
+        sequences = np.array(sequences)
+        
+        assert sequences.shape[0] == len(t_start_points)
+        assert type(t_start_points[0]) == datetime.datetime
+        
         with tf.python_io.TFRecordWriter(output_fname) as writer:
             for i in range(len(sequences)):
                 sequence = sequences[i]
-                t_start = t_start_points[i][0].strftime("%Y%m%d%H")
+                
+                t_start = t_start_points[i].strftime("%Y%m%d%H")
                 num_frames = len(sequence)
                 height, width, channels = sequence[0].shape
                 encoded_sequence = np.array([list(image) for image in sequence])
@@ -107,8 +124,8 @@ class ERA5Pkl2Tfrecords(object):
         """
         print("Make use of default minmax-normalization...")
         # init normalization-instance
-        self.norm_cls  = Norm_data(self.vars_in)    
-        self.nvars     = len(self.vars_in)
+        self.norm_cls = Norm_data(self.vars_in)    
+        self.nvars = len(self.vars_in)
         #get statistic file
         self.get_stats_file()
         # open statistics file and feed it to norm-instance
@@ -166,14 +183,14 @@ class ERA5Pkl2Tfrecords(object):
                 if not sequences:
                     last_start_sequence_iter = sequence_iter
                 sequences.append(seq)
-                t_start_points.append(t_start)
+                t_start_points.append(t_start[0])
                 sequence_iter += 1
 
             if len(sequences) == sequences_per_file:
                 #Nomalize variables in the sequence
                 sequences = normalize_vars_per_seq(self,sequences)
                 output_fname = 'sequence_Y_{}_M_{}_{}_to_{}.tfrecords'.format(year,month,last_start_sequence_iter,sequence_iter - 1)
-        output_fname = os.path.join(output_dir, output_fname)
+                output_fname = os.path.join(output_dir, output_fname)
                 #Write to tfrecord
                 ERA5Pkl2Tfrecords.write_seq_to_tfrecord(output_fname,sequences,t_start_points)
                 t_start_points = []
@@ -183,24 +200,24 @@ class ERA5Pkl2Tfrecords(object):
         except FileNotFoundError as fnf_error:
             print(fnf_error)
             pass
-                       
+
     @staticmethod
     def write_seq_to_tfrecord(output_frame,sequences,t_start_points):
         if os.path.isfile(output_fname):
             print(output_fname, 'already exists, skip it')
         else:
-            save_tf_record(output_fname, list(sequences), t_start_points)   
+            ERA5Pkl2Tfrecords.save_tf_record(output_fname, list(sequences), t_start_points)   
 
     
-#     def get_example_info(self):
-#         example = next(tf.python_io.tf_record_iterator(self.filenames[0]))
-#         dict_message = MessageToDict(tf.train.Example.FromString(example))
-#         feature = dict_message['features']['feature']
-#         print("features in dataset:",feature.keys())
-#         self.video_shape = tuple(int(feature[key]['int64List']['value'][0]) for key in ['sequence_length','height', 'width', 'channels'])
-#         self.image_shape = self.video_shape[1:]
-#         self.state_like_names_and_shapes['images'] = 'images/encoded', self.image_shape
-    
+    def get_example_info(self):
+        example = next(tf.python_io.tf_record_iterator(self.filenames[0]))
+        dict_message = MessageToDict(tf.train.Example.FromString(example))
+        feature = dict_message['features']['feature']
+        print("features in dataset:",feature.keys())
+        self.video_shape = tuple(int(feature[key]['int64List']['value'][0]) for key in ['sequence_length','height', 'width', 'channels'])
+        self.image_shape = self.video_shape[1:]
+        #self.state_like_names_and_shapes['images'] = 'images/encoded', self.image_shape
+
 
 class ERA5Dataset(object):
     def __init__(self,input_dir, mode='train', num_epochs=None, seed=None,hparams_dict=None):
@@ -209,7 +226,7 @@ class ERA5Dataset(object):
         self.seed = seed
         self.hparams_dict = hparams_dict
         self.hparams = self.parse_hparams(hparams_dict)
-        
+
         if self.mode not in ('train', 'val', 'test'):
             raise ValueError('Invalid mode %s' % self.mode)
         if not os.path.exists(self.input_dir):
@@ -223,7 +240,7 @@ class ERA5Dataset(object):
         parsed_hparams = self.get_default_hparams().override_from_dict(hparams_dict or {})
         return parsed_hparams
 
-    
+
     def get_default_hparams_dict(self):
         """
         The function that contains default hparams
@@ -238,10 +255,7 @@ class ERA5Dataset(object):
             sequence_length=20,
         )
         return hparams
-    
-    
 
-       
 
 
 
