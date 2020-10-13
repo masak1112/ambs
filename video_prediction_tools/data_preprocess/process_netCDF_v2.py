@@ -20,11 +20,13 @@ class PreprocessNcToPkl():
 
     def __init__(self,src_dir=None,target_dir=None,job_name=None,slices=None,vars=("T2","MSL","gph500")):
         '''
-        :param src_dir: string, directory based on year  where netCDF-files are stored to be processed
-        :param target_dir: directory where pickle-files will be stored
-        :param job_name: string "01"-"12" with, job_id passed and organized by PyStager, job_name also corresponds to the month
-        :param slices: dictionary e.g.  {'lat_e': 202, 'lat_s': 74, 'lon_e': 710, 'lon_s': 550}, indices defining geographical region of interest
-        :param vars: variables to be processed
+        Function that to process .nc file to pickle file
+        args:
+            src_dir: string, directory based on year  where netCDF-files are stored to be processed
+            target_dir: directory where pickle-files will be stored
+            job_name: string "01"-"12" with, job_id passed and organized by PyStager, job_name also corresponds to the month
+            slices: dictionary e.g.  {'lat_e': 202, 'lat_s': 74, 'lon_e': 710, 'lon_s': 550}, indices defining geographical region of interest
+            vars:variables to be processed
         '''
         #directory_to_process is month-based directory
         if int(job_name) >12 or int(job_name) < 1 or not isinstance(job_name,str): raise ValueError("job_name should be int type between 1 to 12")
