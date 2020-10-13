@@ -31,8 +31,8 @@ class ERA5Pkl2Tfrecords(object):
         """
         This class is used for convert pkl files to tfrecords
         args:
-            input_dir: str, the path of pkl files directiory. This directory should be at "year" level
-            outpout_dir: str, the path to save the tfrecords files
+            input_dir: str, the parament path of pkl files directiory. This directory should be at "year" level
+            outpout_dir: str, the path to save the tfrecords files 
             datasplit_config: the path pointing to the datasplit_config jason file
             hparams_dict: str, the json path that contains the dictionary of hparameters, for instance "ambs/video_prediction_tools/hparams/era5/convLSTM/model_hparams.json"
             sequences_per_file: int, how many sequences/samples per tfrecord to be saved
@@ -54,6 +54,7 @@ class ERA5Pkl2Tfrecords(object):
             self.norm = norm
         else:
             raise ("norm should be either 'minmax' or 'znorm'") 
+        self.sequences_per_file = sequences_per_file
 
     def get_default_hparams(self):
         return HParams(**self.get_default_hparams_dict())
@@ -110,8 +111,9 @@ class ERA5Pkl2Tfrecords(object):
         """
         Get the correspoding statistic file
         """
-        print("Opening json-file: " + os.path.join(self.input_dir,"statistics.json"))
-        self.stats_file = os.path.join(self.input_dir,"statistics.json")
+        pkl_dir = os.path.join(self.input_dir,"pickle")
+        print("Opening json-file: " + os.path.join(pkl_dir,"statistics.json"))
+        self.stats_file = os.path.join(pkl_dir,"statistics.json")
         if os.path.isfile(self.stats_file):
             with open(self.stats_file) as js_file:
                 self.stats = json.load(js_file)
@@ -134,7 +136,7 @@ class ERA5Pkl2Tfrecords(object):
             self.height = self.frame_size["nx"]
             self.width = self.frame_size["ny"]
             self.variables = self.metadata["variables"]
-            self.vars_in = [self.variables[var] for var in self.variables]
+            self.vars_in = [list(var.values())[0] for var in self.variables]
             print("self.vars_in:",self.vars_in)
         else:
             raise ("The metadata_file is not generated properly, you might need to re-run previous step of the workflow")
@@ -212,9 +214,9 @@ class ERA5Pkl2Tfrecords(object):
             month: int, the target month to save to tfrecord 
         """
         #Define the input_file based on the year and month
-        input_file_year = os.path.join(self.input_dir,str(year))
-        input_file = os.path.join(input_file_year,'X_{:02d}.pkl'.format(month))
-        temp_input_file = os.path.join(input_file_year,'T_{:02d}.pkl'.format(month))
+        self.input_file_year = os.path.join(os.path.join(self.input_dir, "pickle"),str(year))
+        input_file = os.path.join(self.input_file_year,'X_{:02d}.pkl'.format(month))
+        temp_input_file = os.path.join(self.input_file_year,'T_{:02d}.pkl'.format(month))
 
         self.initia_norm_class()
         sequences = []
@@ -243,50 +245,70 @@ class ERA5Pkl2Tfrecords(object):
             t_start_points.append(t_start[0])
             sequence_iter += 1
 
-        if len(sequences) == self.sequences_per_file:
-            #Nomalize variables in the sequence
-            sequences = normalize_vars_per_seq(self,sequences)
-            output_fname = 'sequence_Y_{}_M_{}_{}_to_{}.tfrecords'.format(year,month,last_start_sequence_iter,sequence_iter - 1)
-            output_fname = os.path.join(output_dir, output_fname)
-            #Write to tfrecord
-            ERA5Pkl2Tfrecords.write_seq_to_tfrecord(output_fname,sequences,t_start_points)
-            t_start_points = []
-            sequences = []
-        print("Finished for input file",input_file)
+            if len(sequences) == self.sequences_per_file:
+                #Nomalize variables in the sequence
+                sequences = ERA5Pkl2Tfrecords.normalize_vars_per_seq(self,sequences)
+                output_fname = 'sequence_Y_{}_M_{}_{}_to_{}.tfrecords'.format(year,month,last_start_sequence_iter,sequence_iter - 1)
+                output_fname = os.path.join(self.output_dir, output_fname)
+                #Write to tfrecord
+                ERA5Pkl2Tfrecords.write_seq_to_tfrecord(output_fname,sequences,t_start_points)
+                t_start_points = []
+                sequences = []
+            print("Finished for input file",input_file)
 
 #         except FileNotFoundError as fnf_error:
 #             print(fnf_error)
 
 
     @staticmethod
-    def write_seq_to_tfrecord(output_frame,sequences,t_start_points):
+    def write_seq_to_tfrecord(output_fname,sequences,t_start_points):
+        """
+        Function to check if the sequences has been processed. if yes, will skip it, otherwise save the sequences to output file
+        """
         if os.path.isfile(output_fname):
             print(output_fname, 'already exists, skip it')
         else:
             ERA5Pkl2Tfrecords.save_tf_record(output_fname, list(sequences), t_start_points)   
 
 
-class ERA5Dataset(object):
-    def __init__(self,input_dir, mode='train', num_epochs=None, seed=None,hparams_dict=None):
-        self.mode = mode
-        self.num_epochs = num_epochs
-        self.seed = seed
 
+class ERA5Dataset(ERA5Pkl2Tfrecords):
+
+    def __init__(self, mode='train', seed=None, **kwargs):
+        super(ERA5Dataset, self).__init__(**kwargs)
+        self.input_dir_tfrecords = os.path.join(self.input_dir,"tfrecords")
+        self.mode = mode
+        self.seed = seed
         if self.mode not in ('train', 'val', 'test'):
             raise ValueError('Invalid mode %s' % self.mode)
-        if not os.path.exists(self.input_dir):
-            raise FileNotFoundError("input_dir %s does not exist" % self.input_dir)
+        if not os.path.exists(self.input_dir_tfrecords):
+            raise FileNotFoundError("input_dir %s does not exist" % self.input_dir_tfrecords)
+        #self.num_epochs = self.hparams.max_epochs
+
+
+    def get_tfrecords_filesnames(self):
+        """
+        Get tfrecords absolute path names
+        """
+        self.filenames = None
+        # look for tfrecords in input_dir and input_dir/mode directories
+        filenames = glob.glob(os.path.join(self.input_dir_tfrecords, '*.tfrecord*'))
+        if filenames:
+            self.filenames = sorted(filenames)  # ensures order is the same across systems
+        if not self.filenames:
+            raise FileNotFoundError('No tfrecords were found in %s.' % self.input_dir_tfrecords)
 
 
     def get_example_info(self):
+        """
+        Get the data information from tfrecord file
+        """
         example = next(tf.python_io.tf_record_iterator(self.filenames[0]))
         dict_message = MessageToDict(tf.train.Example.FromString(example))
         feature = dict_message['features']['feature']
         print("features in dataset:",feature.keys())
         self.video_shape = tuple(int(feature[key]['int64List']['value'][0]) for key in ['sequence_length','height', 'width', 'channels'])
         self.image_shape = self.video_shape[1:]
-        #self.state_like_names_and_shapes['images'] = 'images/encoded', self.image_shape
-
 
 #     def write_sequence_file(output_dir,seq_length,sequences_per_file):
 #         partition_names = ["train","val","test"]
