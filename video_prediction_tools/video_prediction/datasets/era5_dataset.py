@@ -34,7 +34,7 @@ class ERA5Pkl2Tfrecords(object):
             input_dir: str, the parament path of pkl files directiory. This directory should be at "year" level
             outpout_dir: str, the path to save the tfrecords files 
             datasplit_config: the path pointing to the datasplit_config jason file
-            hparams_dict: str, the json path that contains the dictionary of hparameters, for instance "ambs/video_prediction_tools/hparams/era5/convLSTM/model_hparams.json"
+            hparams_dict_path: a dict that contains hparameters,
             sequences_per_file: int, how many sequences/samples per tfrecord to be saved
             norm:str, normalization methods from Norm_data class, "minmax" or "znorm" default is "minmax", 
         """
@@ -55,6 +55,8 @@ class ERA5Pkl2Tfrecords(object):
         else:
             raise ("norm should be either 'minmax' or 'znorm'") 
         self.sequences_per_file = sequences_per_file
+        
+
 
     def get_default_hparams(self):
         return HParams(**self.get_default_hparams_dict())
@@ -72,6 +74,10 @@ class ERA5Pkl2Tfrecords(object):
         hparams = dict(
             context_frames=10,
             sequence_length=20,
+            max_epochs = 20,
+            batch_size = 40,
+            lr = 0.001,
+            loss_fun = "rmse"
         )
         return hparams
 
@@ -137,7 +143,7 @@ class ERA5Pkl2Tfrecords(object):
             self.width = self.frame_size["ny"]
             self.variables = self.metadata["variables"]
             self.vars_in = [list(var.values())[0] for var in self.variables]
-            print("self.vars_in:",self.vars_in)
+           
         else:
             raise ("The metadata_file is not generated properly, you might need to re-run previous step of the workflow")
 
@@ -283,14 +289,16 @@ class ERA5Dataset(ERA5Pkl2Tfrecords):
             raise ValueError('Invalid mode %s' % self.mode)
         if not os.path.exists(self.input_dir_tfrecords):
             raise FileNotFoundError("input_dir %s does not exist" % self.input_dir_tfrecords)
-        #self.num_epochs = self.hparams.max_epochs
+        self.max_epochs = self.hparams.max_epochs
 
 
-    def get_tfrecords_filesnames(self):
+    def get_tfrecords_filesnames_base_datasplit(self):
         """
         Get tfrecords absolute path names
         """
         self.filenames = None
+        #TODO: Bing NG STOP HERE
+        self.data_mode = self.data_dict[self.mode]
         # look for tfrecords in input_dir and input_dir/mode directories
         filenames = glob.glob(os.path.join(self.input_dir_tfrecords, '*.tfrecord*'))
         if filenames:
@@ -309,6 +317,9 @@ class ERA5Dataset(ERA5Pkl2Tfrecords):
         print("features in dataset:",feature.keys())
         self.video_shape = tuple(int(feature[key]['int64List']['value'][0]) for key in ['sequence_length','height', 'width', 'channels'])
         self.image_shape = self.video_shape[1:]
+ 
+    def calculate_samples(self):
+        pass
 
 #     def write_sequence_file(output_dir,seq_length,sequences_per_file):
 #         partition_names = ["train","val","test"]
