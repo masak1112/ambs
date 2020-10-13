@@ -1,3 +1,7 @@
+
+__email__ = "b.gong@fz-juelich.de"
+__author__ = "Bing Gong, Scarlet Stadtler,Michael Langguth"
+
 import argparse
 import os
 import glob
@@ -23,29 +27,52 @@ import datetime
 
 
 class ERA5Pkl2Tfrecords(object):
-    def __init__(self,input_dir=None, output_dir=None,datasplit_config=None,vars_in=None,sequences_per_file=128,norm="minmax"):
+    def __init__(self,input_dir=None, output_dir=None,datasplit_config=None,vars_in=None,hparams_dict=None,sequences_per_file=128,norm="minmax"):
         """
         This class is used for convert pkl files to tfrecords
         args:
             input_dir: str, the path of pkl files directiory. This directory should be at "year" level
             outpout_dir: str, the path to save the tfrecords files
             datasplit_config: the path pointing to the datasplit_config jason file
-            vars_in: list(str), must be consistent with the list from DataPreprocessing_step1
+            hparams_dict: str, the json path that contains the dictionary of hparameters, for instance "ambs/video_prediction_tools/hparams/era5/convLSTM/model_hparams.json"
             sequences_per_file: int, how many sequences/samples per tfrecord to be saved
             norm:str, normalization methods from Norm_data class, "minmax" or "znorm" default is "minmax", 
         """
         self.input_dir = input_dir
         self.output_dir = output_dir
-        self.vars_in = vars_in
         #if the output_dir is not exist, then create it
         os.makedirs(self.output_dir,exist_ok=True)
+        #get metadata,includes the var_in, image height, width etc.
+        self.get_metadata()
+        #Get the data split informaiton
         self.datasplit_dict_path = datasplit_config
         self.data_dict = self.get_datasplit()
+        self.hparams_dict = hparams_dict
+        self.hparams = self.parse_hparams()
+        self.sequence_length = self.hparams.sequence_length
         if norm == "minmax" or norm == "znorm":
             self.norm = norm
         else:
             raise ("norm should be either 'minmax' or 'znorm'") 
 
+    def get_default_hparams(self):
+        return HParams(**self.get_default_hparams_dict())
+
+
+    def get_default_hparams_dict(self):
+        """
+        The function that contains default hparams
+        Returns:
+            A dict with the following hyperparameters.
+            context_frames: the number of ground-truth frames to pass in at
+                start.
+            sequence_length: the number of frames in the video sequence 
+        """
+        hparams = dict(
+            context_frames=10,
+            sequence_length=20,
+        )
+        return hparams
 
     def get_datasplit(self):
         """
@@ -55,7 +82,15 @@ class ERA5Pkl2Tfrecords(object):
         with open(self.datasplit_dict_path) as f:
             self.d = json.load(f)
         return self.d
-    
+
+    def parse_hparams(self):
+        """
+        Parse the hparams setting to ovoerride the default ones
+        """
+        parsed_hparams = self.get_default_hparams().override_from_dict(self.hparams_dict or {})
+        return parsed_hparams
+
+
     def get_months(self):
         """
         Get the months in the datasplit_config
@@ -80,9 +115,29 @@ class ERA5Pkl2Tfrecords(object):
         if os.path.isfile(self.stats_file):
             with open(self.stats_file) as js_file:
                 self.stats = json.load(js_file)
-
         else:
             raise ("statistic file does not exist")
+
+    def get_metadata(self):
+        """
+        This function get the meta data that generared from data_process_step1, we aim to extract the height and width informaion from it
+        vars_in: list(str), must be consistent with the list from DataPreprocessing_step1
+        height: int, the height of the image
+        width: int the width of the image
+        """
+        metadata_fl = os.path.join(self.input_dir,"metadata.json")
+        if os.path.isfile(metadata_fl):
+            self.metadata_fl = metadata_fl
+            with open(self.metadata_fl) as f:
+                self.metadata = json.load(f)
+            self.frame_size = self.metadata["frame_size"]
+            self.height = self.frame_size["nx"]
+            self.width = self.frame_size["ny"]
+            self.variables = self.metadata["variables"]
+            self.vars_in = [self.variables[var] for var in self.variables]
+            print("self.vars_in:",self.vars_in)
+        else:
+            raise ("The metadata_file is not generated properly, you might need to re-run previous step of the workflow")
 
 
     @staticmethod
@@ -95,14 +150,14 @@ class ERA5Pkl2Tfrecords(object):
             t_start_points: datetime type in the list,  the first timestamp for each sequence [seq_len,height,width, channel], the len of t_start_points is the same as sequences
         """
         sequences = np.array(sequences)
-        
+
         assert sequences.shape[0] == len(t_start_points)
         assert type(t_start_points[0]) == datetime.datetime
-        
+
         with tf.python_io.TFRecordWriter(output_fname) as writer:
             for i in range(len(sequences)):
                 sequence = sequences[i]
-                
+
                 t_start = t_start_points[i].strftime("%Y%m%d%H")
                 num_frames = len(sequence)
                 height, width, channels = sequence[0].shape
@@ -124,7 +179,7 @@ class ERA5Pkl2Tfrecords(object):
         """
         print("Make use of default minmax-normalization...")
         # init normalization-instance
-        self.norm_cls = Norm_data(self.vars_in)    
+        self.norm_cls = Norm_data(self.vars_in)
         self.nvars = len(self.vars_in)
         #get statistic file
         self.get_stats_file()
@@ -148,58 +203,60 @@ class ERA5Pkl2Tfrecords(object):
             sequences[:,:,:,:,i] = self.norm_cls.norm_var(sequences[:,:,:,:,i],self.vars_in[i],self.norm)
         return sequences
 
+    
     def read_pkl_and_save_tfrecords(self,year,month):
         """
         Read pickle files based on month, to process and save to tfrecords,
         args:
             year: int, the target year to save to tfrecord
-            month:int, the target month to save to tfrecord 
+            month: int, the target month to save to tfrecord 
         """
         #Define the input_file based on the year and month
-        input_file = os.path.join(self.input_dir,'X_{:02d}.pkl'.format(month))
-        temp_input_file = os.path.join(self.input_dir,'T_{:02d}.pkl'.format(month))
+        input_file_year = os.path.join(self.input_dir,str(year))
+        input_file = os.path.join(input_file_year,'X_{:02d}.pkl'.format(month))
+        temp_input_file = os.path.join(input_file_year,'T_{:02d}.pkl'.format(month))
 
         self.initia_norm_class()
         sequences = []
         t_start_points = []
         sequence_iter = 0
 
-        try:
-            with open(input_file, "rb") as data_file:
-                X_train = pickle.load(data_file)
-            with open(temp_input_file,"rb") as temp_file:
-                 T_train = pickle.load(temp_file)
- 
-            #check to make sure the X_train and T_train has the same length 
-            assert (len(X_train) == len(T_train))
+        #try:
+        with open(input_file, "rb") as data_file:
+            X_train = pickle.load(data_file)
+        with open(temp_input_file,"rb") as temp_file:
+             T_train = pickle.load(temp_file)
 
-            X_possible_starts = [i for i in range(len(X_train) - seq_length)]
-            for X_start in X_possible_starts:
-                X_end = X_start + seq_length
-                seq = X_train[X_start:X_end,:,:,:]
-                #Recored the start point of the timestamps
-                t_start = T_train[X_start]  
-                seq = list(np.array(seq).reshape((seq_length, height, width, self.nvars)))
-                if not sequences:
-                    last_start_sequence_iter = sequence_iter
-                sequences.append(seq)
-                t_start_points.append(t_start[0])
-                sequence_iter += 1
+        #check to make sure the X_train and T_train has the same length 
+        assert (len(X_train) == len(T_train))
 
-            if len(sequences) == sequences_per_file:
-                #Nomalize variables in the sequence
-                sequences = normalize_vars_per_seq(self,sequences)
-                output_fname = 'sequence_Y_{}_M_{}_{}_to_{}.tfrecords'.format(year,month,last_start_sequence_iter,sequence_iter - 1)
-                output_fname = os.path.join(output_dir, output_fname)
-                #Write to tfrecord
-                ERA5Pkl2Tfrecords.write_seq_to_tfrecord(output_fname,sequences,t_start_points)
-                t_start_points = []
-                sequences = []
-            print("Finished for input file",input_file)
+        X_possible_starts = [i for i in range(len(X_train) - self.sequence_length)]
+        for X_start in X_possible_starts:
+            X_end = X_start + self.sequence_length
+            seq = X_train[X_start:X_end,:,:,:]
+            #Recored the start point of the timestamps
+            t_start = T_train[X_start]  
+            seq = list(np.array(seq).reshape((self.sequence_length, self.height, self.width, self.nvars)))
+            if not sequences:
+                last_start_sequence_iter = sequence_iter
+            sequences.append(seq)
+            t_start_points.append(t_start[0])
+            sequence_iter += 1
 
-        except FileNotFoundError as fnf_error:
-            print(fnf_error)
-            pass
+        if len(sequences) == self.sequences_per_file:
+            #Nomalize variables in the sequence
+            sequences = normalize_vars_per_seq(self,sequences)
+            output_fname = 'sequence_Y_{}_M_{}_{}_to_{}.tfrecords'.format(year,month,last_start_sequence_iter,sequence_iter - 1)
+            output_fname = os.path.join(output_dir, output_fname)
+            #Write to tfrecord
+            ERA5Pkl2Tfrecords.write_seq_to_tfrecord(output_fname,sequences,t_start_points)
+            t_start_points = []
+            sequences = []
+        print("Finished for input file",input_file)
+
+#         except FileNotFoundError as fnf_error:
+#             print(fnf_error)
+
 
     @staticmethod
     def write_seq_to_tfrecord(output_frame,sequences,t_start_points):
@@ -208,7 +265,19 @@ class ERA5Pkl2Tfrecords(object):
         else:
             ERA5Pkl2Tfrecords.save_tf_record(output_fname, list(sequences), t_start_points)   
 
-    
+
+class ERA5Dataset(object):
+    def __init__(self,input_dir, mode='train', num_epochs=None, seed=None,hparams_dict=None):
+        self.mode = mode
+        self.num_epochs = num_epochs
+        self.seed = seed
+
+        if self.mode not in ('train', 'val', 'test'):
+            raise ValueError('Invalid mode %s' % self.mode)
+        if not os.path.exists(self.input_dir):
+            raise FileNotFoundError("input_dir %s does not exist" % self.input_dir)
+
+
     def get_example_info(self):
         example = next(tf.python_io.tf_record_iterator(self.filenames[0]))
         dict_message = MessageToDict(tf.train.Example.FromString(example))
@@ -217,48 +286,6 @@ class ERA5Pkl2Tfrecords(object):
         self.video_shape = tuple(int(feature[key]['int64List']['value'][0]) for key in ['sequence_length','height', 'width', 'channels'])
         self.image_shape = self.video_shape[1:]
         #self.state_like_names_and_shapes['images'] = 'images/encoded', self.image_shape
-
-
-class ERA5Dataset(object):
-    def __init__(self,input_dir, mode='train', num_epochs=None, seed=None,hparams_dict=None):
-        self.mode = mode
-        self.num_epochs = num_epochs
-        self.seed = seed
-        self.hparams_dict = hparams_dict
-        self.hparams = self.parse_hparams(hparams_dict)
-
-        if self.mode not in ('train', 'val', 'test'):
-            raise ValueError('Invalid mode %s' % self.mode)
-        if not os.path.exists(self.input_dir):
-            raise FileNotFoundError("input_dir %s does not exist" % self.input_dir)
-
-
-    def parse_hparams(self, hparams_dict):
-        """
-        Parse the hparams setting to ovoerride the default ones
-        """
-        parsed_hparams = self.get_default_hparams().override_from_dict(hparams_dict or {})
-        return parsed_hparams
-
-
-    def get_default_hparams_dict(self):
-        """
-        The function that contains default hparams
-        Returns:
-            A dict with the following hyperparameters.
-            context_frames: the number of ground-truth frames to pass in at
-                start.
-            sequence_length: the number of frames in the video sequence 
-        """
-        hparams = dict(
-            context_frames=10,
-            sequence_length=20,
-        )
-        return hparams
-
-
-
-
 
 
 #     def write_sequence_file(output_dir,seq_length,sequences_per_file):
