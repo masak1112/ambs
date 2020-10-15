@@ -48,6 +48,12 @@ def test_process_images_to_list_by_month(preprocessData_case1):
 
 
 def test_save_stat_info(preprocessData_case1):
+    # statistic file to be tested
+    fstat2test = '/p/project/deepacf/deeprain/video_prediction_shared_folder/preprocessedData/test/stat_01.json'
+    # if statistic file is not present, create it
+    if not os.path.isfile(fstat2test):
+    	preprocessData_case1()
+
     temp_list = np.array(preprocessData_case1.EU_stack_list)[:,:,:,0]
     temp_mean = np.mean(temp_list)
     temp_min = np.min(temp_list)
