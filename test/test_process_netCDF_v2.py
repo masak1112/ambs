@@ -12,8 +12,10 @@ slices = {"lat_s": 74,
 
 
 @pytest.fixture(scope="module")
-def preprocessData_case1(src_dir="/p/project/deepacf/deeprain/video_prediction_shared_folder/extractedData/test/2017/",target_dir="/p/project/deepacf/deeprain/video_prediction_shared_folder/preprocessedData/test/",job_name="01",slices=slices):
-    return PreprocessNcToPkl(src_dir,target_dir,job_name,slices)
+def preprocessData_case1(src_dir="/p/project/deepacf/deeprain/video_prediction_shared_folder/extractedData/test/",\
+                         target_dir="/p/project/deepacf/deeprain/video_prediction_shared_folder/preprocessedData/test/",\
+                         year="2017",job_name="01",slices=slices):
+    return PreprocessNcToPkl(src_dir,target_dir,year,job_name,slices)
 
 
 def test_directory_path(preprocessData_case1):
