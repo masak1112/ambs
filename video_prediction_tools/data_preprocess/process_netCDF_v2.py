@@ -45,7 +45,7 @@ class PreprocessNcToPkl():
        Process the necCDF files in the month_base folder, store the variables of the images into list, store temporal information to list and save them to pickle file 
        """
        if os.path.exists(self.target_file):
-         print(target_file," file exists in the directory ", self.target_dir)
+         print(self.target_file," file exists in the directory ", self.target_dir)
        else:
          print ("==========Processing files in directory {} =============== ".format(self.directory_to_process))
          self.get_images_list()
