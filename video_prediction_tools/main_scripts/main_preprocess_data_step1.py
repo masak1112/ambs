@@ -23,10 +23,10 @@ def main():
     parser.add_argument("--years", "-y", dest="years")
     parser.add_argument("--rsync_status", type=int, default=1)
     parser.add_argument("--vars", nargs="+",default = ["T2","T2","T2"]) #"MSL","gph500"
-    parser.add_argument("--lat_s", type=int, default=74+32)
-    parser.add_argument("--lat_e", type=int, default=202-32)
-    parser.add_argument("--lon_s", type=int, default=550+16+32)
-    parser.add_argument("--lon_e", type=int, default=710-16-32)
+    parser.add_argument("--lat_s", type=int, default=106)
+    parser.add_argument("--lat_e", type=int, default=170)
+    parser.add_argument("--lon_s", type=int, default=598)
+    parser.add_argument("--lon_e", type=int, default=662)
     parser.add_argument("--experimental_id","-exp_id",dest="exp_id",type=str, default="exp1",\
                         help="Experimental identifier helping to distinguish between different experiments.")
     args = parser.parse_args()
