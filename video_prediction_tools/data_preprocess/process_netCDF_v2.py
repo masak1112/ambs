@@ -1,168 +1,166 @@
+'''i
+Code for processing staged ERA5 data, this is used for the DataPreprocessing stage of workflow 
 '''
-Code for processing staged ERA5 data 
-'''
+
+__email__ = "b.gong@fz-juelich.de"
+__author__ = "Bing Gong, Scarlet Stadtler,Michael Langguth"
 
 import os
 import glob
 from netCDF4 import Dataset,num2date
-from statistics import Calc_data_stat
-#import requests
-#from bs4 import BeautifulSoup
-#import urllib.request
 import numpy as np
-#from imageio import imread
-#from scipy.misc import imresize
 import json
 import pickle
+import fnmatch
+from statistics import Calc_data_stat
+import numpy as np
+import json
 
-# Create image datasets.
-# Processes images and saves them in train, val, test splits.
-def process_data(directory_to_process, target_dir, job_name, slices, vars=("T2","MSL","gph500")):
-    '''
-    :param directory_to_process: directory where netCDF-files are stored to be processed
-    :param target_dir: directory where pickle-files will e stored
-    :param job_name: job_id passed and organized by PyStager
-    :param slices: indices defining geographical region of interest
-    :param vars: variables to be processed
-    :return: Saves pickle-files which contain the sliced meteorological data and temporal information as well
-    '''
-    desired_im_sz = (slices["lat_e"] - slices["lat_s"], slices["lon_e"] - slices["lon_s"])
-    # ToDo: Define a convenient function to create a list containing all files.
-    imageList = list(os.walk(directory_to_process, topdown = False))[-1][-1]
-    imageList = sorted(imageList)
-    EU_stack_list = [0] * (len(imageList))
-    temporal_list = [0] * (len(imageList))
-    nvars = len(vars)
+class PreprocessNcToPkl():
 
-    # ML 2020/04/06 S
-    # Some inits
-    stat_obj = Calc_data_stat(nvars)
-    # ML 2020/04/06 E
-    for j, im_file in enumerate(imageList):
-        try:
-            im_path = os.path.join(directory_to_process, im_file)
-            print('Open following dataset: '+im_path)
-            vars_list = []
-            with Dataset(im_path,'r') as data_file:
-                times = data_file.variables['time']
-                time = num2date(times[:],units=times.units,calendar=times.calendar)
-                for i in range(nvars):
-                    var1 = data_file.variables[vars[i]][0,slices["lat_s"]:slices["lat_e"], slices["lon_s"]:slices["lon_e"]]
-                    stat_obj.acc_stat_loc(i,var1)
-                    vars_list.append(var1)
+    def __init__(self,src_dir=None,target_dir=None,job_name=None,year=None,slices=None,vars=("T2","MSL","gph500")):
+        '''
+        Function that to process .nc file to pickle file
+        args:
+            src_dir    : string, directory based on year  where netCDF-files are stored to be processed
+            target_dir : base-directory where data is stored in general (however, pickle-files are stored under .../pickle/[year]/)
+            job_name   : string "01"-"12" with, job_id passed and organized by PyStager, job_name also corresponds to the month
+            year       : year of data to be processed
+            slices     : dictionary e.g.  {'lat_e': 202, 'lat_s': 74, 'lon_e': 710, 'lon_s': 550}, indices defining geographical region of interest
+            vars       : variables to be processed
+        '''
+        #directory_to_process is month-based directory
+        if int(job_name) >12 or int(job_name) < 1 or not isinstance(job_name,str): raise ValueError("job_name should be int type between 1 to 12")
+        self.directory_to_process=os.path.join(src_dir,str(year), str(job_name))
+        if not os.path.exists(self.directory_to_process) : raise IOError("The directory_to_process '"+self.directory_to_process+"' does not exist")
+        self.target_dir = os.path.join(target_dir,"pickle",str(year))                              # enforce that the preprocessed data is located under the pickle-subdirectory
+        if not os.path.exists(self.target_dir): os.mkdir(self.target_dir)
+        self.job_name = job_name
+        self.slices = slices
+        #target file name need to be saved
+        self.target_file = os.path.join(self.target_dir, 'X_' + str(self.job_name) + '.pkl')
+        self.vars = vars
 
-            EU_stack = np.stack(vars_list, axis = 2)
-            EU_stack_list[j] =list(EU_stack)
-
-            #20200408,bing
-            temporal_list[j] = list(time)
-        except Exception as err:
-            im_path = os.path.join(directory_to_process, im_file)
-            #im = Dataset(im_path, mode = 'r')
-            print("*************ERROR*************", err)
-            print("Error message {} from file {}".format(err,im_file))
-            EU_stack_list[j] = list(EU_stack) # use the previous image as replacement, we can investigate further how to deal with the missing values
-            continue
-            
-    X = np.array(EU_stack_list)
-    # ML 2020/07/15: Make use of pickle-files only
-    target_file = os.path.join(target_dir, 'X_' + str(job_name) + '.pkl')
-    with open(target_file, "wb") as data_file:
-        pickle.dump(X,data_file)
-    #target_file = os.path.join(target_dir, 'X_' + str(job_name) + '.pkl')    
-    #hkl.dump(X, target_file) #Not optimal!
-    print(target_file, "is saved")
-    # ML 2020/03/31: write json file with statistics
-    stat_obj.finalize_stat_loc(vars)
-    stat_obj.write_stat_json(target_dir,file_id=job_name)
-    # BG 2020/04/08: Also save temporal information to pickle-files
-    temporal_info = np.array(temporal_list)
-    temporal_file = os.path.join(target_dir, 'T_' + str(job_name) + '.pkl')
-    cwd = os.getcwd()
-    with open(temporal_file,"wb") as ftemp:
-        pickle.dump(temporal_info,ftemp)
-    #pickle.dump(temporal_info, open( temporal_file, "wb" ) )
-
-def process_netCDF_in_dir(src_dir,**kwargs):
-    target_dir = kwargs.get("target_dir")
-    job_name = kwargs.get("job_name")
-    directory_to_process = os.path.join(src_dir, job_name)
-    os.chdir(directory_to_process)
-    if not os.path.exists(target_dir): os.mkdir(target_dir)
-    #target_file = os.path.join(target_dir, 'X_' + str(job_name) + '.hkl')
-    # ML 2020/07/15: Make use of pickle-files only
-    target_file = os.path.join(target_dir, 'X_' + str(job_name) + '.hkl')
-    if os.path.exists(target_file):
-        print(target_file," file exists in the directory ", target_dir)
-    else:
-        print ("==========Processing files in directory {} =============== ".format(directory_to_process))
-        process_data(directory_to_process=directory_to_process, **kwargs)
+    def __call__(self):
+       """
+       Process the necCDF files in the month_base folder, store the variables of the images into list, store temporal information to list and save them to pickle file 
+       """
+       if os.path.exists(self.target_file):
+         print(self.target_file," file exists in the directory ", self.target_dir)
+       else:
+         print ("==========Processing files in directory {} =============== ".format(self.directory_to_process))
+         self.get_images_list()
+         self.initia_list_and_stat()
+         self.process_images_to_list_by_month()
+         self.save_images_to_pickle_by_month() 
+         self.save_stat_info() 
+         self.save_temp_to_pickle_by_month()
+      
+   
+    def get_images_list(self):
+        """
+        Get the images list from the directory_to_process and sort them by date names
+        """
+        self.imageList_total = list(os.walk(self.directory_to_process, topdown = False))[-1][-1]
+        self.filter_not_match_pattern_files()
+        self.imageList = sorted(self.imageList)
+        return self.imageList
+   
+    def filter_not_match_pattern_files(self):
+        """
+        filter the names of netcdf files with the patterns, if any file does not match the file pattern will removed from the imageList
+        for the pattern symbol: ^ match start at beginning of the string,[0-9] match a single character in the range 0-9; +matches one or more of the preceding character (greedy match); $ match start at end of the string
+         file example :ecmwf_era5_17010219.nc
+         """
+        patt = "ecmwf_era5_[0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9].nc"
+        #self.imageList = self.imageList_total
+        #self.imageList = [fnmatch.fnmatch(n, patt) for n in self.imageList_total]
+        self.imageList = fnmatch.filter(self.imageList_total,patt)
+        return self.imageList
 
 
-# ML 2020/08/03 Not used anymore!
-#def split_data_multiple_years(target_dir,partition,varnames):
-    #"""
-    #Collect all the X_*.hkl data across years and split them to training, val and testing datatset
-    #"""
-    ##target_dirs = [os.path.join(target_dir,year) for year in years]
-    ##os.chdir(target_dir)
-    #splits_dir = os.path.join(target_dir,"splits")
-    #os.makedirs(splits_dir, exist_ok=True) 
-    #splits = {s: [] for s in list(partition.keys())}
-    ## ML 2020/05/19 S
-    #vars_uni, varsind, nvars = get_unique_vars(varnames)
-    #stat_obj = Calc_data_stat(nvars)
     
-    #for split in partition.keys():
-        #values = partition[split]
-        #files = []
-        #X = []
-        #Temporal_X = []
-        #for year in values.keys():
-            #file_dir = os.path.join(target_dir,year)
-            #for month in values[year]:
-                #month = "{0:0=2d}".format(month)
-                #hickle_file = "X_{}.hkl".format(month)
-                ##20200408:bing
-                #temporal_file = "T_{}.pkl".format(month)
-                ##data_file = os.path.join(file_dir,hickle_file)
-                #data_file = os.path.join(file_dir,hickle_file)
-                #temporal_data_file = os.path.join(file_dir,temporal_file)
-                #files.append(data_file)
-                #data = hkl.load(data_file)
-                #with open(temporal_data_file,"rb") as ftemp:
-                    #temporal_data = pickle.load(ftemp)
-                #X = X + list(data)
-                #Temporal_X = Temporal_X + list(temporal_data)
-                ## process stat-file:
-                #stat_obj.acc_stat_master(file_dir,int(month))
-        #X = np.array(X) 
-        #Temporal_X = np.array(Temporal_X)
-        #print("==================={}=====================".format(split))
-        #print ("Sources for {} dataset are {}".format(split,files))
-        #print("Number of images in {} dataset is {} ".format(split,len(X)))
-        #print ("dataset shape is {}".format(np.array(X).shape))
-        ## ML 2020/07/15: Make use of pickle-files only
-        #with open(os.path.join(splits_dir , 'X_' + split + '.pkl'),"wb") as data_file:
-            #pickle.dump(X,data_file,protocol=4)
-        ##hkl.dump(X, os.path.join(splits_dir , 'X_' + split + '.hkl'))
+    def initia_list_and_stat(self):
+        """
+        Inits the empty list for store the images and tempral information, and intialise the 
+        """
+        self.EU_stack_list = [0] * (len(self.imageList))
+        self.temporal_list = [0] * (len(self.imageList))
+        self.nvars =  len(self.vars)
+        self.stat_obj = Calc_data_stat(self.nvars)
 
-        #with open(os.path.join(splits_dir,"T_"+split + ".pkl"),"wb") as temp_file:
-            #pickle.dump(Temporal_X, temp_file)
-        
-        #hkl.dump(files, os.path.join(splits_dir,'sources_' + split + '.hkl'))
-        
-    ## write final statistics json-file
-    #stat_obj.finalize_stat_master(target_dir,vars_uni)
-    #stat_obj.write_stat_json(splits_dir)
+    def process_images_to_list_by_month(self):
+        """
+        Get the selected variables from netCDF file, and concanate all the variables from all the images in the directiory_to_process into a list EU_stack_list
+        EU_stack_list dimension should be [numer_of_images,height, width,number_of_variables] 
+        temporal_list is 1-dim list with timestamp data type, contains all the timestamps of netCDF files.
+        """
+        counter = 0 
+        for j, im_file in enumerate(self.imageList):
+            try:
+                im_path = os.path.join(self.directory_to_process, im_file)
+                vars_list = []
+                with Dataset(im_path,'r') as data_file:
+                    times = data_file.variables['time']
+                    time = num2date(times[:],units=times.units,calendar=times.calendar)
+                    for i in range(self.nvars):
+                        var1 = data_file.variables[self.vars[i]][0,self.slices["lat_s"]:self.slices["lat_e"], self.slices["lon_s"]:self.slices["lon_e"]]
+                        self.stat_obj.acc_stat_loc(i,var1)
+                        vars_list.append(var1)
+                EU_stack = np.stack(vars_list, axis=2)
+                self.EU_stack_list[j] =list(EU_stack)
+                self.temporal_list[j] = list(time)
+                print('Open following dataset: '+im_path + "was successfully processed")
+            except Exception as err:
+                #if the error occurs at the first nc file, we will skip it
+                if counter == 0:
+                    print("Counter:",counter)
+                else:
+                    im_path = os.path.join(self.directory_to_process, im_file)
+                    print("*************ERROR*************", err)
+                    print("Error message {} from file {}".format(err,im_file))
+                    self.EU_stack_list[j] = list(EU_stack) # use the previous image as replacement, we can investigate further how to deal with the missing values
+                counter += 1
+                continue
+   
+
+
+    def save_images_to_pickle_by_month(self):
+        """
+        save list of variables from all the images to pickle file
+        """
+        X = np.array(self.EU_stack_list)
+        target_file = os.path.join(self.target_dir, 'X_' + str(self.job_name) + '.pkl')
+        with open(target_file, "wb") as data_file:
+            pickle.dump(X,data_file)
+        return True
+
+
+
+    def save_temp_to_pickle_by_month(self):
+        """
+        save the temporal information to pickle file
+        """
+        temporal_info = np.array(self.temporal_list)
+        temporal_file = os.path.join(self.target_dir, 'T_' + str(self.job_name) + '.pkl')
+        with open(temporal_file,"wb") as ftemp:
+            pickle.dump(temporal_info,ftemp)
+    
+    def save_stat_info(self):
+        """
+        save the stat information to the target dir
+        """
+        self.stat_obj.finalize_stat_loc(self.vars)
+        self.stat_obj.write_stat_json(self.target_dir,file_id=self.job_name)
+       
 
         
     
 
+ 
 
                 
-            
-                
+                 
             
             
         
