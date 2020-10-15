@@ -33,7 +33,8 @@ def main():
 
     current_path = os.getcwd()
     years        = args.years
-    source_dir   = os.path.join(args.source_dir,str(years))+"/"
+    source_dir   = args.source_dir
+    source_dir_full = os.path.join(source_dir,str(years))+"/"
     destination_dir = args.destination_dir
     scr_dir         = args.script_dir
     rsync_status = args.rsync_status
@@ -81,7 +82,7 @@ def main():
     # ================================== ALL Nodes:  Read-in parameters ====================================== #
 
     # check the existence of teh folders :
-    if not os.path.exists(source_dir):  # check if the source dir. is existing
+    if not os.path.exists(source_dir_full):  # check if the source dir. is existing
         if my_rank == 0:
             logging.critical('The source does not exist')
             logging.info('exit status : 1')
@@ -91,8 +92,8 @@ def main():
         
     # Expand destination_dir-variable by searching for netCDF-files in source_dir and processing the file from the first list element to obtain all relevant (meta-)data. 
     if my_rank == 0:
-        data_files_list = glob.glob(source_dir+"/**/*.nc",recursive=True)
-        if not data_files_list: raise ValueError("Could not find any data to be processed in '"+source_dir+"'")
+        data_files_list = glob.glob(source_dir_full+"/**/*.nc",recursive=True)
+        if not data_files_list: raise IOError("Could not find any data to be processed in '"+source_dir_full+"'")
         
         md = MetaData(suffix_indir=destination_dir,exp_id=exp_id,data_filename=data_files_list[0],slices=slices,variables=vars)
         # modify Batch scripts if metadata has been retrieved for the first time (md.status = "new")
@@ -132,7 +133,7 @@ def main():
 
         print(" # ==============  Directory scanner : start    ==================# ")
 
-        ret_dir_scanner = directory_scanner(source_dir)
+        ret_dir_scanner = directory_scanner(source_dir_full)
         print(ret_dir_scanner)
         dir_detail_list = ret_dir_scanner[0]
         sub_dir_list = ret_dir_scanner[1]

@@ -32,7 +32,7 @@ class PreprocessNcToPkl():
         #directory_to_process is month-based directory
         if int(job_name) >12 or int(job_name) < 1 or not isinstance(job_name,str): raise ValueError("job_name should be int type between 1 to 12")
         self.directory_to_process=os.path.join(src_dir,str(year), str(job_name))
-        if not os.path.exists(self.directory_to_process) : raise ("The directory_to_process does not exist")
+        if not os.path.exists(self.directory_to_process) : raise IOError("The directory_to_process '"+self.directory_to_process+"' does not exist")
         self.target_dir = os.path.join(target_dir,"pickle",str(year))                              # enforce that the preprocessed data is located under the pickle-subdirectory
         if not os.path.exists(self.target_dir): os.mkdir(self.target_dir)
         self.job_name = job_name
