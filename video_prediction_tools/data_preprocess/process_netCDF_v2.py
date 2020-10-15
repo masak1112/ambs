@@ -18,21 +18,22 @@ import json
 
 class PreprocessNcToPkl():
 
-    def __init__(self,src_dir=None,target_dir=None,job_name=None,slices=None,vars=("T2","MSL","gph500")):
+    def __init__(self,src_dir=None,target_dir=None,job_name=None,year=None,slices=None,vars=("T2","MSL","gph500")):
         '''
         Function that to process .nc file to pickle file
         args:
-            src_dir: string, directory based on year  where netCDF-files are stored to be processed
-            target_dir: directory where pickle-files will be stored
-            job_name: string "01"-"12" with, job_id passed and organized by PyStager, job_name also corresponds to the month
-            slices: dictionary e.g.  {'lat_e': 202, 'lat_s': 74, 'lon_e': 710, 'lon_s': 550}, indices defining geographical region of interest
-            vars:variables to be processed
+            src_dir    : string, directory based on year  where netCDF-files are stored to be processed
+            target_dir : base-directory where data is stored in general (however, pickle-files are stored under .../pickle/[year]/)
+            job_name   : string "01"-"12" with, job_id passed and organized by PyStager, job_name also corresponds to the month
+            year       : year of data to be processed
+            slices     : dictionary e.g.  {'lat_e': 202, 'lat_s': 74, 'lon_e': 710, 'lon_s': 550}, indices defining geographical region of interest
+            vars       : variables to be processed
         '''
         #directory_to_process is month-based directory
         if int(job_name) >12 or int(job_name) < 1 or not isinstance(job_name,str): raise ValueError("job_name should be int type between 1 to 12")
-        self.directory_to_process=os.path.join(src_dir, str(job_name)) 
+        self.directory_to_process=os.path.join(src_dir,str(year), str(job_name))
         if not os.path.exists(self.directory_to_process) : raise ("The directory_to_process does not exist")
-        self.target_dir = os.path.join(target_dir,"pickle")                              # enforce that the preprocessed data is located under the pickle-subdirectory
+        self.target_dir = os.path.join(target_dir,"pickle",str(year))                              # enforce that the preprocessed data is located under the pickle-subdirectory
         if not os.path.exists(self.target_dir): os.mkdir(self.target_dir)
         self.job_name = job_name
         self.slices = slices
