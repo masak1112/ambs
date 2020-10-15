@@ -32,7 +32,7 @@ class PreprocessNcToPkl():
         if int(job_name) >12 or int(job_name) < 1 or not isinstance(job_name,str): raise ValueError("job_name should be int type between 1 to 12")
         self.directory_to_process=os.path.join(src_dir, str(job_name)) 
         if not os.path.exists(self.directory_to_process) : raise ("The directory_to_process does not exist")
-        self.target_dir = target_dir
+        self.target_dir = os.path.join(target_dir,"pickle")                              # enforce that the preprocessed data is located under the pickle-subdirectory
         if not os.path.exists(self.target_dir): os.mkdir(self.target_dir)
         self.job_name = job_name
         self.slices = slices
@@ -51,9 +51,9 @@ class PreprocessNcToPkl():
          self.get_images_list()
          self.initia_list_and_stat()
          self.process_images_to_list_by_month()
-         self.save_images_to_list_by_month() 
+         self.save_images_to_pickle_by_month() 
          self.save_stat_info() 
-         self.save_temp_to_list_by_month()
+         self.save_temp_to_pickle_by_month()
       
    
     def get_images_list(self):
@@ -124,7 +124,7 @@ class PreprocessNcToPkl():
    
 
 
-    def save_images_to_list_by_month(self):
+    def save_images_to_pickle_by_month(self):
         """
         save list of variables from all the images to pickle file
         """
@@ -136,7 +136,7 @@ class PreprocessNcToPkl():
 
 
 
-    def save_temp_to_list_by_month(self):
+    def save_temp_to_pickle_by_month(self):
         """
         save the temporal information to pickle file
         """
