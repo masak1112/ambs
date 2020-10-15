@@ -12,7 +12,7 @@ slices = {"lat_s": 74,
 
 
 @pytest.fixture(scope="module")
-def preprocessData_case1(src_dir="/p/project/deepacf/deeprain/video_prediction_shared_folder/extractedData/test/2017/",target_dir="/p/project/deepacf/deeprain/video_prediction_shared_folder/preprocessedData/test",job_name="01",slices=slices):
+def preprocessData_case1(src_dir="/p/project/deepacf/deeprain/video_prediction_shared_folder/extractedData/test/2017/",target_dir="/p/project/deepacf/deeprain/video_prediction_shared_folder/preprocessedData/test/",job_name="01",slices=slices):
     return PreprocessNcToPkl(src_dir,target_dir,job_name,slices)
 
 
@@ -69,7 +69,7 @@ def test_save_stat_info(preprocessData_case1):
     msl_list = np.array(preprocessData_case1.EU_stack_list)[:,:,:,1]
     msl_mean = np.mean(msl_list)
    
-    with open('/p/project/deepacf/deeprain/video_prediction_shared_folder/preprocessedData/test/stat_01.json') as json_file:
+    with open(fstat2test) as json_file:
        data = json.load(json_file)
     assert data["T2"][0]["avg"] == pytest.approx(temp_mean,0.001)
     assert data["T2"][0]["min"] == pytest.approx(temp_min,0.001)
