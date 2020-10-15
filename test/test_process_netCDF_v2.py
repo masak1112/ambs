@@ -49,10 +49,18 @@ def test_process_images_to_list_by_month(preprocessData_case1):
 
 def test_save_stat_info(preprocessData_case1):
     # statistic file to be tested
-    fstat2test = '/p/project/deepacf/deeprain/video_prediction_shared_folder/preprocessedData/test/stat_01.json'
+    path_test_dir = '/p/project/deepacf/deeprain/video_prediction_shared_folder/preprocessedData/test/pickle'
+    fstat2test = os.path.join(path_test_dir,'stat_01.json')
     # if statistic file is not present, create it
     if not os.path.isfile(fstat2test):
-    	preprocessData_case1()
+        preprocessData_case1()
+        
+        l_stat_exists  = os.path.isfile(os.path.join(path_test_dir,'stat_01.json'))
+        l_pickle_exists= os.path.isfile(os.path.join(path_test_dir,'X_01.pkl')) and \
+                         os.path.isfile(os.path.join(path_test_dir,'T_01.pkl'))
+        
+        assert l_stat_exists  == True
+        assert l_pickle_exists== True
 
     temp_list = np.array(preprocessData_case1.EU_stack_list)[:,:,:,0]
     temp_mean = np.mean(temp_list)
@@ -69,6 +77,5 @@ def test_save_stat_info(preprocessData_case1):
     assert data["MSL"][0]["avg"] == pytest.approx(msl_mean,0.001) 
     
     #assert preprocessData_case1.save_stat_info.stat_obj["T2"]["min"] == temp_min
-    #assert preprocessData_case1.save_stat_info.stat_obj["T2"]["max"] == temp_max
-   
+    #assert preprocessData_case1.save_stat_info.stat_obj["T2"]["max"] == temp_max 
 
