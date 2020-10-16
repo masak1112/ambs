@@ -281,6 +281,12 @@ class ERA5Pkl2Tfrecords(object):
 class ERA5Dataset(ERA5Pkl2Tfrecords):
 
     def __init__(self, mode='train', seed=None, **kwargs):
+        """
+        This class is used for preparing data for training/validation and test models
+        args:
+            mode: string, "train","val" or "test"
+            seed: int, the seed for dataset 
+        """
         super(ERA5Dataset, self).__init__(**kwargs)
         self.input_dir_tfrecords = os.path.join(self.input_dir,"tfrecords")
         self.mode = mode
@@ -294,15 +300,21 @@ class ERA5Dataset(ERA5Pkl2Tfrecords):
 
     def get_tfrecords_filesnames_base_datasplit(self):
         """
-        Get tfrecords absolute path names
+        Get  absolute .tfrecord path names based on the data splits patterns
         """
-        self.filenames = None
-        #TODO: Bing NG STOP HERE
+        self.filenames = []
         self.data_mode = self.data_dict[self.mode]
+        self.tf_names = []
+        print("data_mode:",self.data_mode)
+        for year, months in self.data_mode.items():
+            for month in months:
+                tf_files = "sequence_Y_{}_M_{}_*_to_*.tfrecord*".format(year,month)    
+                self.tf_names.append(tf_files)
         # look for tfrecords in input_dir and input_dir/mode directories
-        filenames = glob.glob(os.path.join(self.input_dir_tfrecords, '*.tfrecord*'))
-        if filenames:
-            self.filenames = sorted(filenames)  # ensures order is the same across systems
+        for files in self.tf_names:
+            self.filenames.extend(glob.glob(os.path.join(self.input_dir_tfrecords, files)))
+        if self.filenames:
+            self.filenames = sorted(self.filenames)  # ensures order is the same across systems
         if not self.filenames:
             raise FileNotFoundError('No tfrecords were found in %s.' % self.input_dir_tfrecords)
 
@@ -407,5 +419,26 @@ def _int64_feature(value):
     return tf.train.Feature(int64_list=tf.train.Int64List(value=[value]))
 
 
+def get_model_hparams_dict(model_hparams_dict_path):
+    """
+    Get model_hparams_dict from json file
+    """
+    model_hparams_dict_load = {}
+    if model_hparams_dict_path:
+        with open(model_hparams_dict_path) as f:
+            model_hparams_dict_load.update(json.loads(f.read()))
+    return model_hparams_dict_load
 
 
+
+
+
+if __name__ == "__main__":
+
+    input_dir =  "/p/project/deepacf/deeprain/video_prediction_shared_folder/preprocessedData/era5-Y2017to2017M01to12_wb025-160x128-2970N1500W-T2_MSL_gph500_test/"
+    output_dir = "/p/project/deepacf/deeprain/video_prediction_shared_folder/preprocessedData/test/tfrecords/"
+    datasplit_config = "/p/project/deepacf/deeprain/bing/ambs/video_prediction_tools/data_split/cv_test.json"
+    hparams_path = "/p/project/deepacf/deeprain/bing/ambs/video_prediction_tools/hparams/era5/convLSTM/model_hparams.json"
+    model_hparams_dict = get_model_hparams_dict(hparams_path)
+    case1 = ERA5Dataset(seed=1234,input_dir=input_dir,output_dir=output_dir,datasplit_config=datasplit_config,hparams_dict=model_hparams_dict,sequences_per_file=128,vars_in=["T2","MSL","gph500"])
+    case1.get_tfrecords_filesnames_base_datasplit()
