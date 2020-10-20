@@ -31,12 +31,12 @@ class ERA5Pkl2Tfrecords(object):
         """
         This class is used for convert pkl files to tfrecords
         args:
-            input_dir: str, the parament path of pkl files directiory. This directory should be at "year" level
-            outpout_dir: str, the path to save the tfrecords files 
-            datasplit_config: the path pointing to the datasplit_config jason file
-            hparams_dict_path: a dict that contains hparameters,
-            sequences_per_file: int, how many sequences/samples per tfrecord to be saved
-            norm:str, normalization methods from Norm_data class, "minmax" or "znorm" default is "minmax", 
+            input_dir          : str, the parament path of pkl files directiory. This directory should be at "year" level
+            outpout_dir        : str, the path to save the tfrecords files 
+            datasplit_config   : the path pointing to the datasplit_config jason file
+            hparams_dict_path  : a dict that contains hparameters,
+            sequences_per_file : int, how many sequences/samples per tfrecord to be saved
+            norm               :str, normalization methods from Norm_data class, "minmax" or "znorm" default is "minmax", 
         """
         self.input_dir = input_dir
         self.output_dir = output_dir
@@ -67,9 +67,11 @@ class ERA5Pkl2Tfrecords(object):
         The function that contains default hparams
         Returns:
             A dict with the following hyperparameters.
-            context_frames: the number of ground-truth frames to pass in at
-                start.
-            sequence_length: the number of frames in the video sequence 
+            context_frames  : the number of ground-truth frames to pass in at start.
+            sequence_length : the number of frames in the video sequence 
+            max_epochs      : the number of epochs to train model
+            lr              : learning rate
+            loss_fun        : the loss function
         """
         hparams = dict(
             context_frames=10,
@@ -180,6 +182,8 @@ class ERA5Pkl2Tfrecords(object):
                 })
                 example = tf.train.Example(features=features)
                 writer.write(example.SerializeToString())
+
+
 
     def initia_norm_class(self):
         """

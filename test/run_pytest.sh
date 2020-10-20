@@ -16,9 +16,10 @@ fi
 
 
 
-source ../video_prediction_tools/env_setup/modules_preprocess.sh
-#Test for preprocess_step1
+#source ../video_prediction_tools/env_setup/modules_preprocess.sh
+##Test for preprocess_step1
 #python -m pytest  test_process_netCDF_v2.py
+source ../video_prediction_tools/env_setup/modules_train.sh
 #Test for process step2
 python -m pytest  test_era5_data.py
 

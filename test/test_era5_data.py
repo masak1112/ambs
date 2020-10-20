@@ -5,10 +5,11 @@ import json
 import datetime
 
 input_dir =  "/p/project/deepacf/deeprain/video_prediction_shared_folder/preprocessedData/era5-Y2017to2017M01to12_wb025-160x128-2970N1500W-T2_MSL_gph500_test/"
-output_dir = "/p/project/deepacf/deeprain/video_prediction_shared_folder/preprocessedData/test/tfrecords/"
+output_dir = "/p/project/deepacf/deeprain/video_prediction_shared_folder/preprocessedData/era5-Y2017to2017M01to12_wb025-160x128-2970N1500W-T2_MSL_gph500_test/tfrecords/"
 datasplit_config = "/p/project/deepacf/deeprain/bing/ambs/video_prediction_tools/data_split/cv_test.json"
 hparams_path = "/p/project/deepacf/deeprain/bing/ambs/video_prediction_tools/hparams/era5/convLSTM/model_hparams.json"
-
+vars_in = ["T2","MSL","gph500"]
+sequences_per_file = 10
 def get_model_hparams_dict(model_hparams_dict_path):
     """
     Get model_hparams_dict from json file
@@ -23,8 +24,7 @@ model_hparams_dict = get_model_hparams_dict(hparams_path)
 
 #generate an instance
 @pytest.fixture(scope="module")
-def era5_dataset_case1(input_dir=input_dir,output_dir=output_dir,datasplit_config=datasplit_config,hparams_dict=model_hparams_dict,sequences_per_file=128,vars_in=["T2","MSL","gph500"]):
-    
+def era5_dataset_case1(input_dir=input_dir,output_dir=output_dir,datasplit_config=datasplit_config,hparams_dict=model_hparams_dict,sequences_per_file=sequences_per_file,vars_in=vars_in): 
     return ERA5Pkl2Tfrecords(input_dir=input_dir,output_dir=output_dir,datasplit_config=datasplit_config,hparams_dict=hparams_dict,sequences_per_file=sequences_per_file,vars_in=vars_in)
 
 
@@ -68,11 +68,11 @@ def test_save_tf_record(era5_dataset_case1):
     era5_dataset_case1.save_tf_record(out_fname, sequences, t_start_points)
 
 
-# # def test_read_pkl_and_save_tfrecords(era5_dataset_case1):
-# #     print("var in:",era5_dataset_case1.vars_in)
-# #     era5_dataset_case1.read_pkl_and_save_tfrecords(year=2017,month=9)
-# #     #assert the input folder is proper
-# #     assert era5_dataset_case1.input_file_year=="/p/project/deepacf/deeprain/video_prediction_shared_folder/preprocessedData/era5-Y2010toY2222M01to12-160x128-2970N1500W-T2_MSL_gph500/pickle/2017"
+def test_read_pkl_and_save_tfrecords(era5_dataset_case1):
+    print("var in:",era5_dataset_case1.vars_in)
+    era5_dataset_case1.read_pkl_and_save_tfrecords(year=2017,month=9)
+    #assert the input folder is proper
+    assert era5_dataset_case1.input_file_year=="/p/project/deepacf/deeprain/video_prediction_shared_folder/preprocessedData/era5-Y2010toY2222M01to12-160x128-2970N1500W-T2_MSL_gph500/pickle/2017"
 
 @pytest.fixture(scope="module")
 def era5_dataset_case2(seed=1234,input_dir=input_dir,output_dir=output_dir,datasplit_config=datasplit_config,hparams_dict=model_hparams_dict,sequences_per_file=128,vars_in=["T2","MSL","gph500"]):
