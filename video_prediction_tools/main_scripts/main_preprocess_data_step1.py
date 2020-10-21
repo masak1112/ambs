@@ -23,17 +23,18 @@ def main():
     parser.add_argument("--years", "-y", dest="years")
     parser.add_argument("--rsync_status", type=int, default=1)
     parser.add_argument("--vars", nargs="+",default = ["T2","T2","T2"]) #"MSL","gph500"
-    parser.add_argument("--lat_s", type=int, default=74+32)
-    parser.add_argument("--lat_e", type=int, default=202-32)
-    parser.add_argument("--lon_s", type=int, default=550+16+32)
-    parser.add_argument("--lon_e", type=int, default=710-16-32)
+    parser.add_argument("--lat_s", type=int, default=106)
+    parser.add_argument("--lat_e", type=int, default=170)
+    parser.add_argument("--lon_s", type=int, default=598)
+    parser.add_argument("--lon_e", type=int, default=662)
     parser.add_argument("--experimental_id","-exp_id",dest="exp_id",type=str, default="exp1",\
                         help="Experimental identifier helping to distinguish between different experiments.")
     args = parser.parse_args()
 
     current_path = os.getcwd()
     years        = args.years
-    source_dir   = os.path.join(args.source_dir,str(years))+"/"
+    source_dir   = args.source_dir
+    source_dir_full = os.path.join(source_dir,str(years))+"/"
     destination_dir = args.destination_dir
     scr_dir         = args.script_dir
     rsync_status = args.rsync_status
@@ -81,7 +82,7 @@ def main():
     # ================================== ALL Nodes:  Read-in parameters ====================================== #
 
     # check the existence of teh folders :
-    if not os.path.exists(source_dir):  # check if the source dir. is existing
+    if not os.path.exists(source_dir_full):  # check if the source dir. is existing
         if my_rank == 0:
             logging.critical('The source does not exist')
             logging.info('exit status : 1')
@@ -91,8 +92,8 @@ def main():
         
     # Expand destination_dir-variable by searching for netCDF-files in source_dir and processing the file from the first list element to obtain all relevant (meta-)data. 
     if my_rank == 0:
-        data_files_list = glob.glob(source_dir+"/**/*.nc",recursive=True)
-        if not data_files_list: raise ValueError("Could not find any data to be processed in '"+source_dir+"'")
+        data_files_list = glob.glob(source_dir_full+"/**/*.nc",recursive=True)
+        if not data_files_list: raise IOError("Could not find any data to be processed in '"+source_dir_full+"'")
         
         md = MetaData(suffix_indir=destination_dir,exp_id=exp_id,data_filename=data_files_list[0],slices=slices,variables=vars)
         # modify Batch scripts if metadata has been retrieved for the first time (md.status = "new")
@@ -132,7 +133,7 @@ def main():
 
         print(" # ==============  Directory scanner : start    ==================# ")
 
-        ret_dir_scanner = directory_scanner(source_dir)
+        ret_dir_scanner = directory_scanner(source_dir_full)
         print(ret_dir_scanner)
         dir_detail_list = ret_dir_scanner[0]
         sub_dir_list = ret_dir_scanner[1]
@@ -198,8 +199,9 @@ def main():
                 #grib_2_netcdf(rot_grid,source_dir, destination_dir, job)
                 if rsync_status == 1:
                     
-                    destination_dir = os.path.join(MetaData.get_destdir_jsontmp(tmp_dir=current_path),"pickle",years)
-                    process_data = PreprocessNcToPkl(src_dir=source_dir,target_dir=destination_dir,job_name=job,slices=slices,vars=vars)
+                   # ML 2020/06/09: workaround to get correct destination_dir obtained by the master node
+                    destination_dir = MetaData.get_destdir_jsontmp(tmp_dir=current_path)
+                    process_data = PreprocessNcToPkl(src_dir=source_dir,target_dir=destination_dir,year=years,job_name=job,slices=slices,vars=vars)
                     process_data()
                     #process_netCDF_in_dir(job_name=job, src_dir=source_dir, target_dir=destination_dir,slices=slices,vars=vars)
 
