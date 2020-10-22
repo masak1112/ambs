@@ -27,16 +27,16 @@ import datetime
 
 
 class ERA5Pkl2Tfrecords(object):
-    def __init__(self,input_dir=None, output_dir=None,datasplit_config=None,vars_in=None,hparams_dict=None,sequences_per_file=128,norm="minmax"):
+    def __init__(self,input_dir=None, output_dir=None,datasplit_config=None,vars_in=None,hparams_dict_config=None,sequences_per_file=128,norm="minmax"):
         """
-        This class is used for convert pkl files to tfrecords
+        This class is used for converting pkl files to tfrecords
         args:
-            input_dir          : str, the parament path of pkl files directiory. This directory should be at "year" level
-            outpout_dir        : str, the path to save the tfrecords files 
-            datasplit_config   : the path pointing to the datasplit_config jason file
-            hparams_dict_path  : a dict that contains hparameters,
-            sequences_per_file : int, how many sequences/samples per tfrecord to be saved
-            norm               :str, normalization methods from Norm_data class, "minmax" or "znorm" default is "minmax", 
+            input_dir            : str, the parament path of pkl files directiory. This directory should be at "year" level
+            outpout_dir          : str, the path to save the tfrecords files 
+            datasplit_config     : the path pointing to the datasplit_config json file
+            hparams_dict_config  : the path to the dict that contains hparameters,
+            sequences_per_file   : int, how many sequences/samples per tfrecord to be saved
+            norm                 : str, normalization methods from Norm_data class, "minmax" or "znorm" default is "minmax", 
         """
         self.input_dir = input_dir
         self.output_dir = output_dir
@@ -47,7 +47,8 @@ class ERA5Pkl2Tfrecords(object):
         #Get the data split informaiton
         self.datasplit_dict_path = datasplit_config
         self.data_dict = self.get_datasplit()
-        self.hparams_dict = hparams_dict
+        self.hparams_dict_config = hparams_dict_config      
+        self.hparams_dict = self.get_model_hparams_dict()
         self.hparams = self.parse_hparams()
         self.sequence_length = self.hparams.sequence_length
         if norm == "minmax" or norm == "znorm":
@@ -56,7 +57,16 @@ class ERA5Pkl2Tfrecords(object):
             raise ("norm should be either 'minmax' or 'znorm'") 
         self.sequences_per_file = sequences_per_file
         
-
+   
+    def get_model_hparams_dict(self):
+        """
+        Get model_hparams_dict from json file
+        """
+        model_hparams_dict_load = {}
+        if self.hparams_dict_config:
+            with open(self.hparams_dict_config) as f:
+                model_hparams_dict_load.update(json.loads(f.read()))
+        return model_hparams_dict_load
 
     def get_default_hparams(self):
         return HParams(**self.get_default_hparams_dict())
@@ -100,10 +110,11 @@ class ERA5Pkl2Tfrecords(object):
         return parsed_hparams
 
 
-    def get_months(self):
+    def get_years_months(self):
         """
         Get the months in the datasplit_config
-        Return : a 1-dim array contains the months set
+        Return : 
+                a 1-dim array contains the months set
         """
         self.mode_list = []
         self.years = []
@@ -113,7 +124,7 @@ class ERA5Pkl2Tfrecords(object):
             for year, month in value.items():
                 self.years.append(year)
                 self.months.extend(month)
-        return set(self.months)
+        return set(self.years),set(self.months)
 
     def get_stats_file(self):
         """
@@ -131,9 +142,9 @@ class ERA5Pkl2Tfrecords(object):
     def get_metadata(self):
         """
         This function get the meta data that generared from data_process_step1, we aim to extract the height and width informaion from it
-        vars_in: list(str), must be consistent with the list from DataPreprocessing_step1
-        height: int, the height of the image
-        width: int the width of the image
+        vars_in   : list(str), must be consistent with the list from DataPreprocessing_step1
+        height    : int, the height of the image
+        width     : int, the width of the image
         """
         metadata_fl = os.path.join(self.input_dir,"metadata.json")
         if os.path.isfile(metadata_fl):
@@ -155,9 +166,9 @@ class ERA5Pkl2Tfrecords(object):
         """
         Save the squences, and the corresdponding timestamp start point to tfrecords
         args:
-            output_frames:str, the file names of the output
-            sequences: list or array, the sequences want to be saved to tfrecords, [sequences,seq_len,height,width,channels]
-            t_start_points: datetime type in the list,  the first timestamp for each sequence [seq_len,height,width, channel], the len of t_start_points is the same as sequences
+            output_frames    :str, the file names of the output
+            sequences        : list or array, the sequences want to be saved to tfrecords, [sequences,seq_len,height,width,channels]
+            t_start_points   : datetime type in the list,  the first timestamp for each sequence [seq_len,height,width, channel], the len of t_start_points is the same as sequences
         """
         sequences = np.array(sequences)
 
@@ -220,8 +231,8 @@ class ERA5Pkl2Tfrecords(object):
         """
         Read pickle files based on month, to process and save to tfrecords,
         args:
-            year: int, the target year to save to tfrecord
-            month: int, the target month to save to tfrecord 
+            year    : int, the target year to save to tfrecord
+            month   : int, the target month to save to tfrecord 
         """
         #Define the input_file based on the year and month
         self.input_file_year = os.path.join(os.path.join(self.input_dir, "pickle"),str(year))
@@ -288,8 +299,8 @@ class ERA5Dataset(ERA5Pkl2Tfrecords):
         """
         This class is used for preparing data for training/validation and test models
         args:
-            mode: string, "train","val" or "test"
-            seed: int, the seed for dataset 
+            mode    : string, "train","val" or "test"
+            seed    : int, the seed for dataset 
         """
         super(ERA5Dataset, self).__init__(**kwargs)
         self.input_dir_tfrecords = os.path.join(self.input_dir,"tfrecords")
@@ -309,7 +320,6 @@ class ERA5Dataset(ERA5Pkl2Tfrecords):
         self.filenames = []
         self.data_mode = self.data_dict[self.mode]
         self.tf_names = []
-        print("data_mode:",self.data_mode)
         for year, months in self.data_mode.items():
             for month in months:
                 tf_files = "sequence_Y_{}_M_{}_*_to_*.tfrecord*".format(year,month)    
@@ -325,7 +335,7 @@ class ERA5Dataset(ERA5Pkl2Tfrecords):
 
     def get_example_info(self):
         """
-        Get the data information from tfrecord file
+         Get the data information from tfrecord file
         """
         example = next(tf.python_io.tf_record_iterator(self.filenames[0]))
         dict_message = MessageToDict(tf.train.Example.FromString(example))
@@ -334,8 +344,65 @@ class ERA5Dataset(ERA5Pkl2Tfrecords):
         self.video_shape = tuple(int(feature[key]['int64List']['value'][0]) for key in ['sequence_length','height', 'width', 'channels'])
         self.image_shape = self.video_shape[1:]
  
-    def calculate_samples(self):
+    def number_examples_per_epoch(self):
+        """
+        Calculate how many tfrecords samples in the train/val/test 
+        """
         pass
+
+
+    def make_dataset(self, batch_size):
+        """
+        Prepare batch_size dataset fed into to the models.
+        If the data are from training dataset,then the data is shuffled;
+        If the data are from val dataset, the shuffle var will be decided by the hparams.shuffled_on_val;
+        if the data are from test dataset, the data will not be shuffled 
+        args:
+              batch_size: int, the size of samples fed into the models per iteration
+        """
+        def parser(serialized_example):
+            seqs = OrderedDict()
+            keys_to_features = {
+                 'width': tf.FixedLenFeature([], tf.int64),
+                 'height': tf.FixedLenFeature([], tf.int64),
+                 'sequence_length': tf.FixedLenFeature([], tf.int64),
+                 'channels': tf.FixedLenFeature([],tf.int64),
+                 't_start':  tf.VarLenFeature(tf.int64),
+                 'images/encoded': tf.VarLenFeature(tf.float32)
+             }
+
+            parsed_features = tf.parse_single_example(serialized_example, keys_to_features)
+            seq = tf.sparse_tensor_to_dense(parsed_features["images/encoded"])
+            T_start = tf.sparse_tensor_to_dense(parsed_features["t_start"])
+            images = []
+            print("Image shape {}, {},{},{}".format(self.video_shape[0],self.image_shape[0],self.image_shape[1], self.image_shape[2]))
+            images = tf.reshape(seq, [self.video_shape[0],self.image_shape[0],self.image_shape[1], self.image_shape[2]], name = "reshape_new")
+            seqs["images"] = images
+            seqs["T_start"] = T_start
+            return seqs
+        filenames = self.filenames
+        shuffle = self.mode == 'train' or (self.mode == 'val' and self.hparams.shuffle_on_val)
+        if shuffle:
+            random.shuffle(filenames)
+        dataset = tf.data.TFRecordDataset(filenames, buffer_size = 8* 1024 * 1024) 
+        dataset = dataset.filter(self.filter)
+        if shuffle:
+            dataset = dataset.apply(tf.contrib.data.shuffle_and_repeat(buffer_size =1024, count = self.num_epochs))
+        else:
+            dataset = dataset.repeat(self.num_epochs)
+        num_parallel_calls = None if shuffle else 1
+        dataset = dataset.apply(tf.contrib.data.map_and_batch(
+            parser, batch_size, drop_remainder=True, num_parallel_calls=num_parallel_calls))
+        dataset = dataset.prefetch(batch_size)  
+        return dataset
+
+    def make_batch(self, batch_size):
+        dataset = self.make_dataset_v2(batch_size)
+        iterator = dataset.make_one_shot_iterator()
+        return iterator.get_next()
+
+
+
 
 #     def write_sequence_file(output_dir,seq_length,sequences_per_file):
 #         partition_names = ["train","val","test"]
@@ -348,11 +415,6 @@ class ERA5Dataset(ERA5Pkl2Tfrecords):
 #                 sequence_lengths_file.write("%d\n" % seq_length)
 #             sequence_lengths_file.close()
             
-            
-#     @property
-#     def jpeg_encoding(self):
-#         return False
-
 
 #     def num_examples_per_epoch(self):
 #         with open(os.path.join(self.input_dir, 'sequence_lengths.txt'), 'r') as sequence_lengths_file:
@@ -421,18 +483,6 @@ def _floats_feature(value):
 
 def _int64_feature(value):
     return tf.train.Feature(int64_list=tf.train.Int64List(value=[value]))
-
-
-def get_model_hparams_dict(model_hparams_dict_path):
-    """
-    Get model_hparams_dict from json file
-    """
-    model_hparams_dict_load = {}
-    if model_hparams_dict_path:
-        with open(model_hparams_dict_path) as f:
-            model_hparams_dict_load.update(json.loads(f.read()))
-    return model_hparams_dict_load
-
 
 
 

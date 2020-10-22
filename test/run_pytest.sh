@@ -1,7 +1,7 @@
 #!#bin/bash
-export PYTHONPATH=/p/project/deepacf/deeprain/langguth1/ambs/video_prediction_tools:$PYTHONPATH
+export PYTHONPATH=/p/project/deepacf/deeprain/gong1/ambs/video_prediction_tools:$PYTHONPATH
 # Name of virtual environment 
-VIRT_ENV_NAME="venv_juwels"
+VIRT_ENV_NAME="vp_new_structure"
 
 
 if [ -z ${VIRTUAL_ENV} ]; then

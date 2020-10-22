@@ -30,14 +30,18 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("input_dir", type=str)
     parser.add_argument("output_dir", type=str)
+    parser.add_argument("datasplit_config",type=str,help="The path to the datasplit_config json file which contains the details of train/val/testing")
     # Add vars for ensuring proper normalization and reshaping of sequences
-    parser.add_argument("-vars","--variables",dest="variables", nargs='+', type=str, help="Names of input variables.")
-    parser.add_argument("-height",type=int,default=64)
-    parser.add_argument("-width",type = int,default=64)
-    parser.add_argument("-seq_length",type=int,default=20)
-    parser.add_argument("-context_length",type=int,default=10)
-    parser.add_argument("-sequences_per_file",type=int,default=2)
+    parser.add_argument("-vars_in","--variables",dest="variables", nargs='+', type=str, help="Names of input variables.")
+    parser.add_argument("-hparams_dict_config","--hparams", type=str, help="The path to the dict that contains hparameters.",default="")
+    parser.add_argument("-sequences_per_file",type=int,default=20)
     args = parser.parse_args()
+    ins = ERA5Pkl2Tfrecords(input_dir=args.input_dir,output_dir=args.output_dir,
+                            datasplit_config=args.datasplit_config,vars_in=args.vars_in,
+                            hparams_dict_config=args.hparams_dict_config,sequences_per_file=args.sequences_per_file)
+    
+    partition = ins.data_dict
+    years, months = ins.get_yeras_months()
 
     # ini. MPI
     comm = MPI.COMM_WORLD
@@ -68,17 +72,16 @@ def main():
         stat_obj.write_stat_json(args.input_dir)
 
         # organize parallelized partioning 
-        partition_year_month = [] #contain lists of list, each list includes three element [train,year,month]
-        partition_names = list(partition.keys())
+        
+        real_years_months = []
+        for year in partition.keys():
+            for month in partition_data[year]:
+                 year_month = "Y_{}_M_{0:02}".format(year,month)
+                 real_years_months.extend(year_month)
+ 
+        broadcast_lists = [list(years),real_years_months]
 
-        broadcast_lists = []
-        for partition_name in partition_names:
-            partition_data = partition[partition_name]        
-            years = list(partition_data.keys())
-            broadcast_lists.append([partition_name,years])
         for nodes in range(1,p):
-            #ibroadcast_list = [partition_name,years,nodes]
-            #broadcast_lists.append(broadcast_list)
             comm.send(broadcast_lists,dest=nodes) 
            
         message_counter = 1
@@ -87,36 +90,34 @@ def main():
             message_counter = message_counter + 1 
             print("Message in from slaver",message_in) 
             
-        write_sequence_file(args.output_dir,args.seq_length,args.sequences_per_file)
+        #write_sequence_file(args.output_dir,args.seq_length,args.sequences_per_file)
  
     else:
         message_in = comm.recv()
         print ("My rank,", my_rank)   
         print("message_in",message_in)
-
-        # open statistics file and feed it to norm-instance
-        print("Opening json-file: "+os.path.join(args.input_dir,"statistics.json"))
-        with open(os.path.join(args.input_dir,"statistics.json")) as js_file:
-            stats = json.load(js_file)
-        #loop the partitions (train,val,test)
-        for partition in message_in:
-            print("partition on slave ",partition)
-            partition_name = partition[0]
-            save_output_dir =  os.path.join(args.output_dir,partition_name)
-            for year in partition[1]:
-               input_file = "X_" + '{0:02}'.format(my_rank) + ".pkl"
-               temp_file = "T_" + '{0:02}'.format(my_rank) + ".pkl"
-               input_dir = os.path.join(args.input_dir,year)
-               temp_file = os.path.join(input_dir,temp_file )
-               input_file = os.path.join(input_dir,input_file)
-               #Initilial instance
-               # create the tfrecords-files
-               read_frames_and_save_tf_records(year=year,month=my_rank,stats=stats,output_dir=save_output_dir, \
-                                               input_file=input_file,temp_input_file=temp_file,vars_in=args.variables, \
-                                               partition_name=partition_name,seq_length=args.seq_length, \
-                                               height=args.height,width=args.width,sequences_per_file=args.sequences_per_file)   
-
-            print("Year {} finished",year)
+        
+        years = list(message_in[0])
+        real_years_months = message_in[1] 
+   
+        for year in years:
+            #check if the year_rank is in the datasplit_dict which we want to process, we will skip the month that not in the datasplit_dict
+            year_rank = "Y_{}_M_{0:02}".format(year,rank)
+            if year_rank in real_years_months:
+                input_file = "X_" + '{0:02}'.format(my_rank) + ".pkl"
+                temp_file = "T_" + '{0:02}'.format(my_rank) + ".pkl"
+                input_dir = os.path.join(args.input_dir,year)
+                temp_file = os.path.join(input_dir,temp_file)
+                input_file = os.path.join(input_dir,input_file)
+                #Initilial instance
+                ins2 = ERA5Pkl2Tfrecords(input_dir=args.input_dir,output_dir=args.output_dir,
+                            datasplit_config=args.datasplit_config,vars_in=args.vars_in,
+                            hparams_dict_config=args.hparams_dict_config,sequences_per_file=args.sequences_per_file)
+                # create the tfrecords-files
+                ins2.read_pkl_and_save_tfrecords(year=year,month=my_rank)
+                print("Year {} finished",year)
+            else:
+                print (year_rank + " is not in the datasplit_dic, will skip the process")
         message_out = ("Node:",str(my_rank),"finished","","\r\n")
         print ("Message out for slaves:",message_out)
         comm.send(message_out,dest=0)
