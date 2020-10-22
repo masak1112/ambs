@@ -422,50 +422,6 @@ class ERA5Dataset(ERA5Pkl2Tfrecords):
 #         sequence_lengths = [int(sequence_length.strip()) for sequence_length in sequence_lengths]
 #         return np.sum(np.array(sequence_lengths) >= self.hparams.sequence_length)
 
-#     def filter(self, serialized_example):
-#         return tf.convert_to_tensor(True)
-
-#     def make_dataset(self, batch_size):
-#         def parser(serialized_example):
-#             seqs = OrderedDict()
-#             keys_to_features = {
-#                 'width': tf.FixedLenFeature([], tf.int64),
-#                 'height': tf.FixedLenFeature([], tf.int64),
-#                 'sequence_length': tf.FixedLenFeature([], tf.int64),
-#                 'channels': tf.FixedLenFeature([],tf.int64),
-#                 't_start':  tf.VarLenFeature(tf.int64),
-#                 'images/encoded': tf.VarLenFeature(tf.float32)
-#             }
-
-#             parsed_features = tf.parse_single_example(serialized_example, keys_to_features)
-#             seq = tf.sparse_tensor_to_dense(parsed_features["images/encoded"])
-#             T_start = tf.sparse_tensor_to_dense(parsed_features["t_start"])
-#             images = []
-#             print("Image shape {}, {},{},{}".format(self.video_shape[0],self.image_shape[0],self.image_shape[1], self.image_shape[2]))
-#             images = tf.reshape(seq, [self.video_shape[0],self.image_shape[0],self.image_shape[1], self.image_shape[2]], name = "reshape_new")
-#             seqs["images"] = images
-#             seqs["T_start"] = T_start
-#             return seqs
-#         filenames = self.filenames
-#         shuffle = self.mode == 'train' or (self.mode == 'val' and self.hparams.shuffle_on_val)
-#         if shuffle:
-#             random.shuffle(filenames)
-#         dataset = tf.data.TFRecordDataset(filenames, buffer_size = 8* 1024 * 1024) 
-#         dataset = dataset.filter(self.filter)
-#         if shuffle:
-#             dataset = dataset.apply(tf.contrib.data.shuffle_and_repeat(buffer_size =1024, count = self.num_epochs))
-#         else:
-#             dataset = dataset.repeat(self.num_epochs)
-#         num_parallel_calls = None if shuffle else 1
-#         dataset = dataset.apply(tf.contrib.data.map_and_batch(
-#             parser, batch_size, drop_remainder=True, num_parallel_calls=num_parallel_calls))s
-#         dataset = dataset.prefetch(batch_size)  
-#         return dataset
-    
-#     def make_batch(self, batch_size):
-#         dataset = self.make_dataset_v2(batch_size)
-#         iterator = dataset.make_one_shot_iterator()
-#         return iterator.get_next()
     
     
     
@@ -485,14 +441,3 @@ def _int64_feature(value):
     return tf.train.Feature(int64_list=tf.train.Int64List(value=[value]))
 
 
-
-
-if __name__ == "__main__":
-
-    input_dir =  "/p/project/deepacf/deeprain/video_prediction_shared_folder/preprocessedData/era5-Y2017to2017M01to12_wb025-160x128-2970N1500W-T2_MSL_gph500_test/"
-    output_dir = "/p/project/deepacf/deeprain/video_prediction_shared_folder/preprocessedData/test/tfrecords/"
-    datasplit_config = "/p/project/deepacf/deeprain/bing/ambs/video_prediction_tools/data_split/cv_test.json"
-    hparams_path = "/p/project/deepacf/deeprain/bing/ambs/video_prediction_tools/hparams/era5/convLSTM/model_hparams.json"
-    model_hparams_dict = get_model_hparams_dict(hparams_path)
-    case1 = ERA5Dataset(seed=1234,input_dir=input_dir,output_dir=output_dir,datasplit_config=datasplit_config,hparams_dict=model_hparams_dict,sequences_per_file=128,vars_in=["T2","MSL","gph500"])
-    case1.get_tfrecords_filesnames_base_datasplit()
