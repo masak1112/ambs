@@ -22,4 +22,3 @@ fi
 source ../video_prediction_tools/env_setup/modules_train.sh
 #Test for process step2
 python -m pytest  test_era5_data.py
-

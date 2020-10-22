@@ -28,21 +28,21 @@ from video_prediction.datasets.era5_dataset import *
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("input_dir", type=str)
-    parser.add_argument("output_dir", type=str)
-    parser.add_argument("datasplit_config",type=str,help="The path to the datasplit_config json file which contains the details of train/val/testing")
-    # Add vars for ensuring proper normalization and reshaping of sequences
-    parser.add_argument("-vars_in","--variables",dest="variables", nargs='+', type=str, help="Names of input variables.")
-    parser.add_argument("-hparams_dict_config","--hparams", type=str, help="The path to the dict that contains hparameters.",default="")
+    parser.add_argument("-input_dir", type=str)
+    parser.add_argument("-output_dir", type=str)
+    parser.add_argument("-datasplit_config",type=str,help="The path to the datasplit_config json file which contains the details of train/val/testing")
+    parser.add_argument("-hparams_dict_config", type=str, help="The path to the dict that contains hparameters.",default="")
     parser.add_argument("-sequences_per_file",type=int,default=20)
     args = parser.parse_args()
     ins = ERA5Pkl2Tfrecords(input_dir=args.input_dir,output_dir=args.output_dir,
-                            datasplit_config=args.datasplit_config,vars_in=args.vars_in,
-                            hparams_dict_config=args.hparams_dict_config,sequences_per_file=args.sequences_per_file)
+                            datasplit_config=args.datasplit_config,
+                            hparams_dict_config=args.hparams_dict_config,
+                            sequences_per_file=args.sequences_per_file)
     
     partition = ins.data_dict
-    years, months = ins.get_yeras_months()
-
+    partition_data = partition.values()
+    years, months = ins.get_years_months()
+    input_dir_pkl = os.path.join(args.input_dir,"pickle")
     # ini. MPI
     comm = MPI.COMM_WORLD
     my_rank = comm.Get_rank()  # rank of the node
@@ -51,8 +51,8 @@ def main():
     if my_rank == 0:
         # retrieve final statistics first (not parallelized!)
         # some preparatory steps
-        stat_dir_prefix = args.input_dir
-        varnames        = args.variables
+        stat_dir_prefix =  input_dir_pkl
+        varnames        = ins.vars_in
     
         vars_uni, varsind, nvars = get_unique_vars(varnames)
         stat_obj = Calc_data_stat(nvars)                            # init statistic-instance
@@ -64,20 +64,25 @@ def main():
             for year in values.keys():
                 file_dir = os.path.join(stat_dir_prefix,year)
                 for month in values[year]:
-                    # process stat-file:
-                    stat_obj.acc_stat_master(file_dir,int(month))  # process monthly statistic-file  
-        
+                    if os.path.isfile(os.path.join(file_dir,"stat_" + '{0:02}'.format(month) + ".json")):
+                        # process stat-file:
+                        stat_obj.acc_stat_master(file_dir,int(month))  # process monthly statistic-file  
+                    else:
+                        raise ("The stat file does not exist:",os.path.join(file_dir,"stat_" + '{0:02}'.format(month) + ".json") )
         # finalize statistics and write to json-file
         stat_obj.finalize_stat_master(vars_uni)
-        stat_obj.write_stat_json(args.input_dir)
+        stat_obj.write_stat_json(input_dir_pkl)
 
         # organize parallelized partioning 
         
         real_years_months = []
-        for year in partition.keys():
-            for month in partition_data[year]:
-                 year_month = "Y_{}_M_{0:02}".format(year,month)
-                 real_years_months.extend(year_month)
+        for year_months in partition_data:
+            print("I am here year:",year_months)
+            for year in year_months.keys():
+                for month in year_months[year]:
+                     print("I am here month",month)
+                     year_month = "Y_{}_M_{}".format(year,month)
+                     real_years_months.append(year_month)
  
         broadcast_lists = [list(years),real_years_months]
 
@@ -102,7 +107,7 @@ def main():
    
         for year in years:
             #check if the year_rank is in the datasplit_dict which we want to process, we will skip the month that not in the datasplit_dict
-            year_rank = "Y_{}_M_{0:02}".format(year,rank)
+            year_rank = "Y_{}_M_{}".format(year,my_rank)
             if year_rank in real_years_months:
                 input_file = "X_" + '{0:02}'.format(my_rank) + ".pkl"
                 temp_file = "T_" + '{0:02}'.format(my_rank) + ".pkl"
@@ -111,7 +116,7 @@ def main():
                 input_file = os.path.join(input_dir,input_file)
                 #Initilial instance
                 ins2 = ERA5Pkl2Tfrecords(input_dir=args.input_dir,output_dir=args.output_dir,
-                            datasplit_config=args.datasplit_config,vars_in=args.vars_in,
+                            datasplit_config=args.datasplit_config,
                             hparams_dict_config=args.hparams_dict_config,sequences_per_file=args.sequences_per_file)
                 # create the tfrecords-files
                 ins2.read_pkl_and_save_tfrecords(year=year,month=my_rank)

@@ -27,11 +27,11 @@ import datetime
 
 
 class ERA5Pkl2Tfrecords(object):
-    def __init__(self,input_dir=None, output_dir=None,datasplit_config=None,vars_in=None,hparams_dict_config=None,sequences_per_file=128,norm="minmax"):
+    def __init__(self,input_dir=None, output_dir=None,datasplit_config=None,hparams_dict_config=None,sequences_per_file=128,norm="minmax"):
         """
         This class is used for converting pkl files to tfrecords
         args:
-            input_dir            : str, the parament path of pkl files directiory. This directory should be at "year" level
+            input_dir            : str, the parent path of pkl files directiory. This directory should be at "year" level
             outpout_dir          : str, the path to save the tfrecords files 
             datasplit_config     : the path pointing to the datasplit_config json file
             hparams_dict_config  : the path to the dict that contains hparameters,
