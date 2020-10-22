@@ -67,7 +67,7 @@ whose order is the following:
 In case that you want to perform experiments with varying configuration (e.g. another set of hyperparameters, but still the same input dataset for training), it is convenient to create individual runscripts from the templates. 
 This can be done with the help of `generate_workflow_runscripts.sh`. 
 
-The first argument `<runscript_name>` defines the (relative) path to the template runscript
+The first argument `<runscript_name>` defines the **relative path** to the template runscript
 which should be converted to an executable one. Note that only the suffix of the 
 template's name must be passed, e.g. `../HPC_scripts/train_era5` in order to create 
 a runscript for the training substep.
@@ -83,7 +83,7 @@ The experimental identifer can be passed by adding `-exp_id=<id>`while the path 
 
 *Specific example:*
 ``` bash
-./generate_workflow_runscripts.sh train_era5 venv_juwels -exp_id=exp_test -exp_dir=era5-Y2010toY2222M01to12-160x128-2970N1500W-T2_MSL_gph500
+./generate_workflow_runscripts.sh ../HPC_scripts/train_era5 venv_juwels -exp_id=exp_test -exp_dir=era5-Y2010toY2222M01to12-160x128-2970N1500W-T2_MSL_gph500
 ```
 
 ### Output folder structure and naming convention
