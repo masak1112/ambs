@@ -15,98 +15,85 @@ import matplotlib.pyplot as plt
 from json import JSONEncoder
 import pickle as pkl
 
-
-def add_tag_suffix(summary, tag_suffix):
-    summary_proto = tf.Summary()
-    summary_proto.ParseFromString(summary)
-    summary = summary_proto
-
-    for value in summary.value:
-        tag_split = value.tag.split('/')
-        value.tag = '/'.join([tag_split[0] + tag_suffix] + tag_split[1:])
-    return summary.SerializeToString()
-
-def generate_output_dir(output_dir, model,model_hparams,logs_dir,output_dir_postfix):
-    if output_dir is None:
-        list_depth = 0
-        model_fname = ''
-        for t in ('model=%s,%s' % (model, model_hparams)):
-            if t == '[':
-                list_depth += 1
-            if t == ']':
-                list_depth -= 1
-            if list_depth and t == ',':
-                t = '..'
-            if t in '=,':
-                t = '.'
-            if t in '[]':
-                t = ''
-            model_fname += t
-        output_dir = os.path.join(logs_dir, model_fname) + output_dir_postfix
-    return output_dir
+class TrainModel(object):
+    def __init__(input_dir=None,output_dir=None,datasplit_config=None,
+                       model_hparams_dict=None,model=None,
+                       checkpoint=None,dataset=None,
+                       gpu_mem_frac=None,seed=None):
+    
+        self.input_dir = input_dir
+        self.output_dir = output_dir
+        self.datasplit_config = datasplit_config
+        self.model_hparams_dict = model_hparams_dict
+        self.checkpoint = checkpoint
+        self.dataset = dataset
+        self.gpu_mem_frac = gpu_mem_frac
+        self.seed = seed
 
 
-def get_model_hparams_dict(model_hparams_dict):
-    """
-    Get model_hparams_dict from json file
-    """
-    model_hparams_dict_load = {}
-    if model_hparams_dict:
-        with open(model_hparams_dict) as f:
-            model_hparams_dict_load.update(json.loads(f.read()))
-    return model_hparams_dict
+    def __call__(self):
+        self.setup()
+        self.train()
+        self.plot()
+    
+    def setupt(self):
+        self.set_seed()
+        self.generate_output_dir()
+        self.resume_checkpoint()
 
-def resume_checkpoint(resume,checkpoint,output_dir):
-    """
-    Resume the existing model checkpoints and set checkpoint directory
-    """
-    if resume:
-        if checkpoint:
-            raise ValueError('resume and checkpoint cannot both be specified')
-        checkpoint = output_dir
-    return checkpoint
 
-def set_seed(seed):
-    if seed is not None:
-        tf.set_random_seed(seed)
-        np.random.seed(seed)
-        random.seed(seed)
+    def set_seed(self):
+        if self.seed is not None:
+            tf.set_random_seed(seed)
+            np.random.seed(seed)
+            random.seed(seed)
 
-def load_params_from_checkpoints_dir(model_hparams_dict,checkpoint,dataset,model):
-    model_hparams_dict_load = {}
-    if model_hparams_dict:
-        with open(model_hparams_dict) as f:
-            model_hparams_dict_load.update(json.loads(f.read()))
- 
-    if checkpoint:
-        checkpoint_dir = os.path.normpath(checkpoint)
-        if not os.path.isdir(checkpoint):
-            checkpoint_dir, _ = os.path.split(checkpoint_dir)
-        if not os.path.exists(checkpoint_dir):
-            raise FileNotFoundError(errno.ENOENT, os.strerror(errno.ENOENT), checkpoint_dir)
-        with open(os.path.join(checkpoint_dir, "options.json")) as f:
-            print("loading options from checkpoint %s" % args.checkpoint)
+
+    def generate_output_dir(self):
+        if self.output_dir is None:
+            raise ("Output_dir is None, Please define the proper output_dir")
+        else:
+           self.ouput_dir = os.path.join(self.output_dir,model)
+
+
+            
+    def get_model_hparams_dict(self):
+        """
+        Get model_hparams_dict from json file
+        """
+        self.model_hparams_dict_load = {}
+        if self.model_hparams_dict:
+            with open(self.model_hparams_dict) as f:
+                self.model_hparams_dict_load.update(json.loads(f.read()))
+        return self.model_hparams_dict
+
+
+    def load_params_from_checkpoints_dir(self):
+        self.get_model_hparams_dict()
+        if self.checkpoint:
+            self.checkpoint_dir = os.path.normpath(self.checkpoint)
+        if not os.path.isdir(self.checkpoint):
+            self.checkpoint_dir, _ = os.path.split(self.checkpoint_dir)
+        if not os.path.exists(self.checkpoint_dir):
+            raise FileNotFoundError(errno.ENOENT, os.strerror(errno.ENOENT), self.checkpoint_dir)
+        with open(os.path.join(self.checkpoint_dir, "options.json")) as f:
+            print("loading options from checkpoint %s" % self.checkpoint)
             options = json.loads(f.read())
             dataset = dataset or options['dataset']
             model = model or options['model']
         try:
-            with open(os.path.join(checkpoint_dir, "model_hparams.json")) as f:
-                model_hparams_dict_load.update(json.loads(f.read()))
+            with open(os.path.join(self.checkpoint_dir, "model_hparams.json")) as f:
+                self.model_hparams_dict_load.update(json.loads(f.read()))
         except FileNotFoundError:
             print("model_hparams.json was not loaded because it does not exist")
-    return dataset, model, model_hparams_dict_load
 
-def setup_dataset(dataset,input_dir,val_input_dir):
-    VideoDataset = datasets.get_dataset_class(dataset)
-    train_dataset = VideoDataset(
-        input_dir,
-        mode='train')
-    val_dataset = VideoDataset(
-        val_input_dir or input_dir,
-        mode='val')
-    variable_scope = tf.get_variable_scope()
-    variable_scope.set_use_resource(True)
-    return train_dataset,val_dataset,variable_scope
+    def setup_dataset(self.):
+        VideoDataset = datasets.get_dataset_class(dataset)
+        self.train_dataset = VideoDataset(input_dir,mode='train',datasplit_dict=None)
+        self.val_dataset = VideoDataset(input_dir, mode='val',datasplit_dict=None)
+        self.variable_scope = tf.get_variable_scope()
+        self.variable_scope.set_use_resource(True)
+      
 
 def setup_model(model,model_hparams_dict,train_dataset,model_hparams):
     """
