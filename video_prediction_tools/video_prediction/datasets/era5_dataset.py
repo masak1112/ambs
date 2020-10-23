@@ -31,7 +31,7 @@ class ERA5Pkl2Tfrecords(object):
         """
         This class is used for converting pkl files to tfrecords
         args:
-            input_dir            : str, the parent path of pkl files directiory. This directory should be at "year" level
+            input_dir            : str, the path to the PreprocessData directory which is parent directory of "Pickle" and "tfrecords" files directiory. 
             outpout_dir          : str, the path to save the tfrecords files 
             datasplit_config     : the path pointing to the datasplit_config json file
             hparams_dict_config  : the path to the dict that contains hparameters,
