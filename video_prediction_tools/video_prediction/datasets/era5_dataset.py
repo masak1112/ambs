@@ -310,9 +310,13 @@ class ERA5Dataset(ERA5Pkl2Tfrecords):
             raise ValueError('Invalid mode %s' % self.mode)
         if not os.path.exists(self.input_dir_tfrecords):
             raise FileNotFoundError("input_dir %s does not exist" % self.input_dir_tfrecords)
-        self.max_epochs = self.hparams.max_epochs
-
-
+        self.datasplit_dict_path = datasplit_config
+        self.data_dict = self.get_datasplit()
+        self.hparams_dict_config = hparams_dict_config
+        self.hparams_dict = self.get_model_hparams_dict()
+        self.hparams = self.parse_hparams() 
+        self.get_tfrecords_filesnames_base_datasplit()
+      
     def get_tfrecords_filesnames_base_datasplit(self):
         """
         Get  absolute .tfrecord path names based on the data splits patterns
@@ -360,6 +364,7 @@ class ERA5Dataset(ERA5Pkl2Tfrecords):
         args:
               batch_size: int, the size of samples fed into the models per iteration
         """
+        self.num_epochs = self.hparams.max_epochs
         def parser(serialized_example):
             seqs = OrderedDict()
             keys_to_features = {

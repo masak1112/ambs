@@ -16,10 +16,10 @@ from json import JSONEncoder
 import pickle as pkl
 
 class TrainModel(object):
-    def __init__(input_dir=None,output_dir=None,datasplit_config=None,
-                       model_hparams_dict=None,model=None,
-                       checkpoint=None,dataset=None,
-                       gpu_mem_frac=None,seed=None):
+    def __init__(self,input_dir=None,output_dir=None,datasplit_config=None,
+                 model_hparams_dict=None,model=None,
+                 checkpoint=None,dataset=None,
+                 gpu_mem_frac=None,seed=None):
     
         self.input_dir = input_dir
         self.output_dir = output_dir
@@ -36,7 +36,7 @@ class TrainModel(object):
         self.train()
         self.plot()
     
-    def setupt(self):
+    def setup(self):
         self.set_seed()
         self.generate_output_dir()
         self.resume_checkpoint()
@@ -44,9 +44,9 @@ class TrainModel(object):
 
     def set_seed(self):
         if self.seed is not None:
-            tf.set_random_seed(seed)
-            np.random.seed(seed)
-            random.seed(seed)
+            tf.set_random_seed(self.seed)
+            np.random.seed(self.seed)
+            random.seed(self.seed)
 
 
     def generate_output_dir(self):
@@ -56,7 +56,6 @@ class TrainModel(object):
            self.ouput_dir = os.path.join(self.output_dir,model)
 
 
-            
     def get_model_hparams_dict(self):
         """
         Get model_hparams_dict from json file
@@ -78,88 +77,85 @@ class TrainModel(object):
             raise FileNotFoundError(errno.ENOENT, os.strerror(errno.ENOENT), self.checkpoint_dir)
         with open(os.path.join(self.checkpoint_dir, "options.json")) as f:
             print("loading options from checkpoint %s" % self.checkpoint)
-            options = json.loads(f.read())
-            dataset = dataset or options['dataset']
-            model = model or options['model']
+            self.options = json.loads(f.read())
+            self.dataset = dataset or options['dataset']
+            self.model = model or options['model']
         try:
             with open(os.path.join(self.checkpoint_dir, "model_hparams.json")) as f:
                 self.model_hparams_dict_load.update(json.loads(f.read()))
         except FileNotFoundError:
             print("model_hparams.json was not loaded because it does not exist")
 
-    def setup_dataset(self.):
+    def setup_dataset(self):
         VideoDataset = datasets.get_dataset_class(dataset)
         self.train_dataset = VideoDataset(input_dir,mode='train',datasplit_dict=None)
         self.val_dataset = VideoDataset(input_dir, mode='val',datasplit_dict=None)
-        self.variable_scope = tf.get_variable_scope()
-        self.variable_scope.set_use_resource(True)
+        #self.variable_scope = tf.get_variable_scope()
+        #self.variable_scope.set_use_resource(True)
       
-
-def setup_model(model,model_hparams_dict,train_dataset,model_hparams):
-    """
-    Set up model instance
-    """
-    VideoPredictionModel = models.get_model_class(model)
-    hparams_dict = dict(model_hparams_dict)
-    hparams_dict.update({
-        'context_frames': train_dataset.hparams.context_frames,
-        'sequence_length': train_dataset.hparams.sequence_length,
-        'repeat': train_dataset.hparams.time_shift,
-    })
-    model = VideoPredictionModel(
-        hparams_dict=hparams_dict,
-        hparams=model_hparams)
-    return model
-
-def save_dataset_model_params_to_checkpoint_dir(args,output_dir,train_dataset,model):
-    if not os.path.exists(output_dir):
-        os.makedirs(output_dir)
-    with open(os.path.join(output_dir, "options.json"), "w") as f:
-        f.write(json.dumps(vars(args), sort_keys=True, indent=4))
-    with open(os.path.join(output_dir, "dataset_hparams.json"), "w") as f:
-        f.write(json.dumps(train_dataset.hparams.values(), sort_keys=True, indent=4))
-    with open(os.path.join(args.output_dir, "model_hparams.json"), "w") as f:
-        f.write(json.dumps(model.hparams.values(), sort_keys=True, indent=4))
-    return None
-
-def make_dataset_iterator(train_dataset, val_dataset, batch_size ):
-    train_tf_dataset = train_dataset.make_dataset_v2(batch_size)
-    train_iterator = train_tf_dataset.make_one_shot_iterator()
-    # The `Iterator.string_handle()` method returns a tensor that can be evaluated
-    # and used to feed the `handle` placeholder.
-    train_handle = train_iterator.string_handle()
-    val_tf_dataset = val_dataset.make_dataset_v2(batch_size)
-    val_iterator = val_tf_dataset.make_one_shot_iterator()
-    val_handle = val_iterator.string_handle()
-    iterator = tf.data.Iterator.from_string_handle(
-        train_handle, train_tf_dataset.output_types, train_tf_dataset.output_shapes)
-    inputs = train_iterator.get_next()
-
-    return inputs,train_handle, val_handle
-
-
-def plot_train(train_losses,val_losses,step,output_dir):
-    """
-    Function to plot training losses for train and val datasets against steps
-    params:
-    train_losses/val_losses (list): train losses, which length should be equal to the number of training steps
-    step (int): current training step
-    output_dir (str): the path to save the plot
     
-    return: None
-    """
+    def setup_model(self):
+        """
+        Set up model instance
+        """
+        VideoPredictionModel = models.get_model_class(self.model)
+        self.hparams_dict = dict(self.model_hparams_dict)
+        self.hparams_dict.update({
+                                   'context_frames' : self.train_dataset.hparams.context_frames,
+                                   'sequence_length': self.train_dataset.hparams.sequence_length,
+                                 })
+        self.model = VideoPredictionModel(
+                                    hparams_dict=self.hparams_dict,
+                                    hparams=self.model_hparams)
+
+
+    def save_dataset_model_params_to_checkpoint_dir(self,args):
+        if not os.path.exists(self.output_dir):
+            os.makedirs(self.output_dir)
+        with open(os.path.join(self.output_dir, "options.json"), "w") as f:
+            f.write(json.dumps(vars(args), sort_keys=True, indent=4))
+        with open(os.path.join(self.output_dir, "dataset_hparams.json"), "w") as f:
+            f.write(json.dumps(train_dataset.hparams.values(), sort_keys=True, indent=4))
+        with open(os.path.join(self.output_dir, "model_hparams.json"), "w") as f:
+            f.write(json.dumps(self.model.hparams.values(), sort_keys=True, indent=4))
+
+    def make_dataset_iterator(self):
+        train_tf_dataset = train_dataset.make_dataset_v2(batch_size)
+        train_iterator = train_tf_dataset.make_one_shot_iterator()
+        # The `Iterator.string_handle()` method returns a tensor that can be evaluated
+        # and used to feed the `handle` placeholder.
+        train_handle = train_iterator.string_handle()
+        val_tf_dataset = val_dataset.make_dataset_v2(batch_size)
+        val_iterator = val_tf_dataset.make_one_shot_iterator()
+        val_handle = val_iterator.string_handle()
+        iterator = tf.data.Iterator.from_string_handle(
+            train_handle, train_tf_dataset.output_types, train_tf_dataset.output_shapes)
+        inputs = train_iterator.get_next()
+
+
+
+    def plot_train(train_losses,val_losses,step,output_dir):
+        """
+        Function to plot training losses for train and val datasets against steps
+        params:
+            train_losses/val_losses (list): train losses, which length should be equal to the number of training steps
+            step (int): current training step
+            output_dir (str): the path to save the plot
+    
+        return: None
+        """ 
    
-    iterations = list(range(len(train_losses)))
-    if len(train_losses) != len(val_losses) or len(train_losses) != step +1 : raise ValueError("The length of training losses must be equal to the length of val losses and  step +1 !")  
-    plt.plot(iterations, train_losses, 'g', label='Training loss')
-    plt.plot(iterations, val_losses, 'b', label='validation loss')
-    plt.title('Training and Validation loss')
-    plt.xlabel('Iterations')
-    plt.ylabel('Loss')
-    plt.legend()
-    plt.savefig(os.path.join(output_dir,'plot_train.png'))
-    plt.close()
-    return None
+        iterations = list(range(len(train_losses)))
+        if len(train_losses) != len(val_losses) or len(train_losses) != step +1 : raise ValueError("The length of training losses must be equal to the length of val losses and  step +1 !")  
+        plt.plot(iterations, train_losses, 'g', label='Training loss')
+        plt.plot(iterations, val_losses, 'b', label='validation loss')
+        plt.title('Training and Validation loss')
+        plt.xlabel('Iterations')
+        plt.ylabel('Loss')
+        plt.legend()
+        plt.savefig(os.path.join(output_dir,'plot_train.png'))
+        plt.close()
+   
 
 def save_results_to_dict(results_dict,output_dir):
     with open(os.path.join(output_dir,"results.json"),"w") as fp:
