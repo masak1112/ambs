@@ -104,11 +104,6 @@ class ERA5Dataset(object):
         parsed_hparams = self.get_default_hparams().override_from_dict(self.hparams_dict or {})
         return parsed_hparams
 
-
-
-
-
-
       
     def get_tfrecords_filesnames_base_datasplit(self):
         """

@@ -41,10 +41,11 @@ class TrainModel(object):
         self.model_hparams_dict = model_hparams_dict
         self.checkpoint = checkpoint
         self.dataset = dataset
+        self.model = model
         self.gpu_mem_frac = gpu_mem_frac
         self.seed = seed
         self.generate_output_dir()
-        self.get_model_hparams_dict()
+        self.hparams_dict = self.get_model_hparams_dict()
 
 
     def __call__(self):
@@ -54,9 +55,11 @@ class TrainModel(object):
     
     def setup(self):
         self.set_seed()
-        self.generate_output_dir()
         self.resume_checkpoint()
-
+        self.load_params_from_checkpoints_dir()
+        self.setup_dataset()
+        self.setup_model()
+        self.make_dataset_iterator()
 
     def set_seed(self):
         if self.seed is not None:
@@ -69,7 +72,7 @@ class TrainModel(object):
         if self.output_dir is None:
             raise ("Output_dir is None, Please define the proper output_dir")
         else:
-           self.ouput_dir = os.path.join(self.output_dir,model)
+           self.ouput_dir = os.path.join(self.output_dir,self.model)
 
 
     def get_model_hparams_dict(self):
@@ -80,7 +83,7 @@ class TrainModel(object):
         if self.model_hparams_dict:
             with open(self.model_hparams_dict) as f:
                 self.model_hparams_dict_load.update(json.loads(f.read()))
-        return self.model_hparams_dict
+        return self.model_hparams_dict_load
 
 
     def load_params_from_checkpoints_dir(self):
@@ -104,6 +107,9 @@ class TrainModel(object):
 
     
     def setup_dataset(self):
+        """
+        Setup train and val dataset instance with the corresponding data split configuration
+        """
         VideoDataset = datasets.get_dataset_class(self.dataset)
         self.train_dataset = VideoDataset(input_dir=self.input_dir,mode='train',datasplit_config=self.datasplit_dict)
         self.val_dataset = VideoDataset(input_dir=self.input_dir, mode='val',datasplit_config=self.datasplit_dict)
@@ -116,15 +122,31 @@ class TrainModel(object):
         Set up model instance
         """
         VideoPredictionModel = models.get_model_class(self.model)
-        self.hparams_dict = dict(self.model_hparams_dict)
         self.hparams_dict.update({
                                    'context_frames' : self.train_dataset.hparams.context_frames,
                                    'sequence_length': self.train_dataset.hparams.sequence_length,
                                  })
         self.model = VideoPredictionModel(
                                     hparams_dict=self.hparams_dict,
-                                    hparams=self.model_hparams)
+                                       )
+                                    
 
+    def make_dataset_iterator(self):
+        """
+        Prepare the dataset interator for training and validation
+        """
+        self.batch_size = self.hparams_dict["batch_size"]
+        self.train_tf_dataset = train_dataset.make_dataset(self.batch_size)
+        self.train_iterator = self.train_tf_dataset.make_one_shot_iterator()
+        # The `Iterator.string_handle()` method returns a tensor that can be evaluated
+        # and used to feed the `handle` placeholder.
+        self.train_handle = self.train_iterator.string_handle()
+        self.val_tf_dataset = val_dataset.make_dataset(self.batch_size)
+        self.val_iterator = self.val_tf_dataset.make_one_shot_iterator()
+        self.val_handle = self.val_iterator.string_handle()
+        self.iterator = tf.data.Iterator.from_string_handle(
+            self.train_handle, self.train_tf_dataset.output_types, self.train_tf_dataset.output_shapes)
+        self.inputs = self.train_iterator.get_next()
 
     def save_dataset_model_params_to_checkpoint_dir(self,args):
         if not os.path.exists(self.output_dir):
@@ -135,21 +157,8 @@ class TrainModel(object):
             f.write(json.dumps(train_dataset.hparams.values(), sort_keys=True, indent=4))
         with open(os.path.join(self.output_dir, "model_hparams.json"), "w") as f:
             f.write(json.dumps(self.model.hparams.values(), sort_keys=True, indent=4))
-
-    def make_dataset_iterator(self):
-        train_tf_dataset = train_dataset.make_dataset_v2(batch_size)
-        train_iterator = train_tf_dataset.make_one_shot_iterator()
-        # The `Iterator.string_handle()` method returns a tensor that can be evaluated
-        # and used to feed the `handle` placeholder.
-        train_handle = train_iterator.string_handle()
-        val_tf_dataset = val_dataset.make_dataset_v2(batch_size)
-        val_iterator = val_tf_dataset.make_one_shot_iterator()
-        val_handle = val_iterator.string_handle()
-        iterator = tf.data.Iterator.from_string_handle(
-            train_handle, train_tf_dataset.output_types, train_tf_dataset.output_shapes)
-        inputs = train_iterator.get_next()
-
-
+   
+     @staticmethod
     def plot_train(train_losses,val_losses,step,output_dir):
         """
         Function to plot training losses for train and val datasets against steps
@@ -171,16 +180,16 @@ class TrainModel(object):
         plt.savefig(os.path.join(output_dir,'plot_train.png'))
         plt.close()
    
+    @staticmethod
+    def save_results_to_dict(results_dict,output_dir):
+        with open(os.path.join(output_dir,"results.json"),"w") as fp:
+            json.dump(results_dict,fp)    
 
-def save_results_to_dict(results_dict,output_dir):
-    with open(os.path.join(output_dir,"results.json"),"w") as fp:
-        json.dump(results_dict,fp)    
-
-def save_results_to_pkl(train_losses,val_losses, output_dir):
-     with open(os.path.join(output_dir,"train_losses.pkl"),"wb") as f:
-        pkl.dump(train_losses,f)
-     with open(os.path.join(output_dir,"val_losses.pkl"),"wb") as f:
-        pkl.dump(val_losses,f) 
+    def save_results_to_pkl(train_losses,val_losses, output_dir):
+         with open(os.path.join(output_dir,"train_losses.pkl"),"wb") as f:
+            pkl.dump(train_losses,f)
+         with open(os.path.join(output_dir,"val_losses.pkl"),"wb") as f:
+            pkl.dump(val_losses,f) 
  
 
 def main():

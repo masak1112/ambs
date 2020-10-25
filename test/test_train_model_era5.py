@@ -41,5 +41,14 @@ def test_setup_dataset(train_model_case1):
     assert train_fnames[0]!=val_fnames[0]
 
 def test_setup_model(train_model_case1):
+    print("setup model:",train_model_case1.model_hparams_dict)
     train_model_case1.setup_model()
     assert train_model_case1.hparams_dict["context_frames"] == 10
+
+
+
+def test_make_dataset_iterator(train_model_case1):
+    train_model_case1.make_dataset_iterator()
+    assert train_model_case1.batch_size == 4
+    with tf.Session() as sess:
+        sess.run
