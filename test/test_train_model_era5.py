@@ -30,11 +30,16 @@ def train_model_case1(input_dir=input_dir,output_dir=output_dir,datasplit_config
 def test_get_model_hparams_dict(train_model_case1):
     train_model_case1.get_model_hparams_dict()
     assert list(train_model_case1.model_hparams_dict_load.keys())[0] == "batch_size"
+    assert train_model_case1.dataset == "era5"
 
+def test_setup_dataset(train_model_case1):
+    train_model_case1.setup_dataset()
+    train_fnames = train_model_case1.train_dataset.filenames
+    val_fnames = train_model_case1.val_dataset.filenames
+    assert len(train_fnames) != 0
+    assert len(val_fnames) != 0
+    assert train_fnames[0]!=val_fnames[0]
 
-
-
-
-
-
-
+def test_setup_model(train_model_case1):
+    train_model_case1.setup_model()
+    assert train_model_case1.hparams_dict["context_frames"] == 10

@@ -16,19 +16,35 @@ from json import JSONEncoder
 import pickle as pkl
 
 class TrainModel(object):
-    def __init__(self,input_dir=None,output_dir=None,datasplit_config=None,
+    def __init__(self,input_dir=None,output_dir=None,datasplit_dict=None,
                  model_hparams_dict=None,model=None,
                  checkpoint=None,dataset=None,
                  gpu_mem_frac=None,seed=None):
-    
+        
+        """
+        This class aims to train the models
+        args:
+            input_dir            : str, the path to the PreprocessData directory which is parent directory of "Pickle" and "tfrecords" files directiory. 
+            output_dir           : str, directory where json files, summary, model, gifs, etc are saved. "
+                                             "default is logs_dir/model_fname, where model_fname consists of "
+                                             "information from model and model_hparams
+            datasplit_dict       : str, the path pointing to the datasplit_config json file
+            hparams_dict_dict    : str, the path to the dict that contains hparameters,
+            dataset              :str, dataset class name
+            model                :str, model class name
+            model_hparams_dict   :str, a json file of model hyperparameters
+            gpu_mem_frac         :float, fraction of gpu memory to use"
+        """ 
         self.input_dir = input_dir
         self.output_dir = output_dir
-        self.datasplit_config = datasplit_config
+        self.datasplit_dict = datasplit_dict
         self.model_hparams_dict = model_hparams_dict
         self.checkpoint = checkpoint
         self.dataset = dataset
         self.gpu_mem_frac = gpu_mem_frac
         self.seed = seed
+        self.generate_output_dir()
+        self.get_model_hparams_dict()
 
 
     def __call__(self):
@@ -86,14 +102,15 @@ class TrainModel(object):
         except FileNotFoundError:
             print("model_hparams.json was not loaded because it does not exist")
 
+    
     def setup_dataset(self):
-        VideoDataset = datasets.get_dataset_class(dataset)
-        self.train_dataset = VideoDataset(input_dir,mode='train',datasplit_dict=None)
-        self.val_dataset = VideoDataset(input_dir, mode='val',datasplit_dict=None)
+        VideoDataset = datasets.get_dataset_class(self.dataset)
+        self.train_dataset = VideoDataset(input_dir=self.input_dir,mode='train',datasplit_config=self.datasplit_dict)
+        self.val_dataset = VideoDataset(input_dir=self.input_dir, mode='val',datasplit_config=self.datasplit_dict)
         #self.variable_scope = tf.get_variable_scope()
         #self.variable_scope.set_use_resource(True)
       
-    
+
     def setup_model(self):
         """
         Set up model instance
@@ -133,7 +150,6 @@ class TrainModel(object):
         inputs = train_iterator.get_next()
 
 
-
     def plot_train(train_losses,val_losses,step,output_dir):
         """
         Function to plot training losses for train and val datasets against steps
@@ -142,7 +158,6 @@ class TrainModel(object):
             step (int): current training step
             output_dir (str): the path to save the plot
     
-        return: None
         """ 
    
         iterations = list(range(len(train_losses)))
@@ -173,23 +188,15 @@ def main():
     parser.add_argument("--input_dir", type=str, required=True, help="either a directory containing subdirectories "
                                                                      "train, val, test, etc, or a directory containing "
                                                                      "the tfrecords")
-    parser.add_argument("--val_input_dir", type=str, help="directories containing the tfrecords. default: input_dir")
-    parser.add_argument("--logs_dir", default='logs', help="ignored if output_dir is specified")
     parser.add_argument("--output_dir", help="output directory where json files, summary, model, gifs, etc are saved. "
                                              "default is logs_dir/model_fname, where model_fname consists of "
                                              "information from model and model_hparams")
-    parser.add_argument("--output_dir_postfix", default="")
     parser.add_argument("--checkpoint", help="directory with checkpoint or checkpoint name (e.g. checkpoint_dir/model-200000)")
-    parser.add_argument("--resume", action='store_true', help='resume from lastest checkpoint in output_dir.')
-
     parser.add_argument("--dataset", type=str, help="dataset class name")
     parser.add_argument("--model", type=str, help="model class name")
-    parser.add_argument("--model_hparams", type=str, help="a string of comma separated list of model hyperparameters") 
     parser.add_argument("--model_hparams_dict", type=str, help="a json file of model hyperparameters")
-
     parser.add_argument("--gpu_mem_frac", type=float, default=0.99, help="fraction of gpu memory to use")
     parser.add_argument("--seed",default=1234, type=int)
-
     args = parser.parse_args()
      
     #Set seed  
@@ -295,25 +302,6 @@ def main():
                 #Fetch losses for validation data
                 val_fetches = {}
                 #val_fetches["latent_loss"] = model.latent_loss
-                val_fetches["total_loss"] = model.total_loss
-
-
-            if model.__class__.__name__ == "SAVPVideoPredictionModel":
-                fetches['d_loss'] = model.d_loss
-                fetches['g_loss'] = model.g_loss
-                fetches['d_losses'] = model.d_losses
-                fetches['g_losses'] = model.g_losses
-                results = sess.run(fetches)
-                train_losses.append(results["g_losses"])
-                val_fetches = {}
-                #val_fetches["latent_loss"] = model.latent_loss
-                #For SAVP the total loss is the generator loses
-                val_fetches["total_loss"] = model.g_losses
-
-            val_fetches["summary"] = model.summary_op
-            val_results = sess.run(val_fetches,feed_dict={train_handle: val_handle_eval})
-            val_losses.append(val_results["total_loss"])
-
             summary_writer.add_summary(results["summary"],results["global_step"])
             summary_writer.add_summary(val_results["summary"],results["global_step"])
             summary_writer.flush()
