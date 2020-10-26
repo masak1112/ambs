@@ -60,7 +60,10 @@ class TrainModel(object):
         self.setup_dataset()
         self.setup_model()
         self.make_dataset_iterator()
+        self.setup_graph()
+        self.save_dataset_model_params_to_checkpoint_dir()
 
+ 
     def set_seed(self):
         if self.seed is not None:
             tf.set_random_seed(self.seed)
@@ -72,7 +75,7 @@ class TrainModel(object):
         if self.output_dir is None:
             raise ("Output_dir is None, Please define the proper output_dir")
         else:
-           self.ouput_dir = os.path.join(self.output_dir,self.model)
+           self.output_dir = os.path.join(self.output_dir,self.model)
 
 
     def get_model_hparams_dict(self):
@@ -125,11 +128,17 @@ class TrainModel(object):
         Set up model instance
         """
         VideoPredictionModel = models.get_model_class(self.model)
-        self.model = VideoPredictionModel(
+        self.video_model = VideoPredictionModel(
                                     hparams_dict=self.hparams_dict,
                                        )
     def setup_graph(self):
-        self.model.build_graph(self.inputs)                                    
+        """
+            build model graph
+            since era5 tfrecords include T_start, we need to remove it from the tfrecord when we train the model, otherwise the model will raise error 
+        """
+        if self.dataset == "era5":
+           del  self.video_model.inputs["T_start"]
+        self.video_model.build_graph(self.inputs)                                    
 
     def make_dataset_iterator(self):
         """
@@ -149,23 +158,39 @@ class TrainModel(object):
         self.inputs = self.iterator.get_next()
 
     def save_dataset_model_params_to_checkpoint_dir(self,args):
+        """
+        Save all setup configurations such as args, data_hparams, and model_hparams into output directory
+        """
         if not os.path.exists(self.output_dir):
             os.makedirs(self.output_dir)
         with open(os.path.join(self.output_dir, "options.json"), "w") as f:
             f.write(json.dumps(vars(args), sort_keys=True, indent=4))
         with open(os.path.join(self.output_dir, "dataset_hparams.json"), "w") as f:
-            f.write(json.dumps(train_dataset.hparams.values(), sort_keys=True, indent=4))
+            f.write(json.dumps(self.train_dataset.hparams.values(), sort_keys=True, indent=4))
         with open(os.path.join(self.output_dir, "model_hparams.json"), "w") as f:
-            f.write(json.dumps(self.model.hparams.values(), sort_keys=True, indent=4))
-   
+            f.write(json.dumps(self.video_model.hparams.values(), sort_keys=True, indent=4))
+        with open(os.path.join(self.output_dir, "datasplit_dict.json"), "w") as f:
+            f.write(json.dumps(self.video_model.datasplit_dict.values(), sort_keys=True, indent=4))  
+
+
+
+    def count_paramters(self):
+        """
+        Count the paramteres of the model
+        """ 
+        pass
+
+
+
+
     @staticmethod
     def plot_train(train_losses,val_losses,step,output_dir):
         """
         Function to plot training losses for train and val datasets against steps
         params:
-            train_losses/val_losses (list): train losses, which length should be equal to the number of training steps
-            step (int): current training step
-            output_dir (str): the path to save the plot
+            train_losses/val_losses       :list, train losses, which length should be equal to the number of training steps
+            step                          : int, current training step
+            output_dir                    : str,  the path to save the plot
     
         """ 
    
@@ -225,15 +250,7 @@ def main():
     
 
     batch_size = model.hparams.batch_size
-    #Create input and val iterator
-    inputs, train_handle, val_handle = make_dataset_iterator(train_dataset, val_dataset, batch_size)
-    
-    #build model graph
-    #since era5 tfrecords include T_start, we need to remove it from the tfrecord when we train the model, otherwise the model will raise error 
-    if args.dataset == "era5":
-       del inputs["T_start"]
-    model.build_graph(inputs)
-    
+
     #save all the model, data params to output dirctory
     save_dataset_model_params_to_checkpoint_dir(args,args.output_dir,train_dataset,model)
     

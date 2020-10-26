@@ -30,6 +30,10 @@ def train_model_case1(input_dir=input_dir,output_dir=output_dir,datasplit_config
                        model_hparams_dict,model,checkpoint,dataset,
                         gpu_mem_frac,seed)
 
+def test_generate_output_dir(train_model_case1):
+    if_path = os.path.join(output_dir,model)
+    assert train_model_case1.output_dir ==  if_path
+
 
 def test_get_model_hparams_dict(train_model_case1):
     train_model_case1.get_model_hparams_dict()
@@ -51,8 +55,8 @@ def test_setup_model(train_model_case1):
     print("setup model:",train_model_case1.model_hparams_dict)
     train_model_case1.setup_model()
     assert train_model_case1.hparams_dict["context_frames"] == 10
-    assert train_model_case1.model.learning_rate == 0.001
-    assert train_model_case1.model.loss_fun == "rmse"
+    assert train_model_case1.video_model.learning_rate == 0.001
+    assert train_model_case1.video_model.loss_fun == "rmse"
 
 
 
@@ -82,6 +86,27 @@ def test_make_dataset_iterator_for_val(train_model_case1):
     """
     train_model_case1.make_dataset_iterator()
     with tf.Session() as sess:
+        sess.run(tf.local_variables_initializer())
+        sess.run(tf.global_variables_initializer())
         val_handle_eval = sess.run(train_model_case1.val_handle)
-        
-    
+        fetch_val = {}
+        fetch_val["x"]  = train_model_case1.inputs["T_start"]
+        val_results = sess.run(fetch_val,feed_dict={train_model_case1.train_handle: val_handle_eval})  
+        val_t = val_results["x"]
+        val_t1 = datetime.datetime.strptime(str(val_t[0][0]), "%Y%m%d%H")
+        val_month = val_t1.month
+        assert val_month  == 2
+
+
+def test_save_dataset_model_params_to_checkpoint_dir(train_model_case1):
+    """
+    Test if all the args, model hparamters, data hparamters are saved properly to outoput directory
+    """
+    class MyClass:
+        def __init__(self, i):
+            self.input_dir = i
+    args = MyClass(train_model_case1.input_dir)
+    train_model_case1.save_dataset_model_params_to_checkpoint_dir(args)
+    #check if options.json was stored in the right place
+    if_option = os.path.isfile(os.path.join(train_model_case1.output_dir,"options.json"))
+    assert if_option == True
