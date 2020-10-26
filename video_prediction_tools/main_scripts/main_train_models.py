@@ -125,10 +125,6 @@ class TrainModel(object):
         Set up model instance
         """
         VideoPredictionModel = models.get_model_class(self.model)
-        self.hparams_dict.update({
-                                   'context_frames' : self.train_dataset.hparams.context_frames,
-                                   'sequence_length': self.train_dataset.hparams.sequence_length,
-                                 })
         self.model = VideoPredictionModel(
                                     hparams_dict=self.hparams_dict,
                                        )
