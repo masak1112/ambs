@@ -110,3 +110,17 @@ def test_save_dataset_model_params_to_checkpoint_dir(train_model_case1):
     #check if options.json was stored in the right place
     if_option = os.path.isfile(os.path.join(train_model_case1.output_dir,"options.json"))
     assert if_option == True
+
+
+def test_count_paramters(train_model_case1):
+    pass
+
+
+def test_calculate_samples_and_epochs(train_model_case1):
+    train_model_case1.calculate_samples_and_epochs()
+    assert train_model_case1.num_examples_per_epoch == 680
+
+
+
+def test_create_fetches_for_train(train_model_case1):
+    pass 

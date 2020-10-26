@@ -141,7 +141,13 @@ class ERA5Dataset(object):
         """
         Calculate how many tfrecords samples in the train/val/test 
         """
-        pass
+        #count how many tfrecords files for train/val/testing
+        len_fnames = len(self.filenames)
+        with open(os.path.join(self.input_dir, 'sequence_lengths.txt'), 'r') as sequence_lengths_file:
+             sequence_len = sequence_lengths_file.readlines()
+
+        self.num_examples_per_epoch  = len_fnames * sequence_len
+        return self.num_examples_per_epoch 
 
 
     def make_dataset(self, batch_size):
@@ -197,11 +203,6 @@ class ERA5Dataset(object):
 
 
 
-
-
-
-
-
 class ERA5Pkl2Tfrecords(ERA5Dataset):
     def __init__(self,input_dir=None, output_dir=None,datasplit_config=None,hparams_dict_config=None,sequences_per_file=128,norm="minmax"):
         """
@@ -232,7 +233,7 @@ class ERA5Pkl2Tfrecords(ERA5Dataset):
         else:
             raise ("norm should be either 'minmax' or 'znorm'") 
         self.sequences_per_file = sequences_per_file
-        
+        self.write_sequence_file()
    
 
     def get_years_months(self):
@@ -419,16 +420,10 @@ class ERA5Pkl2Tfrecords(ERA5Dataset):
 
 
 
-#     def write_sequence_file(output_dir,seq_length,sequences_per_file):
-#         partition_names = ["train","val","test"]
-#         for partition_name in partition_names:
-#             save_output_dir = os.path.join(output_dir,partition_name)
-#             tfCounter = len(glob.glob1(save_output_dir,"*.tfrecords"))
-#             print("Partition_name: {}, number of tfrecords: {}".format(partition_name,tfCounter))
-#             sequence_lengths_file = open(os.path.join(save_output_dir, 'sequence_lengths.txt'), 'w')
-#             for i in range(tfCounter*sequences_per_file):
-#                 sequence_lengths_file.write("%d\n" % seq_length)
-#             sequence_lengths_file.close()
+     def write_sequence_file(self):
+         sequence_lengths_file = open(os.path.join(save_output_dir, 'sequence_lengths.txt'), 'w')
+         sequence_lengths_file.write("%d\n" % self.sequences_per_file)
+         sequence_lengths_file.close()
             
 
 #     def num_examples_per_epoch(self):
