@@ -209,14 +209,16 @@ class TrainModel(object):
         """
         batch_size = self.video_model.hparams.batch_size
         max_epochs = self.video_model.hparams.max_epochs #the number of epochs
-        self.num_examples_per_epoch = train_dataset.num_examples_per_epoch()
+        self.num_examples_per_epoch = self.train_dataset.num_examples_per_epoch()
         self.steps_per_epoch = int(self.num_examples_per_epoch/batch_size)
-        self.total_steps = steps_per_epoch * max_epochs
+        self.total_steps = self.steps_per_epoch * max_epochs
         
 
     def train_model(self):
+        """
+        Start session and train the model
+        """
         self.global_step = tf.train.get_or_create_global_step()
-        self.results_dict = {}
         with tf.Session(config=config) as sess:
             print("parameter_count =", sess.run(parameter_count))
             sess.run(tf.global_variables_initializer())
@@ -271,31 +273,45 @@ class TrainModel(object):
        self.fetches["summary"] = self.video_model.summary_op
        self.fetches["global_step"] = self.video_model.global_step
        self.fetches["total_loss"] = self.video_model.total_loss
-       self.video_model.__class__.__name__ == "McNetVideoPredictionModel": self.fetches_for_train_mcnet()
-       self.video_model.__class__.__name__ == "VanillaConvLstmVideoPredictionModel": self.fetches_for_train_convLSTM()
-       self.video_model.__class__.__name__ == "SAVPVideoPredictionModel": self.fetches_for_train_savp()
-       self.video_model.__class__.__name__ == "VanillaVAEVideoPredictionModel": self.fetches_for_train_vae()
+       if self.video_model.__class__.__name__ == "McNetVideoPredictionModel": self.fetches_for_train_mcnet()
+       if self.video_model.__class__.__name__ == "VanillaConvLstmVideoPredictionModel": self.fetches_for_train_convLSTM()
+       if self.video_model.__class__.__name__ == "SAVPVideoPredictionModel": self.fetches_for_train_savp()
+       if self.video_model.__class__.__name__ == "VanillaVAEVideoPredictionModel": self.fetches_for_train_vae()
      
     
     def fetches_for_train_convLSTM(self):
-        pass 
+        """
+        Fetch variables in the graph for convLSTM model, this can be custermized based on models and based on the needs of users
+        """
+        pass
+
+ 
     def fetches_for_train_savp(self):
+        """
+        Fetch variables in the graph for savp model, this can be custermized based on models and based on the needs of users
+        """
         pass
 
     def fetches_for_train_mcnet(self):
+        """
+        Fetch variables in the graph for mcnet model, this can be custermized based on models and based on the needs of users
+        """
         self.fetches["L_p"] = self.video_model.L_p
         self.fetches["L_gdl"] = self.video_model.L_gdl
         self.fetches["L_GAN"]  = self.video_model.L_GAN        
 
     def fetches_for_train_vae(self):
+        """
+        Fetch variables in the graph for savp model, this can be custermized based on models and based on the needs of users
+        """
         pass
 
 
     def create_fetches_for_val(self):
-       """
-       Fetch variables in the graph for validationd ataset, this can be custermized based on models and based on the needs of users
-       """
-        self.val_fetches{"total_loss": self.video_model.total_loss}
+        """
+        Fetch variables in the graph for validation dataset, this can be custermized based on models and based on the needs of users
+        """
+        self.val_fetches = {"total_loss": self.video_model.total_loss}
 
     def write_to_summary(self):
         self.summary_writer.add_summary(self.results["summary"],self.results["global_step"])
@@ -304,6 +320,9 @@ class TrainModel(object):
 
 
     def print_results(self,step,results):
+        """
+        Print the training results /validation results from the training step.
+        """
         train_epoch = step/self.steps_per_epoch
         print("progress  global step %d  epoch %0.1f" % (step + 1, train_epoch))
         if self.video_model.__class__.__name__ == "McNetVideoPredictionModel":
