@@ -2,6 +2,11 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
+
+__email__ = "b.gong@fz-juelich.de"
+__author__ = "Bing Gong, Scarlet Stadtler,Michael Langguth"
+
+
 import argparse
 import errno
 import json
@@ -62,8 +67,11 @@ class TrainModel(object):
         self.make_dataset_iterator()
         self.setup_graph()
         self.save_dataset_model_params_to_checkpoint_dir()
+        self.count_paramters()
+        self.create_saver_and_writer()
+        self.setup_gpu_config()
 
- 
+
     def set_seed(self):
         if self.seed is not None:
             tf.set_random_seed(self.seed)
@@ -169,8 +177,8 @@ class TrainModel(object):
             f.write(json.dumps(self.train_dataset.hparams.values(), sort_keys=True, indent=4))
         with open(os.path.join(self.output_dir, "model_hparams.json"), "w") as f:
             f.write(json.dumps(self.video_model.hparams.values(), sort_keys=True, indent=4))
-        with open(os.path.join(self.output_dir, "datasplit_dict.json"), "w") as f:
-            f.write(json.dumps(self.video_model.datasplit_dict.values(), sort_keys=True, indent=4))  
+        with open(os.path.join(self.output_dir, "data_dict.json"), "w") as f:
+            f.write(json.dumps(self.train_dataset.data_dict, sort_keys=True, indent=4))  
 
 
 
@@ -178,8 +186,147 @@ class TrainModel(object):
         """
         Count the paramteres of the model
         """ 
+        with tf.name_scope("parameter_count"):
+            # exclude trainable variables that are replicas (used in multi-gpu setting)
+            self.trainable_variables = set(tf.trainable_variables()) & set(self.video_model.saveable_variables)
+            self.parameter_count = tf.reduce_sum([tf.reduce_prod(tf.shape(v)) for v in self.trainable_variables])
+
+
+
+    def create_saver_and_writer(self):
+        """
+        Create saver to save the models latest checkpoints, and a summery writer to store the train/val metrics  
+        """
+        self.saver = tf.train.Saver(var_list=self.video_model.saveable_variables, max_to_keep=2)
+        self.summary_writer = tf.summary.FileWriter(self.output_dir)
+
+    def setup_gpu_config(self):
+        """
+        Setup GPU options 
+        """
+        self.gpu_options = tf.GPUOptions(per_process_gpu_memory_fraction=self.gpu_mem_frac, allow_growth=True)
+        self.config = tf.ConfigProto(gpu_options=self.gpu_options, allow_soft_placement=True)
+        
+
+    def calculate_samples_and_epochs(self):
+        """
+        Clculate samples for train/val/testing dataset. The samples are used for training model for each epoch. 
+        Clculate the iterations (samples multiple by max_epochs) for traininh
+        """
+        batch_size = self.video_model.hparams.batch_size
+        max_epochs = self.video_model.hparams.max_epochs #the number of epochs
+        self.num_examples_per_epoch = train_dataset.num_examples_per_epoch()
+        self.steps_per_epoch = int(self.num_examples_per_epoch/batch_size)
+        self.total_steps = steps_per_epoch * max_epochs
+        
+
+    def train_model(self):
+        self.global_step = tf.train.get_or_create_global_step()
+        self.results_dict = {}
+        with tf.Session(config=config) as sess:
+            print("parameter_count =", sess.run(parameter_count))
+            sess.run(tf.global_variables_initializer())
+            sess.run(tf.local_variables_initializer())
+            #TODO
+            #model.restore(sess, args.checkpoint)
+            sess.graph.finalize()
+            start_step = sess.run(self.global_step)
+            print("start_step", start_step)
+            # start at one step earlier to log everything without doing any training
+            # step is relative to the start_step
+            train_losses=[]
+            val_losses=[]
+            run_start_time = time.time()        
+            for step in range(start_step,total_steps):
+                timeit_start = time.time()  
+                #run for training dataset
+                self.create_fetches_for_train()
+                results = sess.run(self.fetches)
+                train_losses.append(results["total_loss"])
+                #Run and fetch losses for validation data
+                val_handle_eval = sess.run(self.val_handle)
+                self.create_fetches_for_val()
+                val_results = sess.run(self.val_fetches,feed_dict={self.train_handle: val_handle_eval})
+                self.write_to_summary()
+                self.print_results(step,results)  
+                saver.save(sess, os.path.join(args.output_dir, "model"), global_step=step)
+                timeit_end = time.time()  
+                print("time needed for this step", timeit_end - timeit_start, ' s')
+                if step % 20 == 0:
+                    # I save the pickle file and plot here inside the loop in case the training process cannot finished after job is done.
+                    save_results_to_pkl(train_losses,val_losses,args.output_dir)
+                    plot_train(train_losses,val_losses,step,args.output_dir)
+                                
+
+            train_time = time.time() - run_start_time
+            results_dict = {"train_time":train_time,
+                        "total_steps":total_steps}
+            save_results_to_dict(results_dict,args.output_dir)
+      
+            print("train_losses:",train_losses)
+            print("val_losses:",val_losses) 
+            #plot_train(train_losses,val_losses,args.output_dir)
+            print("Done")
+            print("Total training time:", train_time/60., "min")
+ 
+    def create_fetches_for_train(self):
+       """
+       Fetch variables in the graph, this can be custermized based on models and based on the needs of users
+       """
+       #This is the base fetch that for all the  models
+       self.fetches = {"train_op": self.video_model.train_op}
+       self.fetches["summary"] = self.video_model.summary_op
+       self.fetches["global_step"] = self.video_model.global_step
+       self.fetches["total_loss"] = self.video_model.total_loss
+       self.video_model.__class__.__name__ == "McNetVideoPredictionModel": self.fetches_for_train_mcnet()
+       self.video_model.__class__.__name__ == "VanillaConvLstmVideoPredictionModel": self.fetches_for_train_convLSTM()
+       self.video_model.__class__.__name__ == "SAVPVideoPredictionModel": self.fetches_for_train_savp()
+       self.video_model.__class__.__name__ == "VanillaVAEVideoPredictionModel": self.fetches_for_train_vae()
+     
+    
+    def fetches_for_train_convLSTM(self):
+        pass 
+    def fetches_for_train_savp(self):
         pass
 
+    def fetches_for_train_mcnet(self):
+        self.fetches["L_p"] = self.video_model.L_p
+        self.fetches["L_gdl"] = self.video_model.L_gdl
+        self.fetches["L_GAN"]  = self.video_model.L_GAN        
+
+    def fetches_for_train_vae(self):
+        pass
+
+
+    def create_fetches_for_val(self):
+       """
+       Fetch variables in the graph for validationd ataset, this can be custermized based on models and based on the needs of users
+       """
+        self.val_fetches{"total_loss": self.video_model.total_loss}
+
+
+    def write_to_summary(self):
+        self.summary_writer.add_summary(self.results["summary"],self.results["global_step"])
+        self.summary_writer.add_summary(self.val_results["summary"],self.results["global_step"])
+        self.summary_writer.flush()
+
+
+    def print_results(self,step,results):
+        train_epoch = step/self.steps_per_epoch
+        print("progress  global step %d  epoch %0.1f" % (step + 1, train_epoch))
+        if self.video_model.__class__.__name__ == "McNetVideoPredictionModel":
+            print("Total_loss:{}; L_p_loss:{}; L_gdl:{}; L_GAN: {}".format(results["total_loss"],results["L_p"],results["L_gdl"],results["L_GAN"]))
+        elif self.video_model.__class__.__name__ == "VanillaConvLstmVideoPredictionModel":
+            print ("Total_loss:{}".format(results["total_loss"]))
+        elif self.video_model.__class__.__name__ == "SAVPVideoPredictionModel":
+            print("Total_loss/g_losses:{}; d_losses:{}; g_loss:{}; d_loss: {}".format(results["g_losses"],results["d_losses"],results["g_loss"],results["d_loss"]))
+        elif self.video_model.__class__.__name__ == "VanillaVAEVideoPredictionModel":
+            print("Total_loss:{}; latent_losses:{}; reconst_loss:{}".format(results["total_loss"],results["latent_loss"],results["recon_loss"]))
+        else:
+            print ("The model name does not exist")
+
+
+   
 
 
 
@@ -239,132 +386,15 @@ def main():
                  model_hparams_dict=args.model_hparams_dict,model=args.model,checkpoint=args.checkpoint,dataset=args.dataset,
                  gpu_mem_frac=args.gpu_mem_frac,seed=args.seed)  
     
-    # setup
-    train_case.setup() 
- 
-     
     print('----------------------------------- Options ------------------------------------')
     for k, v in args._get_kwargs():
         print(k, "=", v)
     print('------------------------------------- End --------------------------------------')
     
-
-    batch_size = model.hparams.batch_size
-
-    #save all the model, data params to output dirctory
-    save_dataset_model_params_to_checkpoint_dir(args,args.output_dir,train_dataset,model)
-    
-    with tf.name_scope("parameter_count"):
-        # exclude trainable variables that are replicas (used in multi-gpu setting)
-        trainable_variables = set(tf.trainable_variables()) & set(model.saveable_variables)
-        parameter_count = tf.reduce_sum([tf.reduce_prod(tf.shape(v)) for v in trainable_variables])
-
-    saver = tf.train.Saver(var_list=model.saveable_variables, max_to_keep=2)
-
-    # None has the special meaning of evaluating at the end, so explicitly check for non-equality to zero
-    summary_writer = tf.summary.FileWriter(args.output_dir)
-
-    gpu_options = tf.GPUOptions(per_process_gpu_memory_fraction=args.gpu_mem_frac, allow_growth=True)
-    config = tf.ConfigProto(gpu_options=gpu_options, allow_soft_placement=True)
+    # setup
+    train_case.setup() 
  
-    max_epochs = model.hparams.max_epochs #the number of epochs
-    num_examples_per_epoch = train_dataset.num_examples_per_epoch()
-    print ("number of exmaples per epoch:",num_examples_per_epoch)
-    steps_per_epoch = int(num_examples_per_epoch/batch_size)
-    #number of steps totally equal to the number of steps per each echo multiple by number of epochs
-    total_steps = steps_per_epoch * max_epochs
-    global_step = tf.train.get_or_create_global_step()
-    #mock total_steps only for fast debugging
-    #total_steps = 10
-    print ("Total steps for training:",total_steps)
-    results_dict = {}
-    with tf.Session(config=config) as sess:
-        print("parameter_count =", sess.run(parameter_count))
-        sess.run(tf.global_variables_initializer())
-        sess.run(tf.local_variables_initializer())
-        model.restore(sess, args.checkpoint)
-        sess.graph.finalize()
-        #start_step = sess.run(model.global_step)
-        start_step = sess.run(global_step)
-        print("start_step", start_step)
-        # start at one step earlier to log everything without doing any training
-        # step is relative to the start_step
-        train_losses=[]
-        val_losses=[]
-        run_start_time = time.time()        
-        for step in range(start_step,total_steps):
-            #global_step = sess.run(global_step)
-            # +++ Scarlet 20200813
-            timeit_start = time.time()  
-            # --- Scarlet 20200813
-            print ("step:", step)
-            val_handle_eval = sess.run(val_handle)
-            #Fetch variables in the graph
-            fetches = {"train_op": model.train_op}
-            #fetches["latent_loss"] = model.latent_loss
-            fetches["summary"] = model.summary_op 
-            fetches["global_step"] = model.global_step
 
-            if model.__class__.__name__ == "McNetVideoPredictionModel" or model.__class__.__name__ == "VanillaConvLstmVideoPredictionModel" or model.__class__.__name__ == "VanillaVAEVideoPredictionModel":
-                fetches["global_step"] = model.global_step
-                fetches["total_loss"] = model.total_loss
-                #fetch the specific loss function only for mcnet
-                if model.__class__.__name__ == "McNetVideoPredictionModel":
-                    fetches["L_p"] = model.L_p
-                    fetches["L_gdl"] = model.L_gdl
-                    fetches["L_GAN"]  =model.L_GAN
-                if model.__class__.__name__ == "VanillaVAEVideoPredictionModel":
-                    fetches["latent_loss"] = model.latent_loss
-                    fetches["recon_loss"] = model.recon_loss
-                results = sess.run(fetches)
-                train_losses.append(results["total_loss"])
-                #Fetch losses for validation data
-                val_fetches = {}
-                #val_fetches["latent_loss"] = model.latent_loss
-            summary_writer.add_summary(results["summary"],results["global_step"])
-            summary_writer.add_summary(val_results["summary"],results["global_step"])
-            summary_writer.flush()
-
-            # global_step will have the correct step count if we resume from a checkpoint
-            # global step is read before it's incemented
-            train_epoch = step/steps_per_epoch
-            print("progress  global step %d  epoch %0.1f" % (step + 1, train_epoch))
-            if model.__class__.__name__ == "McNetVideoPredictionModel":
-                print("Total_loss:{}; L_p_loss:{}; L_gdl:{}; L_GAN: {}".format(results["total_loss"],results["L_p"],results["L_gdl"],results["L_GAN"]))
-            elif model.__class__.__name__ == "VanillaConvLstmVideoPredictionModel":
-                print ("Total_loss:{}".format(results["total_loss"]))
-            elif model.__class__.__name__ == "SAVPVideoPredictionModel":
-                print("Total_loss/g_losses:{}; d_losses:{}; g_loss:{}; d_loss: {}".format(results["g_losses"],results["d_losses"],results["g_loss"],results["d_loss"]))
-            elif model.__class__.__name__ == "VanillaVAEVideoPredictionModel":
-                print("Total_loss:{}; latent_losses:{}; reconst_loss:{}".format(results["total_loss"],results["latent_loss"],results["recon_loss"]))
-            else:
-                print ("The model name does not exist")
-
-            #print("saving model to", args.output_dir)
-
-            saver.save(sess, os.path.join(args.output_dir, "model"), global_step=step)
-            # +++ Scarlet 20200813
-            timeit_end = time.time()  
-            # --- Scarlet 20200813
-            print("time needed for this step", timeit_end - timeit_start, ' s')
-            if step % 20 == 0:
-                # I save the pickle file and plot here inside the loop in case the training process cannot finished after job is done.
-                save_results_to_pkl(train_losses,val_losses,args.output_dir)
-                plot_train(train_losses,val_losses,step,args.output_dir)
-                                
-
-        train_time = time.time() - run_start_time
-        results_dict = {"train_time":train_time,
-                        "total_steps":total_steps}
-        save_results_to_dict(results_dict,args.output_dir)
-        #save_results_to_pkl(train_losses, val_losses, args.output_dir)
-        print("train_losses:",train_losses)
-        print("val_losses:",val_losses) 
-        #plot_train(train_losses,val_losses,args.output_dir)
-        print("Done")
-        # +++ Scarlet 20200814
-        print("Total training time:", train_time/60., "min")
-        # +++ Scarlet 20200814
-        
+       
 if __name__ == '__main__':
     main()
