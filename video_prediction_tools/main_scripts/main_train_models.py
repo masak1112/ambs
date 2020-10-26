@@ -218,15 +218,15 @@ class TrainModel(object):
         """
         Start session and train the model
         """
-        self.global_step = tf.train.get_or_create_global_step()
-        with tf.Session(config=config) as sess:
-            print("parameter_count =", sess.run(parameter_count))
+        global_step = tf.train.get_or_create_global_step()
+        with tf.Session(config=self.config) as sess:
+            print("parameter_count =", sess.run(self.parameter_count))
             sess.run(tf.global_variables_initializer())
             sess.run(tf.local_variables_initializer())
             #TODO
             #model.restore(sess, args.checkpoint)
             sess.graph.finalize()
-            start_step = sess.run(self.global_step)
+            start_step = sess.run(global_step)
             print("start_step", start_step)
             # start at one step earlier to log everything without doing any training
             # step is relative to the start_step
@@ -290,7 +290,10 @@ class TrainModel(object):
         """
         Fetch variables in the graph for savp model, this can be custermized based on models and based on the needs of users
         """
-        pass
+        self.fetches["g_losses"] = self.video_model.g_losses
+        self.fetches["d_losses"] = self.video_model.d_losses
+        self.fetches["d_loss"] = self.video_model.d_loss
+        self.fetches["g_loss"] = self.video_model.g_loss
 
     def fetches_for_train_mcnet(self):
         """
@@ -304,7 +307,8 @@ class TrainModel(object):
         """
         Fetch variables in the graph for savp model, this can be custermized based on models and based on the needs of users
         """
-        pass
+        self.fetches["latent_loss"] = self.video_model.latent_loss
+        self.fetches["recon_loss"] = self.video_model.recon_loss
 
 
     def create_fetches_for_val(self):
@@ -345,11 +349,11 @@ class TrainModel(object):
             train_losses/val_losses       :list, train losses, which length should be equal to the number of training steps
             step                          : int, current training step
             output_dir                    : str,  the path to save the plot
-    
         """ 
    
         iterations = list(range(len(train_losses)))
-        if len(train_losses) != len(val_losses) or len(train_losses) != step +1 : raise ValueError("The length of training losses must be equal to the length of val losses and  step +1 !")  
+        if len(train_losses) != len(val_losses) or len(train_losses) != step +1 : 
+            raise ValueError("The length of training losses must be equal to the length of val losses and  step +1 !")  
         plt.plot(iterations, train_losses, 'g', label='Training loss')
         plt.plot(iterations, val_losses, 'b', label='validation loss')
         plt.title('Training and Validation loss')
