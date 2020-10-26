@@ -52,11 +52,6 @@ class TrainModel(object):
         self.generate_output_dir()
         self.hparams_dict = self.get_model_hparams_dict()
 
-
-    def __call__(self):
-        self.setup()
-        self.train()
-        self.plot()
     
     def setup(self):
         self.set_seed()
@@ -77,7 +72,6 @@ class TrainModel(object):
             tf.set_random_seed(self.seed)
             np.random.seed(self.seed)
             random.seed(self.seed)
-
 
     def generate_output_dir(self):
         if self.output_dir is None:
@@ -237,7 +231,7 @@ class TrainModel(object):
             train_losses=[]
             val_losses=[]
             run_start_time = time.time()        
-            for step in range(start_step,total_steps):
+            for step in range(start_step,self.total_steps):
                 timeit_start = time.time()  
                 #run for training dataset
                 self.create_fetches_for_train()
@@ -247,6 +241,7 @@ class TrainModel(object):
                 val_handle_eval = sess.run(self.val_handle)
                 self.create_fetches_for_val()
                 val_results = sess.run(self.val_fetches,feed_dict={self.train_handle: val_handle_eval})
+                val_losses.append(val_results["total_loss"])
                 self.write_to_summary()
                 self.print_results(step,results)  
                 saver.save(sess, os.path.join(args.output_dir, "model"), global_step=step)
@@ -254,18 +249,16 @@ class TrainModel(object):
                 print("time needed for this step", timeit_end - timeit_start, ' s')
                 if step % 20 == 0:
                     # I save the pickle file and plot here inside the loop in case the training process cannot finished after job is done.
-                    save_results_to_pkl(train_losses,val_losses,args.output_dir)
-                    plot_train(train_losses,val_losses,step,args.output_dir)
+                    save_results_to_pkl(train_losses,val_losses,self.output_dir)
+                    plot_train(train_losses,val_losses,step,self.output_dir)
                                 
-
+            #Totally train time over all the iterations
             train_time = time.time() - run_start_time
             results_dict = {"train_time":train_time,
-                        "total_steps":total_steps}
-            save_results_to_dict(results_dict,args.output_dir)
-      
+                            "total_steps":self.total_steps}
+            save_results_to_dict(results_dict,self.output_dir)
             print("train_losses:",train_losses)
             print("val_losses:",val_losses) 
-            #plot_train(train_losses,val_losses,args.output_dir)
             print("Done")
             print("Total training time:", train_time/60., "min")
  
@@ -304,7 +297,6 @@ class TrainModel(object):
        """
         self.val_fetches{"total_loss": self.video_model.total_loss}
 
-
     def write_to_summary(self):
         self.summary_writer.add_summary(self.results["summary"],self.results["global_step"])
         self.summary_writer.add_summary(self.val_results["summary"],self.results["global_step"])
@@ -324,10 +316,6 @@ class TrainModel(object):
             print("Total_loss:{}; latent_losses:{}; reconst_loss:{}".format(results["total_loss"],results["latent_loss"],results["recon_loss"]))
         else:
             print ("The model name does not exist")
-
-
-   
-
 
 
     @staticmethod
@@ -394,7 +382,8 @@ def main():
     # setup
     train_case.setup() 
  
-
+    # train model
+    train_case.train_model()
        
 if __name__ == '__main__':
     main()
