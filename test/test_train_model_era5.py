@@ -24,7 +24,7 @@ def train_model_case1(input_dir=input_dir,output_dir=output_dir,datasplit_config
                        gpu_mem_frac=gpu_mem_grac,seed=seed):
     return TrainModel(input_dir,output_dir,datasplit_config,
                        model_hparams_dict,model,checkpoint,dataset,
-                       gpu_mem_frac,seed)
+                        gpu_mem_frac,seed)
 
 
 def test_get_model_hparams_dict(train_model_case1):
@@ -41,9 +41,14 @@ def test_setup_dataset(train_model_case1):
     assert train_fnames[0]!=val_fnames[0]
 
 def test_setup_model(train_model_case1):
+    """
+    Check if the hparameters are updated properly
+    """
     print("setup model:",train_model_case1.model_hparams_dict)
     train_model_case1.setup_model()
     assert train_model_case1.hparams_dict["context_frames"] == 10
+    assert train_model_case1.model.learning_rate == 0.001
+    assert train_model_case1.model.loss_fun == "rmse"
 
 
 
@@ -51,4 +56,9 @@ def test_make_dataset_iterator(train_model_case1):
     train_model_case1.make_dataset_iterator()
     assert train_model_case1.batch_size == 4
     with tf.Session() as sess:
-        sess.run
+        sess.run(tf.local_variables_initializer())
+        sess.run(tf.global_variables_initializer())
+        fetch = {}
+        fetch["x"] = train_model_case1.inputs["T_start"]
+        train_t_start = sess.run(fetch)
+        #val_handle_eval = sess.run(self.val_handle) 

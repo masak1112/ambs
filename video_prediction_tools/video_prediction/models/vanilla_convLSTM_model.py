@@ -15,14 +15,20 @@ from datetime import datetime
 from pathlib import Path
 from video_prediction.layers import layer_def as ld
 from video_prediction.layers.BasicConvLSTMCell import BasicConvLSTMCell
+from tensorflow.contrib.training import HParams
 
-
-class VanillaConvLstmVideoPredictionModel(BaseVideoPredictionModel):
-    def __init__(self, mode='train', hparams_dict=None,
-                 hparams=None, **kwargs):
-        super(VanillaConvLstmVideoPredictionModel, self).__init__(mode, hparams_dict, hparams, **kwargs)
-        print ("Hparams_dict",self.hparams)
+class VanillaConvLstmVideoPredictionModel(object):
+    def __init__(self, mode='train', hparams_dict=None):
+        """
+        This is class for building convLSTM architecture by using updated hparameters
+        args:
+             mode   :str, "train" or "val"
+             hparams_dict: dict, the dictionary contains the hparaemters names and values
+        """
+        #super(VanillaConvLstmVideoPredictionModel, self).__init__(mode, hparams_dict, hparams, **kwargs)
         self.mode = mode
+        self.hparams_dict = hparams_dict
+        self.hparams = self.parse_hparams()        
         self.learning_rate = self.hparams.lr
         self.total_loss = None
         self.context_frames = self.hparams.context_frames
@@ -32,42 +38,48 @@ class VanillaConvLstmVideoPredictionModel(BaseVideoPredictionModel):
         self.loss_fun = self.hparams.loss_fun
 
 
+    def get_default_hparams(self):
+        return HParams(**self.get_default_hparams_dict())
+
+    def parse_hparams(self):
+        """
+        Parse the hparams setting to ovoerride the default ones
+        """
+        
+        parsed_hparams = self.get_default_hparams().override_from_dict(self.hparams_dict or {})
+        return parsed_hparams
+
+
     def get_default_hparams_dict(self):
         """
-        The keys of this dict define valid hyperparameters for instances of
-        this class. A class inheriting from this one should override this
-        method if it has a different set of hyperparameters.
+        The function that contains default hparams
         Returns:
             A dict with the following hyperparameters.
-            batch_size: batch size for training.
-            lr: learning rate. if decay steps is non-zero, this is the
-                learning rate for steps <= decay_step.
-            max_epochs: number of training epochs, each epoch equal to sample_size/batch_size
-            loss_fun: string can be either "rmse" or "cross_entropy", loss function has to be set from the user 
-         """
-        default_hparams = super(VanillaConvLstmVideoPredictionModel, self).get_default_hparams_dict()
-        print ("default hparams",default_hparams)
+            context_frames  : the number of ground-truth frames to pass in at start.
+            sequence_length : the number of frames in the video sequence 
+            max_epochs      : the number of epochs to train model
+            lr              : learning rate
+            loss_fun        : the loss function
+        """
         hparams = dict(
-            batch_size=16,
-            lr=0.001,
-            max_epochs=3000,
-            loss_fun = None
+            context_frames=10,
+            sequence_length=20,
+            max_epochs = 20,
+            batch_size = 40,
+            lr = 0.001,
+            loss_fun = "cross_entropy",
+            shuffle_on_val= True,
         )
+        return hparams
 
-        return dict(itertools.chain(default_hparams.items(), hparams.items()))
 
     def build_graph(self, x):
         self.x = x["images"]
-        #self.global_step = tf.Variable(0, name = 'global_step', trainable = False)
         self.global_step = tf.train.get_or_create_global_step()
         original_global_variables = tf.global_variables()
         # ARCHITECTURE
         self.convLSTM_network()
-        #print("self.x",self.x)
-        #print("self.x_hat_context_frames,",self.x_hat_context_frames)
-        #self.context_frames_loss = tf.reduce_mean(
-        #    tf.square(self.x[:, :self.context_frames, :, :, 0] - self.x_hat_context_frames[:, :, :, :, 0]))
-        # This is the loss function (RMSE):
+        #This is the loss function (RMSE):
         #This is loss function only for 1 channel (temperature RMSE)
         if self.loss_fun == "rmse":
             self.total_loss = tf.reduce_mean(
@@ -118,14 +130,7 @@ class VanillaConvLstmVideoPredictionModel(BaseVideoPredictionModel):
                                             VanillaConvLstmVideoPredictionModel.convLSTM_cell)  # make the template to share the variables
         # create network
         x_hat = []
-
-        # for i in range(self.sequence_length-1):
-        #     if i < self.context_frames:
-        #         x_1, hidden = network_template(self.x[:, i, :, :, :], hidden)
-        #     else:
-        #         x_1, hidden = network_template(x_1, hidden)
-        #     x_hat_context.append(x_1)
-
+        
         #This is for training (optimization of convLSTM layer)
         hidden_g = None
         for i in range(self.sequence_length-1):

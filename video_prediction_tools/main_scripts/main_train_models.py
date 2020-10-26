@@ -87,6 +87,9 @@ class TrainModel(object):
 
 
     def load_params_from_checkpoints_dir(self):
+        """
+         load the existing checkpoint related datasets, model configure (This information was stored in the checkpoint dir when last time training model)
+        """
         self.get_model_hparams_dict()
         if self.checkpoint:
             self.checkpoint_dir = os.path.normpath(self.checkpoint)
@@ -129,24 +132,25 @@ class TrainModel(object):
         self.model = VideoPredictionModel(
                                     hparams_dict=self.hparams_dict,
                                        )
-                                    
+    def setup_graph(self):
+        self.model.build_graph(self.inputs)                                    
 
     def make_dataset_iterator(self):
         """
         Prepare the dataset interator for training and validation
         """
         self.batch_size = self.hparams_dict["batch_size"]
-        self.train_tf_dataset = train_dataset.make_dataset(self.batch_size)
+        self.train_tf_dataset = self.train_dataset.make_dataset(self.batch_size)
         self.train_iterator = self.train_tf_dataset.make_one_shot_iterator()
         # The `Iterator.string_handle()` method returns a tensor that can be evaluated
         # and used to feed the `handle` placeholder.
         self.train_handle = self.train_iterator.string_handle()
-        self.val_tf_dataset = val_dataset.make_dataset(self.batch_size)
+        self.val_tf_dataset = self.val_dataset.make_dataset(self.batch_size)
         self.val_iterator = self.val_tf_dataset.make_one_shot_iterator()
         self.val_handle = self.val_iterator.string_handle()
         self.iterator = tf.data.Iterator.from_string_handle(
             self.train_handle, self.train_tf_dataset.output_types, self.train_tf_dataset.output_shapes)
-        self.inputs = self.train_iterator.get_next()
+        self.inputs = self.iterator.get_next()
 
     def save_dataset_model_params_to_checkpoint_dir(self,args):
         if not os.path.exists(self.output_dir):
@@ -158,7 +162,7 @@ class TrainModel(object):
         with open(os.path.join(self.output_dir, "model_hparams.json"), "w") as f:
             f.write(json.dumps(self.model.hparams.values(), sort_keys=True, indent=4))
    
-     @staticmethod
+    @staticmethod
     def plot_train(train_losses,val_losses,step,output_dir):
         """
         Function to plot training losses for train and val datasets against steps
@@ -200,6 +204,7 @@ def main():
     parser.add_argument("--output_dir", help="output directory where json files, summary, model, gifs, etc are saved. "
                                              "default is logs_dir/model_fname, where model_fname consists of "
                                              "information from model and model_hparams")
+    parser.add_argument("--datasplit_dict", help="json file that contains the datasplit configuration")
     parser.add_argument("--checkpoint", help="directory with checkpoint or checkpoint name (e.g. checkpoint_dir/model-200000)")
     parser.add_argument("--dataset", type=str, help="dataset class name")
     parser.add_argument("--model", type=str, help="model class name")
@@ -207,29 +212,21 @@ def main():
     parser.add_argument("--gpu_mem_frac", type=float, default=0.99, help="fraction of gpu memory to use")
     parser.add_argument("--seed",default=1234, type=int)
     args = parser.parse_args()
-     
-    #Set seed  
-    set_seed(args.seed)
     
-    #setup output directory
-    args.output_dir = generate_output_dir(args.output_dir, args.model, args.model_hparams, args.logs_dir, args.output_dir_postfix)
+    #create a training instance
+    train_case = TrainModel(input_dir=args.input_dir,output_dir=args.output_dir,datasplit_dict=args.datasplit_dict,
+                 model_hparams_dict=args.model_hparams_dict,model=args.model,checkpoint=args.checkpoint,dataset=args.dataset,
+                 gpu_mem_frac=args.gpu_mem_frac,seed=args.seed)  
     
-    #resume the existing checkpoint and set up the checkpoint directory to output directory
-    args.checkpoint = resume_checkpoint(args.resume,args.checkpoint,args.output_dir)
+    # setup
+    train_case.setup() 
  
-    #get model hparams dict from json file
-    #load the existing checkpoint related datasets, model configure (This information was stored in the checkpoint dir when last time training model)
-    args.dataset,args.model,model_hparams_dict = load_params_from_checkpoints_dir(args.model_hparams_dict,args.checkpoint,args.dataset,args.model)
      
     print('----------------------------------- Options ------------------------------------')
     for k, v in args._get_kwargs():
         print(k, "=", v)
     print('------------------------------------- End --------------------------------------')
-    #setup training val datset instance
-    train_dataset,val_dataset,variable_scope = setup_dataset(args.dataset,args.input_dir,args.val_input_dir)
     
-    #setup model instance 
-    model=setup_model(args.model,model_hparams_dict,train_dataset,args.model_hparams)
 
     batch_size = model.hparams.batch_size
     #Create input and val iterator

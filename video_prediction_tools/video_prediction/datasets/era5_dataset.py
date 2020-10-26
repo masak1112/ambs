@@ -51,7 +51,7 @@ class ERA5Dataset(object):
         self.hparams_dict = self.get_model_hparams_dict()
         self.hparams = self.parse_hparams() 
         self.get_tfrecords_filesnames_base_datasplit()
-
+        self.get_example_info()
 
     def get_model_hparams_dict(self):
         """
@@ -84,7 +84,8 @@ class ERA5Dataset(object):
             max_epochs = 20,
             batch_size = 40,
             lr = 0.001,
-            loss_fun = "rmse"
+            loss_fun = "rmse",
+            shuffle_on_val= True,
         )
         return hparams
 
@@ -178,7 +179,7 @@ class ERA5Dataset(object):
         if shuffle:
             random.shuffle(filenames)
         dataset = tf.data.TFRecordDataset(filenames, buffer_size = 8* 1024 * 1024) 
-        dataset = dataset.filter(self.filter)
+        #dataset = dataset.filter(self.filter)
         if shuffle:
             dataset = dataset.apply(tf.contrib.data.shuffle_and_repeat(buffer_size =1024, count = self.num_epochs))
         else:
