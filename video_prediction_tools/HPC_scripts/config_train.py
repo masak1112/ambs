@@ -17,14 +17,18 @@ import json as js
 from os import path
 sys.path.append(path.abspath('../utils/'))
 import metadata
-sys.path.append(path.abspath('../model_modules/'))
-from model_architectures import known_models
+sys.path.append(path.abspath('../'))
+from model_modules.model_architectures import known_models
+from data_preprocess.dataset_options import known_datasets
 
 # start script
 
 def get_variable_from_runscript(runscript_file,script_variable):
     '''
     Searach for the declaration of variable in a Shell script and returns its value.
+    :param runscript_file: path to shell script/runscript
+    :param script_variable: name of variable which is declared in shell script at hand
+    :return: value of script_variable
     '''
     script_variable = script_variable + "="
     found = False
@@ -42,23 +46,50 @@ def get_variable_from_runscript(runscript_file,script_variable):
 
     return var_value
 
+def path_rec_split(full_path):
+    """
+    :param full_path: input path to be splitted in its components
+    :return: list of all splitted components
+    """
+    rest, tail = os.path.split(full_path)
+    if rest == '':
+        return tail,
+    return rec_split(rest) + (tail,)
+
 
 def main():
 
     list_models = known_models().keys()
+    list_datasets = known_datasets().keys()
 
     # get required information from the user by keyboard interaction
 
+    # dataset used for training
+    dataset = input("Enter the name of the dataset for training:\n")
+
+    # NOTE: Generic template for training still has to be integrated!
+    #       After this is done, the latter part of the if-clause can be removed
+    #       and further adaptions for the target_dir and for retrieving base_dir (see below) are required
+    if not dataset in list_datasets and dataset == "era5":
+        print("The following dataset can be used for training:")
+        for dataset_avail in list_datasets: print("* "+dataset_avail)
+        raise ValueError("Please select a dataset from the ones listed above.")
+
+
     # path to preprocessed data
-    exp_dir = input("Enter the path to the preprocessed data (directory where tf-records files are located):\n")
-    exp_dir = os.path.join(exp_dir,"train")
+    exp_dir_full = input("Enter the path to the preprocessed data (directory where tf-records files are located):\n")
+    exp_dir_full = os.path.join(exp_dir_full,"train")
     # sanity check (does preprocessed data exist?)
-    if not (os.path.isdir(exp_dir)):
-        raise NotADirectoryError("Passed path to preprocessed data '"+exp_dir+"' does not exist!")
-    file_list = glob.glob(os.path.join(exp_dir,"sequence*.tfrecords"))
+    if not (os.path.isdir(exp_dir_full)):
+        raise NotADirectoryError("Passed path to preprocessed data '"+exp_dir_full+"' does not exist!")
+    file_list = glob.glob(os.path.join(exp_dir_full,"sequence*.tfrecords"))
     if len(file_list) == 0:
-        raise FileNotFoundError("Passed path to preprocessed data '"+exp_dir+"' exists,"+\
+        raise FileNotFoundError("Passed path to preprocessed data '"+exp_dir_full+"' exists,"+\
                                 "but no tfrecord-files can be found therein")
+
+    exp_dir_split = path_rec_split(exp_dir_full)
+    index = [idx for idx, s in enumerate(l) if dataset in s][0]
+    exp_dir = exp_dir_split[index]
 
     # path to virtual environment to be used
     venv_name = input("Enter the name of the virtual environment which should be used:\n")
