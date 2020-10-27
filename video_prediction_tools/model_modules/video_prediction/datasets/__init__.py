@@ -8,21 +8,11 @@ from .ucf101_dataset import UCF101VideoDataset
 from .cartgripper_dataset import CartgripperVideoDataset
 from .era5_dataset import ERA5Dataset
 from .moving_mnist import MovingMnist
+from data_preprocess.dataset_options import known_datasets
 #from .era5_dataset_v2_anomaly import ERA5Dataset_v2_anomaly
 
 def get_dataset_class(dataset):
-    dataset_mappings = {
-        'google_robot': 'GoogleRobotVideoDataset',
-        'sv2p': 'SV2PVideoDataset',
-        'softmotion': 'SoftmotionVideoDataset',
-        'bair': 'SoftmotionVideoDataset',  # alias of softmotion
-        'kth': 'KTHVideoDataset',
-        'ucf101': 'UCF101VideoDataset',
-        'cartgripper': 'CartgripperVideoDataset',
-        "era5":"ERA5Dataset",
-        "moving_mnist":"MovingMnist"
-#        "era5_anomaly":"ERA5Dataset_v2_anomaly",
-    }
+    dataset_mappings = known_datasets()
     dataset_class = dataset_mappings.get(dataset, dataset)
     print("datset_class",dataset_class)
     dataset_class = globals().get(dataset_class)
