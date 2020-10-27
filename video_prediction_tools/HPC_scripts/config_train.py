@@ -20,6 +20,27 @@ from model_architectures import known_models
 
 # start script
 
+def get_variable_from_runscript(runscript_file,script_variable):
+    '''
+    Searach for the declaration of variable in a Shell script and returns its value.
+    '''
+    script_variable = script_variable + "="
+    found = False
+
+    with open(runscript_file) as runscript:
+        # Skips text before the beginning of the interesting block:
+        for line in runscript:
+            if script_variable in line:
+                var_value = line.strip(script_variable)
+                found = True
+                break
+
+    if not found:
+        raise Exception("Could not find declaration of '"+script_variable+"' in '"+runscript_file+"'.")
+
+    return var_value
+
+
 def main():
 
     known_models = known_models().keys()
@@ -50,7 +71,7 @@ def main():
     # sanity check (is the model implemented?)
     if not (model in known_models):
         print("The following models are implemented in the workflow:")
-        for model in known_models: print("* "+model)
+        for model_avail in known_models: print("* "+model_avail)
         raise ValueError("Could not find the passed model '"+model+"'! Please select a model from the ones listed above.")
 
     # experimental ID
@@ -59,6 +80,22 @@ def main():
     # also get current timestamp and user-name
     timestamp = dt.datetime.now().strftime("%Y%m%dT%H%M%S")
     user_name = os.environ["USER"]
+
+    target_dir = timestamp +"_"+ user_name +"_"+ exp_id
+    base_dir = get_variable_from_runscript('train_model_era5_template.sh','source_dir')
+    target_dir = os.path.join(base_dir,target_dir)
+
+    # sanity check (target_dir is unique):
+    if os.path.isdir(target_dir):
+        raise IsADirectoryError(target_dir+" already exists! Make sure that it is unique.")
+
+
+
+
+
+
+
+
 
 
 
