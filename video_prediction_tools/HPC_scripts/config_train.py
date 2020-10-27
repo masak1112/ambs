@@ -12,12 +12,15 @@ __date__ = "2020-10-27"
 # import modules
 import sys, os, glob
 #import numpy as np
+import subprocess
 import datetime as dt
 import json as js
 from os import path
-sys.path.append(path.abspath('../utils/'))
-import metadata
-sys.path.append(path.abspath('../'))
+#sys.path.append(path.abspath('../utils/'))
+#import metadata
+#sys.path.append(os.path.join(os.path.dirname(sys.path[0]),'bar'))
+print(os.path.dirname(sys.path[0]))
+sys.path.append(os.path.dirname(sys.path[0]))
 from model_modules.model_architectures import known_models
 from data_preprocess.dataset_options import known_datasets
 
@@ -37,7 +40,7 @@ def get_variable_from_runscript(runscript_file,script_variable):
         # Skips text before the beginning of the interesting block:
         for line in runscript:
             if script_variable in line:
-                var_value = line.strip(script_variable)
+                var_value = (line.strip(script_variable)).replace("\n", "")
                 found = True
                 break
 
@@ -52,9 +55,9 @@ def path_rec_split(full_path):
     :return: list of all splitted components
     """
     rest, tail = os.path.split(full_path)
-    if rest == '':
-        return tail,
-    return rec_split(rest) + (tail,)
+    if rest in ('', os.path.sep): return tail,
+
+    return path_rec_split(rest) + (tail,)
 
 
 def main():
@@ -70,7 +73,7 @@ def main():
     # NOTE: Generic template for training still has to be integrated!
     #       After this is done, the latter part of the if-clause can be removed
     #       and further adaptions for the target_dir and for retrieving base_dir (see below) are required
-    if not dataset in list_datasets and dataset == "era5":
+    if not dataset in list_datasets or dataset != "era5":
         print("The following dataset can be used for training:")
         for dataset_avail in list_datasets: print("* "+dataset_avail)
         raise ValueError("Please select a dataset from the ones listed above.")
@@ -88,7 +91,7 @@ def main():
                                 "but no tfrecord-files can be found therein")
 
     exp_dir_split = path_rec_split(exp_dir_full)
-    index = [idx for idx, s in enumerate(l) if dataset in s][0]
+    index = [idx for idx, s in enumerate(exp_dir_split) if dataset in s][0]
     exp_dir = exp_dir_split[index]
 
     # path to virtual environment to be used
@@ -116,13 +119,31 @@ def main():
 
     target_dir = timestamp +"_"+ user_name +"_"+ exp_id
     base_dir = get_variable_from_runscript('train_model_era5_template.sh','destination_dir')
-    target_dir = os.path.join(base_dir,target_dir)
+    target_dir = os.path.join(base_dir,exp_dir,model,target_dir)
+    print(base_dir)
+    print("-----")
+    print(exp_dir)
+    print("-----")
+    print(model)
+    print("-----")
+    print(target_dir)
+    print("-----")
 
     # sanity check (target_dir is unique):
     if os.path.isdir(target_dir):
         raise IsADirectoryError(target_dir+" already exists! Make sure that it is unique.")
 
-    print(target_dir)
+    # create destnation directory, copy over json-file for hyperparamters and open vim
+    os.makedirs(target_dir)
+    source_hparams = os.path.join("..","hparams",dataset,model,"model_hparams.json")
+    # sanity check (default hyperparameter json-file exists)
+    if not os.path.isfile(source_hparams):
+        raise FileNotFoundError("Could not find default hyperparameter json-file '"+source_hparams+"'")
+
+    os.system("cp "+source_hparams+" "+target_dir)
+
+    cmd = os.environ.get('EDITOR', 'vi') + ' ' + os.path.join(target_dir,"model_hparams.json")
+    subprocess.call(cmd, shell=True)
 
 if __name__== '__main__':
     main()
