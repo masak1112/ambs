@@ -15,16 +15,15 @@ import numpy as np
 import datetime as dt
 import json as js
 import metadata
-sys.path.append(path.abspath('../video_prediction/'))
-from models import get_model_class
-
-known_architectures = ["savp","convLSTM","vae","mcnet"]
-if not (model in known_architectures):
-
+sys.path.append(path.abspath('../model_modules/'))
+from model_architectures import known_models
 
 # start script
 
 def main():
+
+    known_models = known_models().keys()
+
     # get required information from the user by keyboard interaction
 
     # path to preprocessed data
@@ -46,7 +45,13 @@ def main():
         raise FileNotFoundError("Could not find a virtual environment named "+venv_name)
 
     # model
+    model = input("Enter the name of the model you want to train:\n")
 
+    # sanity check (is the model implemented?)
+    if not (model in known_models):
+        print("The following models are implemented in the workflow:")
+        for model in known_models: print("* "+model)
+        raise ValueError("Could not find the passed model '"+model+"'! Please select a model from the ones listed above.")
 
     # experimental ID
     exp_id = input("Enter your desired experimental id:\n")
