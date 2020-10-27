@@ -2,6 +2,9 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
+"""
+We took the code implementation from https://github.com/alexlee-gk/video_prediction, SAVP model  as reference, and adjust the code based on our project needs
+"""
 
 __email__ = "b.gong@fz-juelich.de"
 __author__ = "Bing Gong, Scarlet Stadtler,Michael Langguth"
@@ -35,10 +38,10 @@ class TrainModel(object):
                                              "information from model and model_hparams
             datasplit_dict       : str, the path pointing to the datasplit_config json file
             hparams_dict_dict    : str, the path to the dict that contains hparameters,
-            dataset              :str, dataset class name
-            model                :str, model class name
-            model_hparams_dict   :str, a json file of model hyperparameters
-            gpu_mem_frac         :float, fraction of gpu memory to use"
+            dataset              : str, dataset class name
+            model                : str, model class name
+            model_hparams_dict   : str, a json file of model hyperparameters
+            gpu_mem_frac         : float, fraction of gpu memory to use"
         """ 
         self.input_dir = input_dir
         self.output_dir = output_dir
@@ -98,20 +101,23 @@ class TrainModel(object):
         self.get_model_hparams_dict()
         if self.checkpoint:
             self.checkpoint_dir = os.path.normpath(self.checkpoint)
-        if not os.path.isdir(self.checkpoint):
-            self.checkpoint_dir, _ = os.path.split(self.checkpoint_dir)
-        if not os.path.exists(self.checkpoint_dir):
-            raise FileNotFoundError(errno.ENOENT, os.strerror(errno.ENOENT), self.checkpoint_dir)
-        with open(os.path.join(self.checkpoint_dir, "options.json")) as f:
-            print("loading options from checkpoint %s" % self.checkpoint)
-            self.options = json.loads(f.read())
-            self.dataset = dataset or options['dataset']
-            self.model = model or options['model']
-        try:
-            with open(os.path.join(self.checkpoint_dir, "model_hparams.json")) as f:
-                self.model_hparams_dict_load.update(json.loads(f.read()))
-        except FileNotFoundError:
-            print("model_hparams.json was not loaded because it does not exist")
+            if not os.path.isdir(self.checkpoint):
+                self.checkpoint_dir, _ = os.path.split(self.checkpoint_dir)
+            if not os.path.exists(self.checkpoint_dir):
+                raise FileNotFoundError(errno.ENOENT, os.strerror(errno.ENOENT), self.checkpoint_dir)
+            with open(os.path.join(self.checkpoint_dir, "options.json")) as f:
+                print("loading options from checkpoint %s" % self.checkpoint)
+                self.options = json.loads(f.read())
+                self.dataset = dataset or options['dataset']
+                self.model = model or options['model']
+            try:
+                with open(os.path.join(self.checkpoint_dir, "model_hparams.json")) as f:
+                    self.model_hparams_dict_load.update(json.loads(f.read()))
+            except FileNotFoundError:
+                print("model_hparams.json was not loaded because it does not exist")
+
+    def resume_checkpoint(self):
+        pass
 
     
     def setup_dataset(self):

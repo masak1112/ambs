@@ -123,4 +123,11 @@ def test_calculate_samples_and_epochs(train_model_case1):
 
 
 def test_create_fetches_for_train(train_model_case1):
-    pass 
+    train_model_case1.setup_model()
+    train_model_case1.create_fetches_for_train()
+    assert len(list(train_model_case1.fetches.keys()))  == 4
+
+def test_train_models(train_model_case1):
+    train_model_case1.setup()
+    train_model_case1.train_model()
+

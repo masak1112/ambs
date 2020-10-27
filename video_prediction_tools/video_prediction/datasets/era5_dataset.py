@@ -292,7 +292,7 @@ class ERA5Pkl2Tfrecords(ERA5Dataset):
         """
         Save the squences, and the corresdponding timestamp start point to tfrecords
         args:
-            output_frames    :str, the file names of the output
+            output_frames    : str, the file names of the output
             sequences        : list or array, the sequences want to be saved to tfrecords, [sequences,seq_len,height,width,channels]
             t_start_points   : datetime type in the list,  the first timestamp for each sequence [seq_len,height,width, channel], the len of t_start_points is the same as sequences
         """
@@ -420,10 +420,10 @@ class ERA5Pkl2Tfrecords(ERA5Dataset):
 
 
 
-     def write_sequence_file(self):
-         sequence_lengths_file = open(os.path.join(save_output_dir, 'sequence_lengths.txt'), 'w')
-         sequence_lengths_file.write("%d\n" % self.sequences_per_file)
-         sequence_lengths_file.close()
+    def write_sequence_file(self):
+        sequence_lengths_file = open(os.path.join(save_output_dir, 'sequence_lengths.txt'), 'w')
+        sequence_lengths_file.write("%d\n" % self.sequences_per_file)
+        sequence_lengths_file.close()
             
 
 #     def num_examples_per_epoch(self):
