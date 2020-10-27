@@ -11,9 +11,11 @@ __date__ = "2020-10-27"
 
 # import modules
 import sys, os, glob
-import numpy as np
+#import numpy as np
 import datetime as dt
 import json as js
+from os import path
+sys.path.append(path.abspath('../utils/'))
 import metadata
 sys.path.append(path.abspath('../model_modules/'))
 from model_architectures import known_models
@@ -43,7 +45,7 @@ def get_variable_from_runscript(runscript_file,script_variable):
 
 def main():
 
-    known_models = known_models().keys()
+    list_models = known_models().keys()
 
     # get required information from the user by keyboard interaction
 
@@ -62,16 +64,16 @@ def main():
     venv_name = input("Enter the name of the virtual environment which should be used:\n")
 
     # sanity check (does virtual environment exist?)
-    if not (os.path.isfile("../",venv_name,"bin","activate")):
+    if not (os.path.isfile(os.path.join("../",venv_name,"bin","activate"))):
         raise FileNotFoundError("Could not find a virtual environment named "+venv_name)
 
     # model
     model = input("Enter the name of the model you want to train:\n")
 
     # sanity check (is the model implemented?)
-    if not (model in known_models):
+    if not (model in list_models):
         print("The following models are implemented in the workflow:")
-        for model_avail in known_models: print("* "+model_avail)
+        for model_avail in list_models: print("* "+model_avail)
         raise ValueError("Could not find the passed model '"+model+"'! Please select a model from the ones listed above.")
 
     # experimental ID
@@ -82,16 +84,17 @@ def main():
     user_name = os.environ["USER"]
 
     target_dir = timestamp +"_"+ user_name +"_"+ exp_id
-    base_dir = get_variable_from_runscript('train_model_era5_template.sh','source_dir')
+    base_dir = get_variable_from_runscript('train_model_era5_template.sh','destination_dir')
     target_dir = os.path.join(base_dir,target_dir)
 
     # sanity check (target_dir is unique):
     if os.path.isdir(target_dir):
         raise IsADirectoryError(target_dir+" already exists! Make sure that it is unique.")
 
+    print(target_dir)
 
-
-
+if __name__== '__main__':
+    main()
 
 
 
