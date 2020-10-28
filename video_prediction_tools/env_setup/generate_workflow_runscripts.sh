@@ -36,6 +36,8 @@ check_argin() {
           exp_dir=${argin#"-exp_dir="}
         elif [[ $argin == *"-exp_dir_ext"* ]]; then
           exp_dir_ext=${argin#"-exp_dir_ext="}
+        elif [[ $argin == *"-model"* ]]; then
+          model=${argin#"-model="}
         fi
     done
 }
@@ -155,6 +157,11 @@ if [[ "${HOST_NAME}" == hdfml* || "${HOST_NAME}" == juwels* ]]; then
     USER_EMAIL=""
   fi
   sed -i "s/--mail-user=.*/--mail-user=$USER_EMAIL/g" ${target_script}
+fi
+
+# set model if model was passed as optional argument
+if [[ ! -z "${model}" ]]; then
+  sed -i "s/model=/model=${model}/g" ${target_script}
 fi
 
 # finally set experimental directory if exp_dir is present
