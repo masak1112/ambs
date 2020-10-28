@@ -119,8 +119,8 @@ def main():
     # ... to construct final target_dir and exp_dir_ext as well
     exp_id = timestamp +"_"+ user_name +"_"+ exp_id     # by concention, exp_id is extended with a timestamp and the user's name
     base_dir   = get_variable_from_runscript('train_model_era5_template.sh','destination_dir')
-    exp_dir_ext= os.path.join(exp_dir,model,target_dir)
-    target_dir = os.path.join(base_dir,exp_dir,model,target_dir)
+    exp_dir_ext= os.path.join(exp_dir,model,exp_id)
+    target_dir = os.path.join(base_dir,exp_dir,model,exp_id)
 
     # sanity check (target_dir is unique):
     if os.path.isdir(target_dir):
