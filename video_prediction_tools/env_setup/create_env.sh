@@ -31,8 +31,9 @@ else
 fi
 
 # list of (Batch) scripts used for the steps in the workflow
-# !!! Expects that a template named [script_name]_template.sh exists!!!
-workflow_scripts=(data_extraction_era5 preprocess_data_era5_step1 preprocess_data_era5_step2 train_model_era5 visualize_postprocess_era5 preprocess_data_moving_mnist train_model_moving_mnist visualize_postprocess_moving_mnist)
+# !!! Expects that a template named [script_name]_template.sh exists                   !!!
+# !!! Runscripts for training and postprocessing shall be created with config_train.py !!!
+workflow_scripts=(data_extraction_era5 preprocess_data_era5_step1 preprocess_data_era5_step2 preprocess_data_moving_mnist)
 
 HOST_NAME=`hostname`
 ENV_NAME=$1
@@ -128,13 +129,12 @@ fi
 # Finish by creating runscripts
  # After checking and setting up the virt env, create user-specific runscripts for all steps of the workflow
 if [[ "${HOST_NAME}" == hdfml* || "${HOST_NAME}" == juwels* ]]; then
-  echo "***** Creating Batch-scripts for running workflow... *****"
   script_dir=../HPC_scripts
 elif [[ "${HOST_NAME}" == "zam347" ]]; then
-  echo "***** Creating Batch-scripts for running workflow... *****"
   script_dir=../Zam347_scripts
 fi
 
+echo "***** Creating Batch-scripts for data extraction and preprpcessing substeps... *****"
 for wf_script in "${workflow_scripts[@]}"; do
   curr_script=${script_dir}/${wf_script}
   if [[ -z "${exp_id}" ]]; then
@@ -143,4 +143,6 @@ for wf_script in "${workflow_scripts[@]}"; do
     ./generate_workflow_runscripts.sh ${curr_script}  ${ENV_NAME} -exp_id=${exp_id}
   fi
 done
+echo "******************************************** NOTE ********************************************"
+echo "Runscripts for training and postprocessing can be generated with ../HPC_scripts/config_train.py"
 
