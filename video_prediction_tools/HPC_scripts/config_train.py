@@ -140,7 +140,7 @@ def main():
 
     # finally, create runscript for training...
     cmd = "cd ../env_setup; ./generate_workflow_runscripts.sh ../HPC_scripts/train_model_era5 "+ venv_name+ \
-          " -exp_id="+exp_id+" -exp_dir="+exp_dir+" -exp_dir_ext="+exp_dir_ext+" ; cd -"
+          " -exp_id="+exp_id+" -exp_dir="+exp_dir+" -exp_dir_ext="+exp_dir_ext+" -model="+model+" ; cd -"
     os.system(cmd)
     # ...and postprocessing as well
     cmd = cmd.replace("train_model_era5","visualize_postprocess_era5")
