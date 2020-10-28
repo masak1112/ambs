@@ -246,28 +246,23 @@ class TrainModel(object):
             for step in range(start_step,self.total_steps):
                 timeit_start = time.time()  
                 #run for training dataset
-                #fetch = {"total_loss": self.video_model.total_loss}
-                #fetch["x"] = self.video_model.x
-                #fetch["train_op"] = self.video_model.train_op
                 self.create_fetches_for_train()
-                #assert ("train_op" ==  list(self.fetches.keys())[0])
-                print("create_fetches_for_train.", self.fetches)
                 results = sess.run(self.fetches)
-                #train_losses.append(results["total_loss"])
+                train_losses.append(results["total_loss"])
                 #Run and fetch losses for validation data
                 val_handle_eval = sess.run(self.val_handle)
                 self.create_fetches_for_val()
                 val_results = sess.run(self.val_fetches,feed_dict={self.train_handle: val_handle_eval})
                 val_losses.append(val_results["total_loss"])
-                #self.write_to_summary()
-                #self.print_results(step,results)  
+                self.write_to_summary()
+                self.print_results(step,results)  
                 self.saver.save(sess, os.path.join(self.output_dir, "model"), global_step=step)
                 timeit_end = time.time()  
                 print("time needed for this step", timeit_end - timeit_start, ' s')
-                #if step % 20 == 0:
+                if step % 20 == 0:
                     # I save the pickle file and plot here inside the loop in case the training process cannot finished after job is done.
-                #    save_results_to_pkl(train_losses,val_losses,self.output_dir)
-                #    plot_train(train_losses,val_losses,step,self.output_dir)
+                    save_results_to_pkl(train_losses,val_losses,self.output_dir)
+                    plot_train(train_losses,val_losses,step,self.output_dir)
                                 
             #Totally train time over all the iterations
             train_time = time.time() - run_start_time
