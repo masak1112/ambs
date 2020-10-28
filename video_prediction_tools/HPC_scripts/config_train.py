@@ -138,9 +138,12 @@ def main():
     cmd_vim = os.environ.get('EDITOR', 'vi') + ' ' + os.path.join(target_dir,"model_hparams.json")
     subprocess.call(cmd_vim, shell=True)
 
-    # finally, create runscript
+    # finally, create runscript for training...
     cmd = "cd ../env_setup; ./generate_workflow_runscripts.sh ../HPC_scripts/train_model_era5 "+ venv_name+ \
           " -exp_id="+exp_id+" -exp_dir="+exp_dir+" -exp_dir_ext="+exp_dir_ext+" ; cd -"
+    os.system(cmd)
+    # ...and postprocessing as well
+    cmd = cmd.replace("train_model_era5","visualize_postprocess_era5")
     os.system(cmd)
 
 if __name__== '__main__':
