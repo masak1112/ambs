@@ -11,14 +11,12 @@ __date__ = "2020-10-27"
 
 # import modules
 import sys, os, glob
-#import numpy as np
 import subprocess
 import datetime as dt
 import json as js
 from os import path
-#sys.path.append(path.abspath('../utils/'))
-#import metadata
-#sys.path.append(os.path.join(os.path.dirname(sys.path[0]),'bar'))
+if sys.version_info[0] < 3:
+    raise Exception("This script has to be run with Python 3!")
 sys.path.append(os.path.dirname(sys.path[0]))
 from model_modules.model_architectures import known_models
 from data_preprocess.dataset_options import known_datasets
