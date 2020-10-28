@@ -138,8 +138,8 @@ def main():
     subprocess.call(cmd_vim, shell=True)
 
     # finally, create runscript
-    cmd = "cd ../env_setup; ./generate_workflow_runscripts.sh "+"../HPC_scripts/train_model_era5 "+ venv_name+ \
-          " exp_id="+exp_id+" exp_dir="+exp_dir_full+"; cd -")
+    cmd = "cd ../env_setup; ./generate_workflow_runscripts.sh ../HPC_scripts/train_model_era5 "+ venv_name+ \
+          " -exp_id="+exp_id+" -exp_dir="+exp_dir_full+"; cd -"
     os.system(cmd)
 
 if __name__== '__main__':
