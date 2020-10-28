@@ -117,7 +117,7 @@ def main():
     timestamp = dt.datetime.now().strftime("%Y%m%dT%H%M%S")
     user_name = os.environ["USER"]
     # ... to construct final target_dir and exp_dir_ext as well
-    target_dir = timestamp +"_"+ user_name +"_"+ exp_id
+    exp_id = timestamp +"_"+ user_name +"_"+ exp_id     # by concention, exp_id is extended with a timestamp and the user's name
     base_dir   = get_variable_from_runscript('train_model_era5_template.sh','destination_dir')
     exp_dir_ext= os.path.join(exp_dir,model,target_dir)
     target_dir = os.path.join(base_dir,exp_dir,model,target_dir)
