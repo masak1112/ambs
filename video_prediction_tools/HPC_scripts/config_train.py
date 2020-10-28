@@ -19,13 +19,44 @@ from os import path
 #sys.path.append(path.abspath('../utils/'))
 #import metadata
 #sys.path.append(os.path.join(os.path.dirname(sys.path[0]),'bar'))
-print(os.path.dirname(sys.path[0]))
 sys.path.append(os.path.dirname(sys.path[0]))
 from model_modules.model_architectures import known_models
 from data_preprocess.dataset_options import known_datasets
 
 # start script
 
+# robust check if script is running in virtual env from
+# https://stackoverflow.com/questions/1871549/determine-if-python-is-running-inside-virtualenv/38939054
+def get_base_prefix_compat():
+    """Get base/real prefix, or sys.prefix if there is none."""
+    return getattr(sys, "base_prefix", None) or getattr(sys, "real_prefix", None) or sys.prefix
+#
+#--------------------------------------------------------------------------------------------------------
+#
+def in_virtualenv():
+    return get_base_prefix_compat() != sys.prefix
+#
+#--------------------------------------------------------------------------------------------------------
+#
+def check_virtualenv(labort=False):
+    '''
+    Checks if current script is running a virtual environment and returns the directory's name
+    :param labort: If True, the an Exception is raised. If False, only a Warning is given
+    :return: name of virtual environment
+    '''
+    lvirt = in_virtualenv()
+
+    if not lvirt:
+        if labort:
+            raise EnvironmentError("config_train.py has to run in an activated virtual environment!")
+        else:
+            raise Warning("config_train.py is not running in an activated virtual environment!")
+            return
+    else:
+        return os.path.basename(sys.prefix)
+#
+# --------------------------------------------------------------------------------------------------------
+#
 def get_variable_from_runscript(runscript_file,script_variable):
     '''
     Searach for the declaration of variable in a Shell script and returns its value.
@@ -48,7 +79,9 @@ def get_variable_from_runscript(runscript_file,script_variable):
         raise Exception("Could not find declaration of '"+script_variable+"' in '"+runscript_file+"'.")
 
     return var_value
-
+#
+#--------------------------------------------------------------------------------------------------------
+#
 def path_rec_split(full_path):
     """
     :param full_path: input path to be splitted in its components
@@ -58,14 +91,18 @@ def path_rec_split(full_path):
     if rest in ('', os.path.sep): return tail,
 
     return path_rec_split(rest) + (tail,)
-
-
+#
+#--------------------------------------------------------------------------------------------------------
+#
 def main():
 
     list_models = known_models().keys()
     list_datasets = known_datasets().keys()
 
-    # get required information from the user by keyboard interaction
+    # sanity check (is Python running in a virtual environment)
+    venv_name = check_virtualenv(labort=True)
+
+    ## get required information from the user by keyboard interaction
 
     # dataset used for training
     dataset = input("Enter the name of the dataset for training:\n")
@@ -93,13 +130,6 @@ def main():
     exp_dir_split = path_rec_split(exp_dir_full)
     index = [idx for idx, s in enumerate(exp_dir_split) if dataset in s][0]
     exp_dir = exp_dir_split[index]
-
-    # path to virtual environment to be used
-    venv_name = input("Enter the name of the virtual environment which should be used:\n")
-
-    # sanity check (does virtual environment exist?)
-    if not (os.path.isfile(os.path.join("../",venv_name,"bin","activate"))):
-        raise FileNotFoundError("Could not find a virtual environment named "+venv_name)
 
     # model
     model = input("Enter the name of the model you want to train:\n")
