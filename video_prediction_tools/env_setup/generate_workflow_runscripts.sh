@@ -161,7 +161,7 @@ fi
 
 # set model if model was passed as optional argument
 if [[ ! -z "${model}" ]]; then
-  sed -i "s/model=/model=${model}/g" ${target_script}
+  sed -i "s/model=.*/model=${model}/g" ${target_script}
 fi
 
 # finally set experimental directory if exp_dir is present
