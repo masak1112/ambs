@@ -34,16 +34,19 @@ check_argin() {
           exp_id=${argin#"-exp_id="}
         elif [[ $argin == *"-exp_dir="* ]]; then
           exp_dir=${argin#"-exp_dir="}
+        elif [[ $argin == *"-exp_dir_ext"* ]]; then
+          exp_dir_ext=${argin#"-exp_dir_ext="}
         fi
     done
 }
 
-add_exp_dir() {
-# Add exp_dir to paths in <target_script> which end with /<prefix>/
+extend_path() {
+# Add <extension> to paths in <target_script> which end with /<prefix>/
   prefix=$1
+  extension=$2
   if [[ `grep "/${prefix}/$" ${target_script}` ]]; then
    echo "Add experimental directory after '${prefix}/' in runscript '${target_script}'"
-   sed -i "s|/${prefix}/$|/${prefix}/${exp_dir}/|g" ${target_script}
+   sed -i "s|/${prefix}/$|/${prefix}/${extension}/|g" ${target_script}
    status=1
   fi
 }
@@ -68,10 +71,13 @@ if [[ "$#" -lt 2 ]]; then
 else
   curr_script=$1
   curr_script_loc="$(basename "$curr_script")"
-  curr_venv=$2
+  curr_venv=$2                          #
   # check if any known non-positional argument is present...
   if [[ "$#" -gt 2 ]]; then
     check_argin ${@:3}
+    if [[ ! -z "${exp_dir_ext}" ]] && [[ -z "${exp_dir}" ]]; then
+      echo "WARNING: -exp_dir_ext is passed without passing -ext_dir and thus has no effect!"
+    fi
   fi
   #...and ensure that exp_id is always set
   if [[ -z "${exp_id}" ]]; then
@@ -153,11 +159,19 @@ fi
 
 # finally set experimental directory if exp_dir is present
 if [[ ! -z "${exp_dir}" ]]; then
+  if [[ ! -z "${exp_dir_ext}" ]]; then
+    status=0                      # status to check if exp_dir_ext is added to the runscript at hand
+                                  # -> will be set to one by extend_path if modifictaion takes place
+    extend_path models ${exp_dir_ext}/
+    extend_path results ${exp_dir_ext}
+
+    if [[ ${status} == 0 ]]; then
+      echo "WARNING: -exp_dir_ext has been passed, but no addition to any path in runscript at hand done..."
+    fi
+  fi
   status=0                        # status to check if exp_dir is added to the runscript at hand
                                   # -> will be set to one by add_exp_dir if modifictaion takes place
-  add_exp_dir preprocessedData
-  add_exp_dir models
-  add_exp_dir results
+  extend_path preprocessedData ${exp_dir}
 
   if [[ ${status} == 0 ]]; then
     echo "WARNING: -exp_dir has been passed, but no addition to any path in runscript at hand done..."
