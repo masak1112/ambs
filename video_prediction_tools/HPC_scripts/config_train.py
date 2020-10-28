@@ -111,15 +111,15 @@ def main():
         raise ValueError("Could not find the passed model '"+model+"'! Please select a model from the ones listed above.")
 
     # experimental ID
-    exp_id = input("Enter your desired experimental id:\n")
+    exp_id = input("Enter your desired experimental id (will be extended by timestamp and username):\n")
 
     # also get current timestamp and user-name
     timestamp = dt.datetime.now().strftime("%Y%m%dT%H%M%S")
     user_name = os.environ["USER"]
 
-    target_dir = timestamp +"_"+ user_name +"_"+ exp_id
+    exp_id = timestamp +"_"+ user_name +"_"+ exp_id                             # by convention extend exp_id by timestamp and user name
     base_dir = get_variable_from_runscript('train_model_era5_template.sh','destination_dir')
-    target_dir = os.path.join(base_dir,exp_dir,model,target_dir)
+    target_dir = os.path.join(base_dir,exp_dir,model,exp_id)
 
     # sanity check (target_dir is unique):
     if os.path.isdir(target_dir):
