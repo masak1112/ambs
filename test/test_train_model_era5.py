@@ -1,7 +1,7 @@
 
 __email__ = "b.gong@fz-juelich.de"
 __author__ = "Bing Gong, Scarlet Stadtler,Michael Langguth"
-
+__date__ = "2020-10-22"
 
 
 from main_scripts.main_train_models import *
@@ -19,16 +19,27 @@ checkpoint = ""
 dataset = "era5"
 gpu_mem_grac = 0.9
 seed = 1234
-##################################################### End Test Configuration################################################
+class MyClass:
+    def __init__(self, i):
+         self.input_dir = i
+args = MyClass(input_dir)
+ #################################################### End Test Configuration################################################
 
 
 @pytest.fixture(scope="module")
 def train_model_case1(input_dir=input_dir,output_dir=output_dir,datasplit_config=datasplit_config,
                        model_hparams_dict=hparams_path,model=model,checkpoint=checkpoint,dataset=dataset,
-                       gpu_mem_frac=gpu_mem_grac,seed=seed):
+                       gpu_mem_frac=gpu_mem_grac,seed=seed,args=args):
     return TrainModel(input_dir,output_dir,datasplit_config,
                        model_hparams_dict,model,checkpoint,dataset,
-                        gpu_mem_frac,seed)
+                        gpu_mem_frac,seed,args)
+
+
+
+
+
+
+
 
 def test_generate_output_dir(train_model_case1):
     if_path = os.path.join(output_dir,model)
@@ -102,11 +113,7 @@ def test_save_dataset_model_params_to_checkpoint_dir(train_model_case1):
     """
     Test if all the args, model hparamters, data hparamters are saved properly to outoput directory
     """
-    class MyClass:
-        def __init__(self, i):
-            self.input_dir = i
-    args = MyClass(train_model_case1.input_dir)
-    train_model_case1.save_dataset_model_params_to_checkpoint_dir(args)
+    train_model_case1.save_dataset_model_params_to_checkpoint_dir()
     #check if options.json was stored in the right place
     if_option = os.path.isfile(os.path.join(train_model_case1.output_dir,"options.json"))
     assert if_option == True
@@ -118,16 +125,23 @@ def test_count_paramters(train_model_case1):
 
 def test_calculate_samples_and_epochs(train_model_case1):
     train_model_case1.calculate_samples_and_epochs()
-    assert train_model_case1.num_examples_per_epoch == 680
-
+    assert train_model_case1.num_examples == 680
 
 
 def test_create_fetches_for_train(train_model_case1):
     train_model_case1.setup_model()
+    train_model_case1.make_dataset_iterator()
+    train_model_case1.setup_graph()
     train_model_case1.create_fetches_for_train()
     assert len(list(train_model_case1.fetches.keys()))  == 4
+
+def test_setup_graph(train_model_case1):
+    pass
+
+def test_setup():
+    pass
 
 def test_train_models(train_model_case1):
     train_model_case1.setup()
     train_model_case1.train_model()
-
+   

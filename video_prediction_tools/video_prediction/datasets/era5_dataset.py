@@ -137,16 +137,17 @@ class ERA5Dataset(object):
         self.video_shape = tuple(int(feature[key]['int64List']['value'][0]) for key in ['sequence_length','height', 'width', 'channels'])
         self.image_shape = self.video_shape[1:]
  
-    def number_examples_per_epoch(self):
+    def num_examples_per_epoch(self):
         """
         Calculate how many tfrecords samples in the train/val/test 
         """
         #count how many tfrecords files for train/val/testing
         len_fnames = len(self.filenames)
-        with open(os.path.join(self.input_dir, 'sequence_lengths.txt'), 'r') as sequence_lengths_file:
-             sequence_len = sequence_lengths_file.readlines()
-
-        self.num_examples_per_epoch  = len_fnames * sequence_len
+        seq_len_file = os.path.join(self.input_dir,"tfrecords", 'sequence_lengths.txt')
+        with open(seq_len_file, 'r') as sequence_lengths_file:
+             sequence_lengths = sequence_lengths_file.readlines()
+        sequence_lengths = [int(sequence_length.strip()) for sequence_length in sequence_lengths]
+        self.num_examples_per_epoch  = len_fnames * sequence_lengths[0]
         return self.num_examples_per_epoch 
 
 

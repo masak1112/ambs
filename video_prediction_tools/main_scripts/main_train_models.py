@@ -8,7 +8,7 @@ We took the code implementation from https://github.com/alexlee-gk/video_predict
 
 __email__ = "b.gong@fz-juelich.de"
 __author__ = "Bing Gong, Scarlet Stadtler,Michael Langguth"
-
+__date__ = "2020-10-22"
 
 import argparse
 import errno
@@ -27,7 +27,7 @@ class TrainModel(object):
     def __init__(self,input_dir=None,output_dir=None,datasplit_dict=None,
                  model_hparams_dict=None,model=None,
                  checkpoint=None,dataset=None,
-                 gpu_mem_frac=None,seed=None):
+                 gpu_mem_frac=None,seed=None,args=None):
         
         """
         This class aims to train the models
@@ -52,6 +52,7 @@ class TrainModel(object):
         self.model = model
         self.gpu_mem_frac = gpu_mem_frac
         self.seed = seed
+        self.args = args
         self.generate_output_dir()
         self.hparams_dict = self.get_model_hparams_dict()
 
@@ -68,7 +69,8 @@ class TrainModel(object):
         self.count_paramters()
         self.create_saver_and_writer()
         self.setup_gpu_config()
-
+        self.calculate_samples_and_epochs()
+        
 
     def set_seed(self):
         if self.seed is not None:
@@ -144,8 +146,6 @@ class TrainModel(object):
             build model graph
             since era5 tfrecords include T_start, we need to remove it from the tfrecord when we train the model, otherwise the model will raise error 
         """
-        if self.dataset == "era5":
-           del  self.video_model.inputs["T_start"]
         self.video_model.build_graph(self.inputs)                                    
 
     def make_dataset_iterator(self):
@@ -164,15 +164,19 @@ class TrainModel(object):
         self.iterator = tf.data.Iterator.from_string_handle(
             self.train_handle, self.train_tf_dataset.output_types, self.train_tf_dataset.output_shapes)
         self.inputs = self.iterator.get_next()
+        if self.dataset == "era5" and self.model == "savp":
+           del  self.inputs["T_start"]        
 
-    def save_dataset_model_params_to_checkpoint_dir(self,args):
+
+
+    def save_dataset_model_params_to_checkpoint_dir(self):
         """
         Save all setup configurations such as args, data_hparams, and model_hparams into output directory
         """
         if not os.path.exists(self.output_dir):
             os.makedirs(self.output_dir)
         with open(os.path.join(self.output_dir, "options.json"), "w") as f:
-            f.write(json.dumps(vars(args), sort_keys=True, indent=4))
+            f.write(json.dumps(vars(self.args), sort_keys=True, indent=4))
         with open(os.path.join(self.output_dir, "dataset_hparams.json"), "w") as f:
             f.write(json.dumps(self.train_dataset.hparams.values(), sort_keys=True, indent=4))
         with open(os.path.join(self.output_dir, "model_hparams.json"), "w") as f:
@@ -215,8 +219,8 @@ class TrainModel(object):
         """
         batch_size = self.video_model.hparams.batch_size
         max_epochs = self.video_model.hparams.max_epochs #the number of epochs
-        self.num_examples_per_epoch = self.train_dataset.num_examples_per_epoch()
-        self.steps_per_epoch = int(self.num_examples_per_epoch/batch_size)
+        self.num_examples = self.train_dataset.num_examples_per_epoch()
+        self.steps_per_epoch = int(self.num_examples/batch_size)
         self.total_steps = self.steps_per_epoch * max_epochs
         
 
@@ -231,7 +235,7 @@ class TrainModel(object):
             sess.run(tf.local_variables_initializer())
             #TODO
             #model.restore(sess, args.checkpoint)
-            sess.graph.finalize()
+            #sess.graph.finalize()
             start_step = sess.run(global_step)
             print("start_step", start_step)
             # start at one step earlier to log everything without doing any training
@@ -242,23 +246,28 @@ class TrainModel(object):
             for step in range(start_step,self.total_steps):
                 timeit_start = time.time()  
                 #run for training dataset
+                #fetch = {"total_loss": self.video_model.total_loss}
+                #fetch["x"] = self.video_model.x
+                #fetch["train_op"] = self.video_model.train_op
                 self.create_fetches_for_train()
+                #assert ("train_op" ==  list(self.fetches.keys())[0])
+                print("create_fetches_for_train.", self.fetches)
                 results = sess.run(self.fetches)
-                train_losses.append(results["total_loss"])
+                #train_losses.append(results["total_loss"])
                 #Run and fetch losses for validation data
                 val_handle_eval = sess.run(self.val_handle)
                 self.create_fetches_for_val()
                 val_results = sess.run(self.val_fetches,feed_dict={self.train_handle: val_handle_eval})
                 val_losses.append(val_results["total_loss"])
-                self.write_to_summary()
-                self.print_results(step,results)  
-                saver.save(sess, os.path.join(args.output_dir, "model"), global_step=step)
+                #self.write_to_summary()
+                #self.print_results(step,results)  
+                self.saver.save(sess, os.path.join(self.output_dir, "model"), global_step=step)
                 timeit_end = time.time()  
                 print("time needed for this step", timeit_end - timeit_start, ' s')
-                if step % 20 == 0:
+                #if step % 20 == 0:
                     # I save the pickle file and plot here inside the loop in case the training process cannot finished after job is done.
-                    save_results_to_pkl(train_losses,val_losses,self.output_dir)
-                    plot_train(train_losses,val_losses,step,self.output_dir)
+                #    save_results_to_pkl(train_losses,val_losses,self.output_dir)
+                #    plot_train(train_losses,val_losses,step,self.output_dir)
                                 
             #Totally train time over all the iterations
             train_time = time.time() - run_start_time
@@ -283,7 +292,7 @@ class TrainModel(object):
        if self.video_model.__class__.__name__ == "VanillaConvLstmVideoPredictionModel": self.fetches_for_train_convLSTM()
        if self.video_model.__class__.__name__ == "SAVPVideoPredictionModel": self.fetches_for_train_savp()
        if self.video_model.__class__.__name__ == "VanillaVAEVideoPredictionModel": self.fetches_for_train_vae()
-     
+       return self.fetches     
     
     def fetches_for_train_convLSTM(self):
         """
@@ -401,7 +410,7 @@ def main():
     #create a training instance
     train_case = TrainModel(input_dir=args.input_dir,output_dir=args.output_dir,datasplit_dict=args.datasplit_dict,
                  model_hparams_dict=args.model_hparams_dict,model=args.model,checkpoint=args.checkpoint,dataset=args.dataset,
-                 gpu_mem_frac=args.gpu_mem_frac,seed=args.seed)  
+                 gpu_mem_frac=args.gpu_mem_frac,seed=args.seed,args=args)  
     
     print('----------------------------------- Options ------------------------------------')
     for k, v in args._get_kwargs():
