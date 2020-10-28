@@ -120,14 +120,6 @@ def main():
     target_dir = timestamp +"_"+ user_name +"_"+ exp_id
     base_dir = get_variable_from_runscript('train_model_era5_template.sh','destination_dir')
     target_dir = os.path.join(base_dir,exp_dir,model,target_dir)
-    print(base_dir)
-    print("-----")
-    print(exp_dir)
-    print("-----")
-    print(model)
-    print("-----")
-    print(target_dir)
-    print("-----")
 
     # sanity check (target_dir is unique):
     if os.path.isdir(target_dir):
@@ -142,8 +134,13 @@ def main():
 
     os.system("cp "+source_hparams+" "+target_dir)
 
-    cmd = os.environ.get('EDITOR', 'vi') + ' ' + os.path.join(target_dir,"model_hparams.json")
-    subprocess.call(cmd, shell=True)
+    cmd_vim = os.environ.get('EDITOR', 'vi') + ' ' + os.path.join(target_dir,"model_hparams.json")
+    subprocess.call(cmd_vim, shell=True)
+
+    # finally, create runscript
+    cmd = "cd ../env_setup; ./generate_workflow_runscripts.sh "+"../HPC_scripts/train_model_era5 "+ venv_name+ \
+          " exp_id="+exp_id+" exp_dir="+exp_dir_full+"; cd -")
+    os.system(cmd)
 
 if __name__== '__main__':
     main()
