@@ -113,33 +113,34 @@ def main():
     # experimental ID
     exp_id = input("Enter your desired experimental id:\n")
 
-    # also get current timestamp and user-name
+    # also get current timestamp and user-name...
     timestamp = dt.datetime.now().strftime("%Y%m%dT%H%M%S")
     user_name = os.environ["USER"]
-
+    # ... to construct final target_dir and exp_dir_ext as well
     target_dir = timestamp +"_"+ user_name +"_"+ exp_id
-    base_dir = get_variable_from_runscript('train_model_era5_template.sh','destination_dir')
+    base_dir   = get_variable_from_runscript('train_model_era5_template.sh','destination_dir')
+    exp_dir_ext= os.path.join(exp_dir,model,target_dir)
     target_dir = os.path.join(base_dir,exp_dir,model,target_dir)
 
     # sanity check (target_dir is unique):
     if os.path.isdir(target_dir):
         raise IsADirectoryError(target_dir+" already exists! Make sure that it is unique.")
 
-    # create destnation directory, copy over json-file for hyperparamters and open vim
+    # create destnation directory...
     os.makedirs(target_dir)
     source_hparams = os.path.join("..","hparams",dataset,model,"model_hparams.json")
     # sanity check (default hyperparameter json-file exists)
     if not os.path.isfile(source_hparams):
         raise FileNotFoundError("Could not find default hyperparameter json-file '"+source_hparams+"'")
-
+    # ...copy over json-file for hyperparamters...
     os.system("cp "+source_hparams+" "+target_dir)
-
+    # ...and open vim
     cmd_vim = os.environ.get('EDITOR', 'vi') + ' ' + os.path.join(target_dir,"model_hparams.json")
     subprocess.call(cmd_vim, shell=True)
 
     # finally, create runscript
     cmd = "cd ../env_setup; ./generate_workflow_runscripts.sh ../HPC_scripts/train_model_era5 "+ venv_name+ \
-          " -exp_id="+exp_id+" -exp_dir="+exp_dir_full+"; cd -"
+          " -exp_id="+exp_id+" -exp_dir="+exp_dir+" -exp_dir_ext="+exp_dir_ext+" ; cd -"
     os.system(cmd)
 
 if __name__== '__main__':
