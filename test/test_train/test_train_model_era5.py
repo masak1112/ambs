@@ -33,7 +33,6 @@ def train_model_case1(input_dir=input_dir,output_dir=output_dir,datasplit_config
 
  #################################################### End Test Configuration for instance case 1################################################
 
-
 def test_generate_output_dir(train_model_case1):
     assert train_model_case1.output_dir ==  output_dir
 
@@ -127,7 +126,7 @@ def test_create_fetches_for_train(train_model_case1):
     assert if_g_losses == False
 
 def test_setup_graph(train_model_case1):
-    train_model_case1.setup_graph()
+    #train_model_case1.setup_graph()
     assert train_model_case1.video_model.x == train_model_case1.inputs["images"]    
     assert train_model_case1.video_model.is_build_graph == True
 
@@ -135,7 +134,6 @@ def test_count_paramters(train_model_case1):
     #Give a simple example contains two trainable parameters for testing
     train_model_case1.count_parameters()
     train_model_case1.setup_gpu_config()
-
     global_step = tf.train.get_or_create_global_step()
     with tf.Session(config=train_model_case1.config) as sess:
         params = sess.run(train_model_case1.parameter_count)
@@ -143,5 +141,9 @@ def test_count_paramters(train_model_case1):
 
 def test_train_models(train_model_case1):
     train_model_case1.setup()
-    #train_model_case1.train_model()
-   
+    train_model_case1.total_steps = 20
+    train_model_case1.train_model()
+    #check if the model is saved properly
+    file_saved = os.path.join(output_dir,"model-19.meta")
+    if_file_saved = os.path.isfile(file_saved)
+    assert if_file_saved == True

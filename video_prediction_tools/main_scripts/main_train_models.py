@@ -61,7 +61,6 @@ class TrainModel(object):
 
     def setup(self):
         self.set_seed()
-        self.resume_checkpoint()
         self.load_params_from_checkpoints_dir()
         self.setup_dataset()
         self.setup_model()
@@ -138,8 +137,6 @@ class TrainModel(object):
            restore_op = [saver.saver_def.restore_op_name for saver in savers]
            sess.run(restore_op)
 
-    def resume_checkpoint(self):
-        pass
 
     def setup_dataset(self):
         """
@@ -251,8 +248,7 @@ class TrainModel(object):
             print("parameter_count =", sess.run(self.parameter_count))
             sess.run(tf.global_variables_initializer())
             sess.run(tf.local_variables_initializer())
-            #TODO
-            #model.restore(sess, args.checkpoint)
+            self.restore(sess, self.checkpoint)
             #sess.graph.finalize()
             start_step = sess.run(global_step)
             print("start_step", start_step)
@@ -265,28 +261,28 @@ class TrainModel(object):
                 timeit_start = time.time()
                 #run for training dataset
                 self.create_fetches_for_train()
-                results = sess.run(self.fetches)
-                train_losses.append(results["total_loss"])
+                self.results = sess.run(self.fetches)
+                train_losses.append(self.results["total_loss"])
                 #Run and fetch losses for validation data
                 val_handle_eval = sess.run(self.val_handle)
                 self.create_fetches_for_val()
-                val_results = sess.run(self.val_fetches,feed_dict={self.train_handle: val_handle_eval})
-                val_losses.append(val_results["total_loss"])
+                self.val_results = sess.run(self.val_fetches,feed_dict={self.train_handle: val_handle_eval})
+                val_losses.append(self.val_results["total_loss"])
                 self.write_to_summary()
-                self.print_results(step,results)
+                self.print_results(step,self.results)
                 self.saver.save(sess, os.path.join(self.output_dir, "model"), global_step=step)
                 timeit_end = time.time()
                 print("time needed for this step", timeit_end - timeit_start, ' s')
                 if step % 20 == 0:
                     # I save the pickle file and plot here inside the loop in case the training process cannot finished after job is done.
-                    save_results_to_pkl(train_losses,val_losses,self.output_dir)
-                    plot_train(train_losses,val_losses,step,self.output_dir)
+                    TrainModel.save_results_to_pkl(train_losses,val_losses,self.output_dir)
+                    TrainModel.plot_train(train_losses,val_losses,step,self.output_dir)
 
             #Totally train time over all the iterations
             train_time = time.time() - run_start_time
             results_dict = {"train_time":train_time,
                             "total_steps":self.total_steps}
-            save_results_to_dict(results_dict,self.output_dir)
+            TrainModel.save_results_to_dict(results_dict,self.output_dir)
             print("train_losses:",train_losses)
             print("val_losses:",val_losses) 
             print("Done")
@@ -344,6 +340,7 @@ class TrainModel(object):
         Fetch variables in the graph for validation dataset, this can be custermized based on models and based on the needs of users
         """
         self.val_fetches = {"total_loss": self.video_model.total_loss}
+        self.val_fetches["summary"] = self.video_model.summary_op
 
     def write_to_summary(self):
         self.summary_writer.add_summary(self.results["summary"],self.results["global_step"])
@@ -394,8 +391,9 @@ class TrainModel(object):
     @staticmethod
     def save_results_to_dict(results_dict,output_dir):
         with open(os.path.join(output_dir,"results.json"),"w") as fp:
-            json.dump(results_dict,fp)    
+            json.dump(results_dict,fp) 
 
+    @staticmethod
     def save_results_to_pkl(train_losses,val_losses, output_dir):
          with open(os.path.join(output_dir,"train_losses.pkl"),"wb") as f:
             pkl.dump(train_losses,f)
