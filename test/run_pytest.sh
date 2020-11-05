@@ -24,3 +24,5 @@ source ../video_prediction_tools/env_setup/modules_train.sh
 #python -m pytest  test_era5_data.py
 #Test for training
 python -m pytest test_train_model_era5.py
+
+
