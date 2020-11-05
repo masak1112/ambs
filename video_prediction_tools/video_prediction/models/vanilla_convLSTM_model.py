@@ -1,3 +1,7 @@
+__email__ = "b.gong@fz-juelich.de"
+__author__ = "Bing Gong, Scarlet Stadtler,Michael Langguth"
+__date__ = "2020-11-05"
+
 import collections
 import functools
 import itertools
@@ -22,10 +26,9 @@ class VanillaConvLstmVideoPredictionModel(object):
         """
         This is class for building convLSTM architecture by using updated hparameters
         args:
-             mode   :str, "train" or "val"
+             mode   :str, "train" or "val", side note: mode may not be used in the convLSTM, but this will be a useful argument for the GAN-based model
              hparams_dict: dict, the dictionary contains the hparaemters names and values
         """
-        #super(VanillaConvLstmVideoPredictionModel, self).__init__(mode, hparams_dict, hparams, **kwargs)
         self.mode = mode
         self.hparams_dict = hparams_dict
         self.hparams = self.parse_hparams()        
@@ -74,6 +77,7 @@ class VanillaConvLstmVideoPredictionModel(object):
 
 
     def build_graph(self, x):
+        self.is_build_graph = False
         self.x = x["images"]
         self.global_step = tf.train.get_or_create_global_step()
         original_global_variables = tf.global_variables()
@@ -105,7 +109,8 @@ class VanillaConvLstmVideoPredictionModel(object):
         self.summary_op = tf.summary.merge_all()
         global_variables = [var for var in tf.global_variables() if var not in original_global_variables]
         self.saveable_variables = [self.global_step] + global_variables
-        return None
+        self.is_build_graph = True
+        return self.is_build_graph 
 
     @staticmethod
     def convLSTM_cell(inputs, hidden):

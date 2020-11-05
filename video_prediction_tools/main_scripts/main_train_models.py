@@ -7,7 +7,7 @@ We took the code implementation from https://github.com/alexlee-gk/video_predict
 """
 
 __email__ = "b.gong@fz-juelich.de"
-__author__ = "Bing Gong, Scarlet Stadtler,Michael Langguth"
+__author__ = "Bing Gong, Scarlet Stadtler, Michael Langguth"
 __date__ = "2020-10-22"
 
 import argparse
@@ -20,14 +20,15 @@ import numpy as np
 import tensorflow as tf
 from video_prediction import datasets, models
 import matplotlib.pyplot as plt
-from json import JSONEncoder
 import pickle as pkl
+from video_prediction.utils import tf_utils
+
 
 class TrainModel(object):
-    def __init__(self,input_dir=None,output_dir=None,datasplit_dict=None,
-                 model_hparams_dict=None,model=None,
-                 checkpoint=None,dataset=None,
-                 gpu_mem_frac=None,seed=None,args=None):
+    def __init__(self, input_dir=None, output_dir=None, datasplit_dict=None,
+                       model_hparams_dict=None, model=None,
+                       checkpoint=None, dataset=None,
+                       gpu_mem_frac=None, seed=None, args=None):
         
         """
         This class aims to train the models
@@ -39,9 +40,10 @@ class TrainModel(object):
             datasplit_dict       : str, the path pointing to the datasplit_config json file
             hparams_dict_dict    : str, the path to the dict that contains hparameters,
             dataset              : str, dataset class name
+            checkpoint           : str, directory with checkpoint or checkpoint name (e.g. checkpoint_dir/model-200000)
             model                : str, model class name
             model_hparams_dict   : str, a json file of model hyperparameters
-            gpu_mem_frac         : float, fraction of gpu memory to use"
+            gpu_mem_frac         : float, fraction of gpu memory to use
         """ 
         self.input_dir = input_dir
         self.output_dir = output_dir
@@ -56,7 +58,7 @@ class TrainModel(object):
         self.generate_output_dir()
         self.hparams_dict = self.get_model_hparams_dict()
 
-    
+
     def setup(self):
         self.set_seed()
         self.resume_checkpoint()
@@ -66,11 +68,11 @@ class TrainModel(object):
         self.make_dataset_iterator()
         self.setup_graph()
         self.save_dataset_model_params_to_checkpoint_dir()
-        self.count_paramters()
+        self.count_parameters()
         self.create_saver_and_writer()
         self.setup_gpu_config()
         self.calculate_samples_and_epochs()
-        
+
 
     def set_seed(self):
         if self.seed is not None:
@@ -81,10 +83,8 @@ class TrainModel(object):
     def generate_output_dir(self):
         if self.output_dir is None:
             raise ("Output_dir is None, Please define the proper output_dir")
-        else:
-           self.output_dir = os.path.join(self.output_dir,self.model)
 
-
+            
     def get_model_hparams_dict(self):
         """
         Get model_hparams_dict from json file
@@ -98,7 +98,7 @@ class TrainModel(object):
 
     def load_params_from_checkpoints_dir(self):
         """
-         load the existing checkpoint related datasets, model configure (This information was stored in the checkpoint dir when last time training model)
+        load the json files related datasets , model configure metadata (This information was stored in the checkpoint dir when last time training model)
         """
         self.get_model_hparams_dict()
         if self.checkpoint:
@@ -117,11 +117,30 @@ class TrainModel(object):
                     self.model_hparams_dict_load.update(json.loads(f.read()))
             except FileNotFoundError:
                 print("model_hparams.json was not loaded because it does not exist")
+                
+
+    def restore(self,sess, checkpoints, restore_to_checkpoint_mapping=None):
+        if checkpoints:
+           var_list = self.saveable_variables
+           # possibly restore from multiple checkpoints. useful if subset of weights
+           # (e.g. generator or discriminator) are on different checkpoints.
+           if not isinstance(checkpoints, (list, tuple)):
+               checkpoints = [checkpoints]
+           # automatically skip global_step if more than one checkpoint is provided
+           skip_global_step = len(checkpoints) > 1
+           savers = []
+           for checkpoint in checkpoints:
+               print("creating restore saver from checkpoint %s" % checkpoint)
+               saver, _ = tf_utils.get_checkpoint_restore_saver(
+                   checkpoint, var_list, skip_global_step=skip_global_step,
+                   restore_to_checkpoint_mapping=restore_to_checkpoint_mapping)
+               savers.append(saver)
+           restore_op = [saver.saver_def.restore_op_name for saver in savers]
+           sess.run(restore_op)
 
     def resume_checkpoint(self):
         pass
 
-    
     def setup_dataset(self):
         """
         Setup train and val dataset instance with the corresponding data split configuration
@@ -146,8 +165,9 @@ class TrainModel(object):
             build model graph
             since era5 tfrecords include T_start, we need to remove it from the tfrecord when we train the model, otherwise the model will raise error 
         """
-        self.video_model.build_graph(self.inputs)                                    
+        self.video_model.build_graph(self.inputs)
 
+        
     def make_dataset_iterator(self):
         """
         Prepare the dataset interator for training and validation
@@ -168,7 +188,6 @@ class TrainModel(object):
            del  self.inputs["T_start"]        
 
 
-
     def save_dataset_model_params_to_checkpoint_dir(self):
         """
         Save all setup configurations such as args, data_hparams, and model_hparams into output directory
@@ -186,7 +205,7 @@ class TrainModel(object):
 
 
 
-    def count_paramters(self):
+    def count_parameters(self):
         """
         Count the paramteres of the model
         """ 
@@ -194,7 +213,6 @@ class TrainModel(object):
             # exclude trainable variables that are replicas (used in multi-gpu setting)
             self.trainable_variables = set(tf.trainable_variables()) & set(self.video_model.saveable_variables)
             self.parameter_count = tf.reduce_sum([tf.reduce_prod(tf.shape(v)) for v in self.trainable_variables])
-
 
 
     def create_saver_and_writer(self):
@@ -210,19 +228,19 @@ class TrainModel(object):
         """
         self.gpu_options = tf.GPUOptions(per_process_gpu_memory_fraction=self.gpu_mem_frac, allow_growth=True)
         self.config = tf.ConfigProto(gpu_options=self.gpu_options, allow_soft_placement=True)
-        
+
 
     def calculate_samples_and_epochs(self):
         """
-        Clculate samples for train/val/testing dataset. The samples are used for training model for each epoch. 
-        Clculate the iterations (samples multiple by max_epochs) for traininh
+        Clculate the number of samples for train/val/testing dataset. The samples are used for training model for each epoch. 
+        Clculate the iterations (samples multiple by max_epochs) for training.
         """
         batch_size = self.video_model.hparams.batch_size
         max_epochs = self.video_model.hparams.max_epochs #the number of epochs
         self.num_examples = self.train_dataset.num_examples_per_epoch()
         self.steps_per_epoch = int(self.num_examples/batch_size)
         self.total_steps = self.steps_per_epoch * max_epochs
-        
+
 
     def train_model(self):
         """
@@ -242,9 +260,9 @@ class TrainModel(object):
             # step is relative to the start_step
             train_losses=[]
             val_losses=[]
-            run_start_time = time.time()        
+            run_start_time = time.time()
             for step in range(start_step,self.total_steps):
-                timeit_start = time.time()  
+                timeit_start = time.time()
                 #run for training dataset
                 self.create_fetches_for_train()
                 results = sess.run(self.fetches)
@@ -255,15 +273,15 @@ class TrainModel(object):
                 val_results = sess.run(self.val_fetches,feed_dict={self.train_handle: val_handle_eval})
                 val_losses.append(val_results["total_loss"])
                 self.write_to_summary()
-                self.print_results(step,results)  
+                self.print_results(step,results)
                 self.saver.save(sess, os.path.join(self.output_dir, "model"), global_step=step)
-                timeit_end = time.time()  
+                timeit_end = time.time()
                 print("time needed for this step", timeit_end - timeit_start, ' s')
                 if step % 20 == 0:
                     # I save the pickle file and plot here inside the loop in case the training process cannot finished after job is done.
                     save_results_to_pkl(train_losses,val_losses,self.output_dir)
                     plot_train(train_losses,val_losses,step,self.output_dir)
-                                
+
             #Totally train time over all the iterations
             train_time = time.time() - run_start_time
             results_dict = {"train_time":train_time,
@@ -372,7 +390,7 @@ class TrainModel(object):
         plt.legend()
         plt.savefig(os.path.join(output_dir,'plot_train.png'))
         plt.close()
-   
+
     @staticmethod
     def save_results_to_dict(results_dict,output_dir):
         with open(os.path.join(output_dir,"results.json"),"w") as fp:

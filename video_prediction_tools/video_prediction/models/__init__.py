@@ -10,6 +10,8 @@ from .sv2p_model import SV2PVideoPredictionModel
 from .vanilla_vae_model import VanillaVAEVideoPredictionModel
 from .vanilla_convLSTM_model import VanillaConvLstmVideoPredictionModel
 from .mcnet_model import McNetVideoPredictionModel
+from .test_model import TestModelVideoPredictionModel
+
 def get_model_class(model):
     model_mappings = {
         'ground_truth': 'GroundTruthVideoPredictionModel',
@@ -21,9 +23,10 @@ def get_model_class(model):
         'vae': 'VanillaVAEVideoPredictionModel',
         'convLSTM': 'VanillaConvLstmVideoPredictionModel',
         'mcnet': 'McNetVideoPredictionModel',
+        'test_model': 'TestModelVideoPredictionModel'
         }
     model_class = model_mappings.get(model, model)
     model_class = globals().get(model_class)
-#    if model_class is None or not issubclass(model_class, BaseVideoPredictionModel):
-#        raise ValueError('Invalid model %s' % model)
+    if model_class is None:
+        raise ValueError('Invalid model %s' % model)
     return model_class
