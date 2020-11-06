@@ -23,6 +23,8 @@ source ../video_prediction_tools/env_setup/modules_train.sh
 #Test for process step2
 #python -m pytest  test_era5_data.py
 #Test for training
+#First remove all the files in the test folder
+rm /p/project/deepacf/deeprain/video_prediction_shared_folder/models/test/* 
 python -m pytest test_train_model_era5.py
 
 

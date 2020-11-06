@@ -28,7 +28,7 @@ class TrainModel(object):
     def __init__(self, input_dir=None, output_dir=None, datasplit_dict=None,
                        model_hparams_dict=None, model=None,
                        checkpoint=None, dataset=None,
-                       gpu_mem_frac=None, seed=None, args=None):
+                       gpu_mem_frac=None, seed=None, args=None, save_interval=20):
         
         """
         This class aims to train the models
@@ -38,12 +38,12 @@ class TrainModel(object):
                                              "default is logs_dir/model_fname, where model_fname consists of "
                                              "information from model and model_hparams
             datasplit_dict       : str, the path pointing to the datasplit_config json file
-            hparams_dict_dict    : str, the path to the dict that contains hparameters,
-            dataset              : str, dataset class name
-            checkpoint           : str, directory with checkpoint or checkpoint name (e.g. checkpoint_dir/model-200000)
-            model                : str, model class name
             model_hparams_dict   : str, a json file of model hyperparameters
+            checkpoint           : str, directory with checkpoint or checkpoint name (e.g. checkpoint_dir/model-200000)
+            dataset              : str, dataset class name
+            model                : str, model class name
             gpu_mem_frac         : float, fraction of gpu memory to use
+            save_interval        :int, how many steps for saving the train/val loss be saved
         """ 
         self.input_dir = input_dir
         self.output_dir = output_dir
@@ -55,9 +55,8 @@ class TrainModel(object):
         self.gpu_mem_frac = gpu_mem_frac
         self.seed = seed
         self.args = args
+        self.save_interval = save_interval
         self.generate_output_dir()
-        self.hparams_dict = self.get_model_hparams_dict()
-
 
     def setup(self):
         self.set_seed()
@@ -71,7 +70,7 @@ class TrainModel(object):
         self.create_saver_and_writer()
         self.setup_gpu_config()
         self.calculate_samples_and_epochs()
-
+        self.setup_graph()
 
     def set_seed(self):
         if self.seed is not None:
@@ -109,35 +108,14 @@ class TrainModel(object):
             with open(os.path.join(self.checkpoint_dir, "options.json")) as f:
                 print("loading options from checkpoint %s" % self.checkpoint)
                 self.options = json.loads(f.read())
-                self.dataset = dataset or options['dataset']
-                self.model = model or options['model']
+                self.dataset = self.dataset or options['dataset']
+                self.model = self.model or options['model']
             try:
                 with open(os.path.join(self.checkpoint_dir, "model_hparams.json")) as f:
                     self.model_hparams_dict_load.update(json.loads(f.read()))
             except FileNotFoundError:
                 print("model_hparams.json was not loaded because it does not exist")
                 
-
-    def restore(self,sess, checkpoints, restore_to_checkpoint_mapping=None):
-        if checkpoints:
-           var_list = self.saveable_variables
-           # possibly restore from multiple checkpoints. useful if subset of weights
-           # (e.g. generator or discriminator) are on different checkpoints.
-           if not isinstance(checkpoints, (list, tuple)):
-               checkpoints = [checkpoints]
-           # automatically skip global_step if more than one checkpoint is provided
-           skip_global_step = len(checkpoints) > 1
-           savers = []
-           for checkpoint in checkpoints:
-               print("creating restore saver from checkpoint %s" % checkpoint)
-               saver, _ = tf_utils.get_checkpoint_restore_saver(
-                   checkpoint, var_list, skip_global_step=skip_global_step,
-                   restore_to_checkpoint_mapping=restore_to_checkpoint_mapping)
-               savers.append(saver)
-           restore_op = [saver.saver_def.restore_op_name for saver in savers]
-           sess.run(restore_op)
-
-
     def setup_dataset(self):
         """
         Setup train and val dataset instance with the corresponding data split configuration
@@ -155,7 +133,7 @@ class TrainModel(object):
         """
         VideoPredictionModel = models.get_model_class(self.model)
         self.video_model = VideoPredictionModel(
-                                    hparams_dict=self.hparams_dict,
+                                    hparams_dict=self.model_hparams_dict_load,
                                        )
     def setup_graph(self):
         """
@@ -169,7 +147,7 @@ class TrainModel(object):
         """
         Prepare the dataset interator for training and validation
         """
-        self.batch_size = self.hparams_dict["batch_size"]
+        self.batch_size = self.model_hparams_dict_load["batch_size"]
         self.train_tf_dataset = self.train_dataset.make_dataset(self.batch_size)
         self.train_iterator = self.train_tf_dataset.make_one_shot_iterator()
         # The `Iterator.string_handle()` method returns a tensor that can be evaluated
@@ -238,6 +216,38 @@ class TrainModel(object):
         self.steps_per_epoch = int(self.num_examples/batch_size)
         self.total_steps = self.steps_per_epoch * max_epochs
 
+    def restore(self,sess, checkpoints, restore_to_checkpoint_mapping=None):
+        if checkpoints:
+           var_list = self.video_model.saveable_variables
+           # possibly restore from multiple checkpoints. useful if subset of weights
+           # (e.g. generator or discriminator) are on different checkpoints.
+           if not isinstance(checkpoints, (list, tuple)):
+               checkpoints = [checkpoints]
+           # automatically skip global_step if more than one checkpoint is provided
+           skip_global_step = len(checkpoints) > 1
+           savers = []
+           for checkpoint in checkpoints:
+               print("creating restore saver from checkpoint %s" % checkpoint)
+               saver, _ = tf_utils.get_checkpoint_restore_saver(
+                   checkpoint, var_list, skip_global_step=skip_global_step,
+                   restore_to_checkpoint_mapping=restore_to_checkpoint_mapping)
+               savers.append(saver)
+           restore_op = [saver.saver_def.restore_op_name for saver in savers]
+           sess.run(restore_op)
+    
+    def restore_train_val_losses(self):
+        """
+        Restore the train and validation losses in the pickle file
+        """
+        if self.start_step == 0:
+            train_losses = []
+            val_losses = []
+        else:
+            with open(os.path.join(self.output_dir,"train_losses.pkl"),"rb") as f:
+                train_losses = pkl.load(f)
+            with open(os.path.join(self.output_dir,"val_losses.pkl"),"rb") as f:
+                val_losses = pkl.load(f)
+        return train_losses,val_losses
 
     def train_model(self):
         """
@@ -250,14 +260,13 @@ class TrainModel(object):
             sess.run(tf.local_variables_initializer())
             self.restore(sess, self.checkpoint)
             #sess.graph.finalize()
-            start_step = sess.run(global_step)
-            print("start_step", start_step)
+            self.start_step = sess.run(global_step)
+            print("start_step", self.start_step)
             # start at one step earlier to log everything without doing any training
             # step is relative to the start_step
-            train_losses=[]
-            val_losses=[]
+            train_losses, val_losses = self.restore_train_val_losses()
             run_start_time = time.time()
-            for step in range(start_step,self.total_steps):
+            for step in range(self.start_step,self.total_steps):
                 timeit_start = time.time()
                 #run for training dataset
                 self.create_fetches_for_train()
@@ -273,7 +282,7 @@ class TrainModel(object):
                 self.saver.save(sess, os.path.join(self.output_dir, "model"), global_step=step)
                 timeit_end = time.time()
                 print("time needed for this step", timeit_end - timeit_start, ' s')
-                if step % 20 == 0:
+                if step % self.save_interval == 0:
                     # I save the pickle file and plot here inside the loop in case the training process cannot finished after job is done.
                     TrainModel.save_results_to_pkl(train_losses,val_losses,self.output_dir)
                     TrainModel.plot_train(train_losses,val_losses,step,self.output_dir)
@@ -367,7 +376,7 @@ class TrainModel(object):
 
 
     @staticmethod
-    def plot_train(train_losses,val_losses,step,output_dir):
+    def plot_train(train_losses,val_losses,step,output_dir,save_interval=20):
         """
         Function to plot training losses for train and val datasets against steps
         params:
@@ -377,7 +386,7 @@ class TrainModel(object):
         """ 
    
         iterations = list(range(len(train_losses)))
-        if len(train_losses) != len(val_losses) or len(train_losses) != step +1 : 
+        if len(train_losses) != len(val_losses) or len(train_losses) != step/save_interval +1 : 
             raise ValueError("The length of training losses must be equal to the length of val losses and  step +1 !")  
         plt.plot(iterations, train_losses, 'g', label='Training loss')
         plt.plot(iterations, val_losses, 'b', label='validation loss')
