@@ -88,8 +88,8 @@ class Postprocess(TrainModel):
                             
                           
     def make_test_dataset_iterator(self):
-        self.inputs_batch = self.dataset.make_batch(self.batch_size)
-        self.inputs = {k: tf.placeholder(v.dtype, v.shape, '%s_ph' % k) for k, v in self.inputs_batch.items()}
+        self.inputs = self.dataset.make_batch(self.batch_size)
+        #self.inputs = {k: tf.placeholder(v.dtype, v.shape, '%s_ph' % k) for k, v in self.inputs_batch.items()}
         
 
     def get_coordinates(self,metadata_fname):
@@ -106,10 +106,37 @@ class Postprocess(TrainModel):
         except:
             raise ValueError("Error when handling: '"+metadata_fname+"'")
     
+    def initia_save_data(self):
+        self.sample_ind = 0
+        self.gen_images_all = []
+        self.persistent_images_all = []
+        self.input_images_all = []
+        return self.sample_ind, self.gen_images_all, self.persistent_images_all, self.input_images_all
+
+   
 
     def run_test(self):
-        pass 
-
+        self.sess = tf.Session(config = self.config)
+        self.sess.graph.as_default()
+        self.sess.run(tf.global_variables_initializer())
+        self.sess.run(tf.local_variables_initializer())
+        self.restore(self.sess, args.checkpoint)
+        #Loop for samples
+        while self.sample_ind < self.num_samples_per_epoch
+            gen_images_stochastic = []
+            if self.num_samples_per_epoch < self.sample_ind:
+                break
+            else:
+                input_results = sess.run(inputs)
+                input_images = input_results["images"]
+                t_starts = input_results["T_start"]
+                       
+            #Loop for stochastics 
+            feed_dict = {input_ph: input_results[name] for name, input_ph in self.inputs.items()}
+            for i in range(self.num_stochastic_samples):
+                gen_images = sess.run(self.video_model.outputs['gen_images'], feed_dict = feed_dict)#return [batchsize,seq_len,lat,lon,channel]    
+                for i in range(self.batch_size):
+                    input_images_
 
 
 def setup_dirs(input_dir,results_png_dir):
@@ -134,13 +161,6 @@ def psnr(img1, img2):
     PIXEL_MAX = 1
     return 20 * math.log10(PIXEL_MAX / math.sqrt(mse))
 
-
-def initia_save_data():
-    sample_ind = 0
-    gen_images_all = []
-    persistent_images_all = []
-    input_images_all = []
-    return sample_ind, gen_images_all,persistent_images_all, input_images_all
 
 
 def denorm_images(stat_fl, input_images_,channel,var):
