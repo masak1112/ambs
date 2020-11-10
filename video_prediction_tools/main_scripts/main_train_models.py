@@ -70,7 +70,6 @@ class TrainModel(object):
         self.create_saver_and_writer()
         self.setup_gpu_config()
         self.calculate_samples_and_epochs()
-        self.setup_graph()
 
     def set_seed(self):
         if self.seed is not None:
@@ -194,7 +193,7 @@ class TrainModel(object):
         """
         Create saver to save the models latest checkpoints, and a summery writer to store the train/val metrics  
         """
-        self.saver = tf.train.Saver(var_list=self.video_model.saveable_variables, max_to_keep=2)
+        self.saver = tf.train.Saver(var_list=self.video_model.saveable_variables, max_to_keep=1)
         self.summary_writer = tf.summary.FileWriter(self.output_dir)
 
     def setup_gpu_config(self):
@@ -243,9 +242,9 @@ class TrainModel(object):
             train_losses = []
             val_losses = []
         else:
-            with open(os.path.join(self.output_dir,"train_losses.pkl"),"rb") as f:
+            with open(os.path.join(self.checkpoint,"train_losses.pkl"),"rb") as f:
                 train_losses = pkl.load(f)
-            with open(os.path.join(self.output_dir,"val_losses.pkl"),"rb") as f:
+            with open(os.path.join(self.checkpoint,"val_losses.pkl"),"rb") as f:
                 val_losses = pkl.load(f)
         return train_losses,val_losses
 
@@ -376,7 +375,7 @@ class TrainModel(object):
 
 
     @staticmethod
-    def plot_train(train_losses,val_losses,step,output_dir,save_interval=20):
+    def plot_train(train_losses,val_losses,step,output_dir):
         """
         Function to plot training losses for train and val datasets against steps
         params:
@@ -386,7 +385,7 @@ class TrainModel(object):
         """ 
    
         iterations = list(range(len(train_losses)))
-        if len(train_losses) != len(val_losses) or len(train_losses) != step/save_interval +1 : 
+        if len(train_losses) != len(val_losses) or len(train_losses) != step +1 : 
             raise ValueError("The length of training losses must be equal to the length of val losses and  step +1 !")  
         plt.plot(iterations, train_losses, 'g', label='Training loss')
         plt.plot(iterations, val_losses, 'b', label='validation loss')
