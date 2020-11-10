@@ -16,7 +16,7 @@ from statistics import Calc_data_stat
 import numpy as np
 import json
 
-class PreprocessNcToPkl():
+class PreprocessNcToPkl(object):
 
     def __init__(self,src_dir=None,target_dir=None,job_name=None,year=None,slices=None,vars=("T2","MSL","gph500")):
         '''

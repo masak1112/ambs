@@ -14,18 +14,24 @@ import datetime
 input_dir =  "/p/project/deepacf/deeprain/video_prediction_shared_folder/preprocessedData/era5-Y2010toY2222M01to12-160x128-2970N1500W-T2_MSL_gph500"
 output_dir = "/p/project/deepacf/deeprain/video_prediction_shared_folder/preprocessedData/test/tfrecords/"
 datasplit_config = "/p/project/deepacf/deeprain/bing/ambs/video_prediction_tools/data_split/cv_test.json"
-hparams_path = "/p/project/deepacf/deeprain/bing/ambs/video_prediction_tools/hparams/era5/convLSTM/model_hparams.json"
+hparams_dict_config = "/p/project/deepacf/deeprain/bing/ambs/video_prediction_tools/hparams/era5/convLSTM/model_hparams.json"
 vars_in = ["T2","MSL","gph500"]
 sequences_per_file = 10
 
 
 #generate an instance for ERA5Pkl2Tfrecords
 @pytest.fixture(scope="module")
-def era5_dataset_case1(input_dir=input_dir,output_dir=output_dir,datasplit_config=datasplit_config,
-                       hparams_dict_config=hparams_path,sequences_per_file=sequences_per_file,vars_in=vars_in): 
+def era5_dataset_case1():
     return ERA5Pkl2Tfrecords(input_dir=input_dir,output_dir=output_dir,datasplit_config=datasplit_config,
-                             hparams_dict_config=hparams_dict_config,sequences_per_file=sequences_per_file,vars_in=vars_in)
+                             hparams_dict_config=hparams_dict_config,sequences_per_file=sequences_per_file)
 
+    
+def test_get_datasplit(era5_dataset_case1):
+    assert input_dir == era5_dataset_case1.input_dir
+    d = era5_dataset_case1.get_datasplit()
+
+def test_get_months(era5_dataset_case1):
+    assert len(era5_dataset_case1.get_years_months()[1]) == 3
 
 def test_get_metadata(era5_dataset_case1):
     """
@@ -34,14 +40,6 @@ def test_get_metadata(era5_dataset_case1):
     assert era5_dataset_case1.height == 160
     assert era5_dataset_case1.width == 128
     assert era5_dataset_case1.vars_in == ["T2","MSL","gph500"]
-
-def test_get_datasplit(era5_dataset_case1):
-    #assert type of hparams
-    assert input_dir == era5_dataset_case1.input_dir
-    d = era5_dataset_case1.get_datasplit()
-
-def test_get_months(era5_dataset_case1):
-    assert len(era5_dataset_case1.get_years_months()[1]) == 3
 
 def test_parse_hparams(era5_dataset_case1):
     """
@@ -80,20 +78,16 @@ def test_read_pkl_and_save_tfrecords(era5_dataset_case1):
     assert if_file_exit == True
 
 #Generate instance for class ERA5Dataset
-mode = "val"
+mode2 = "val"
 @pytest.fixture(scope="module")
-def era5_dataset_case2(seed=1234,input_dir=input_dir,mode=mode,output_dir=output_dir,datasplit_config=datasplit_config,
-                       hparams_dict_config=hparams_path,sequences_per_file=sequences_per_file,vars_in=vars_in):
-    return ERA5Dataset(seed=seed,input_dir=input_dir,mode=mode,output_dir=output_dir,
+def era5_dataset_case2():
+    return ERA5Dataset(seed=1234,input_dir=input_dir,mode=mode2,output_dir=output_dir,
                        datasplit_config=datasplit_config,hparams_dict_config=hparams_dict_config,
-                       sequences_per_file=sequences_per_file,vars_in=vars_in)  
-
+                       sequences_per_file=sequences_per_file)  
 
 def test_init_era5_dataset(era5_dataset_case2):
     assert era5_dataset_case2.max_epochs == 20
     assert era5_dataset_case2.mode == mode
-
-
 
 def test_get_tfrecords_filesnames(era5_dataset_case2):
     era5_dataset_case2.input_dir_tfrecords = output_dir
