@@ -66,7 +66,7 @@ class ERA5Pkl2Tfrecords(ERA5Dataset):
         """
         Get the months in the datasplit_config
         Return : 
-                a 1-dim array contains the months set
+                two elements: each contains 1-dim array with the months set from data_split_config json file
         """
         self.mode_list = []
         self.years = []
