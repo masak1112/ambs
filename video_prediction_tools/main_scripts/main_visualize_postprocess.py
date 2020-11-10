@@ -2,104 +2,114 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
+__email__ = "b.gong@fz-juelich.de"
+__author__ = "Bing Gong, Scarlet Stadtler, Michael Langguth"
+__date__ = "2020-11-10"
+
+
 import argparse
 import errno
-import json
 import os
+from os import path
+import sys
 import math
 import random
 import cv2
 import numpy as np
 import tensorflow as tf
+import pandas as pd
+import re
 import pickle
 from random import seed
-import random
+import datetime
 import json
-import numpy as np
+from os.path import dirname
+from netCDF4 import Dataset,date2num
 import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
 import matplotlib.animation as animation
-import pandas as pd
-import re
 from video_prediction import datasets, models
 from matplotlib.colors import LinearSegmentedColormap
-#from matplotlib.ticker import MaxNLocator
-#from video_prediction.utils.ffmpeg_gif import save_gif
 from skimage.metrics import structural_similarity as ssim
-import datetime
-# Scarlet 2020/05/28: access to statistical values in json file 
-from os import path
-import sys
 from normalization import Norm_data
-from os.path import dirname
-from netCDF4 import Dataset,date2num
 from metadata import MetaData as MetaData
+from main_scripts.main_train_models import *
 
-def set_seed(seed):
-    if seed is not None:
-        tf.set_random_seed(seed)
-        np.random.seed(seed)
-        random.seed(seed) 
 
-def get_coordinates(metadata_fname):
-    """
-    Retrieves the latitudes and longitudes read from the metadata json file.
-    """
-    md = MetaData(json_file=metadata_fname)
-    md.get_metadata_from_file(metadata_fname)
+class Postprocess(TrainModel):
+    def __init__(self,input_dir=None,results_dir=None,checkpoint=None,mode="test",
+                      dataset=None,datasplit_dict=None,model=None,model_hparams_dict=None,
+                      batch_size=None,num_epochs=None,num_samples=None,num_stochastic_samples=None,gpu_mem_frac=None,seed=None,args=None):
+        super(Postprocess,self).__init__(input_dir=input_dir,output_dir=None,datasplit_dir=data_split_dir,
+                                          model_hparams_dict=model_hparams_dict,model=model,checkpoint=checkpoint,dataset=dataset,
+                                          gpu_mem_frac=gpu_mem_frac,seed=seed,args=args)
+        
+        self.results_dir = self.output_dir  = results_dir
+        self.batch_size = batch_size
+        self.num_epochs = num_epochs
+        self.num_samples = num_samples
+        self.num_stochastic_samples = num_stochastic_samples
+        self.gpu_mem_frac = gpu_mem_frac
+        self.input_dir_tfrecords = os.path.join(self.input_dir,"tfrecords")
+        self.input_dir_pkl = os.path.join(self.input_dir,"pickle") 
+        if checkpoint is None: raise ("The directory point to checkpoint is empty, must be provided for postprocess step")     
+
+
+
+    def __call__(self):
+        self.set_seed()
+        self.load_params_from_checkpoints_dir()
+        self.setup_test_dataset()
+        self.setup_model()
+        self.setup_num_samples_per_epoch()
+        self.make_test_dataset_iterator() 
+        self.setup_graph()
+        self.save_dataset_model_params_to_checkpoint_dir()
+        self.setup_gpu_config()
+        self.initia_save_data()
+        self.lats,self.lons = self.get_coordinates(os.path.join(self.input_dir,"metadata.json")) 
+              
+
+    def setup_num_samples_per_epoch(self):
+        if self.num_samples:
+            if num_samples > self.dataset.num_examples_per_epoch():
+                raise ValueError('num_samples cannot be larger than the dataset')
+            self.num_examples_per_epoch = self.num_samples
+        else:
+            self.num_examples_per_epoch = self.dataset.num_examples_per_epoch()
+        return self.num_samples_per_epoch
+
+ 
+    def setup_test_dataset(self):
+        VideoDataset = datasets.get_dataset_class(self.dataset)
+        self.dataset = VideoDataset(input_dir=self.input_dir_tfrecords,mode=self.mode,datasplit_config=self.datasplit_dict)
+                            
+                          
+    def make_test_dataset_iterator(self):
+        self.inputs_batch = self.dataset.make_batch(self.batch_size)
+        self.inputs = {k: tf.placeholder(v.dtype, v.shape, '%s_ph' % k) for k, v in self.inputs_batch.items()}
+        
+
+    def get_coordinates(self,metadata_fname):
+        """
+        Retrieves the latitudes and longitudes read from the metadata json file.
+        """
+        md = MetaData(json_file=metadata_fname)
+        md.get_metadata_from_file(metadata_fname)
     
-    try:
-        print("lat:",md.lat)
-        print("lon:",md.lon)
-        return md.lat, md.lon
-    except:
-        raise ValueError("Error when handling: '"+metadata_fname+"'")
-    
-
-def load_checkpoints_and_create_output_dirs(checkpoint,dataset,model):
-    if checkpoint:
-        checkpoint_dir = os.path.normpath(checkpoint)
-        if not os.path.isdir(checkpoint):
-            checkpoint_dir, _ = os.path.split(checkpoint_dir)
-        if not os.path.exists(checkpoint_dir):
-            raise FileNotFoundError(errno.ENOENT, os.strerror(errno.ENOENT), checkpoint_dir)
-        with open(os.path.join(checkpoint_dir, "options.json")) as f:
-            print("loading options from checkpoint %s" % checkpoint)
-            options = json.loads(f.read())
-            dataset = dataset or options['dataset']
-            model = model or options['model']
         try:
-            with open(os.path.join(checkpoint_dir, "dataset_hparams.json")) as f:
-                dataset_hparams_dict = json.loads(f.read())
-        except FileNotFoundError:
-            print("dataset_hparams.json was not loaded because it does not exist")
-        try:
-            with open(os.path.join(checkpoint_dir, "model_hparams.json")) as f:
-                model_hparams_dict = json.loads(f.read())
-        except FileNotFoundError:
-            print("model_hparams.json was not loaded because it does not exist")
-    else:
-        if not dataset:
-            raise ValueError('dataset is required when checkpoint is not specified')
-        if not model:
-            raise ValueError('model is required when checkpoint is not specified')
-
-    return options,dataset,model, checkpoint_dir,dataset_hparams_dict,model_hparams_dict
-
-
+            print("lat:",md.lat)
+            print("lon:",md.lon)
+            return md.lat, md.lon
+        except:
+            raise ValueError("Error when handling: '"+metadata_fname+"'")
     
-def setup_dataset(dataset,input_dir,mode,seed,num_epochs,dataset_hparams,dataset_hparams_dict):
-    VideoDataset = datasets.get_dataset_class(dataset)
-    dataset = VideoDataset(
-        input_dir,
-        mode = mode,
-        num_epochs = num_epochs,
-        seed = seed,
-        hparams_dict = dataset_hparams_dict,
-        hparams = dataset_hparams)
-    return dataset
+
+    def run_test(self):
+        pass 
+
 
 
 def setup_dirs(input_dir,results_png_dir):
@@ -125,37 +135,12 @@ def psnr(img1, img2):
     return 20 * math.log10(PIXEL_MAX / math.sqrt(mse))
 
 
-def setup_num_samples_per_epoch(num_samples, dataset):
-    if num_samples:
-        if num_samples > dataset.num_examples_per_epoch():
-            raise ValueError('num_samples cannot be larger than the dataset')
-        num_examples_per_epoch = num_samples
-    else:
-        num_examples_per_epoch = dataset.num_examples_per_epoch()
-    #if num_examples_per_epoch % args.batch_size != 0:
-    #    raise ValueError('batch_size should evenly divide the dataset size %d' % num_examples_per_epoch)
-    return num_examples_per_epoch
-
-
 def initia_save_data():
     sample_ind = 0
     gen_images_all = []
-    #Bing:20200410
     persistent_images_all = []
     input_images_all = []
     return sample_ind, gen_images_all,persistent_images_all, input_images_all
-
-
-def write_params_to_results_dir(args,output_dir,dataset,model):
-    if not os.path.exists(output_dir):
-        os.makedirs(output_dir)
-    with open(os.path.join(output_dir, "options.json"), "w") as f:
-        f.write(json.dumps(vars(args), sort_keys = True, indent = 4))
-    with open(os.path.join(output_dir, "dataset_hparams.json"), "w") as f:
-        f.write(json.dumps(dataset.hparams.values(), sort_keys = True, indent = 4))
-    with open(os.path.join(output_dir, "model_hparams.json"), "w") as f:
-        f.write(json.dumps(model.hparams.values(), sort_keys = True, indent = 4))
-    return None
 
 
 def denorm_images(stat_fl, input_images_,channel,var):
@@ -184,7 +169,6 @@ def get_one_seq_and_time(input_images,t_starts,i):
     t_start = t_starts[i]
     return input_images_,t_start
 
-
 def generate_seq_timestamps(t_start,len_seq=20):
     if isinstance(t_start,int): t_start = str(t_start)
     if isinstance(t_start,np.ndarray):t_start = str(t_start[0])
@@ -202,7 +186,6 @@ def save_to_netcdf_per_sequence(output_dir,input_images_,gen_images_,lons,lats,t
     ts_input = ts[:context_frames]
     ts_forecast = ts[context_frames:]
     gen_images_ = np.array(gen_images_)
-
     output_file = os.path.join(output_dir,fl_name)
     with Dataset(output_file, "w", format="NETCDF4") as nc_file:
         nc_file.title = 'ERA5 hourly reanalysis data and the forecasting data by deep learning for 2-m above sea level temperatures'
@@ -305,7 +288,6 @@ def plot_seq_imgs(imgs,lats,lons,ts,output_png_dir,label="Ground Truth"):
     """
     Plot the seq images 
     """
-
     if len(np.array(imgs).shape)!=3:raise("img dims should be four: (seq_len,lat,lon)")
     if np.array(imgs).shape[0]!= len(ts): raise("The len of timestamps should be equal the image seq_len") 
     fig = plt.figure(figsize=(18,6))
@@ -315,7 +297,6 @@ def plot_seq_imgs(imgs,lats,lons,ts,output_png_dir,label="Ground Truth"):
     ylabels = [round(i,2) for i  in list(np.linspace(np.max(lats),np.min(lats),5))]
     for i in range(len(ts)):
         t = ts[i]
-        #if i==0 : ax1=plt.subplot(gs[i])
         ax1 = plt.subplot(gs[i])
         plt.imshow(imgs[i] ,cmap = 'jet', vmin=270, vmax=300)
         ax1.title.set_text("t = " + t.strftime("%Y%m%d%H"))
@@ -584,499 +565,11 @@ def main():
             # I am not sure about the number of frames given with context_frames and context_frames +1
             plot_seq_imgs(imgs=persistence_images[context_frames+1:,:,:,0],lats=lats,lons=lons,ts=ts_persistence[context_frames+1:], 
                           label="Persistence Forecast" + args.model,output_png_dir=args.results_dir)
-            #--- Scarlet 20200922
-            
-            #in case of generate the images for all the input, we just generate the first 5 sampe_ind examples for visuliation
 
         sample_ind += args.batch_size
 
 
-        #for input_image in input_images_:
-
-#             for stochastic_sample_ind in range(args.num_stochastic_samples):
-#                 input_images_all.extend(input_images)
-#                 with open(os.path.join(args.output_png_dir, "input_images_all.pkl"), "wb") as input_files:
-#                     pickle.dump(list(input_images_all), input_files)
-
-
-#                 gen_images_stochastic.append(gen_images)
-#                 #print("Stochastic_sample,", stochastic_sample_ind)
-#                 for i in range(args.batch_size):
-#                     #bing:20200417
-#                     t_stampe = test_temporal_pkl[sample_ind+i]
-#                     print("timestamp:",type(t_stampe))
-#                     persistent_ts = np.array(t_stampe) - datetime.timedelta(days=1)
-#                     print ("persistent ts",persistent_ts)
-#                     persistent_idx = list(test_temporal_pkl).index(np.array(persistent_ts))
-#                     persistent_X = X_test[persistent_idx:persistent_idx+context_frames + future_length]
-#                     print("persistent index in test set:", persistent_idx)
-#                     print("persistent_X.shape",persistent_X.shape)
-#                     persistent_images_all.append(persistent_X)
-
-#                     cmap_name = 'my_list'
-#                     if sample_ind < 100:
-#                         #name = '_Stochastic_id_' + str(stochastic_sample_ind) + 'Batch_id_' + str(
-#                         #    sample_ind) + " + Sample_" + str(i)
-#                         name = '_Stochastic_id_' + str(stochastic_sample_ind) + "_Time_"+ t_stampe[0].strftime("%Y%m%d-%H%M%S")
-#                         print ("name",name)
-#                         gen_images_ = np.array(list(input_images[i,:context_frames]) + list(gen_images[i,-future_length:, :]))
-#                         #gen_images_ =  gen_images[i, :]
-#                         input_images_ = input_images[i, :]
-#                         #Bing:20200417
-#                         #persistent_images = ?
-#                         #+++Scarlet:20200528   
-#                         #print('Scarlet1')
-#                         input_gen_diff = norm_cls.denorm_var(input_images_[:, :, :,0], 'T2', norm) - norm_cls.denorm_var(gen_images_[:, :, :, 0],'T2',norm)
-#                         persistent_diff = norm_cls.denorm_var(input_images_[:, :, :,0], 'T2', norm) - norm_cls.denorm_var(persistent_X[:, :, :, 0], 'T2',norm)
-#                         #---Scarlet:20200528    
-#                         gen_mse_avg_ = [np.mean(input_gen_diff[frame, :, :] ** 2) for frame in
-#                                         range(sequence_length)]  # return the list with 10 (sequence) mse
-#                         persistent_mse_avg_ = [np.mean(persistent_diff[frame, :, :] ** 2) for frame in
-#                                         range(sequence_length)]  # return the list with 10 (sequence) mse
-
-#                         fig = plt.figure(figsize=(18,6))
-#                         gs = gridspec.GridSpec(1, 10)
-#                         gs.update(wspace = 0., hspace = 0.)
-#                         ts = list(range(10,20)) #[10,11,12,..]
-#                         xlables = [round(i,2) for i  in list(np.linspace(np.min(lon),np.max(lon),5))]
-#                         ylabels = [round(i,2) for i  in list(np.linspace(np.max(lat),np.min(lat),5))]
-
-#                         for t in ts:
-
-#                             #if t==0 : ax1=plt.subplot(gs[t])
-#                             ax1 = plt.subplot(gs[ts.index(t)])
-#                             #+++Scarlet:20200528
-#                             #print('Scarlet2')
-#                             input_image = norm_cls.denorm_var(input_images_[t, :, :, 0], 'T2', norm)
-#                             #---Scarlet:20200528
-#                             plt.imshow(input_image, cmap = 'jet', vmin=270, vmax=300)
-#                             ax1.title.set_text("t = " + str(t+1-10))
-#                             plt.setp([ax1], xticks = [], xticklabels = [], yticks = [], yticklabels = [])
-#                             if t == 0:
-#                                 plt.setp([ax1], xticks = list(np.linspace(0, 64, 3)), xticklabels = xlables, yticks = list(np.linspace(0, 64, 3)), yticklabels = ylabels)
-#                                 plt.ylabel("Ground Truth", fontsize=10)
-#                         plt.savefig(os.path.join(args.output_png_dir, "Ground_Truth_Sample_" + str(name) + ".jpg"))
-#                         plt.clf()
-
-#                         fig = plt.figure(figsize=(12,6))
-#                         gs = gridspec.GridSpec(1, 10)
-#                         gs.update(wspace = 0., hspace = 0.)
-
-#                         for t in ts:
-#                             #if t==0 : ax1=plt.subplot(gs[t])
-#                             ax1 = plt.subplot(gs[ts.index(t)])
-#                             #+++Scarlet:20200528
-#                             #print('Scarlet3')
-#                             gen_image = norm_cls.denorm_var(gen_images_[t, :, :, 0], 'T2', norm)
-#                             #---Scarlet:20200528
-#                             plt.imshow(gen_image, cmap = 'jet', vmin=270, vmax=300)
-#                             ax1.title.set_text("t = " + str(t+1-10))
-#                             plt.setp([ax1], xticks = [], xticklabels = [], yticks = [], yticklabels = [])
-
-#                         plt.savefig(os.path.join(args.output_png_dir, "Predicted_Sample_" + str(name) + ".jpg"))
-#                         plt.clf()
-
-
-#                         fig = plt.figure(figsize=(12,6))
-#                         gs = gridspec.GridSpec(1, 10)
-#                         gs.update(wspace = 0., hspace = 0.)
-#                         for t in ts:
-#                             #if t==0 : ax1=plt.subplot(gs[t])
-#                             ax1 = plt.subplot(gs[ts.index(t)])
-#                             #persistent_image = persistent_X[t, :, :, 0] * (321.46630859375 - 235.2141571044922) + 235.2141571044922
-#                             plt.imshow(persistent_X[t, :, :, 0], cmap = 'jet', vmin=270, vmax=300)
-#                             ax1.title.set_text("t = " + str(t+1-10))
-#                             plt.setp([ax1], xticks = [], xticklabels = [], yticks = [], yticklabels = [])
-
-#                         plt.savefig(os.path.join(args.output_png_dir, "Persistent_Sample_" + str(name) + ".jpg"))
-#                         plt.clf()
-
-                        
-#                 with open(os.path.join(args.output_png_dir, "persistent_images_all.pkl"), "wb") as input_files:
-#                     pickle.dump(list(persistent_images_all), input_files)
-#                     print ("Save persistent all")
-#                 if is_first:
-#                     gen_images_all = gen_images_stochastic
-#                     is_first = False
-#                 else:
-#                     gen_images_all = np.concatenate((np.array(gen_images_all), np.array(gen_images_stochastic)), axis=1)
-
-#                 if args.num_stochastic_samples == 1:
-#                     with open(os.path.join(args.output_png_dir, "gen_images_all.pkl"), "wb") as gen_files:
-#                         pickle.dump(list(gen_images_all[0]), gen_files)
-#                         print ("Save generate all")
-#                 else:
-#                     with open(os.path.join(args.output_png_dir, "gen_images_sample_id_" + str(sample_ind)),"wb") as gen_files:
-#                         pickle.dump(list(gen_images_stochastic), gen_files)
-#                     with open(os.path.join(args.output_png_dir, "gen_images_all_stochastic"), "wb") as gen_files:
-#                         pickle.dump(list(gen_images_all), gen_files)
-
-#         sample_ind += args.batch_size
-
-
-#     with open(os.path.join(args.output_png_dir, "input_images_all.pkl"),"rb") as input_files:
-#         input_images_all = pickle.load(input_files)
-
-#     with open(os.path.join(args.output_png_dir, "gen_images_all.pkl"),"rb") as gen_files:
-#         gen_images_all = pickle.load(gen_files)
-
-#     with open(os.path.join(args.output_png_dir, "persistent_images_all.pkl"),"rb") as gen_files:
-#         persistent_images_all = pickle.load(gen_files)
-
-#     #+++Scarlet:20200528
-#     #print('Scarlet4')
-#     input_images_all = np.array(input_images_all)
-#     input_images_all = norm_cls.denorm_var(input_images_all, 'T2', norm)
-#     #---Scarlet:20200528
-#     persistent_images_all = np.array(persistent_images_all)
-#     if len(np.array(gen_images_all).shape) == 6:
-#         for i in range(len(gen_images_all)):
-#             #+++Scarlet:20200528
-#             #print('Scarlet5')
-#             gen_images_all_stochastic = np.array(gen_images_all)[i,:,:,:,:,:]
-#             gen_images_all_stochastic = norm_cls.denorm_var(gen_images_all_stochastic, 'T2', norm)
-#             #gen_images_all_stochastic = np.array(gen_images_all_stochastic) * (321.46630859375 - 235.2141571044922) + 235.2141571044922
-#             #---Scarlet:20200528
-#             mse_all = []
-#             psnr_all = []
-#             ssim_all = []
-#             f = open(os.path.join(args.output_png_dir, 'prediction_scores_4prediction_stochastic_{}.txt'.format(i)), 'w')
-#             for i in range(future_length):
-#                 mse_model = np.mean((input_images_all[:, i + 10, :, :, 0] - gen_images_all_stochastic[:, i + 9, :, :,
-#                                                                             0]) ** 2)  # look at all timesteps except the first
-#                 psnr_model = psnr(input_images_all[:, i + 10, :, :, 0], gen_images_all_stochastic[:, i + 9, :, :, 0])
-#                 ssim_model = ssim(input_images_all[:, i + 10, :, :, 0], gen_images_all_stochastic[:, i + 9, :, :, 0],
-#                                   data_range = max(gen_images_all_stochastic[:, i + 9, :, :, 0].flatten()) - min(
-#                                       input_images_all[:, i + 10, :, :, 0].flatten()))
-#                 mse_all.extend([mse_model])
-#                 psnr_all.extend([psnr_model])
-#                 ssim_all.extend([ssim_model])
-#                 results = {"mse": mse_all, "psnr": psnr_all, "ssim": ssim_all}
-#                 f.write("##########Predicted Frame {}\n".format(str(i + 1)))
-#                 f.write("Model MSE: %f\n" % mse_model)
-#                 # f.write("Previous Frame MSE: %f\n" % mse_prev)
-#                 f.write("Model PSNR: %f\n" % psnr_model)
-#                 f.write("Model SSIM: %f\n" % ssim_model)
-
-
-#             pickle.dump(results, open(os.path.join(args.output_png_dir, "results_stochastic_{}.pkl".format(i)), "wb"))
-#             # f.write("Previous frame PSNR: %f\n" % psnr_prev)
-#             f.write("Shape of X_test: " + str(input_images_all.shape))
-#             f.write("")
-#             f.write("Shape of X_hat: " + str(gen_images_all_stochastic.shape))
-
-#     else:
-#         #+++Scarlet:20200528
-#         #print('Scarlet6')
-#         gen_images_all = np.array(gen_images_all)
-#         gen_images_all = norm_cls.denorm_var(gen_images_all, 'T2', norm)
-#         #---Scarlet:20200528
-        
-#         # mse_model = np.mean((input_images_all[:, 1:,:,:,0] - gen_images_all[:, 1:,:,:,0])**2)  # look at all timesteps except the first
-#         # mse_model_last = np.mean((input_images_all[:, future_length-1,:,:,0] - gen_images_all[:, future_length-1,:,:,0])**2)
-#         # mse_prev = np.mean((input_images_all[:, :-1,:,:,0] - gen_images_all[:, 1:,:,:,0])**2 )
-#         mse_all = []
-#         psnr_all = []
-#         ssim_all = []
-#         persistent_mse_all = []
-#         persistent_psnr_all = []
-#         persistent_ssim_all = []
-#         f = open(os.path.join(args.output_png_dir, 'prediction_scores_4prediction.txt'), 'w')
-#         for i in range(future_length):
-#             mse_model = np.mean((input_images_all[:1268, i + 10, :, :, 0] - gen_images_all[:, i + 9, :, :,
-#                                                                         0]) ** 2)  # look at all timesteps except the first
-#             persistent_mse_model = np.mean((input_images_all[:1268, i + 10, :, :, 0] - persistent_images_all[:, i + 9, :, :,
-#                                                                         0]) ** 2)  # look at all timesteps except the first
-            
-#             psnr_model = psnr(input_images_all[:1268, i + 10, :, :, 0], gen_images_all[:, i + 9, :, :, 0])
-#             ssim_model = ssim(input_images_all[:1268, i + 10, :, :, 0], gen_images_all[:, i + 9, :, :, 0],
-#                               data_range = max(gen_images_all[:, i + 9, :, :, 0].flatten()) - min(
-#                                   input_images_all[:, i + 10, :, :, 0].flatten()))
-#             persistent_psnr_model = psnr(input_images_all[:1268, i + 10, :, :, 0], persistent_images_all[:, i + 9, :, :, 0])
-#             persistent_ssim_model = ssim(input_images_all[:1268, i + 10, :, :, 0], persistent_images_all[:, i + 9, :, :, 0],
-#                               data_range = max(gen_images_all[:1268, i + 9, :, :, 0].flatten()) - min(input_images_all[:1268, i + 10, :, :, 0].flatten()))
-#             mse_all.extend([mse_model])
-#             psnr_all.extend([psnr_model])
-#             ssim_all.extend([ssim_model])
-#             persistent_mse_all.extend([persistent_mse_model])
-#             persistent_psnr_all.extend([persistent_psnr_model])
-#             persistent_ssim_all.extend([persistent_ssim_model])
-#             results = {"mse": mse_all, "psnr": psnr_all, "ssim": ssim_all}
-
-#             persistent_results = {"mse": persistent_mse_all, "psnr": persistent_psnr_all, "ssim": persistent_ssim_all}
-#             f.write("##########Predicted Frame {}\n".format(str(i + 1)))
-#             f.write("Model MSE: %f\n" % mse_model)
-#             # f.write("Previous Frame MSE: %f\n" % mse_prev)
-#             f.write("Model PSNR: %f\n" % psnr_model)
-#             f.write("Model SSIM: %f\n" % ssim_model)
-
-#         pickle.dump(results, open(os.path.join(args.output_png_dir, "results.pkl"), "wb"))
-#         pickle.dump(persistent_results, open(os.path.join(args.output_png_dir, "persistent_results.pkl"), "wb"))
-#         # f.write("Previous frame PSNR: %f\n" % psnr_prev)
-#         f.write("Shape of X_test: " + str(input_images_all.shape))
-#         f.write("")
-#         f.write("Shape of X_hat: " + str(gen_images_all.shape)      
 
 if __name__ == '__main__':
-    main()        
+    main() 
 
-    #psnr_model = psnr(input_images_all[:, :10, :, :, 0],  gen_images_all[:, :10, :, :, 0])
-    #psnr_model_last = psnr(input_images_all[:, 10, :, :, 0],  gen_images_all[:,10, :, :, 0])
-    #psnr_prev = psnr(input_images_all[:, :, :, :, 0],  input_images_all[:, 1:10, :, :, 0])
-
-    # ims = []
-    # fig = plt.figure()
-    # for frame in range(20):
-    #     input_gen_diff = np.mean((np.array(gen_images_all) - np.array(input_images_all))**2, axis=0)[frame, :,:,0] # Get the first prediction frame (batch,height, width, channel)
-    #     #pix_mean = np.mean(input_gen_diff, axis = 0)
-    #     #pix_std = np.std(input_gen_diff, axis=0)
-    #     im = plt.imshow(input_gen_diff, interpolation = 'none',cmap='PuBu')
-    #     if frame == 0:
-    #         fig.colorbar(im)
-    #     ttl = plt.text(1.5, 2, "Frame_" + str(frame +1))
-    #     ims.append([im, ttl])
-    # ani = animation.ArtistAnimation(fig, ims, interval=1000, blit = True, repeat_delay=2000)
-    # ani.save(os.path.join(args.output_png_dir, "Mean_Frames.mp4"))
-    # plt.close("all")
-
-    # ims = []
-    # fig = plt.figure()
-    # for frame in range(19):
-    #     pix_std= np.std((np.array(gen_images_all) - np.array(input_images_all))**2, axis = 0)[frame, :,:, 0]  # Get the first prediction frame (batch,height, width, channel)
-    #     #pix_mean = np.mean(input_gen_diff, axis = 0)
-    #     #pix_std = np.std(input_gen_diff, axis=0)
-    #     im = plt.imshow(pix_std, interpolation = 'none',cmap='PuBu')
-    #     if frame == 0:
-    #         fig.colorbar(im)
-    #     ttl = plt.text(1.5, 2, "Frame_" + str(frame+1))
-    #     ims.append([im, ttl])
-    # ani = animation.ArtistAnimation(fig, ims, interval = 1000, blit = True, repeat_delay = 2000)
-    # ani.save(os.path.join(args.output_png_dir, "Std_Frames.mp4"))
-
-    # seed(1)
-    # s = random.sample(range(len(gen_images_all)), 100)
-    # print("******KDP******")
-    # #kernel density plot for checking the model collapse
-    # fig = plt.figure()
-    # kdp = sns.kdeplot(gen_images_all[s].flatten(), shade=True, color="r", label = "Generate Images")
-    # kdp = sns.kdeplot(input_images_all[s].flatten(), shade=True, color="b", label = "Ground True")
-    # kdp.set(xlabel = 'Temperature (K)', ylabel = 'Probability')
-    # plt.savefig(os.path.join(args.output_png_dir, "kdp_gen_images.png"), dpi = 400)
-    # plt.clf()
-
-    #line plot for evaluating the prediction and groud-truth
-    # for i in [0,3,6,9,12,15,18]:
-    #     fig = plt.figure()
-    #     plt.scatter(gen_images_all[:,i,:,:][s].flatten(),input_images_all[:,i,:,:][s].flatten(),s=0.3)
-    #     #plt.scatter(gen_images_all[:,0,:,:].flatten(),input_images_all[:,0,:,:].flatten(),s=0.3)
-    #     plt.xlabel("Prediction")
-    #     plt.ylabel("Real values")
-    #     plt.title("Frame_{}".format(i+1))
-    #     plt.plot([250,300], [250,300],color="black")
-    #     plt.savefig(os.path.join(args.output_png_dir,"pred_real_frame_{}.png".format(str(i))))
-    #     plt.clf()
-    #
-    # mse_model_by_frames = np.mean((input_images_all[:, :, :, :, 0][s] - gen_images_all[:, :, :, :, 0][s]) ** 2,axis=(2,3)) #return (batch, sequence)
-    # x = [str(i+1) for i in list(range(19))]
-    # fig,axis = plt.subplots()
-    # mean_f = np.mean(mse_model_by_frames, axis = 0)
-    # median = np.median(mse_model_by_frames, axis=0)
-    # q_low = np.quantile(mse_model_by_frames, q=0.25, axis=0)
-    # q_high = np.quantile(mse_model_by_frames, q=0.75, axis=0)
-    # d_low = np.quantile(mse_model_by_frames,q=0.1, axis=0)
-    # d_high = np.quantile(mse_model_by_frames, q=0.9, axis=0)
-    # plt.fill_between(x, d_high, d_low, color="ghostwhite",label="interdecile range")
-    # plt.fill_between(x,q_high, q_low , color = "lightgray", label="interquartile range")
-    # plt.plot(x, median, color="grey", linewidth=0.6, label="Median")
-    # plt.plot(x, mean_f, color="peachpuff",linewidth=1.5, label="Mean")
-    # plt.title(f'MSE percentile')
-    # plt.xlabel("Frames")
-    # plt.legend(loc=2, fontsize=8)
-    # plt.savefig(os.path.join(args.output_png_dir,"mse_percentiles.png"))
-
-
-##                
-##
-##                    # fig = plt.figure()
-##                    # gs = gridspec.GridSpec(4,6)
-##                    # gs.update(wspace = 0.7,hspace=0.8)
-##                    # ax1 = plt.subplot(gs[0:2,0:3])
-##                    # ax2 = plt.subplot(gs[0:2,3:],sharey=ax1)
-##                    # ax3 = plt.subplot(gs[2:4,0:3])
-##                    # ax4 = plt.subplot(gs[2:4,3:])
-##                    # xlables = [round(i,2) for i in list(np.linspace(np.min(lon),np.max(lon),5))]
-##                    # ylabels = [round(i,2) for i  in list(np.linspace(np.max(lat),np.min(lat),5))]
-##                    # plt.setp([ax1,ax2,ax3],xticks=list(np.linspace(0,64,5)), xticklabels=xlables ,yticks=list(np.linspace(0,64,5)),yticklabels=ylabels)
-##                    # ax1.title.set_text("(a) Ground Truth")
-##                    # ax2.title.set_text("(b) SAVP")
-##                    # ax3.title.set_text("(c) Diff.")
-##                    # ax4.title.set_text("(d) MSE")
-##                    #
-##                    # ax1.xaxis.set_tick_params(labelsize=7)
-##                    # ax1.yaxis.set_tick_params(labelsize = 7)
-##                    # ax2.xaxis.set_tick_params(labelsize=7)
-##                    # ax2.yaxis.set_tick_params(labelsize = 7)
-##                    # ax3.xaxis.set_tick_params(labelsize=7)
-##                    # ax3.yaxis.set_tick_params(labelsize = 7)
-##                    #
-##                    # init_images = np.zeros((input_images_.shape[1], input_images_.shape[2]))
-##                    # print("inti images shape", init_images.shape)
-##                    # xdata, ydata = [], []
-##                    # #plot1 = ax1.imshow(init_images, cmap='jet', vmin =0, vmax = 1)
-##                    # #plot2 = ax2.imshow(init_images, cmap='jet', vmin =0, vmax = 1)
-##                    # plot1 = ax1.imshow(init_images, cmap='jet', vmin = 270, vmax = 300)
-##                    # plot2 = ax2.imshow(init_images, cmap='jet', vmin = 270, vmax = 300)
-##                    # #x = np.linspace(0, 64, 64)
-##                    # #y = np.linspace(0, 64, 64)
-##                    # #plot1 = ax1.contourf(x,y,init_images, cmap='jet', vmin = np.min(input_images), vmax = np.max(input_images))
-##                    # #plot2 = ax2.contourf(x,y,init_images, cmap='jet', vmin = np.min(input_images), vmax = np.max(input_images))
-##                    # fig.colorbar(plot1, ax=ax1).ax.tick_params(labelsize=7)
-##                    # fig.colorbar(plot2, ax=ax2).ax.tick_params(labelsize=7)
-##                    #
-##                    # cm = LinearSegmentedColormap.from_list(
-##                    #     cmap_name, "bwr", N = 5)
-##                    #
-##                    # plot3 = ax3.imshow(init_images, vmin=-20, vmax=20, cmap=cm)#cmap = 'PuBu_r',
-##                    # #plot3 = ax3.imshow(init_images, vmin = -1, vmax = 1, cmap = cm)  # cmap = 'PuBu_r',
-##                    # plot4, = ax4.plot([], [], color = "r")
-##                    # ax4.set_xlim(0, future_length-1)
-##                    # ax4.set_ylim(0, 20)
-##                    # #ax4.set_ylim(0, 0.5)
-##                    # ax4.set_xlabel("Frames", fontsize=10)
-##                    # #ax4.set_ylabel("MSE", fontsize=10)
-##                    # ax4.xaxis.set_tick_params(labelsize=7)
-##                    # ax4.yaxis.set_tick_params(labelsize=7)
-##                    #
-##                    #
-##                    # plots = [plot1, plot2, plot3, plot4]
-##                    #
-##                    # #fig.colorbar(plots[1], ax = [ax1, ax2])
-##                    #
-##                    # fig.colorbar(plots[2], ax=ax3).ax.tick_params(labelsize=7)
-##                    # #fig.colorbar(plot1[0], ax=ax1).ax.tick_params(labelsize=7)
-##                    # #fig.colorbar(plot2[1], ax=ax2).ax.tick_params(labelsize=7)
-##                    #
-##                    # def animation_sample(t):
-##                    #     input_image = input_images_[t, :, :, 0]* (321.46630859375-235.2141571044922) + 235.2141571044922
-##                    #     gen_image = gen_images_[t, :, :, 0]* (321.46630859375-235.2141571044922) + 235.2141571044922
-##                    #     diff_image = input_gen_diff[t,:,:]
-##                    #     # p = sns.lineplot(x=x,y=data,color="b")
-##                    #     # p.tick_params(labelsize=17)
-##                    #     # plt.setp(p.lines, linewidth=6)
-##                    #     plots[0].set_data(input_image)
-##                    #     plots[1].set_data(gen_image)
-##                    #     #plots[0] = ax1.contourf(x, y, input_image, cmap = 'jet', vmin = np.min(input_images),vmax = np.max(input_images))
-##                    #     #plots[1] = ax2.contourf(x, y, gen_image, cmap = 'jet', vmin = np.min(input_images),vmax = np.max(input_images))
-##                    #     plots[2].set_data(diff_image)
-##                    #
-##                    #     if t >= future_length:
-##                    #         #data = gen_mse_avg_[:t + 1]
-##                    #         # x = list(range(len(gen_mse_avg_)))[:t+1]
-##                    #         xdata.append(t-future_length)
-##                    #         print("xdata", xdata)
-##                    #         ydata.append(gen_mse_avg_[t])
-##                    #         print("ydata", ydata)
-##                    #         plots[3].set_data(xdata, ydata)
-##                    #         fig.suptitle("Predicted Frame " + str(t-future_length))
-##                    #     else:
-##                    #         #plots[3].set_data(xdata, ydata)
-##                    #         fig.suptitle("Context Frame " + str(t))
-##                    #     return plots
-##                    #
-##                    # ani = animation.FuncAnimation(fig, animation_sample, frames=len(gen_mse_avg_), interval = 1000,
-##                    #                               repeat_delay=2000)
-##                    # ani.save(os.path.join(args.output_png_dir, "Sample_" + str(name) + ".mp4"))
-##
-####                else:
-####                    pass
-##
-
-
-
-
-
-    #         # for i, gen_mse_avg_ in enumerate(gen_mse_avg):
-    #         #     ims = []
-    #         #     fig = plt.figure()
-    #         #     plt.xlim(0,len(gen_mse_avg_))
-    #         #     plt.ylim(np.min(gen_mse_avg),np.max(gen_mse_avg))
-    #         #     plt.xlabel("Frames")
-    #         #     plt.ylabel("MSE_AVG")
-    #         #     #X = list(range(len(gen_mse_avg_)))
-    #         #     #for t, gen_mse_avg_ in enumerate(gen_mse_avg):
-    #         #     def animate_metric(j):
-    #         #         data = gen_mse_avg_[:(j+1)]
-    #         #         x = list(range(len(gen_mse_avg_)))[:(j+1)]
-    #         #         p = sns.lineplot(x=x,y=data,color="b")
-    #         #         p.tick_params(labelsize=17)
-    #         #         plt.setp(p.lines, linewidth=6)
-    #         #     ani = animation.FuncAnimation(fig, animate_metric, frames=len(gen_mse_avg_), interval = 1000, repeat_delay=2000)
-    #         #     ani.save(os.path.join(args.output_png_dir, "MSE_AVG" + str(i) + ".gif"))
-    #         #
-    #         #
-    #         # for i, input_images_ in enumerate(input_images):
-    #         #     #context_images_ = (input_results['images'][i])
-    #         #     #gen_images_fname = 'gen_image_%05d_%02d.gif' % (sample_ind + i, stochastic_sample_ind)
-    #         #     ims = []
-    #         #     fig = plt.figure()
-    #         #     for t, input_image in enumerate(input_images_):
-    #         #         im = plt.imshow(input_images[i, t, :, :, 0], interpolation = 'none')
-    #         #         ttl = plt.text(1.5, 2,"Frame_" + str(t))
-    #         #         ims.append([im,ttl])
-    #         #     ani = animation.ArtistAnimation(fig, ims, interval= 1000, blit=True,repeat_delay=2000)
-    #         #     ani.save(os.path.join(args.output_png_dir,"groud_true_images_" + str(i) + ".gif"))
-    #         #     #plt.show()
-    #         #
-    #         # for i,gen_images_ in enumerate(gen_images):
-    #         #     ims = []
-    #         #     fig = plt.figure()
-    #         #     for t, gen_image in enumerate(gen_images_):
-    #         #         im = plt.imshow(gen_images[i, t, :, :, 0], interpolation = 'none')
-    #         #         ttl = plt.text(1.5, 2, "Frame_" + str(t))
-    #         #         ims.append([im, ttl])
-    #         #     ani = animation.ArtistAnimation(fig, ims, interval = 1000, blit = True, repeat_delay = 2000)
-    #         #     ani.save(os.path.join(args.output_png_dir, "prediction_images_" + str(i) + ".gif"))
-    #
-    #
-    #             # for i, gen_images_ in enumerate(gen_images):
-    #             #     #context_images_ = (input_results['images'][i] * 255.0).astype(np.uint8)
-    #             #     #gen_images_ = (gen_images_ * 255.0).astype(np.uint8)
-    #             #     #bing
-    #             #     context_images_ = (input_results['images'][i])
-    #             #     gen_images_fname = 'gen_image_%05d_%02d.gif' % (sample_ind + i, stochastic_sample_ind)
-    #             #     context_and_gen_images = list(context_images_[:context_frames]) + list(gen_images_)
-    #             #     plt.figure(figsize = (10,2))
-    #             #     gs = gridspec.GridSpec(2,10)
-    #             #     gs.update(wspace=0.,hspace=0.)
-    #             #     for t, gen_image in enumerate(gen_images_):
-    #             #         gen_image_fname_pattern = 'gen_image_%%05d_%%02d_%%0%dd.png' % max(2,len(str(len(gen_images_) - 1)))
-    #             #         gen_image_fname = gen_image_fname_pattern % (sample_ind + i, stochastic_sample_ind, t)
-    #             #         plt.subplot(gs[t])
-    #             #         plt.imshow(input_images[i, t, :, :, 0], interpolation = 'none')  # the last index sets the channel. 0 = t2
-    #             #         # plt.pcolormesh(X_test[i,t,::-1,:,0], shading='bottom', cmap=plt.cm.jet)
-    #             #         plt.tick_params(axis = 'both', which = 'both', bottom = False, top = False, left = False,
-    #             #                         right = False, labelbottom = False, labelleft = False)
-    #             #         if t == 0: plt.ylabel('Actual', fontsize = 10)
-    #             #
-    #             #         plt.subplot(gs[t + 10])
-    #             #         plt.imshow(gen_images[i, t, :, :, 0], interpolation = 'none')
-    #             #         # plt.pcolormesh(X_hat[i,t,::-1,:,0], shading='bottom', cmap=plt.cm.jet)
-    #             #         plt.tick_params(axis = 'both', which = 'both', bottom = False, top = False, left = False,
-    #             #                         right = False, labelbottom = False, labelleft = False)
-    #             #         if t == 0: plt.ylabel('Predicted', fontsize = 10)
-    #             #     plt.savefig(os.path.join(args.output_png_dir, gen_image_fname) + 'plot_' + str(i) + '.png')
-    #             #     plt.clf()
-    #
-    #             # if args.gif_length:
-    #             #     context_and_gen_images = context_and_gen_images[:args.gif_length]
-    #             # save_gif(os.path.join(args.output_gif_dir, gen_images_fname),
-    #             #          context_and_gen_images, fps=args.fps)
-    #             #
-    #             # gen_image_fname_pattern = 'gen_image_%%05d_%%02d_%%0%dd.png' % max(2, len(str(len(gen_images_) - 1)))
-    #             # for t, gen_image in enumerate(gen_images_):
-    #             #     gen_image_fname = gen_image_fname_pattern % (sample_ind + i, stochastic_sample_ind, t)
-    #             #     if gen_image.shape[-1] == 1:
-    #             #       gen_image = np.tile(gen_image, (1, 1, 3))
-    #             #     else:
-    #             #       gen_image = cv2.cvtColor(gen_image, cv2.COLOR_RGB2BGR)
-    #             #     cv2.imwrite(os.path.join(args.output_png_dir, gen_image_fname), gen_image)

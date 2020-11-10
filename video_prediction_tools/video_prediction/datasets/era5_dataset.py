@@ -201,7 +201,7 @@ class ERA5Dataset(object):
         return dataset
 
     def make_batch(self, batch_size):
-        dataset = self.make_dataset_v2(batch_size)
+        dataset = self.make_dataset(batch_size)
         iterator = dataset.make_one_shot_iterator()
         return iterator.get_next()
 

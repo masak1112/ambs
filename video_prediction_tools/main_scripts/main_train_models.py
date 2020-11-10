@@ -59,6 +59,7 @@ class TrainModel(object):
         self.generate_output_dir()
 
     def setup(self):
+        self.generate_output_dir()
         self.set_seed()
         self.load_params_from_checkpoints_dir()
         self.setup_dataset()
