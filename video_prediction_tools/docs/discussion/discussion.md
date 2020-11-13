@@ -4,7 +4,9 @@ This is the list of last-mins files for VP group
 
 - https://docs.google.com/document/d/1cQUEWrenIlW1zebZwSSHpfka2Bhb8u63kPM3x7nya_o/edit#heading=h.yjmq51s4fxnm
 
+## 2020-08-31 - 2020-11-04 AMBS internal meeting
 
+- https://docs.google.com/document/d/1mHKey_lcy6-UluVm-nrpOBoNgochOxWnnwZ4XaJ-d2c/edit?usp=sharing
 
 
 ## 2020-11-12 AMBS update with Martin
