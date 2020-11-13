@@ -10,3 +10,4 @@ This is the list of last-mins files for VP group
 ## 2020-11-12 AMBS update with Martin
 
 - https://docs.google.com/document/d/1rc-hImd_A0rdOTSem461vZCY_8-GZY1zvwCvl5J8BQ8/edit?usp=sharing
+- Presentation: https://gitlab.version.fz-juelich.de/toar/ambs/-/blob/bing_%2337_organize_last_mins_meeting/video_prediction_tools/docs/discussion/20201112_AMBS_report_to_Martin.pptx
