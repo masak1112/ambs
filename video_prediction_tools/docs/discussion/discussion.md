@@ -17,6 +17,7 @@ This is the list of last-mins files for VP group
 
 ## 2020-09-11 JUWELS Booster Early Access Program 
 - Instruction: How to submit jobs in container on Booster. https://docs.google.com/document/d/1t2cmjTDbNtzEYBQSfeJn11T5w-wLjgMaJm9vwlgtCMA/edit?usp=sharing
-- EA program Profile (German): ea-application-DeepACF-de_stadtler+michael.docx
+- EA program Profile (German): ea-application-DeepACF-de_stadtler+michael.docx 
+- EA program Profile (English):ea-application-DeepACF_Bing.DOCX
 
 
