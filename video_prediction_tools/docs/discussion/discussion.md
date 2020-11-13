@@ -19,5 +19,6 @@ This is the list of last-mins files for VP group
 - Instruction: How to submit jobs in container on Booster. https://docs.google.com/document/d/1t2cmjTDbNtzEYBQSfeJn11T5w-wLjgMaJm9vwlgtCMA/edit?usp=sharing
 - EA program Profile (German): ea-application-DeepACF-de_stadtler+michael.docx 
 - EA program Profile (English):ea-application-DeepACF_Bing.docx
+- convLSTM training visu animation: https://fz-juelich.sciebo.de/s/2cSpnnEzPlqZufL
 
 
