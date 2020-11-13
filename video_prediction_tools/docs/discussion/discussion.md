@@ -15,7 +15,7 @@ This is the list of last-mins files for VP group
 - Presentation: https://gitlab.version.fz-juelich.de/toar/ambs/-/blob/bing_%2337_organize_last_mins_meeting/video_prediction_tools/docs/discussion/20201112_AMBS_report_to_Martin.pptx
 
 
-## 2020-09-11 JUWELS Booster Early Access Program 
+## 2020-09-11 - 2021-01-20 JUWELS Booster Early Access Program 
 - Instruction: How to submit jobs in container on Booster. https://docs.google.com/document/d/1t2cmjTDbNtzEYBQSfeJn11T5w-wLjgMaJm9vwlgtCMA/edit?usp=sharing
 - EA program Profile (German): ea-application-DeepACF-de_stadtler+michael.docx 
 - EA program Profile (English):ea-application-DeepACF_Bing.docx
