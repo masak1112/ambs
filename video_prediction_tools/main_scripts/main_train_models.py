@@ -136,8 +136,7 @@ class TrainModel(object):
                                        )
     def setup_graph(self):
         """
-            build model graph
-            since era5 tfrecords include T_start, we need to remove it from the tfrecord when we train the model, otherwise the model will raise error 
+        build model graph
         """
         self.video_model.build_graph(self.inputs)
 
@@ -158,6 +157,7 @@ class TrainModel(object):
         self.iterator = tf.data.Iterator.from_string_handle(
             self.train_handle, self.train_tf_dataset.output_types, self.train_tf_dataset.output_shapes)
         self.inputs = self.iterator.get_next()
+        #since era5 tfrecords include T_start, we need to remove it from the tfrecord when we train the model, otherwise the model will raise error 
         if self.dataset == "era5" and self.model == "savp":
            del  self.inputs["T_start"]        
 
