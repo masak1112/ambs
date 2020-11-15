@@ -43,7 +43,7 @@ class TrainModel(object):
             dataset              : str, dataset class name
             model                : str, model class name
             gpu_mem_frac         : float, fraction of gpu memory to use
-            save_interval        :int, how many steps for saving the train/val loss be saved
+            save_interval        : int, how many steps for saving the train/val loss be saved
         """ 
         self.input_dir = input_dir
         self.output_dir = output_dir
@@ -72,6 +72,9 @@ class TrainModel(object):
         self.calculate_samples_and_epochs()
 
     def set_seed(self):
+        """
+        Set seed to control the same train/val/testing dataset for the same seed
+        """
         if self.seed is not None:
             tf.set_random_seed(self.seed)
             np.random.seed(self.seed)
@@ -84,7 +87,7 @@ class TrainModel(object):
             
     def get_model_hparams_dict(self):
         """
-        Get model_hparams_dict from json file
+        Get and read model_hparams_dict from json file to dictionary 
         """
         self.model_hparams_dict_load = {}
         if self.model_hparams_dict:
@@ -95,7 +98,8 @@ class TrainModel(object):
 
     def load_params_from_checkpoints_dir(self):
         """
-        load the json files related datasets , model configure metadata (This information was stored in the checkpoint dir when last time training model)
+        if checkpoint is none, load and read the json files of datasplit_config, and hparam_config, and use the corresponding parameters
+        if the checkpoint is given, the configuration of dataset, model and options in the checkpoint dir will be restored and used for continue training
         """
         self.get_model_hparams_dict()
         if self.checkpoint:
@@ -128,7 +132,7 @@ class TrainModel(object):
 
     def setup_model(self):
         """
-        Set up model instance
+        Set up model instance for the given model names
         """
         VideoPredictionModel = models.get_model_class(self.model)
         self.video_model = VideoPredictionModel(
