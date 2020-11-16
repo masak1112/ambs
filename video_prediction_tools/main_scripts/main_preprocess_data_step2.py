@@ -58,7 +58,7 @@ def main():
         stat_obj = Calc_data_stat(nvars)                            # init statistic-instance
     
         # loop over whole data set (training, dev and test set) to collect the intermediate statistics
-        print("Start collecting statistics from the whole datset to be processed...")
+        print("Start collecting statistics from the whole dataset to be processed...")
         for split in partition.keys():
             values = partition[split]
             for year in values.keys():

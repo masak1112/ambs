@@ -93,7 +93,7 @@ class ERA5Pkl2Tfrecords(ERA5Dataset):
 
     def get_metadata(self):
         """
-        This function get the meta data that generared from data_process_step1, we aim to extract the height and width informaion from it
+        This function gets the meta data that generared from data_process_step1, we aim to extract the height and width informaion from it
         vars_in   : list(str), must be consistent with the list from DataPreprocessing_step1
         height    : int, the height of the image
         width     : int, the width of the image
@@ -187,7 +187,7 @@ class ERA5Pkl2Tfrecords(ERA5Dataset):
             month   : int, the target month to save to tfrecord 
         """
         #Define the input_file based on the year and month
-        self.input_file_year = os.path.join(os.path.join(self.input_dir, "pickle"),str(year))
+        self.input_file_year = os.path.join(self.input_dir,"pickle",str(year))
         input_file = os.path.join(self.input_file_year,'X_{:02d}.pkl'.format(month))
         temp_input_file = os.path.join(self.input_file_year,'T_{:02d}.pkl'.format(month))
 
