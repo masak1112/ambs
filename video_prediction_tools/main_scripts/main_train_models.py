@@ -56,7 +56,7 @@ class TrainModel(object):
         self.seed = seed
         self.args = args
         self.save_interval = save_interval
-        self.generate_output_dir()
+        self.check_output_dir()
 
     def setup(self):
         self.set_seed()
@@ -65,7 +65,7 @@ class TrainModel(object):
         self.setup_model()
         self.make_dataset_iterator()
         self.setup_graph()
-        self.save_dataset_model_params_to_checkpoint_dir()
+        self.save_dataset_model_params_to_output_dir()
         self.count_parameters()
         self.create_saver_and_writer()
         self.setup_gpu_config()
@@ -80,9 +80,15 @@ class TrainModel(object):
             np.random.seed(self.seed)
             random.seed(self.seed)
 
-    def generate_output_dir(self):
+    def check_output_dir(self):
+        """
+        Checks if output directory is existing.
+        """
         if self.output_dir is None:
-            raise ("Output_dir is None, Please define the proper output_dir")
+            raise ValueError("Output_dir-argument is empty. Please define a proper output_dir")
+        elif not os.path.isdir(self.output_dir):
+            raise NotADirectoryError("Base output_dir {0} does not exist. Please pass a proper output_dir and "+\
+                                     "make use of config_train.py.")
 
             
     def get_model_hparams_dict(self):
@@ -98,8 +104,10 @@ class TrainModel(object):
 
     def load_params_from_checkpoints_dir(self):
         """
-        if checkpoint is none, load and read the json files of datasplit_config, and hparam_config, and use the corresponding parameters
-        if the checkpoint is given, the configuration of dataset, model and options in the checkpoint dir will be restored and used for continue training
+        If checkpoint is none, load and read the json files of datasplit_config, and hparam_config,
+        and use the corresponding parameters.
+        If the checkpoint is given, the configuration of dataset, model and options in the checkpoint dir will be
+        restored and used for continue training.
         """
         self.get_model_hparams_dict()
         if self.checkpoint:
@@ -108,16 +116,21 @@ class TrainModel(object):
                 self.checkpoint_dir, _ = os.path.split(self.checkpoint_dir)
             if not os.path.exists(self.checkpoint_dir):
                 raise FileNotFoundError(errno.ENOENT, os.strerror(errno.ENOENT), self.checkpoint_dir)
-            with open(os.path.join(self.checkpoint_dir, "options.json")) as f:
-                print("loading options from checkpoint %s" % self.checkpoint)
-                self.options = json.loads(f.read())
-                self.dataset = self.dataset or options['dataset']
-                self.model = self.model or options['model']
+            # read and overwrite dataset and model from checkpoint
+            try:
+                with open(os.path.join(self.checkpoint_dir, "options.json")) as f:
+                    print("loading options from checkpoint %s" % self.checkpoint)
+                    self.options = json.loads(f.read())
+                    self.dataset = self.dataset or self.options['dataset']
+                    self.model = self.model or self.options['model']
+            except FileNotFoundError:
+                print("options.json was not loaded because it does not exist in {0}".format(self.checkpoint_dir))
+            # loading hyperparameters from checkpoint
             try:
                 with open(os.path.join(self.checkpoint_dir, "model_hparams.json")) as f:
                     self.model_hparams_dict_load.update(json.loads(f.read()))
             except FileNotFoundError:
-                print("model_hparams.json was not loaded because it does not exist")
+                print("model_hparams.json was not loaded because it does not exist in {0}".format(self.checkpoint_dir))
                 
     def setup_dataset(self):
         """
@@ -161,24 +174,23 @@ class TrainModel(object):
         self.iterator = tf.data.Iterator.from_string_handle(
             self.train_handle, self.train_tf_dataset.output_types, self.train_tf_dataset.output_shapes)
         self.inputs = self.iterator.get_next()
-        #since era5 tfrecords include T_start, we need to remove it from the tfrecord when we train the model, otherwise the model will raise error 
+        #since era5 tfrecords include T_start, we need to remove it from the tfrecord when we train the model,
+        # otherwise the model will raise error
         if self.dataset == "era5" and self.model == "savp":
-           del  self.inputs["T_start"]        
+           del self.inputs["T_start"]
 
 
-    def save_dataset_model_params_to_checkpoint_dir(self):
+    def save_dataset_model_params_to_output_dir(self):
         """
         Save all setup configurations such as args, data_hparams, and model_hparams into output directory
         """
-        if not os.path.exists(self.output_dir):
-            os.makedirs(self.output_dir)
         with open(os.path.join(self.output_dir, "options.json"), "w") as f:
             f.write(json.dumps(vars(self.args), sort_keys=True, indent=4))
         with open(os.path.join(self.output_dir, "dataset_hparams.json"), "w") as f:
             f.write(json.dumps(self.train_dataset.hparams.values(), sort_keys=True, indent=4))
         with open(os.path.join(self.output_dir, "model_hparams.json"), "w") as f:
             f.write(json.dumps(self.video_model.hparams.values(), sort_keys=True, indent=4))
-        with open(os.path.join(self.output_dir, "data_dict.json"), "w") as f:
+        with open(os.path.join(self.output_dir, "datasplit_dict.json"), "w") as f:
             f.write(json.dumps(self.train_dataset.data_dict, sort_keys=True, indent=4))  
 
 
