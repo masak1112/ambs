@@ -41,11 +41,12 @@ from main_scripts.main_train_models import *
 class Postprocess(TrainModel):
     def __init__(self,input_dir=None,results_dir=None,checkpoint=None,mode="test",
                       dataset=None,datasplit_dict=None,model=None,model_hparams_dict=None,
-                      batch_size=None,num_epochs=None,num_samples=None,num_stochastic_samples=None,gpu_mem_frac=None,seed=None,args=None):
+                      batch_size=None,num_epochs=None,num_samples=None,
+                      num_stochastic_samples=None,gpu_mem_frac=None,seed=None,args=None):
+
         super(Postprocess,self).__init__(input_dir=input_dir,output_dir=None,datasplit_dir=data_split_dir,
                                           model_hparams_dict=model_hparams_dict,model=model,checkpoint=checkpoint,dataset=dataset,
-                                          gpu_mem_frac=gpu_mem_frac,seed=seed,args=args)
-        
+                                          gpu_mem_frac=gpu_mem_frac,seed=seed,args=args)        
         self.results_dir = self.output_dir  = results_dir
         self.batch_size = batch_size
         self.num_epochs = num_epochs
@@ -138,21 +139,12 @@ class Postprocess(TrainModel):
                 for i in range(self.batch_size):
                     input_images_
 
+    @staticmethod
+    def setup_dirs(input_dir,results_png_dir):
+        input_dir = args.input_dir
+        temporal_dir = os.path.split(input_dir)[0] + "/hickle/splits/"
+        print ("temporal_dir:",temporal_dir)
 
-def setup_dirs(input_dir,results_png_dir):
-    input_dir = args.input_dir
-    temporal_dir = os.path.split(input_dir)[0] + "/hickle/splits/"
-    print ("temporal_dir:",temporal_dir)
-
-
-def update_hparams_dict(model_hparams_dict,dataset):
-    hparams_dict = dict(model_hparams_dict)
-    hparams_dict.update({
-        'context_frames': dataset.hparams.context_frames,
-        'sequence_length': dataset.hparams.sequence_length,
-        'repeat': dataset.hparams.time_shift,
-    })
-    return hparams_dict
 
 
 def psnr(img1, img2):
@@ -162,26 +154,26 @@ def psnr(img1, img2):
     return 20 * math.log10(PIXEL_MAX / math.sqrt(mse))
 
 
+    @staticmethod
+    def denorm_images(stat_fl, input_images_,channel,var):
+        norm_cls  = Norm_data(var)
+        norm = 'minmax'
+        with open(stat_fl) as js_file:
+             norm_cls.check_and_set_norm(json.load(js_file),norm)
+        input_images_denorm = norm_cls.denorm_var(input_images_[:, :, :,channel], var, norm)
+        return input_images_denorm
 
-def denorm_images(stat_fl, input_images_,channel,var):
-    norm_cls  = Norm_data(var)
-    norm = 'minmax'
-    with open(stat_fl) as js_file:
-         norm_cls.check_and_set_norm(json.load(js_file),norm)
-    input_images_denorm = norm_cls.denorm_var(input_images_[:, :, :,channel], var, norm)
-    return input_images_denorm
-
-def denorm_images_all_channels(stat_fl,input_images_,*args):
-    input_images_all_channles_denorm = []
-    input_images_ = np.array(input_images_)
-    print("THIS IS INPUT_IAMGES SHPAE,",input_images_.shape)
-    args = [item for item in args][0]
-    for c in range(len(args)):
-        print("args c:", args[c])
-        input_images_all_channles_denorm.append(denorm_images(stat_fl,input_images_,channel=c,var=args[c]))           
-    input_images_denorm = np.stack(input_images_all_channles_denorm, axis=-1)
-    #print("input_images_denorm shape",input_images_denorm.shape)
-    return input_images_denorm
+    def denorm_images_all_channels(stat_fl,input_images_,*args):
+        input_images_all_channles_denorm = []
+        input_images_ = np.array(input_images_)
+      
+        args = [item for item in args][0]
+        for c in range(len(args)):
+            print("args c:", args[c])
+            input_images_all_channles_denorm.append(denorm_images(stat_fl,input_images_,channel=c,var=args[c]))           
+        input_images_denorm = np.stack(input_images_all_channles_denorm, axis=-1)
+        #print("input_images_denorm shape",input_images_denorm.shape)
+        return input_images_denorm
 
 def get_one_seq_and_time(input_images,t_starts,i):
     assert (len(np.array(input_images).shape)==5)
