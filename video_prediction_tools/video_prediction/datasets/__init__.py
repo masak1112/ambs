@@ -26,6 +26,13 @@ def get_dataset_class(dataset):
     dataset_class = dataset_mappings.get(dataset, dataset)
     print("datset_class",dataset_class)
     dataset_class = globals().get(dataset_class)
-   # if dataset_class is None or not issubclass(dataset_class, BaseVideoDataset):
-   #     raise ValueError('Invalid dataset %s' % dataset)
+    if dataset_class is None:
+        raise ValueError('Invalid dataset %s' % dataset)
+    else:
+        # ERA5Dataset does not inherit anything from VarLenFeatureVideoDataset-class, so it is the only dataset which
+        # does not need to be a subclass of BaseVideoDataset
+        if not dataset_class == "ERA5Dataset":
+            if not issubclass(dataset_class,BaseVideoDataset):
+                raise ValueError('Dataset {0} is not a valid dataset'.format(dataset_class))
+
     return dataset_class
