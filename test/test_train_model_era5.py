@@ -84,7 +84,7 @@ def test_setup_model(train_model_case1):
 
 def test_make_dataset_iterator(train_model_case1):
     """
-    To test the training and valition dataset into the model/session should be the correct ones.
+    To test the training and validation dataset into the model/session should be the correct ones.
     """
     train_model_case1.make_dataset_iterator()
     assert train_model_case1.batch_size == 4
