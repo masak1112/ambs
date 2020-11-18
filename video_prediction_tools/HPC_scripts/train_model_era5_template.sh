@@ -43,6 +43,6 @@ model=convLSTM
 model_hparams=${destination_dir}/model_hparams.json
 
 # run training
-srun python ../main_scripts/main_train_models.py --input_dir  ${source_dir}/tfrecords/ --dataset era5  --model ${model} --model_hparams_dict ${model_hparams} --output_dir ${destination_dir_full}/
+srun python ../main_scripts/main_train_models.py --input_dir  ${source_dir}/tfrecords/ --dataset era5  --model ${model} --model_hparams_dict ${model_hparams} --output_dir ${destination_dir}/
 
  
