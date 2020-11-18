@@ -287,8 +287,8 @@ class TrainModel(object):
             for step in range(self.start_step,self.total_steps):
                 timeit_start = time.time()
                 #run for training dataset
-                self.create_fetches_for_train()
-                self.results = sess.run(self.fetches)
+                self.create_fetches_for_train()             # In addition to the loss, we fetch the optimizer
+                self.results = sess.run(self.fetches)       # ...and run it here!
                 train_losses.append(self.results["total_loss"])
                 #Run and fetch losses for validation data
                 val_handle_eval = sess.run(self.val_handle)
@@ -320,7 +320,7 @@ class TrainModel(object):
        Fetch variables in the graph, this can be custermized based on models and also the needs of users
        """
        #This is the base fetch that for all the  models
-       self.fetches = {"train_op": self.video_model.train_op}
+       self.fetches = {"train_op": self.video_model.train_op}         # fetching the optimizer!
        self.fetches["summary"] = self.video_model.summary_op
        self.fetches["global_step"] = self.video_model.global_step
        self.fetches["total_loss"] = self.video_model.total_loss
