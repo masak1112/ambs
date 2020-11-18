@@ -56,7 +56,7 @@ class TrainModel(object):
         self.seed = seed
         self.args = args
         self.save_interval = save_interval
-        self.generate_output_dir()
+
 
     def setup(self):
         self.generate_output_dir()
