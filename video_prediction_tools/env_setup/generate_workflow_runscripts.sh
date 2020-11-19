@@ -156,7 +156,7 @@ if [[ `grep "exp_id=" ${target_script}` ]]; then
 fi
 
 # set correct e-mail address in Batch scripts on Juwels and HDF-ML
-if [[ "${HOST_NAME}" == hdfml* || "${HOST_NAME}" == juwels* ]]; then
+if [[ "${HOST_NAME}" == hdfml* || "${HOST_NAME}" == *juwels* ]]; then
   if ! [[ -z `command -v jutil` ]]; then
     USER_EMAIL=$(jutil user show -o json | grep email | cut -f2 -d':' | cut -f1 -d',' | cut -f2 -d'"')
   else
