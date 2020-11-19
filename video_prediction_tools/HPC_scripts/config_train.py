@@ -57,7 +57,7 @@ def check_virtualenv(labort=False):
 #
 def get_variable_from_runscript(runscript_file,script_variable):
     '''
-    Searach for the declaration of variable in a Shell script and returns its value.
+    Search for the declaration of variable in a Shell script and returns its value.
     :param runscript_file: path to shell script/runscript
     :param script_variable: name of variable which is declared in shell script at hand
     :return: value of script_variable
@@ -92,6 +92,47 @@ def path_rec_split(full_path):
 #
 #--------------------------------------------------------------------------------------------------------
 #
+def keyboard_interaction(console_str,check_input,err,ntries=1):
+    """
+    Function to check if the user has passed a proper input via keyboard interaction
+    :param console_str: Request printed to the console
+    :param check_input: function which needs to be passed by input from keyboard interaction.
+                        Must have two arguments with the latter being an optional bool called silent
+    :param ntries: maximum number of tries (default: 1)
+    :return: The approved input from keyboard interaction
+    """
+    # sanity checks
+    if not callable(check_input):
+        raise ValueError("check_input must be a function!")
+    else:
+        try:
+            if not type(check_input("xxx",silent=True)) is bool:
+                raise TypeError("check_input argument does not return a boolean.")
+            else:
+                pass
+        except:
+            raise Exception("Cannot approve check_input-argument to be proper.")
+    if not isinstance(err,BaseException):
+        raise ValueError("err_str-argument must be an instance of BaseException!")
+    if not isinstance(ntries,int) and ntries <= 1:
+        raise ValueError("ntries-argument must be an integer greater equal 1!")
+
+    attempt = 0
+    while attempt < ntries:
+        input_req = input(console_str)
+        if check_input(input_req):
+            break
+        else:
+            attempt += 1
+            if attempt < ntries:
+                print(err)
+                console_str = "Retry!"
+            else:
+                raise err
+
+    return input_req
+
+
 def main():
 
     list_models = known_models().keys()
@@ -103,49 +144,70 @@ def main():
     ## get required information from the user by keyboard interaction
 
     # dataset used for training
-    dataset = input("Enter the name of the dataset for training:\n")
+    def check_dataset(dataset_name, silent=False):
+        # NOTE: Generic template for training still has to be integrated!
+        #       After this is done, the latter part of the if-clause can be removed
+        #       and further adaptions for the target_dir and for retrieving base_dir (see below) are required
+        if not dataset_name in list_datasets or dataset_name != "era5":
+            if not silent:
+                print("The following dataset can be used for training:")
+                for dataset_avail in list_datasets: print("* " + dataset_avail)
+            return False
+        else:
+            return True
 
-    # NOTE: Generic template for training still has to be integrated!
-    #       After this is done, the latter part of the if-clause can be removed
-    #       and further adaptions for the target_dir and for retrieving base_dir (see below) are required
-    if not dataset in list_datasets or dataset != "era5":
-        print("The following dataset can be used for training:")
-        for dataset_avail in list_datasets: print("* "+dataset_avail)
-        raise ValueError("Please select a dataset from the ones listed above.")
+    dataset_req_str = "Enter the name of the dataset for training:\n"
+    dataset_err     = ValueError("Please select a dataset from the ones listed above.")
 
-
+    dataset = keyboard_interaction(dataset_req_str,check_dataset,dataset_err,ntries=2)
     # path to preprocessed data
-    exp_dir_full = input("Enter the path to the preprocessed data (directory where tf-records files are located):\n")
-    exp_dir_full = os.path.join(exp_dir_full,"train")
-    # sanity check (does preprocessed data exist?)
-    if not (os.path.isdir(exp_dir_full)):
-        raise NotADirectoryError("Passed path to preprocessed data '"+exp_dir_full+"' does not exist!")
-    file_list = glob.glob(os.path.join(exp_dir_full,"sequence*.tfrecords"))
-    if len(file_list) == 0:
-        raise FileNotFoundError("Passed path to preprocessed data '"+exp_dir_full+"' exists,"+\
-                                "but no tfrecord-files can be found therein")
+    def check_expdir(exp_dir, silent=False):
+        status = False
+        if os.path.isdir(exp_dir):
+            file_list = glob.glob(os.path.join(exp_dir,"sequence*.tfrecords"))
+            if len(file_list) > 0:
+                status = True
+            else:
+                print("{0} does not contain any tfrecord-files.".format(exp_dir))
+        else:
+            if not silent: print("Passed directory does not exist!")
+        return status
 
+    expdir_req_str = "Enter the path to the preprocessed data (directory where tf-records files are located):\n"
+    expdir_err     = FileNotFoundError("Could not find any tfrecords.")
+
+    exp_dir_full   = keyboard_interaction(expdir_req_str, check_expdir, expdir_err, ntries=3)
+
+    # split up directory path
     exp_dir_split = path_rec_split(exp_dir_full)
     index = [idx for idx, s in enumerate(exp_dir_split) if dataset in s][0]
     exp_dir = exp_dir_split[index]
 
     # model
-    model = input("Enter the name of the model you want to train:\n")
+    def check_model(model_name, silent=False):
+        if not model_name in list_models:
+            if not silent:
+                print("The following models are implemented in the workflow:")
+                for model_avail in list_models: print("* " + model_avail)
+            return False
+        else:
+            return True
 
-    # sanity check (is the model implemented?)
-    if not (model in list_models):
-        print("The following models are implemented in the workflow:")
-        for model_avail in list_models: print("* "+model_avail)
-        raise ValueError("Could not find the passed model '"+model+"'! Please select a model from the ones listed above.")
+    model_req_str = "Enter the name of the model you want to train:\n"
+    model_err     = ValueError("Could not find the passed model '"+model+\
+                               "'! Please select a model from the ones listed above.")
+
+    model = keyboard_interaction(model_req_str, check_model, model_err, ntries=2)
 
     # experimental ID
+    # No need to call keyboard_interaction here, because the user can pass whatever we wants
     exp_id = input("Enter your desired experimental id (will be extended by timestamp and username):\n")
 
     # also get current timestamp and user-name...
     timestamp = dt.datetime.now().strftime("%Y%m%dT%H%M%S")
     user_name = os.environ["USER"]
     # ... to construct final target_dir and exp_dir_ext as well
-    exp_id = timestamp +"_"+ user_name +"_"+ exp_id     # by concention, exp_id is extended with a timestamp and the user's name
+    exp_id = timestamp +"_"+ user_name +"_"+ exp_id  # by convention, exp_id is extended by timestamp and username
     base_dir   = get_variable_from_runscript('train_model_era5_template.sh','destination_dir')
     exp_dir_ext= os.path.join(exp_dir,model,exp_id)
     target_dir = os.path.join(base_dir,exp_dir,model,exp_id)
@@ -154,7 +216,7 @@ def main():
     if os.path.isdir(target_dir):
         raise IsADirectoryError(target_dir+" already exists! Make sure that it is unique.")
 
-    # create destnation directory...
+    # create destination directory...
     os.makedirs(target_dir)
     source_hparams = os.path.join("..","hparams",dataset,model,"model_hparams.json")
     # sanity check (default hyperparameter json-file exists)
