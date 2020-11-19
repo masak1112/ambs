@@ -180,8 +180,10 @@ def main():
 
     # split up directory path
     exp_dir_split = path_rec_split(exp_dir_full)
-    index = [idx for idx, s in enumerate(exp_dir_split) if dataset in s][0]
-    exp_dir = exp_dir_split[index]
+    index = [idx for idx, s in enumerate(exp_dir_split) if dataset in s]
+    if index == []:
+        raise ValueError("tfrecords found under '{0}', but directory does not seem to reflect naming convention.".format(exp_dir_full))
+    exp_dir = exp_dir_split[index[0]]
 
     # model
     def check_model(model_name, silent=False):
