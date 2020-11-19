@@ -187,6 +187,7 @@ def main():
     def check_model(model_name, silent=False):
         if not model_name in list_models:
             if not silent:
+                print("{0} is not a valid model!".format(model_name))
                 print("The following models are implemented in the workflow:")
                 for model_avail in list_models: print("* " + model_avail)
             return False
@@ -194,8 +195,7 @@ def main():
             return True
 
     model_req_str = "Enter the name of the model you want to train:\n"
-    model_err     = ValueError("Could not find the passed model '"+model+\
-                               "'! Please select a model from the ones listed above.")
+    model_err     = ValueError("Please select a model from the ones listed above.")
 
     model = keyboard_interaction(model_req_str, check_model, model_err, ntries=2)
 
