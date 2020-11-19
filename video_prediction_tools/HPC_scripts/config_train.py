@@ -6,8 +6,8 @@ on the setting of hyperparameters.
 """
 
 __email__ = "b.gong@fz-juelich.de"
-__authors__ = "Bing Gong, Scarlet Stadtler,Michael Langguth"
-__date__ = "2020-10-27"
+__authors__ = "Michael Langguth"
+__date__ = "2020-11-19"
 
 # import modules
 import sys, os, glob
@@ -21,7 +21,7 @@ sys.path.append(os.path.dirname(sys.path[0]))
 from model_modules.model_architectures import known_models
 from data_preprocess.dataset_options import known_datasets
 
-# start script
+# some auxiliary functions
 
 # robust check if script is running in virtual env from
 # https://stackoverflow.com/questions/1871549/determine-if-python-is-running-inside-virtualenv/38939054
@@ -96,8 +96,8 @@ def keyboard_interaction(console_str,check_input,err,ntries=1):
     """
     Function to check if the user has passed a proper input via keyboard interaction
     :param console_str: Request printed to the console
-    :param check_input: function which needs to be passed by input from keyboard interaction.
-                        Must have two arguments with the latter being an optional bool called silent
+    :param check_input: function returning boolean which needs to be passed by input from keyboard interaction.
+                        Must have two arguments with the latter being an optional bool called silent.
     :param ntries: maximum number of tries (default: 1)
     :return: The approved input from keyboard interaction
     """
@@ -126,7 +126,7 @@ def keyboard_interaction(console_str,check_input,err,ntries=1):
             attempt += 1
             if attempt < ntries:
                 print(err)
-                console_str = "Retry!"
+                console_str = "Retry!\n"
             else:
                 raise err
 
