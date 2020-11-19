@@ -1,5 +1,5 @@
 #!#bin/bash
-export PYTHONPATH=/p/project/deepacf/deeprain/gong1/ambs/video_prediction_tools:$PYTHONPATH
+export PYTHONPATH=/p/project/deepacf/deeprain/gong1/${USER}/video_prediction_tools:$PYTHONPATH
 # Name of virtual environment 
 #VIRT_ENV_NAME="vp_new_structure"
 VIRT_ENV_NAME="env_hdfml"

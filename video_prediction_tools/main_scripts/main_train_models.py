@@ -43,7 +43,7 @@ class TrainModel(object):
             dataset              : str, dataset class name
             model                : str, model class name
             gpu_mem_frac         : float, fraction of gpu memory to use
-            save_interval        :int, how many steps for saving the train/val loss be saved
+            save_interval        : int, how many steps for saving the train/val loss be saved
         """ 
         self.input_dir = input_dir
         self.output_dir = output_dir
@@ -56,7 +56,7 @@ class TrainModel(object):
         self.seed = seed
         self.args = args
         self.save_interval = save_interval
-        self.generate_output_dir()
+        self.check_output_dir()
 
     def setup(self):
         self.set_seed()
@@ -65,26 +65,35 @@ class TrainModel(object):
         self.setup_model()
         self.make_dataset_iterator()
         self.setup_graph()
-        self.save_dataset_model_params_to_checkpoint_dir()
+        self.save_dataset_model_params_to_output_dir()
         self.count_parameters()
         self.create_saver_and_writer()
         self.setup_gpu_config()
         self.calculate_samples_and_epochs()
 
     def set_seed(self):
+        """
+        Set seed to control the same train/val/testing dataset for the same seed
+        """
         if self.seed is not None:
             tf.set_random_seed(self.seed)
             np.random.seed(self.seed)
             random.seed(self.seed)
 
-    def generate_output_dir(self):
+    def check_output_dir(self):
+        """
+        Checks if output directory is existing.
+        """
         if self.output_dir is None:
-            raise ("Output_dir is None, Please define the proper output_dir")
+            raise ValueError("Output_dir-argument is empty. Please define a proper output_dir")
+        elif not os.path.isdir(self.output_dir):
+            raise NotADirectoryError("Base output_dir {0} does not exist. Please pass a proper output_dir and "+\
+                                     "make use of config_train.py.")
 
             
     def get_model_hparams_dict(self):
         """
-        Get model_hparams_dict from json file
+        Get and read model_hparams_dict from json file to dictionary 
         """
         self.model_hparams_dict_load = {}
         if self.model_hparams_dict:
@@ -95,7 +104,10 @@ class TrainModel(object):
 
     def load_params_from_checkpoints_dir(self):
         """
-        load the json files related datasets , model configure metadata (This information was stored in the checkpoint dir when last time training model)
+        If checkpoint is none, load and read the json files of datasplit_config, and hparam_config,
+        and use the corresponding parameters.
+        If the checkpoint is given, the configuration of dataset, model and options in the checkpoint dir will be
+        restored and used for continue training.
         """
         self.get_model_hparams_dict()
         if self.checkpoint:
@@ -104,16 +116,21 @@ class TrainModel(object):
                 self.checkpoint_dir, _ = os.path.split(self.checkpoint_dir)
             if not os.path.exists(self.checkpoint_dir):
                 raise FileNotFoundError(errno.ENOENT, os.strerror(errno.ENOENT), self.checkpoint_dir)
-            with open(os.path.join(self.checkpoint_dir, "options.json")) as f:
-                print("loading options from checkpoint %s" % self.checkpoint)
-                self.options = json.loads(f.read())
-                self.dataset = self.dataset or options['dataset']
-                self.model = self.model or options['model']
+            # read and overwrite dataset and model from checkpoint
+            try:
+                with open(os.path.join(self.checkpoint_dir, "options.json")) as f:
+                    print("loading options from checkpoint %s" % self.checkpoint)
+                    self.options = json.loads(f.read())
+                    self.dataset = self.dataset or self.options['dataset']
+                    self.model = self.model or self.options['model']
+            except FileNotFoundError:
+                print("options.json was not loaded because it does not exist in {0}".format(self.checkpoint_dir))
+            # loading hyperparameters from checkpoint
             try:
                 with open(os.path.join(self.checkpoint_dir, "model_hparams.json")) as f:
                     self.model_hparams_dict_load.update(json.loads(f.read()))
             except FileNotFoundError:
-                print("model_hparams.json was not loaded because it does not exist")
+                print("model_hparams.json was not loaded because it does not exist in {0}".format(self.checkpoint_dir))
                 
     def setup_dataset(self):
         """
@@ -128,7 +145,7 @@ class TrainModel(object):
 
     def setup_model(self):
         """
-        Set up model instance
+        Set up model instance for the given model names
         """
         VideoPredictionModel = models.get_model_class(self.model)
         self.video_model = VideoPredictionModel(
@@ -136,8 +153,7 @@ class TrainModel(object):
                                        )
     def setup_graph(self):
         """
-            build model graph
-            since era5 tfrecords include T_start, we need to remove it from the tfrecord when we train the model, otherwise the model will raise error 
+        build model graph
         """
         self.video_model.build_graph(self.inputs)
 
@@ -158,23 +174,23 @@ class TrainModel(object):
         self.iterator = tf.data.Iterator.from_string_handle(
             self.train_handle, self.train_tf_dataset.output_types, self.train_tf_dataset.output_shapes)
         self.inputs = self.iterator.get_next()
+        #since era5 tfrecords include T_start, we need to remove it from the tfrecord when we train the model,
+        # otherwise the model will raise error
         if self.dataset == "era5" and self.model == "savp":
-           del  self.inputs["T_start"]        
+           del self.inputs["T_start"]
 
 
-    def save_dataset_model_params_to_checkpoint_dir(self):
+    def save_dataset_model_params_to_output_dir(self):
         """
         Save all setup configurations such as args, data_hparams, and model_hparams into output directory
         """
-        if not os.path.exists(self.output_dir):
-            os.makedirs(self.output_dir)
         with open(os.path.join(self.output_dir, "options.json"), "w") as f:
             f.write(json.dumps(vars(self.args), sort_keys=True, indent=4))
         with open(os.path.join(self.output_dir, "dataset_hparams.json"), "w") as f:
             f.write(json.dumps(self.train_dataset.hparams.values(), sort_keys=True, indent=4))
         with open(os.path.join(self.output_dir, "model_hparams.json"), "w") as f:
             f.write(json.dumps(self.video_model.hparams.values(), sort_keys=True, indent=4))
-        with open(os.path.join(self.output_dir, "data_dict.json"), "w") as f:
+        with open(os.path.join(self.output_dir, "datasplit_dict.json"), "w") as f:
             f.write(json.dumps(self.train_dataset.data_dict, sort_keys=True, indent=4))  
 
 
@@ -206,8 +222,8 @@ class TrainModel(object):
 
     def calculate_samples_and_epochs(self):
         """
-        Clculate the number of samples for train/val/testing dataset. The samples are used for training model for each epoch. 
-        Clculate the iterations (samples multiple by max_epochs) for training.
+        Calculate the number of samples for train dataset, which is used for each epoch training
+        Calculate the iterations (samples multiple by max_epochs) for training.
         """
         batch_size = self.video_model.hparams.batch_size
         max_epochs = self.video_model.hparams.max_epochs #the number of epochs
@@ -216,6 +232,9 @@ class TrainModel(object):
         self.total_steps = self.steps_per_epoch * max_epochs
 
     def restore(self,sess, checkpoints, restore_to_checkpoint_mapping=None):
+        """
+        Restore the models checkpoints if the checkpoints is given
+        """
         if checkpoints:
            var_list = self.video_model.saveable_variables
            # possibly restore from multiple checkpoints. useful if subset of weights
@@ -236,7 +255,7 @@ class TrainModel(object):
     
     def restore_train_val_losses(self):
         """
-        Restore the train and validation losses in the pickle file
+        Restore the train and validation losses in the pickle file if checkpoint is given 
         """
         if self.start_step == 0:
             train_losses = []
@@ -298,7 +317,7 @@ class TrainModel(object):
  
     def create_fetches_for_train(self):
        """
-       Fetch variables in the graph, this can be custermized based on models and based on the needs of users
+       Fetch variables in the graph, this can be custermized based on models and also the needs of users
        """
        #This is the base fetch that for all the  models
        self.fetches = {"train_op": self.video_model.train_op}
@@ -313,14 +332,14 @@ class TrainModel(object):
     
     def fetches_for_train_convLSTM(self):
         """
-        Fetch variables in the graph for convLSTM model, this can be custermized based on models and based on the needs of users
+        Fetch variables in the graph for convLSTM model, this can be custermized based on models and the needs of users
         """
         pass
 
  
     def fetches_for_train_savp(self):
         """
-        Fetch variables in the graph for savp model, this can be custermized based on models and based on the needs of users
+        Fetch variables in the graph for savp model, this can be custermized based on models and the needs of users
         """
         self.fetches["g_losses"] = self.video_model.g_losses
         self.fetches["d_losses"] = self.video_model.d_losses
@@ -329,7 +348,7 @@ class TrainModel(object):
 
     def fetches_for_train_mcnet(self):
         """
-        Fetch variables in the graph for mcnet model, this can be custermized based on models and based on the needs of users
+        Fetch variables in the graph for mcnet model, this can be custermized based on models and  the needs of users
         """
         self.fetches["L_p"] = self.video_model.L_p
         self.fetches["L_gdl"] = self.video_model.L_gdl
@@ -345,7 +364,7 @@ class TrainModel(object):
 
     def create_fetches_for_val(self):
         """
-        Fetch variables in the graph for validation dataset, this can be custermized based on models and based on the needs of users
+        Fetch variables in the graph for validation dataset, this can be custermized based on models and the needs of users
         """
         self.val_fetches = {"total_loss": self.video_model.total_loss}
         self.val_fetches["summary"] = self.video_model.summary_op
@@ -379,7 +398,7 @@ class TrainModel(object):
         """
         Function to plot training losses for train and val datasets against steps
         params:
-            train_losses/val_losses       :list, train losses, which length should be equal to the number of training steps
+            train_losses/val_losses       : list, train losses, which length should be equal to the number of training steps
             step                          : int, current training step
             output_dir                    : str,  the path to save the plot
         """ 
