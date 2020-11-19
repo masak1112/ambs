@@ -53,7 +53,7 @@ extend_path() {
   prefix=$1
   extension=$2
   if [[ `grep "/${prefix}/$" ${target_script}` ]]; then
-   echo "PErform extension on path '${prefix}/' in runscript '${target_script}'"
+   echo "Perform extension on path '${prefix}/' in runscript '${target_script}'"
    sed -i "s|/${prefix}/$|/${prefix}/${extension}/|g" ${target_script}
    status=1
   fi
