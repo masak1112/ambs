@@ -36,7 +36,7 @@ from skimage.metrics import structural_similarity as ssim
 from normalization import Norm_data
 from metadata import MetaData as MetaData
 from main_scripts.main_train_models import *
-
+from video_prediction_tools.data_preprocess.preprocess_data_step2 import *
 
 class Postprocess(TrainModel):
     def __init__(self,input_dir=None,results_dir=None,checkpoint=None,mode="test",
@@ -53,6 +53,7 @@ class Postprocess(TrainModel):
         #super(Postprocess,self).__init__(input_dir=input_dir,output_dir=None,datasplit_dir=data_split_dir,
         #                                  model_hparams_dict=model_hparams_dict,model=model,checkpoint=checkpoint,dataset=dataset,
         #                                  gpu_mem_frac=gpu_mem_frac,seed=seed,args=args)        
+        self.input_dir = input_dir
         self.results_dir  = results_dir
         self.batch_size = batch_size
         self.num_stochastic_samples = num_stochastic_samples
@@ -67,9 +68,11 @@ class Postprocess(TrainModel):
 
     def __call__(self):
         self.set_seed()
+        ERA5Pkl2Tfrecords.get_metadata()#get the vars_in variables which contains the list of input variable names
         self.load_params_from_checkpoints_dir()
         self.setup_test_dataset()
         self.setup_model()
+        self.get_data_params()
         self.setup_num_samples_per_epoch()
         self.make_test_dataset_iterator() 
         self.setup_graph()
@@ -94,7 +97,14 @@ class Postprocess(TrainModel):
         VideoDataset = datasets.get_dataset_class(self.dataset)
         self.test_dataset = VideoDataset(input_dir=self.input_dir_tfrecords,mode=self.mode,datasplit_config=self.datasplit_dict)
                             
-                          
+    
+    def get_data_params(self):
+        """
+        Get the context_frames, future_frames and total frames from hparamters settings.
+        """
+        pass
+
+
     def make_test_dataset_iterator(self):
         self.inputs = self.test_dataset.make_batch(self.batch_size)
         self.inputs = {k: tf.placeholder(v.dtype, v.shape, '%s_ph' % k) for k, v in self.inputs.items()}
@@ -141,8 +151,21 @@ class Postprocess(TrainModel):
         self.input_images_,self.t_start = get_one_seq_and_time(self.input_images,self.t_starts,i)
         #Renormalized data for inputs
         stat_fl = os.path.join(args.input_dir,"pickle/statistics.json")
-        self.input_images_denorm = denorm_images_all_channels(stat_fl,self.input_images_,["T2","MSL","gph500"])
+        self.input_images_denorm = denorm_images_all_channels(stat_fl,self.input_images_,self.vars_in)
 
+    def generate_images(self,stochastic_sample_ind):
+           #Generate images inputs
+        if stochastic_sample_ind ==0: 
+            plot_seq_imgs(imgs=input_images_denorm[context_frames+1:,:,:,0],lats=lats,lons=lons,ts=ts[context_frames+1:],label="Ground Truth",output_png_dir=args.results_dir)  
+           #Generate forecast images
+            plot_seq_imgs(imgs=gen_images_denorm[context_frames:,:,:,0],lats=lats,lons=lons,ts=ts[context_frames+1:],label="Forecast by Model " + args.model,output_png_dir=args.results_dir) 
+        
+            #Generate persistent images
+            # I am not sure about the number of frames given with context_frames and context_frames +1
+            plot_seq_imgs(imgs=persistence_images[context_frames+1:,:,:,0],lats=lats,lons=lons,ts=ts_persistence[context_frames+1:], 
+                          label="Persistence Forecast" + args.model,output_png_dir=args.results_dir)
+        else:
+            pass
 
 
     def run_test(self):
@@ -155,80 +178,59 @@ class Postprocess(TrainModel):
                 break
             else:
                self.run_inputs_per_batch()
-
             #Loop for stochastics 
             feed_dict = {input_ph: input_results[name] for name, input_ph in self.inputs.items()}
+            gen_images_stochastic = [] #[stochastic_ind,batch_size,seq_len,lat,lon,channels]
             for stochastic_sample_ind in range(self.num_stochastic_samples):
                 gen_images = sess.run(model.outputs['gen_images'], feed_dict = feed_dict)#return [batchsize,seq_len,lat,lon,channel]
                 assert gen_images.shape[1] == sequence_length-1 #The generate images seq_len should be sequence_len -1, since the last one is not used for comparing with groud truth 
-                for i in range(args.batch_size):
+                gen_images_per_batch = []
+                for i in range(self.batch_size):
                     #generate time stamps for sequences
-                    ts = generate_seq_timestamps(self.t_start,len_seq=sequence_length)
+                    ts = generate_seq_timestamps(self.t_start,len_seq=self.sequence_length)
                     #Renormalized data for generate
                     gen_images_ = gen_images[i]
-                    gen_images_denorm = denorm_images_all_channels(stat_fl,gen_images_,["T2","MSL","gph500"])
+                    gen_images_denorm = denorm_images_all_channels(stat_fl,gen_images_,self.vars_in)
+                    gen_images_per_batch.append(gen_images_denorm)
+                    #get persistence_images
+                    if stochastic_sample_ind == 0: persistence_images, ts_persistence = get_persistence(ts, input_dir_pkl)
                     
-                    #Save input to netCDF file for each stochastic sample
-                    init_date_str = ts[0].strftime("%Y%m%d%H")
-                    save_to_netcdf_per_sequence(self.results_dir,self.input_images_denorm,gen_images_denorm,self.lons,self.lats,ts,self.context_frames,self.future_length,args.model,fl_name="vfp_{}.nc".format(init_date_str))
-                                                             
-                    #Generate images inputs
-                    plot_seq_imgs(imgs=input_images_denorm[context_frames+1:,:,:,0],lats=lats,lons=lons,ts=ts[context_frames+1:],label="Ground Truth",output_png_dir=args.results_dir)  
-                                                             
-                    #Generate forecast images
-                    plot_seq_imgs(imgs=gen_images_denorm[context_frames:,:,:,0],lats=lats,lons=lons,ts=ts[context_frames+1:],label="Forecast by Model " + args.model,output_png_dir=args.results_dir) 
-            
-          
-                    persistence_images, ts_persistence = get_persistence(ts, input_dir_pkl)
-                    # I am not sure about the number of frames given with context_frames and context_frames +1
-                    plot_seq_imgs(imgs=persistence_images[context_frames+1:,:,:,0],lats=lats,lons=lons,ts=ts_persistence[context_frames+1:], 
-                          label="Persistence Forecast" + args.model,output_png_dir=args.results_dir)
+                    self.init_date_str = ts[0].strftime("%Y%m%d%H")
+                    #only plot when the first stochastic ind 
+                    self.generate_images(stochastic_sample_ind)
 
-            sample_ind += args.batch_size
-
-
+            self.gen_images_stochastic.append(gen_images_per_batch)
+            save_to_netcdf_per_sequence(fl_name="vfp_date_{}_from_{}_to_{}.nc".format(init_date_str,sample_ind,sample_ind+self.batch_size)) 
+            sample_ind += self.batch_size
 
 
     @staticmethod
-    def setup_dirs(input_dir,results_png_dir):
-        input_dir = args.input_dir
-        temporal_dir = os.path.split(input_dir)[0] + "/hickle/splits/"
-        print ("temporal_dir:",temporal_dir)
-
-
-    @staticmethod
-    def psnr(img1, img2):
-        mse = np.mean((img1 - img2) ** 2)
-        if mse == 0: return 100
-        PIXEL_MAX = 1
-        return 20 * math.log10(PIXEL_MAX / math.sqrt(mse))
-
-
-    @staticmethod
-    def denorm_images(stat_fl, input_images_,channel,var):
+    def denorm_images(stat_fl,input_images_,channel,var):
         norm_cls  = Norm_data(var)
-        norm = 'minmax'
+        norm = 'minmax' #can be replaced by loading option.json from previous step
         with open(stat_fl) as js_file:
              norm_cls.check_and_set_norm(json.load(js_file),norm)
         input_images_denorm = norm_cls.denorm_var(input_images_[:, :, :,channel], var, norm)
         return input_images_denorm
 
+    @staticmethod
     def denorm_images_all_channels(stat_fl,input_images_,*args):
         input_images_all_channles_denorm = []
         input_images_ = np.array(input_images_)
         args = [item for item in args][0]
         for c in range(len(args)):
-            print("args c:", args[c])
             input_images_all_channles_denorm.append(denorm_images(stat_fl,input_images_,channel=c,var=args[c]))           
         input_images_denorm = np.stack(input_images_all_channles_denorm, axis=-1)
         return input_images_denorm
-
+    
+    @staticmethod
     def get_one_seq_and_time(input_images,t_starts,i):
         assert (len(np.array(input_images).shape)==5)
         input_images_ = input_images[i,:,:,:,:]
         t_start = t_starts[i]
         return input_images_,t_start
 
+    @staticmethod
     def generate_seq_timestamps(t_start,len_seq=20):
         if isinstance(t_start,int): t_start = str(t_start)
         if isinstance(t_start,np.ndarray):t_start = str(t_start[0])
@@ -237,40 +239,39 @@ class Postprocess(TrainModel):
         return seq_ts
     
     
-    def save_to_netcdf_per_sequence(output_dir,input_images_,gen_images_,lons,lats,ts,context_frames,future_length,model_name,fl_name="test.nc"):
-        assert (len(np.array(input_images_).shape)==len(np.array(gen_images_).shape))
-        y_len = len(lats)
-        x_len = len(lons)
-        ts_len = len(ts)
-        ts_input = ts[:context_frames]
-        ts_forecast = ts[context_frames:]
-        gen_images_ = np.array(gen_images_)
-        output_file = os.path.join(output_dir,fl_name)
+    def save_to_netcdf_per_sequence(self,fl_name="test.nc"):
+        """
+        gen_images: list/array []
+        """
+
+        assert (len(np.array(self.input_images_).shape)==len(np.array(self.gen_images_).shape))-1
+        y_len = len(self.lats)
+        x_len = len(self.lons)
+        ts_len = len(self.ts)
+        ts_input = self.ts[:self.context_frames]
+        ts_forecast = self,ts[self.context_frames:]
+        gen_images_ = np.array(self.gen_images_)
+        output_file = os.path.join(self.output_dir,fl_name)
         with Dataset(output_file, "w", format="NETCDF4") as nc_file:
             nc_file.title = 'ERA5 hourly reanalysis data and the forecasting data by deep learning for 2-m above sea level temperatures'
             nc_file.author = "Bing Gong, Michael Langguth"
             nc_file.create_date = "2020-08-04"
-
             #create groups forecasts and analysis 
             fcst = nc_file.createGroup("forecasts")
             analgrp = nc_file.createGroup("analysis")
-
             #create dims for all the data(forecast and analysis)
             latD = nc_file.createDimension('lat', y_len)
             lonD = nc_file.createDimension('lon', x_len)
-            timeD = nc_file.createDimension('time_input', context_frames) 
-            timeF = nc_file.createDimension('time_forecast', future_length)
-
+            timeD = nc_file.createDimension('time_input', self.context_frames) 
+            timeF = nc_file.createDimension('time_forecast', self.future_length)
             #Latitude
             lat  = nc_file.createVariable('lat', float, ('lat',), zlib = True)
             lat.units = 'degrees_north'
-            lat[:] = lats
-
-
+            lat[:] = self.lats
             #Longitude
             lon = nc_file.createVariable('lon', float, ('lon',), zlib = True)
             lon.units = 'degrees_east'
-            lon[:] = lons
+            lon[:] = self.lons
 
             #Time for input
             time = nc_file.createVariable('time_input', 'f8', ('time_input',), zlib = True)
@@ -291,52 +292,51 @@ class Postprocess(TrainModel):
             #Temperature
             t2 = nc_file.createVariable("/analysis/inputs/T2","f4",("time_input","lat","lon"), zlib = True)
             t2.units = 'K'
-            t2[:,:,:] = input_images_[:context_frames,:,:,0]
+            t2[:,:,:] = self.input_images_[:self.context_frames,:,:,0]
 
             #mean sea level pressure
             msl = nc_file.createVariable("/analysis/inputs/MSL","f4",("time_input","lat","lon"), zlib = True)
             msl.units = 'Pa'
-            msl[:,:,:] = input_images_[:context_frames,:,:,1]
+            msl[:,:,:] = self.input_images_[:self.context_frames,:,:,1]
 
             #Geopotential at 500 
             gph500 = nc_file.createVariable("/analysis/inputs/GPH500","f4",("time_input","lat","lon"), zlib = True)
             gph500.units = 'm'
-            gph500[:,:,:] = input_images_[:context_frames,:,:,2]
+            gph500[:,:,:] = self.input_images_[:self.context_frames,:,:,2]
         
             #####sub group for reference(ground truth)
             #Temperature
             t2_r = nc_file.createVariable("/analysis/reference/T2","f4",("time_forecast","lat","lon"), zlib = True)
             t2_r.units = 'K'
-            t2_r[:,:,:] = input_images_[context_frames:,:,:,0]
+            t2_r[:,:,:] = self.input_images_[self.context_frames:,:,:,0]
 
              #mean sea level pressure
             msl_r = nc_file.createVariable("/analysis/reference/MSL","f4",("time_forecast","lat","lon"), zlib = True)
             msl_r.units = 'Pa'
-            msl_r[:,:,:] = input_images_[context_frames:,:,:,1]
+            msl_r[:,:,:] = self.input_images_[self.context_frames:,:,:,1]
 
             #Geopotential at 500 
             gph500_r = nc_file.createVariable("/analysis/reference/GPH500","f4",("time_forecast","lat","lon"), zlib = True)
             gph500_r.units = 'm'
-            gph500_r[:,:,:] = input_images_[context_frames:,:,:,2]
+            gph500_r[:,:,:] = self.input_images_[self.context_frames:,:,:,2]
         
 
             ################ forecast group  #####################
-            #Temperature:
-            t2 = nc_file.createVariable("/forecast/{}/T2".format(model_name),"f4",("time_forecast","lat","lon"), zlib = True)
-            t2.units = 'K'
-            print ("gen_images_ 20200822:",np.array(gen_images_).shape)
-            t2[:,:,:] = gen_images_[context_frames-1:,:,:,0]
-            print("NetCDF created")
+            for stochastic_sample_ind in self.num_stochastic_samples:
+                #Temperature:
+                t2 = nc_file.createVariable("/forecast/{}/T2/stochastic/{}".format(model_name,stochastic_sample_ind),"f4",("time_forecast","lat","lon"), zlib = True)
+                t2.units = 'K'
+                t2[:,:,:] = gen_images_[self.context_frames-1:,:,:,0]
 
-            #mean sea level pressure
-            msl = nc_file.createVariable("/forecast/{}/MSL".format(model_name),"f4",("time_forecast","lat","lon"), zlib = True)
-            msl.units = 'Pa'
-            msl[:,:,:] = gen_images_[context_frames-1:,:,:,1]
+                #mean sea level pressure
+                msl = nc_file.createVariable("/forecast/{}/MSL/stochastic/{}".format(model_name,stochastic_sample_ind),"f4",("time_forecast","lat","lon"), zlib = True)
+                msl.units = 'Pa'
+                msl[:,:,:] = gen_images_[context_frames-1:,:,:,1]
 
-            #Geopotential at 500 
-            gph500 = nc_file.createVariable("/forecast/{}/GPH500".format(model_name),"f4",("time_forecast","lat","lon"), zlib = True)
-            gph500.units = 'm'
-            gph500[:,:,:] = gen_images_[context_frames-1:,:,:,2]        
+                #Geopotential at 500 
+                gph500 = nc_file.createVariable("/forecast/{}/GPH500/stochastic/{}".format(model_name,stochastic_sample_ind),"f4",("time_forecast","lat","lon"), zlib = True)
+                gph500.units = 'm'
+                gph500[:,:,:] = gen_images_[context_frames-1:,:,:,2]        
 
             print("{} created".format(output_file)) 
 
