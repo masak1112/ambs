@@ -502,23 +502,8 @@ def main():
                       batch_size=None,num_samples=args.num_samples,num_stochastic_samples=args.num_stochastic_samples,
                       gpu_mem_frac=args.gpu_mem_frac,seed=args.seed,args=args)
      
-
-    while sample_ind < 5:
-        gen_images_stochastic = []
-        if args.num_samples and sample_ind >= args.num_samples:
-            break
-        try:
-            input_results = sess.run(inputs)
-            input_images = input_results["images"]
-            #get the intial times
-            t_starts = input_results["T_start"]
-        except tf.errors.OutOfRangeError:
-            break
-            
-        #Get prediction values 
-        feed_dict = {input_ph: input_results[name] for name, input_ph in input_phs.items()}
-        #loop for each stochastic sample
-        for stochastic_sample_ind in range(args.num_stochastic_samples):
+    test_instance.setup()
+    test_instance.test_run()
 
 if __name__ == '__main__':
     main() 
