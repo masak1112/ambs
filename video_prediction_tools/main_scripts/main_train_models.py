@@ -66,7 +66,7 @@ class TrainModel(object):
         self.setup_model()
         self.make_dataset_iterator()
         self.setup_graph()
-        self.save_dataset_model_params_to_checkpoint_dir()
+        self.save_dataset_model_params_to_checkpoint_dir(dataset=self.train_dataset,video_model=self.video_model)
         self.count_parameters()
         self.create_saver_and_writer()
         self.setup_gpu_config()
@@ -163,7 +163,7 @@ class TrainModel(object):
            del  self.inputs["T_start"]        
 
 
-    def save_dataset_model_params_to_checkpoint_dir(self):
+    def save_dataset_model_params_to_checkpoint_dir(self,dataset,video_model):
         """
         Save all setup configurations such as args, data_hparams, and model_hparams into output directory
         """
@@ -172,11 +172,11 @@ class TrainModel(object):
         with open(os.path.join(self.output_dir, "options.json"), "w") as f:
             f.write(json.dumps(vars(self.args), sort_keys=True, indent=4))
         with open(os.path.join(self.output_dir, "dataset_hparams.json"), "w") as f:
-            f.write(json.dumps(self.train_dataset.hparams.values(), sort_keys=True, indent=4))
+            f.write(json.dumps(dataset.hparams.values(), sort_keys=True, indent=4))
         with open(os.path.join(self.output_dir, "model_hparams.json"), "w") as f:
-            f.write(json.dumps(self.video_model.hparams.values(), sort_keys=True, indent=4))
+            f.write(json.dumps(video_model.hparams.values(), sort_keys=True, indent=4))
         with open(os.path.join(self.output_dir, "data_dict.json"), "w") as f:
-            f.write(json.dumps(self.train_dataset.data_dict, sort_keys=True, indent=4))  
+            f.write(json.dumps(dataset.data_dict, sort_keys=True, indent=4))  
 
 
 
