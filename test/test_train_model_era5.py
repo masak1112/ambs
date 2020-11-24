@@ -1,5 +1,5 @@
 __email__ = "b.gong@fz-juelich.de"
-__author__ = "Bing Gong, Scarlet Stadtler,Michael Langguth"
+__author__ = "Bing Gong"
 __date__ = "2020-10-22"
 
 from main_scripts.main_train_models import *

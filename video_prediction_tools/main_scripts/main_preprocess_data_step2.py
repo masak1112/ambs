@@ -1,6 +1,6 @@
 
 __email__ = "b.gong@fz-juelich.de"
-__author__ = "Bing Gong, Scarlet Stadtler,Michael Langguth"
+__author__ = "Bing Gong"
 
 import argparse
 import sys

@@ -61,6 +61,7 @@ class TrainModel(object):
     def setup(self):
         self.generate_output_dir()
         self.set_seed()
+        self.get_model_hparams_dict()
         self.load_params_from_checkpoints_dir()
         self.setup_dataset()
         self.setup_model()
@@ -98,7 +99,6 @@ class TrainModel(object):
         """
         load the json files related datasets , model configure metadata (This information was stored in the checkpoint dir when last time training model)
         """
-        self.get_model_hparams_dict()
         if self.checkpoint:
             self.checkpoint_dir = os.path.normpath(self.checkpoint)
             if not os.path.isdir(self.checkpoint):
@@ -108,8 +108,8 @@ class TrainModel(object):
             with open(os.path.join(self.checkpoint_dir, "options.json")) as f:
                 print("loading options from checkpoint %s" % self.checkpoint)
                 self.options = json.loads(f.read())
-                self.dataset = self.dataset or options['dataset']
-                self.model = self.model or options['model']
+                self.dataset = self.dataset or self.options['dataset']
+                self.model = self.model or self.options['model']
             try:
                 with open(os.path.join(self.checkpoint_dir, "model_hparams.json")) as f:
                     self.model_hparams_dict_load.update(json.loads(f.read()))

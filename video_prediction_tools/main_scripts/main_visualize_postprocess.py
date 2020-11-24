@@ -3,9 +3,8 @@ from __future__ import division
 from __future__ import print_function
 
 __email__ = "b.gong@fz-juelich.de"
-__author__ = "Bing Gong, Scarlet Stadtler, Michael Langguth"
+__author__ = "Bing Gong"
 __date__ = "2020-11-10"
-
 
 import argparse
 import errno
@@ -36,16 +35,16 @@ from skimage.metrics import structural_similarity as ssim
 from normalization import Norm_data
 from metadata import MetaData as MetaData
 from main_scripts.main_train_models import *
-from video_prediction_tools.data_preprocess.preprocess_data_step2 import *
+from data_preprocess.preprocess_data_step2 import *
 
-class Postprocess(TrainModel):
+class Postprocess(TrainModel,ERA5Pkl2Tfrecords):
     def __init__(self,input_dir=None,results_dir=None,checkpoint=None,mode="test",
-                      batch_size=None,num_samples=None,num_stochastic_samples=None,
+                      batch_size=None,num_samples=None,num_stochastic_samples=1,
                       gpu_mem_frac=None,seed=None,args=None):
         """
         The function for inference, generate results and images
-        input_dir     :str
-        results_dir   :str 
+        input_dir     :str, the root directory of tfrecords 
+        results_dir   :str, the output directory to save results
         checkpoint    :str, the directory point to the checkpoints
         mode          :str, default is test, could be "train","val", and "test"
         dataset       :str, the dataset type, "era5","moving_mnist", or "kth"
@@ -54,22 +53,24 @@ class Postprocess(TrainModel):
         #                                  model_hparams_dict=model_hparams_dict,model=model,checkpoint=checkpoint,dataset=dataset,
         #                                  gpu_mem_frac=gpu_mem_frac,seed=seed,args=args)        
         self.input_dir = input_dir
-        self.results_dir  = results_dir
+        self.results_dir = results_dir
         self.batch_size = batch_size
-        self.num_stochastic_samples = num_stochastic_samples
         self.gpu_mem_frac = gpu_mem_frac
         self.seed = seed
         self.num_samplees = num_samples
+        self.num_stochastic_samples = num_stochastic_samples
         self.input_dir_tfrecords = os.path.join(self.input_dir,"tfrecords")
         self.input_dir_pkl = os.path.join(self.input_dir,"pickle") 
         if checkpoint is None: raise ("The directory point to checkpoint is empty, must be provided for postprocess step")     
         self.args = args 
+        self.checkpoint = checkpoint
 
 
     def __call__(self):
         self.set_seed()
-        ERA5Pkl2Tfrecords.get_metadata()#get the vars_in variables which contains the list of input variable names
-        self.load_params_from_checkpoints_dir()
+        self.get_metadata()#get the vars_in variables which contains the list of input variable names
+        self.copy_data_model_json()
+        self.load_model_data_params_from_checkpoints_dir()
         self.setup_test_dataset()
         self.setup_model()
         self.get_data_params()
@@ -79,11 +80,44 @@ class Postprocess(TrainModel):
         self.save_dataset_model_params_to_checkpoint_dir(dataset=self.test_dataset,video_model=self.video_model)
         self.setup_gpu_config()
         self.initia_save_data()
-        self.lats,self.lons = self.get_coordinates()
+        self.lats, self.lons = self.get_coordinates()
         self.check_stochastic_samples_ind_based_on_model()
                 
+    def copy_data_model_json(self):
+        """
+        Copy the datasplit_conf.json model.json files from checkpoints directory to results_dir
+        """
+        
+        
+
+    def load_model_data_params_from_checkpoints_dir():
+        """
+        Load the model hparameters and datasplit_dictionary from checkpoints directory
+        """
+        if self.checkpoint:
+            self.checkpoint_dir = os.path.normpath(self.checkpoint)
+            if not os.path.isdir(self.checkpoint):
+                self.checkpoint_dir, _ = os.path.split(self.checkpoint_dir)
+            if not os.path.exists(self.checkpoint_dir):
+                raise FileNotFoundError(errno.ENOENT, os.strerror(errno.ENOENT), self.checkpoint_dir)
+            #load datasplit_dict
+            
+            with open(os.path.join(self.checkpoint_dir, "options.json")) as f:
+                print("loading options from checkpoint %s" % self.checkpoint)
+                self.options = json.loads(f.read())
+                self.dataset = self.dataset or self.options['dataset']
+                self.model = self.model or self.options['model']
+            try:
+                with open(os.path.join(self.checkpoint_dir, "model_hparams.json")) as f:
+                    self.model_hparams_dict_load.update(json.loads(f.read()))
+            except FileNotFoundError:
+                print("model_hparams.json was not loaded because it does not exist")
+
 
     def setup_num_samples_per_epoch(self):
+        """
+        For generating images, the user can define the examples used, and will be taken as num_examples_per_epoch 
+        """
         if self.num_samples:
             if num_samples > self.dataset.num_examples_per_epoch():
                 raise ValueError('num_samples cannot be larger than the dataset')
@@ -106,6 +140,9 @@ class Postprocess(TrainModel):
 
 
     def make_test_dataset_iterator(self):
+        """
+        Make the dataset iterator
+        """
         self.inputs = self.test_dataset.make_batch(self.batch_size)
         self.inputs = {k: tf.placeholder(v.dtype, v.shape, '%s_ph' % k) for k, v in self.inputs.items()}
         
@@ -121,6 +158,8 @@ class Postprocess(TrainModel):
         try:
             print("lat:",md.lat)
             print("lon:",md.lon)
+            self.lats = lat
+            self.lons = lon
             return md.lat, md.lon
         except:
             raise ValueError("Error when handling: '"+metadata_fname+"'")
@@ -187,14 +226,13 @@ class Postprocess(TrainModel):
                 gen_images_per_batch = []
                 for i in range(self.batch_size):
                     #generate time stamps for sequences
-                    ts = generate_seq_timestamps(self.t_start,len_seq=self.sequence_length)
+                    self.ts = generate_seq_timestamps(self.t_start,len_seq=self.sequence_length)
                     #Renormalized data for generate
                     gen_images_ = gen_images[i]
                     gen_images_denorm = denorm_images_all_channels(stat_fl,gen_images_,self.vars_in)
                     gen_images_per_batch.append(gen_images_denorm)
                     #get persistence_images
-                    if stochastic_sample_ind == 0: persistence_images, ts_persistence = get_persistence(ts, input_dir_pkl)
-                    
+                    if stochastic_sample_ind == 0: persistence_images, ts_persistence = self.get_persistence()
                     self.init_date_str = ts[0].strftime("%Y%m%d%H")
                     #only plot when the first stochastic ind 
                     self.generate_images(stochastic_sample_ind)
@@ -202,7 +240,6 @@ class Postprocess(TrainModel):
             self.gen_images_stochastic.append(gen_images_per_batch)
             save_to_netcdf_per_sequence(fl_name="vfp_date_{}_from_{}_to_{}.nc".format(init_date_str,sample_ind,sample_ind+self.batch_size)) 
             sample_ind += self.batch_size
-
 
     @staticmethod
     def denorm_images(stat_fl,input_images_,channel,var):
@@ -237,13 +274,11 @@ class Postprocess(TrainModel):
         s_datetime = datetime.datetime.strptime(t_start, '%Y%m%d%H')
         seq_ts = [s_datetime + datetime. timedelta(hours = i+1) for i in range(len_seq)]
         return seq_ts
-    
-    
+
     def save_to_netcdf_per_sequence(self,fl_name="test.nc"):
         """
-        gen_images: list/array []
+        gen_images: list/array 
         """
-
         assert (len(np.array(self.input_images_).shape)==len(np.array(self.gen_images_).shape))-1
         y_len = len(self.lats)
         x_len = len(self.lons)
@@ -319,7 +354,7 @@ class Postprocess(TrainModel):
             gph500_r = nc_file.createVariable("/analysis/reference/GPH500","f4",("time_forecast","lat","lon"), zlib = True)
             gph500_r.units = 'm'
             gph500_r[:,:,:] = self.input_images_[self.context_frames:,:,:,2]
-        
+
 
             ################ forecast group  #####################
             for stochastic_sample_ind in self.num_stochastic_samples:
@@ -339,131 +374,131 @@ class Postprocess(TrainModel):
                 gph500[:,:,:] = gen_images_[context_frames-1:,:,:,2]        
 
             print("{} created".format(output_file)) 
-
         return None
-
-def plot_seq_imgs(imgs,lats,lons,ts,output_png_dir,label="Ground Truth"):
-    """
-    Plot the seq images 
-    """
-    if len(np.array(imgs).shape)!=3:raise("img dims should be four: (seq_len,lat,lon)")
-    if np.array(imgs).shape[0]!= len(ts): raise("The len of timestamps should be equal the image seq_len") 
-    fig = plt.figure(figsize=(18,6))
-    gs = gridspec.GridSpec(1, 10)
-    gs.update(wspace = 0., hspace = 0.)
-    xlables = [round(i,2) for i  in list(np.linspace(np.min(lons),np.max(lons),5))]
-    ylabels = [round(i,2) for i  in list(np.linspace(np.max(lats),np.min(lats),5))]
-    for i in range(len(ts)):
-        t = ts[i]
-        ax1 = plt.subplot(gs[i])
-        plt.imshow(imgs[i] ,cmap = 'jet', vmin=270, vmax=300)
-        ax1.title.set_text("t = " + t.strftime("%Y%m%d%H"))
-        plt.setp([ax1], xticks = [], xticklabels = [], yticks = [], yticklabels = [])
-        if i == 0:
-            plt.setp([ax1], xticks = list(np.linspace(0, len(lons), 5)), xticklabels = xlables, yticks = list(np.linspace(0, len(lats), 5)), yticklabels = ylabels)
-            plt.ylabel(label, fontsize=10)
-    plt.savefig(os.path.join(output_png_dir, label + "_TS_" + str(ts[0]) + ".jpg"))
-    plt.clf()
-    output_fname = label + "_TS_" + ts[0].strftime("%Y%m%d%H") + ".jpg"
-    print("image {} saved".format(output_fname))
+    
+    @staticmethod
+    def plot_seq_imgs(imgs,lats,lons,ts,output_png_dir,label="Ground Truth"):
+        """
+        Plot the seq images 
+        """
+        if len(np.array(imgs).shape)!=3:raise("img dims should be four: (seq_len,lat,lon)")
+        if np.array(imgs).shape[0]!= len(ts): raise("The len of timestamps should be equal the image seq_len") 
+        fig = plt.figure(figsize=(18,6))
+        gs = gridspec.GridSpec(1, 10)
+        gs.update(wspace = 0., hspace = 0.)
+        xlables = [round(i,2) for i  in list(np.linspace(np.min(lons),np.max(lons),5))]
+        ylabels = [round(i,2) for i  in list(np.linspace(np.max(lats),np.min(lats),5))]
+        for i in range(len(ts)):
+            t = ts[i]
+            ax1 = plt.subplot(gs[i])
+            plt.imshow(imgs[i] ,cmap = 'jet', vmin=270, vmax=300)
+            ax1.title.set_text("t = " + t.strftime("%Y%m%d%H"))
+            plt.setp([ax1], xticks = [], xticklabels = [], yticks = [], yticklabels = [])
+            if i == 0:
+                plt.setp([ax1], xticks = list(np.linspace(0, len(lons), 5)), xticklabels = xlables, yticks = list(np.linspace(0, len(lats), 5)), yticklabels = ylabels)
+                plt.ylabel(label, fontsize=10)
+        plt.savefig(os.path.join(output_png_dir, label + "_TS_" + str(ts[0]) + ".jpg"))
+        plt.clf()
+        output_fname = label + "_TS_" + ts[0].strftime("%Y%m%d%H") + ".jpg"
+        print("image {} saved".format(output_fname))
 
     
-def get_persistence(ts, input_dir_pkl):
-    """This function gets the persistence forecast.
-    'Today's weather will be like yesterday's weather.
+    def get_persistence(self):
+        """This function gets the persistence forecast.
+        'Today's weather will be like yesterday's weather.
     
-    Inputs:
-    ts: output by generate_seq_timestamps(t_start,len_seq=sequence_length)
-        Is a list containing dateime objects
+        Inputs:
+        ts: output by generate_seq_timestamps(t_start,len_seq=sequence_length)
+            Is a list containing dateime objects
         
-    input_dir_pkl: input directory to pickle files
+        input_dir_pkl: input directory to pickle files
     
-    Ouputs:
-    time_persistence:    list containing the dates and times of the 
+        Ouputs:
+        time_persistence:    list containing the dates and times of the 
                        persistence forecast.
-    var_peristence  : sequence of images corresponding to the times
+        var_peristence  : sequence of images corresponding to the times
                        in ts_persistence
-    """
-    ts_persistence = []
-    for t in range(len(ts)): # Scarlet: this certainly can be made nicer with list comprehension 
-        ts_temp = ts[t] - datetime.timedelta(days=1)
-        ts_persistence.append(ts_temp)
-    t_persistence_start = ts_persistence[0]
-    t_persistence_end = ts_persistence[-1]
-    year_start = t_persistence_start.year
-    month_start = t_persistence_start.month
-    month_end = t_persistence_end.month
+        """
+        ts_persistence = []
+        for t in range(len(ts)): # Scarlet: this certainly can be made nicer with list comprehension 
+            ts_temp = ts[t] - datetime.timedelta(days=1)
+            ts_persistence.append(ts_temp)
+        t_persistence_start = ts_persistence[0]
+        t_persistence_end = ts_persistence[-1]
+        year_start = t_persistence_start.year
+        month_start = t_persistence_start.month
+        month_end = t_persistence_end.month
     
-    # only one pickle file is needed (all hours during the same month)
-    if month_start == month_end: 
-        # Open files to search for the indizes of the corresponding time
-        time_pickle  = load_pickle_for_persistence(input_dir_pkl, year_start, month_start, 'T')
-        # Open file to search for the correspoding meteorological fields
-        var_pickle  = load_pickle_for_persistence(input_dir_pkl, year_start, month_start, 'X')
-        # Retrieve starting index
-        ind = list(time_pickle).index(np.array(ts_persistence[0]))
-        #print('Scarlet, Original', ts_persistence)
-        #print('From Pickle', time_pickle[ind:ind+len(ts_persistence)])
+        # only one pickle file is needed (all hours during the same month)
+        if month_start == month_end: 
+            # Open files to search for the indizes of the corresponding time
+            time_pickle  = load_pickle_for_persistence(input_dir_pkl, year_start, month_start, 'T')
+            # Open file to search for the correspoding meteorological fields
+            var_pickle  = load_pickle_for_persistence(input_dir_pkl, year_start, month_start, 'X')
+            # Retrieve starting index
+            ind = list(time_pickle).index(np.array(ts_persistence[0]))
+            #print('Scarlet, Original', ts_persistence)
+            #print('From Pickle', time_pickle[ind:ind+len(ts_persistence)])
         
-        var_persistence  = var_pickle[ind:ind+len(ts_persistence)]
-        time_persistence = time_pickle[ind:ind+len(ts_persistence)].ravel()
-        print(' Scarlet Shape of time persistence',time_persistence.shape)
-        #print(' Scarlet Shape of var persistence',var_persistence.shape)
+            var_persistence  = var_pickle[ind:ind+len(ts_persistence)]
+            time_persistence = time_pickle[ind:ind+len(ts_persistence)].ravel()
+            print(' Scarlet Shape of time persistence',time_persistence.shape)
+            #print(' Scarlet Shape of var persistence',var_persistence.shape)
     
     
-    # case that we need to derive the data from two pickle files (changing month during the forecast periode)
-    else: 
-        t_persistence_first_m  = [] # should hold dates of the first month
-        t_persistence_second_m = [] # should hold dates of the second month
+        # case that we need to derive the data from two pickle files (changing month during the forecast periode)
+        else: 
+            t_persistence_first_m  = [] # should hold dates of the first month
+            t_persistence_second_m = [] # should hold dates of the second month
         
-        for t in range(len(ts)):
-            m = ts_persistence[t].month
-            if m == month_start:
-                t_persistence_first_m.append(ts_persistence[t])
-            if m == month_end:
-                t_persistence_second_m.append(ts_persistence[t])
+            for t in range(len(ts)):
+                m = ts_persistence[t].month
+                if m == month_start:
+                    t_persistence_first_m.append(ts_persistence[t])
+                if m == month_end:
+                    t_persistence_second_m.append(ts_persistence[t])
         
-        # Open files to search for the indizes of the corresponding time
-        time_pickle_first  = load_pickle_for_persistence(input_dir_pkl, year_start, month_start, 'T')
-        time_pickle_second = load_pickle_for_persistence(input_dir_pkl, year_start, month_end, 'T')
+            # Open files to search for the indizes of the corresponding time
+            time_pickle_first  = self.load_pickle_for_persistence(year_start, month_start, 'T')
+            time_pickle_second = self.load_pickle_for_persistence(year_start, month_end, 'T')
         
-        # Open file to search for the correspoding meteorological fields
-        var_pickle_first  = load_pickle_for_persistence(input_dir_pkl, year_start, month_start, 'X')
-        var_pickle_second = load_pickle_for_persistence(input_dir_pkl, year_start, month_end, 'X')
+            # Open file to search for the correspoding meteorological fields
+            var_pickle_first  = self.load_pickle_for_persistence(year_start, month_start, 'X')
+            var_pickle_second = self.load_pickle_for_persistence(year_start, month_end, 'X')
         
-        # Retrieve starting index
-        ind_first_m = list(time_pickle_first).index(np.array(t_persistence_first_m[0]))
-        ind_second_m = list(time_pickle_second).index(np.array(t_persistence_second_m[0]))
+            # Retrieve starting index
+            ind_first_m = list(time_pickle_first).index(np.array(t_persistence_first_m[0]))
+            ind_second_m = list(time_pickle_second).index(np.array(t_persistence_second_m[0]))
         
-        #print('Scarlet, Original', ts_persistence)
-        #print('From Pickle', time_pickle_first[ind_first_m:ind_first_m+len(t_persistence_first_m)], time_pickle_second[ind_second_m:ind_second_m+len(t_persistence_second_m)])
-        #print(' Scarlet before', time_pickle_first[ind_first_m:ind_first_m+len(t_persistence_first_m)].shape, time_pickle_second[ind_second_m:ind_second_m+len(t_persistence_second_m)].shape)
+            #print('Scarlet, Original', ts_persistence)
+            #print('From Pickle', time_pickle_first[ind_first_m:ind_first_m+len(t_persistence_first_m)], time_pickle_second[ind_second_m:ind_second_m+len(t_persistence_second_m)])
+            #print(' Scarlet before', time_pickle_first[ind_first_m:ind_first_m+len(t_persistence_first_m)].shape, time_pickle_second[ind_second_m:ind_second_m+len(t_persistence_second_m)].shape)
         
-        # append the sequence of the second month to the first month
-        var_persistence  = np.concatenate((var_pickle_first[ind_first_m:ind_first_m+len(t_persistence_first_m)], 
+            # append the sequence of the second month to the first month
+            var_persistence  = np.concatenate((var_pickle_first[ind_first_m:ind_first_m+len(t_persistence_first_m)], 
                                           var_pickle_second[ind_second_m:ind_second_m+len(t_persistence_second_m)]), 
                                           axis=0)
-        time_persistence = np.concatenate((time_pickle_first[ind_first_m:ind_first_m+len(t_persistence_first_m)],
+            time_persistence = np.concatenate((time_pickle_first[ind_first_m:ind_first_m+len(t_persistence_first_m)],
                                           time_pickle_second[ind_second_m:ind_second_m+len(t_persistence_second_m)]), 
                                           axis=0).ravel() # ravel is needed to eliminate the unnecessary dimension (20,1) becomes (20,)
-        print(' Scarlet concatenate and ravel (time)', var_persistence.shape, time_persistence.shape)
+            print(' Scarlet concatenate and ravel (time)', var_persistence.shape, time_persistence.shape)
             
             
-    # tolist() is needed for plotting
-    return var_persistence, time_persistence.tolist()
+        # tolist() is needed for plotting
+        return var_persistence, time_persistence.tolist()
 
     
     
-def load_pickle_for_persistence(input_dir_pkl, year_start, month_start, pkl_type):
-    """Helper to get the content of the pickle files. There are two types in our workflow:
-    T_[month].pkl where the time stamp is stored
-    X_[month].pkl where the variables are stored, e.g. temperature, geopotential and pressure
-    This helper function constructs the directory, opens the file to read it, returns the variable. 
-    """
-    path_to_pickle = input_dir_pkl+'/'+str(year_start)+'/'+pkl_type+'_{:02}.pkl'.format(month_start)
-    infile = open(path_to_pickle,'rb')    
-    var = pickle.load(infile)
-    return var
+    def load_pickle_for_persistence(self,year_start, month_start, pkl_type):
+        """Helper to get the content of the pickle files. There are two types in our workflow:
+        T_[month].pkl where the time stamp is stored
+        X_[month].pkl where the variables are stored, e.g. temperature, geopotential and pressure
+        This helper function constructs the directory, opens the file to read it, returns the variable. 
+        """
+        path_to_pickle = self.input_dir_pkl+'/'+str(year_start)+'/'+pkl_type+'_{:02}.pkl'.format(month_start)
+        infile = open(path_to_pickle,'rb')    
+        var = pickle.load(infile)
+        return var
 
 
 def main():
@@ -482,17 +517,14 @@ def main():
     parser.add_argument("--dataset_hparams", type = str,
                         help = "a string of comma separated list of dataset hyperparameters")
     parser.add_argument("--model", type = str, help = "model class name")
-    parser.add_argument("--model_hparams", type = str,
-                        help = "a string of comma separated list of model hyperparameters")
     parser.add_argument("--batch_size", type = int, default = 8, help = "number of samples in batch")
     parser.add_argument("--num_samples", type = int, help = "number of samples in total (all of them by default)")
     parser.add_argument("--num_epochs", type = int, default = 1)
     parser.add_argument("--num_stochastic_samples", type = int, default = 1)
-    parser.add_argument("--gif_length", type = int, help = "default is sequence_length")
     parser.add_argument("--gpu_mem_frac", type = float, default = 0.95, help = "fraction of gpu memory to use")
     parser.add_argument("--seed", type = int, default = 7)
     args = parser.parse_args()
-   
+
     print('----------------------------------- Options ------------------------------------')
     for k, v in args._get_kwargs():
         print(k, "=", v)
@@ -501,7 +533,7 @@ def main():
     test_instance = Postprocess(input_dir=args.input_dir,results_dir=args.results_dir,checkpoint=args.checkpoint,mode="test",
                       batch_size=None,num_samples=args.num_samples,num_stochastic_samples=args.num_stochastic_samples,
                       gpu_mem_frac=args.gpu_mem_frac,seed=args.seed,args=args)
-     
+
     test_instance.setup()
     test_instance.test_run()
 
