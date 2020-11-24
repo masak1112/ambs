@@ -97,7 +97,10 @@ class TrainModel(object):
 
     def load_params_from_checkpoints_dir(self):
         """
-        load the json files related datasets , model configure metadata (This information was stored in the checkpoint dir when last time training model)
+        If checkpoint is none, load and read the json files of datasplit_config, and hparam_config,
+        and use the corresponding parameters.
+        If the checkpoint is given, the configuration of dataset, model and options in the checkpoint dir will be
+        restored and used for continue training.
         """
         if self.checkpoint:
             self.checkpoint_dir = os.path.normpath(self.checkpoint)
@@ -105,16 +108,21 @@ class TrainModel(object):
                 self.checkpoint_dir, _ = os.path.split(self.checkpoint_dir)
             if not os.path.exists(self.checkpoint_dir):
                 raise FileNotFoundError(errno.ENOENT, os.strerror(errno.ENOENT), self.checkpoint_dir)
-            with open(os.path.join(self.checkpoint_dir, "options.json")) as f:
-                print("loading options from checkpoint %s" % self.checkpoint)
-                self.options = json.loads(f.read())
-                self.dataset = self.dataset or self.options['dataset']
-                self.model = self.model or self.options['model']
+            # read and overwrite dataset and model from checkpoint
+            try:
+                with open(os.path.join(self.checkpoint_dir, "options.json")) as f:
+                    print("loading options from checkpoint %s" % self.checkpoint)
+                    self.options = json.loads(f.read())
+                    self.dataset = self.dataset or self.options['dataset']
+                    self.model = self.model or self.options['model']
+            except FileNotFoundError:
+                print("options.json was not loaded because it does not exist in {0}".format(self.checkpoint_dir))
+            # loading hyperparameters from checkpoint
             try:
                 with open(os.path.join(self.checkpoint_dir, "model_hparams.json")) as f:
                     self.model_hparams_dict_load.update(json.loads(f.read()))
             except FileNotFoundError:
-                print("model_hparams.json was not loaded because it does not exist")
+                print("model_hparams.json was not loaded because it does not exist in {0}".format(self.checkpoint_dir))
                 
     def setup_dataset(self):
         """

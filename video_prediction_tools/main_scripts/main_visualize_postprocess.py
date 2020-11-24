@@ -36,6 +36,8 @@ from normalization import Norm_data
 from metadata import MetaData as MetaData
 from main_scripts.main_train_models import *
 from data_preprocess.preprocess_data_step2 import *
+import shutil
+from video_prediction import datasets, models
 
 class Postprocess(TrainModel,ERA5Pkl2Tfrecords):
     def __init__(self,input_dir=None,results_dir=None,checkpoint=None,mode="test",
@@ -57,27 +59,28 @@ class Postprocess(TrainModel,ERA5Pkl2Tfrecords):
         self.batch_size = batch_size
         self.gpu_mem_frac = gpu_mem_frac
         self.seed = seed
-        self.num_samplees = num_samples
+        self.num_samples = num_samples
         self.num_stochastic_samples = num_stochastic_samples
         self.input_dir_tfrecords = os.path.join(self.input_dir,"tfrecords")
         self.input_dir_pkl = os.path.join(self.input_dir,"pickle") 
         if checkpoint is None: raise ("The directory point to checkpoint is empty, must be provided for postprocess step")     
         self.args = args 
         self.checkpoint = checkpoint
-
+        self.mode = mode
 
     def __call__(self):
         self.set_seed()
         self.get_metadata()#get the vars_in variables which contains the list of input variable names
         self.copy_data_model_json()
-        self.load_model_data_params_from_checkpoints_dir()
+        self.load_json()
         self.setup_test_dataset()
         self.setup_model()
         self.get_data_params()
         self.setup_num_samples_per_epoch()
+        self.get_coordinates()
         self.make_test_dataset_iterator() 
+        self.check_stochastic_samples_ind_based_on_model()
         self.setup_graph()
-        self.save_dataset_model_params_to_checkpoint_dir(dataset=self.test_dataset,video_model=self.video_model)
         self.setup_gpu_config()
         self.initia_save_data()
         self.lats, self.lons = self.get_coordinates()
@@ -87,65 +90,57 @@ class Postprocess(TrainModel,ERA5Pkl2Tfrecords):
         """
         Copy the datasplit_conf.json model.json files from checkpoints directory to results_dir
         """
+        if os.path.isfile(os.path.join(self.checkpoint,"options.json")):
+            shutil.copy(os.path.join(self.checkpoint,"options.json"), os.path.join(self.results_dir,"options_checkpoints.json"))                  
+        else:
+            raise FileNotFoundError("the file {} does not exist".format(os.path.join(self.checkpoint,"options.json")))
+        if os.path.isfile(os.path.join(self.checkpoint,"dataset_hparams.json")):
+            shutil.copy(os.path.join(self.checkpoint,"dataset_hparams.json"), os.path.join(self.results_dir,"dataset_hparams.json"))
+        else:
+            raise FileNotFoundError("the file {} does not exist".format(os.path.join(self.checkpoint,"dataset_hparams.json"))) 
+
+        if os.path.isfile(os.path.join(self.checkpoint,"model_hparams.json")):
+            shutil.copy(os.path.join(self.checkpoint,"model_hparams.json"), os.path.join(self.results_dir,"model_hparams.json"))
+        else:
+            raise FileNotFoundError("the file {} does not exist".format(os.path.join(self.checkpoint,"model_hparams.json")))
+
+        if os.path.isfile(os.path.join(self.checkpoint,"data_dict.json")):
+            shutil.copy(os.path.join(self.checkpoint,"data_dict.json"), os.path.join(self.results_dir,"data_dict.json"))
+        else:
+            raise FileNotFoundError("the file {} does not exist".format(os.path.join(self.checkpoint,"data_dict.json")))
+
+    def load_jsons(self):
+        self.datasplit_dict = os.path.join(self.results_dir,"data_dict.json")
+        self.model_hparams_dict = os.path.join(self.results_dir,"model_hparams.json")
+        with open(os.path.join(self.results_dir, "options_checkpoints.json")) as f:
+            self.options_checkpoint = json.loads(f.read())
+            self.dataset = self.options_checkpoint["dataset"]
+            self.model = self.options_checkpoint["model"]    
+        self.model_hparams_dict_load = self.get_model_hparams_dict()    
+
+    def setup_test_dataset(self):
+        VideoDataset = datasets.get_dataset_class(self.dataset)
+        self.dataset = VideoDataset(input_dir=self.input_dir,mode=self.mode,datasplit_config=self.datasplit_dict)
         
-        
-
-    def load_model_data_params_from_checkpoints_dir():
-        """
-        Load the model hparameters and datasplit_dictionary from checkpoints directory
-        """
-        if self.checkpoint:
-            self.checkpoint_dir = os.path.normpath(self.checkpoint)
-            if not os.path.isdir(self.checkpoint):
-                self.checkpoint_dir, _ = os.path.split(self.checkpoint_dir)
-            if not os.path.exists(self.checkpoint_dir):
-                raise FileNotFoundError(errno.ENOENT, os.strerror(errno.ENOENT), self.checkpoint_dir)
-            #load datasplit_dict
-            
-            with open(os.path.join(self.checkpoint_dir, "options.json")) as f:
-                print("loading options from checkpoint %s" % self.checkpoint)
-                self.options = json.loads(f.read())
-                self.dataset = self.dataset or self.options['dataset']
-                self.model = self.model or self.options['model']
-            try:
-                with open(os.path.join(self.checkpoint_dir, "model_hparams.json")) as f:
-                    self.model_hparams_dict_load.update(json.loads(f.read()))
-            except FileNotFoundError:
-                print("model_hparams.json was not loaded because it does not exist")
-
-
     def setup_num_samples_per_epoch(self):
         """
         For generating images, the user can define the examples used, and will be taken as num_examples_per_epoch 
         """
         if self.num_samples:
-            if num_samples > self.dataset.num_examples_per_epoch():
+            if self.num_samples > self.dataset.num_examples_per_epoch():
                 raise ValueError('num_samples cannot be larger than the dataset')
             self.num_examples_per_epoch = self.num_samples
         else:
             self.num_examples_per_epoch = self.dataset.num_examples_per_epoch()
-        return self.num_samples_per_epoch
-
- 
-    def setup_test_dataset(self):
-        VideoDataset = datasets.get_dataset_class(self.dataset)
-        self.test_dataset = VideoDataset(input_dir=self.input_dir_tfrecords,mode=self.mode,datasplit_config=self.datasplit_dict)
-                            
-    
+        return self.num_examples_per_epoch
+   
     def get_data_params(self):
         """
         Get the context_frames, future_frames and total frames from hparamters settings.
         """
-        pass
-
-
-    def make_test_dataset_iterator(self):
-        """
-        Make the dataset iterator
-        """
-        self.inputs = self.test_dataset.make_batch(self.batch_size)
-        self.inputs = {k: tf.placeholder(v.dtype, v.shape, '%s_ph' % k) for k, v in self.inputs.items()}
-        
+        self.context_frames = self.model_hparams_dict_load["context_frames"]
+        self.sequence_length = self.model_hparams_dict_load["sequence_length"]
+        self.future_frames = self.sequence_length - self.context_frames 
 
     def get_coordinates(self):
         """
@@ -154,16 +149,15 @@ class Postprocess(TrainModel,ERA5Pkl2Tfrecords):
         metadata_fname = os.path.join(self.input_dir,"metadata.json")
         md = MetaData(json_file=metadata_fname)
         md.get_metadata_from_file(metadata_fname)
-    
         try:
             print("lat:",md.lat)
             print("lon:",md.lon)
-            self.lats = lat
-            self.lons = lon
+            self.lats = md.lat
+            self.lons = md.lon
             return md.lat, md.lon
         except:
             raise ValueError("Error when handling: '"+metadata_fname+"'")
-    
+
     def initia_save_data(self):
         self.sample_ind = 0
         self.gen_images_all = []
@@ -172,9 +166,16 @@ class Postprocess(TrainModel,ERA5Pkl2Tfrecords):
         return self.sample_ind, self.gen_images_all, self.persistent_images_all, self.input_images_all
 
 
-    def check_stochastic_samples_ind_based_on_model(self):
-        if self.model == "convLSTM": self.num_stochastic_samples = 1
+    def make_test_dataset_iterator(self):
+        """
+        Make the dataset iterator
+        """
+        self.inputs = self.dataset.make_batch(self.batch_size)
+        self.inputs = {k: tf.placeholder(v.dtype, v.shape, '%s_ph' % k) for k, v in self.inputs.items()}
+        
 
+    def check_stochastic_samples_ind_based_on_model(self):
+        if self.model == "convLSTM" or self.model == "test_model": self.num_stochastic_samples = 1
     
     def init_session(self):
         self.sess = tf.Session(config = self.config)
@@ -183,7 +184,7 @@ class Postprocess(TrainModel,ERA5Pkl2Tfrecords):
         self.sess.run(tf.local_variables_initializer())
 
     def run_inputs_per_batch(self):
-        self.input_results = sess.run(inputs)
+        self.input_results = self.sess.run(self.inputs)
         self.input_images = self.input_results["images"]
         #get one seq and the corresponding start time poin
         self.t_starts = self.input_results["T_start"]
@@ -194,7 +195,7 @@ class Postprocess(TrainModel,ERA5Pkl2Tfrecords):
 
     def generate_images(self,stochastic_sample_ind):
            #Generate images inputs
-        if stochastic_sample_ind ==0: 
+        if stochastic_sample_ind == 0: 
             plot_seq_imgs(imgs=input_images_denorm[context_frames+1:,:,:,0],lats=lats,lons=lons,ts=ts[context_frames+1:],label="Ground Truth",output_png_dir=args.results_dir)  
            #Generate forecast images
             plot_seq_imgs(imgs=gen_images_denorm[context_frames:,:,:,0],lats=lats,lons=lons,ts=ts[context_frames+1:],label="Forecast by Model " + args.model,output_png_dir=args.results_dir) 
@@ -205,7 +206,6 @@ class Postprocess(TrainModel,ERA5Pkl2Tfrecords):
                           label="Persistence Forecast" + args.model,output_png_dir=args.results_dir)
         else:
             pass
-
 
     def run_test(self):
         self.init_session()     

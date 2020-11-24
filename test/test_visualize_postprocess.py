@@ -26,10 +26,18 @@ class MyClass:
          self.model = "test_model"
 args = MyClass(input_dir)
 
+#####instance1###
 @pytest.fixture(scope="module")
 def vis_case1():
     return Postprocess(input_dir=input_dir,results_dir=results_dir,checkpoint=checkpoint,
                        mode=mode,batch_size=batch_size,num_samples=num_samples,num_stochastic_samples=num_stochastic_samples,
+                       gpu_mem_frac=gpu_mem_frac,seed=seed,args=args)
+######instance2
+num_samples2 = 200000
+@pytest.fixture(scope="module")
+def vis_case2():
+    return Postprocess(input_dir=input_dir,results_dir=results_dir,checkpoint=checkpoint,
+                       mode=mode,batch_size=batch_size,num_samples=num_samples2,num_stochastic_samples=num_stochastic_samples,
                        gpu_mem_frac=gpu_mem_frac,seed=seed,args=args)
 
 def test_get_metadata(vis_case1):
@@ -37,7 +45,47 @@ def test_get_metadata(vis_case1):
     assert vis_case1.vars_in[0] == "T2"
     assert vis_case1.vars_in[1] == "MSL"
 
-def copy_
-def test_load_params_from_checkpoints_dir(vis_case1):
-    vis_case1.load_params_from_checkpoints_dir()
+def test_copy_data_model_json(vis_case1):
+    vis_case1.copy_data_model_json()
+    isfile_copy = os.path.isfile(os.path.join(checkpoint,"options.json"))
+    assert isfile_copy == True
+    isfile_copy_model_hpamas = os.path.isfile(os.path.join(checkpoint,"model_hparams.json"))
+    assert isfile_copy_model_hpamas == True
+
+def test_load_json(vis_case1):
+    vis_case1.load_jsons()
+    assert vis_case1.dataset == "era5"
+    assert vis_case1.model == "test_model"
+
+def test_setup_num_samples_per_epoch(vis_case1):
+    vis_case1.load_jsons()
+    vis_case1.setup_test_dataset()
+    vis_case1.setup_num_samples_per_epoch()  
+    assert vis_case1.num_examples_per_epoch == 16
     
+def test_get_data_params(vis_case1):
+    vis_case1.get_data_params()
+    assert vis_case1.context_frames == 10
+    assert vis_case1.future_frames == 10
+
+
+def test_get_coordinates(vis_case1):
+    vis_case1.get_coordinates()
+    assert len(vis_case1.lats) == 128
+
+
+def test_make_test_dataset_iterator(vis_case1):
+    vis_case1.make_test_dataset_iterator()
+    pass
+
+
+def test_check_stochastic_samples_ind_based_on_model(vis_case1):
+    vis_case1.check_stochastic_samples_ind_based_on_model()
+    assert vis_case1.num_stochastic_samples == 1
+
+
+def test_run_inputs_per_batch(vis_case1):
+    vis_case1.setup_gpu_config()
+    vis_case1.init_session()
+    vis_case1.run_inputs_per_batch()
+    assert vis_case1.t_starts == 10
