@@ -1,7 +1,7 @@
 
 
 __email__ = "b.gong@fz-juelich.de" 
-__author__ = "Bing Gong, Scarlet Stadtler,Michael Langguth" 
+__author__ = "Bing Gong" 
 __date__ = "2020-11-05" 
 
 import collections

@@ -1,3 +1,8 @@
+__email__ = "b.gong@fz-juelich.de"
+__author__ = "Bing Gong"
+__date__ = "2020-08-22"
+
+
 import collections
 import functools
 import itertools
