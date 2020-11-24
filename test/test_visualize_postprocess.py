@@ -87,5 +87,5 @@ def test_check_stochastic_samples_ind_based_on_model(vis_case1):
 def test_run_inputs_per_batch(vis_case1):
     vis_case1.setup_gpu_config()
     vis_case1.init_session()
-    vis_case1.run_inputs_per_batch()
-    assert vis_case1.t_starts == 10
+    vis_case1.run_inputs_per_batch(1)
+    assert vis_case1.t_starts[0] == 10

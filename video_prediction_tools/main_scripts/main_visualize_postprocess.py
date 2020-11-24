@@ -120,18 +120,18 @@ class Postprocess(TrainModel,ERA5Pkl2Tfrecords):
 
     def setup_test_dataset(self):
         VideoDataset = datasets.get_dataset_class(self.dataset)
-        self.dataset = VideoDataset(input_dir=self.input_dir,mode=self.mode,datasplit_config=self.datasplit_dict)
+        self.test_dataset = VideoDataset(input_dir=self.input_dir,mode=self.mode,datasplit_config=self.datasplit_dict)
         
     def setup_num_samples_per_epoch(self):
         """
         For generating images, the user can define the examples used, and will be taken as num_examples_per_epoch 
         """
         if self.num_samples:
-            if self.num_samples > self.dataset.num_examples_per_epoch():
+            if self.num_samples > self.test_dataset.num_examples_per_epoch():
                 raise ValueError('num_samples cannot be larger than the dataset')
             self.num_examples_per_epoch = self.num_samples
         else:
-            self.num_examples_per_epoch = self.dataset.num_examples_per_epoch()
+            self.num_examples_per_epoch = self.test_dataset.num_examples_per_epoch()
         return self.num_examples_per_epoch
    
     def get_data_params(self):
@@ -170,9 +170,17 @@ class Postprocess(TrainModel,ERA5Pkl2Tfrecords):
         """
         Make the dataset iterator
         """
-        self.inputs = self.dataset.make_batch(self.batch_size)
-        self.inputs = {k: tf.placeholder(v.dtype, v.shape, '%s_ph' % k) for k, v in self.inputs.items()}
-        
+        self.test_tf_dataset = self.test_dataset.make_dataset(self.batch_size)
+        self.test_iterator = self.test_tf_dataset.make_one_shot_iterator()
+        # The `Iterator.string_handle()` method returns a tensor that can be evaluated
+        # and used to feed the `handle` placeholder.
+        self.test_handle = self.test_iterator.string_handle()
+        self.iterator = tf.data.Iterator.from_string_handle(
+            self.test_handle, self.test_tf_dataset.output_types, self.test_tf_dataset.output_shapes)
+        self.inputs = self.iterator.get_next()
+        if self.dataset == "era5" and self.model == "savp":
+           del  self.inputs["T_start"]      
+
 
     def check_stochastic_samples_ind_based_on_model(self):
         if self.model == "convLSTM" or self.model == "test_model": self.num_stochastic_samples = 1
@@ -183,15 +191,15 @@ class Postprocess(TrainModel,ERA5Pkl2Tfrecords):
         self.sess.run(tf.global_variables_initializer())
         self.sess.run(tf.local_variables_initializer())
 
-    def run_inputs_per_batch(self):
+    def run_inputs_per_batch(self,i):
         self.input_results = self.sess.run(self.inputs)
         self.input_images = self.input_results["images"]
         #get one seq and the corresponding start time poin
         self.t_starts = self.input_results["T_start"]
-        self.input_images_,self.t_start = get_one_seq_and_time(self.input_images,self.t_starts,i)
+        self.input_images_,self.t_start = Postprocess.get_one_seq_and_time(self.input_images,self.t_starts,i)
         #Renormalized data for inputs
-        stat_fl = os.path.join(args.input_dir,"pickle/statistics.json")
-        self.input_images_denorm = denorm_images_all_channels(stat_fl,self.input_images_,self.vars_in)
+        stat_fl = os.path.join(self.input_dir,"pickle/statistics.json")
+        self.input_images_denorm = Postprocess.denorm_images_all_channels(stat_fl,self.input_images_,self.vars_in)
 
     def generate_images(self,stochastic_sample_ind):
            #Generate images inputs
@@ -256,7 +264,7 @@ class Postprocess(TrainModel,ERA5Pkl2Tfrecords):
         input_images_ = np.array(input_images_)
         args = [item for item in args][0]
         for c in range(len(args)):
-            input_images_all_channles_denorm.append(denorm_images(stat_fl,input_images_,channel=c,var=args[c]))           
+            input_images_all_channles_denorm.append(Postprocess.denorm_images(stat_fl,input_images_,channel=c,var=args[c]))           
         input_images_denorm = np.stack(input_images_all_channles_denorm, axis=-1)
         return input_images_denorm
     
@@ -511,7 +519,7 @@ def main():
                         help = "ignored if output_gif_dir is specified")
     parser.add_argument("--checkpoint",
                         help = "directory with checkpoint or checkpoint name (e.g. checkpoint_dir/model-200000)")
-    parser.add_argument("--mode", type = str, choices = ['train','val', 'test'], default = 'val',
+    parser.add_argument("--mode", type = str, choices = ['train','val', 'test'], default = 'test',
                         help = 'mode for dataset, val or test.')
     parser.add_argument("--dataset", type = str, help = "dataset class name")
     parser.add_argument("--dataset_hparams", type = str,
