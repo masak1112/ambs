@@ -84,8 +84,17 @@ def test_check_stochastic_samples_ind_based_on_model(vis_case1):
     assert vis_case1.num_stochastic_samples == 1
 
 
-def test_run_inputs_per_batch(vis_case1):
+def test_run_and_plot_inputs_per_batch(vis_case1):
+    """
+    Test we get the right datasplit data
+    """
     vis_case1.setup_gpu_config()
     vis_case1.init_session()
-    vis_case1.run_inputs_per_batch(1)
-    assert vis_case1.t_starts[0] == 10
+    vis_case1.run_and_plot_inputs_per_batch()
+    test_datetime = vis_case1.t_starts[0][0]
+    test_datetime = datetime.datetime.strptime(str(test_datetime), "%Y%m%d%H")
+    assert test_datetime.month == 3
+
+
+
+def test_
