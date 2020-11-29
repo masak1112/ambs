@@ -163,8 +163,11 @@ class Postprocess(TrainModel,ERA5Pkl2Tfrecords):
         except:
             raise ValueError("Error when handling: '"+metadata_fname+"'")
 
-   def get_stat_file(self):
-       self.stat_fl = os.path.join(self.input_dir,"pickle/statistics.json")
+    def get_stat_file(self):
+        """
+        Load the statistic files from input directory
+        """
+        self.stat_fl = os.path.join(self.input_dir,"pickle/statistics.json")
  
     def initia_save_data(self):
         self.sample_ind = 0
@@ -227,7 +230,7 @@ class Postprocess(TrainModel,ERA5Pkl2Tfrecords):
           #Generate forecast images
             Postprocess.plot_seq_imgs(imgs=self.gen_images_denorm[self.context_frames:,:,:,0],lats=self.lats,lons=self.lons,ts=self.ts[self.context_frames+1:],label="Forecast by Model " + self.model,output_png_dir=self.results_dir) 
             #Generate persistent images
-       else:
+        else:
             pass
 
     def run(self):
