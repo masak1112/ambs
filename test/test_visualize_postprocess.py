@@ -1,5 +1,4 @@
 
-
 __email__ = "b.gong@fz-juelich.de"
 __author__ = "Bing Gong"
 __date__ = "2020-11-22"
@@ -97,4 +96,10 @@ def test_run_and_plot_inputs_per_batch(vis_case1):
 
 
 
-def test_
+def test_run_test(vis_case1):
+    """
+    Test the running on test dataset
+    """
+    vis_case1()
+    vis_case1.run_test()
+

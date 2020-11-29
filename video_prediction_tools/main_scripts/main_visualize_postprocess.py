@@ -78,13 +78,13 @@ class Postprocess(TrainModel,ERA5Pkl2Tfrecords):
         self.get_data_params()
         self.setup_num_samples_per_epoch()
         self.get_coordinates()
+        self.get_stat_file()
         self.make_test_dataset_iterator() 
         self.check_stochastic_samples_ind_based_on_model()
         self.setup_graph()
         self.setup_gpu_config()
         self.initia_save_data()
-        self.lats, self.lons = self.get_coordinates()
-        self.check_stochastic_samples_ind_based_on_model()
+       
                 
     def copy_data_model_json(self):
         """
@@ -110,6 +110,10 @@ class Postprocess(TrainModel,ERA5Pkl2Tfrecords):
             raise FileNotFoundError("the file {} does not exist".format(os.path.join(self.checkpoint,"data_dict.json")))
 
     def load_jsons(self):
+        """
+        Copy all the jsons files that contains the data and model configurations 
+        from the results directory for furthur usage
+        """
         self.datasplit_dict = os.path.join(self.results_dir,"data_dict.json")
         self.model_hparams_dict = os.path.join(self.results_dir,"model_hparams.json")
         with open(os.path.join(self.results_dir, "options_checkpoints.json")) as f:
@@ -119,6 +123,9 @@ class Postprocess(TrainModel,ERA5Pkl2Tfrecords):
         self.model_hparams_dict_load = self.get_model_hparams_dict()    
 
     def setup_test_dataset(self):
+        """
+        setup the test dataset instance
+        """
         VideoDataset = datasets.get_dataset_class(self.dataset)
         self.test_dataset = VideoDataset(input_dir=self.input_dir,mode=self.mode,datasplit_config=self.datasplit_dict)
         
@@ -144,20 +151,21 @@ class Postprocess(TrainModel,ERA5Pkl2Tfrecords):
 
     def get_coordinates(self):
         """
-        Retrieves the latitudes and longitudes read from the metadata json file.
+        Retrieves the latitudes and longitudes from the metadata json file.
         """
         metadata_fname = os.path.join(self.input_dir,"metadata.json")
         md = MetaData(json_file=metadata_fname)
         md.get_metadata_from_file(metadata_fname)
         try:
-            print("lat:",md.lat)
-            print("lon:",md.lon)
             self.lats = md.lat
             self.lons = md.lon
             return md.lat, md.lon
         except:
             raise ValueError("Error when handling: '"+metadata_fname+"'")
 
+   def get_stat_file(self):
+       self.stat_fl = os.path.join(self.input_dir,"pickle/statistics.json")
+ 
     def initia_save_data(self):
         self.sample_ind = 0
         self.gen_images_all = []
@@ -191,31 +199,38 @@ class Postprocess(TrainModel,ERA5Pkl2Tfrecords):
         self.sess.run(tf.global_variables_initializer())
         self.sess.run(tf.local_variables_initializer())
 
-    def run_inputs_per_batch(self,i):
+
+    def run_and_plot_inputs_per_batch(self):
+        """
+        batch_id :int, the index in each batch size, maximum value is the batch_size
+        """
         self.input_results = self.sess.run(self.inputs)
         self.input_images = self.input_results["images"]
         #get one seq and the corresponding start time poin
         self.t_starts = self.input_results["T_start"]
-        self.input_images_,self.t_start = Postprocess.get_one_seq_and_time(self.input_images,self.t_starts,i)
-        #Renormalized data for inputs
-        stat_fl = os.path.join(self.input_dir,"pickle/statistics.json")
-        self.input_images_denorm = Postprocess.denorm_images_all_channels(stat_fl,self.input_images_,self.vars_in)
+        for batch_id in range(self.batch_size):
+            self.input_images_ = Postprocess.get_one_seq_and_time_from_batch(self.input_images,self.t_starts,batch_id)
+            #Renormalized data for inputs
+            self.input_images_denorm = Postprocess.denorm_images_all_channels(self.stat_fl,self.input_images_,self.vars_in)
+            Postprocess.plot_seq_imgs(imgs = self.input_images_denorm[self.context_frames+1:,:,:,0],lats=self.lats,lons=self.lons,ts=self.ts[self.context_frames+1:],label="Ground Truth",output_png_dir=self.results_dir)  
+        return self.input_images
 
-    def generate_images(self,stochastic_sample_ind):
+    def plot_persistence_images(self):
+       # I am not sure about the number of frames given with context_frames and context_frames +
+        Postprocess.plot_seq_imgs(imgs=self.persistence_images[self.context_frames+1:,:,:,0],lats=self.lats,lons=self.lons,ts=self.ts_persistence[self.context_frames+1:], label="Persistence Forecast" + self.model,output_png_dir=self.results_dir) 
+
+
+
+    def plot_generate_images(self,stochastic_sample_ind):
            #Generate images inputs
         if stochastic_sample_ind == 0: 
-            plot_seq_imgs(imgs=input_images_denorm[context_frames+1:,:,:,0],lats=lats,lons=lons,ts=ts[context_frames+1:],label="Ground Truth",output_png_dir=args.results_dir)  
-           #Generate forecast images
-            plot_seq_imgs(imgs=gen_images_denorm[context_frames:,:,:,0],lats=lats,lons=lons,ts=ts[context_frames+1:],label="Forecast by Model " + args.model,output_png_dir=args.results_dir) 
-        
+          #Generate forecast images
+            Postprocess.plot_seq_imgs(imgs=self.gen_images_denorm[self.context_frames:,:,:,0],lats=self.lats,lons=self.lons,ts=self.ts[self.context_frames+1:],label="Forecast by Model " + self.model,output_png_dir=self.results_dir) 
             #Generate persistent images
-            # I am not sure about the number of frames given with context_frames and context_frames +1
-            plot_seq_imgs(imgs=persistence_images[context_frames+1:,:,:,0],lats=lats,lons=lons,ts=ts_persistence[context_frames+1:], 
-                          label="Persistence Forecast" + args.model,output_png_dir=args.results_dir)
-        else:
+       else:
             pass
 
-    def run_test(self):
+    def run(self):
         self.init_session()     
         self.restore(self.sess, args.checkpoint)
         #Loop for samples
@@ -224,29 +239,39 @@ class Postprocess(TrainModel,ERA5Pkl2Tfrecords):
             if self.num_samples_per_epoch < self.sample_ind:
                 break
             else:
-               self.run_inputs_per_batch()
-            #Loop for stochastics 
+                self.input_images = self.run_and_plot_inputs_per_batch() #run the inputs and plot each sequence images
+
             feed_dict = {input_ph: input_results[name] for name, input_ph in self.inputs.items()}
             gen_images_stochastic = [] #[stochastic_ind,batch_size,seq_len,lat,lon,channels]
+            #Loop for stochastics 
             for stochastic_sample_ind in range(self.num_stochastic_samples):
-                gen_images = sess.run(model.outputs['gen_images'], feed_dict = feed_dict)#return [batchsize,seq_len,lat,lon,channel]
-                assert gen_images.shape[1] == sequence_length-1 #The generate images seq_len should be sequence_len -1, since the last one is not used for comparing with groud truth 
+                gen_images = sess.run(model.outputs['gen_images'], feed_dict=feed_dict)#return [batchsize,seq_len,lat,lon,channel]
+                assert gen_images.shape[1] == self.sequence_length-1 #The generate images seq_len should be sequence_len -1, since the last one is not used for comparing with groud truth 
                 gen_images_per_batch = []
+                ts_batch = [] 
                 for i in range(self.batch_size):
                     #generate time stamps for sequences
-                    self.ts = generate_seq_timestamps(self.t_start,len_seq=self.sequence_length)
+                    if stochastic_sample_ind == 0: 
+                        ts = Postprocess.generate_seq_timestamps(self.t_starts[i],len_seq=self.sequence_length)
+                        init_date_str = ts[0].strftime("%Y%m%d%H")
+                        ts_batch.append(init_date_str)
+                        #only plot when the first stochastic ind 
+                        self.plot_generate_images(stochastic_sample_ind)
+                        #get persistence_images
+                        self.persistence_images, self.ts_persistence = Postprocess.get_persistence(ts,self.input_dir_pkl)
+                        self.plot_persistence_images()
+
                     #Renormalized data for generate
                     gen_images_ = gen_images[i]
-                    gen_images_denorm = denorm_images_all_channels(stat_fl,gen_images_,self.vars_in)
+                    gen_images_denorm = Postprocess.denorm_images_all_channels(self.stat_fl,gen_images_,self.vars_in)
                     gen_images_per_batch.append(gen_images_denorm)
-                    #get persistence_images
-                    if stochastic_sample_ind == 0: persistence_images, ts_persistence = self.get_persistence()
-                    self.init_date_str = ts[0].strftime("%Y%m%d%H")
-                    #only plot when the first stochastic ind 
-                    self.generate_images(stochastic_sample_ind)
 
             self.gen_images_stochastic.append(gen_images_per_batch)
-            save_to_netcdf_per_sequence(fl_name="vfp_date_{}_from_{}_to_{}.nc".format(init_date_str,sample_ind,sample_ind+self.batch_size)) 
+            #save input and stochastic generate images to netcdf file
+            for batch_id in range(self.batch_size):
+                self.save_to_netcdf_for_stochastic_generate_images(input_images[batch_id],
+                                                            gen_images_stochastic[:,batch_id,:,:,:,:],                                                                fl_name="vfp_date_{}_sample_ind_{}.nc".format(ts_batch[batch_id],sample_ind+batch_id))
+            
             sample_ind += self.batch_size
 
     @staticmethod
@@ -269,11 +294,10 @@ class Postprocess(TrainModel,ERA5Pkl2Tfrecords):
         return input_images_denorm
     
     @staticmethod
-    def get_one_seq_and_time(input_images,t_starts,i):
+    def get_one_seq_and_time_from_batch(input_images,t_starts,i):
         assert (len(np.array(input_images).shape)==5)
         input_images_ = input_images[i,:,:,:,:]
-        t_start = t_starts[i]
-        return input_images_,t_start
+        return input_images_
 
     @staticmethod
     def generate_seq_timestamps(t_start,len_seq=20):
@@ -283,17 +307,23 @@ class Postprocess(TrainModel,ERA5Pkl2Tfrecords):
         seq_ts = [s_datetime + datetime. timedelta(hours = i+1) for i in range(len_seq)]
         return seq_ts
 
-    def save_to_netcdf_per_sequence(self,fl_name="test.nc"):
+
+    def save_to_netcdf_for_stochastic_generate_images(self,persistent_images_,input_images_,gen_images_stochastic,fl_name="test.nc"):
         """
-        gen_images: list/array 
+        Save the input images, persistent images and generated stochatsic images to netCDF file
+        args:
+            input_images_        : list/array, [seq,lat,lon,channel]
+            persistent_images_   : list/array, [seq,lat,lon,channel]
+            gen_images_stochastic: list/array (float), [stochastic_number,seq,lat,lon,channel]
+            fl_name              : str, the netcdf file name to be saved
         """
-        assert (len(np.array(self.input_images_).shape)==len(np.array(self.gen_images_).shape))-1
-        y_len = len(self.lats)
-        x_len = len(self.lons)
+        assert (len(np.array(input_images_).shape)==len(np.array(gen_images_stochastic).shape))-1
+        y_len = len(lats)
+        x_len = len(lons)
         ts_len = len(self.ts)
         ts_input = self.ts[:self.context_frames]
-        ts_forecast = self,ts[self.context_frames:]
-        gen_images_ = np.array(self.gen_images_)
+        ts_forecast = self.ts[self.context_frames:]
+        gen_images_ = np.array(gen_images_stochastic)
         output_file = os.path.join(self.output_dir,fl_name)
         with Dataset(output_file, "w", format="NETCDF4") as nc_file:
             nc_file.title = 'ERA5 hourly reanalysis data and the forecasting data by deep learning for 2-m above sea level temperatures'
@@ -363,23 +393,37 @@ class Postprocess(TrainModel,ERA5Pkl2Tfrecords):
             gph500_r.units = 'm'
             gph500_r[:,:,:] = self.input_images_[self.context_frames:,:,:,2]
 
+            ###subgroup for Pesistent analysis #######
+            t2_p = nc_file.createVariable("/analysis/persistent/T2","f4",("time_forecast","lat","lon"), zlib = True)
+            t2_p.units = 'K'
+            t2_p[:,:,:] = self.persistent_images_[self.context_frames:,:,:,0]
+
+            msl_p = nc_file.createVariable("/analysis/persistent/MSL","f4",("time_forecast","lat","lon"), zlib = True)
+            msl_p.units = 'Pa'
+            msl_p[:,:,:] = self.persistent_images_[self.context_frames:,:,:,1]
+             
+            #Geopotential at 500 
+            gph500_p = nc_file.createVariable("/analysis/persistent/GPH500","f4",("time_forecast","lat","lon"), zlib = True)
+            gph500_p.units = 'm'
+            gph500_p[:,:,:] = self.persistent_images_[self.context_frames:,:,:,2]
+
 
             ################ forecast group  #####################
             for stochastic_sample_ind in self.num_stochastic_samples:
                 #Temperature:
-                t2 = nc_file.createVariable("/forecast/{}/T2/stochastic/{}".format(model_name,stochastic_sample_ind),"f4",("time_forecast","lat","lon"), zlib = True)
+                t2 = nc_file.createVariable("/forecast/T2/stochastic/{}".format(stochastic_sample_ind),"f4",("time_forecast","lat","lon"), zlib = True)
                 t2.units = 'K'
                 t2[:,:,:] = gen_images_[self.context_frames-1:,:,:,0]
 
                 #mean sea level pressure
-                msl = nc_file.createVariable("/forecast/{}/MSL/stochastic/{}".format(model_name,stochastic_sample_ind),"f4",("time_forecast","lat","lon"), zlib = True)
+                msl = nc_file.createVariable("/forecast/MSL/stochastic/{}".format(stochastic_sample_ind),"f4",("time_forecast","lat","lon"), zlib = True)
                 msl.units = 'Pa'
-                msl[:,:,:] = gen_images_[context_frames-1:,:,:,1]
+                msl[:,:,:] = gen_images_[self.context_frames-1:,:,:,1]
 
                 #Geopotential at 500 
-                gph500 = nc_file.createVariable("/forecast/{}/GPH500/stochastic/{}".format(model_name,stochastic_sample_ind),"f4",("time_forecast","lat","lon"), zlib = True)
+                gph500 = nc_file.createVariable("/forecast/GPH500/stochastic/{}".format(stochastic_sample_ind),"f4",("time_forecast","lat","lon"), zlib = True)
                 gph500.units = 'm'
-                gph500[:,:,:] = gen_images_[context_frames-1:,:,:,2]        
+                gph500[:,:,:] = gen_images_[self.context_frames-1:,:,:,2]        
 
             print("{} created".format(output_file)) 
         return None
@@ -411,7 +455,8 @@ class Postprocess(TrainModel,ERA5Pkl2Tfrecords):
         print("image {} saved".format(output_fname))
 
     
-    def get_persistence(self):
+    @staticmethod
+    def get_persistence(ts,input_dir_pkl):
         """This function gets the persistence forecast.
         'Today's weather will be like yesterday's weather.
     
@@ -494,8 +539,6 @@ class Postprocess(TrainModel,ERA5Pkl2Tfrecords):
             
         # tolist() is needed for plotting
         return var_persistence, time_persistence.tolist()
-
-    
     
     def load_pickle_for_persistence(self,year_start, month_start, pkl_type):
         """Helper to get the content of the pickle files. There are two types in our workflow:
@@ -543,7 +586,8 @@ def main():
                       gpu_mem_frac=args.gpu_mem_frac,seed=args.seed,args=args)
 
     test_instance.setup()
-    test_instance.test_run()
+    test_instance.run()
+
 
 if __name__ == '__main__':
     main() 
