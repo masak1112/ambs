@@ -41,7 +41,7 @@ from video_prediction import datasets, models
 
 class Postprocess(TrainModel,ERA5Pkl2Tfrecords):
     def __init__(self,input_dir=None,results_dir=None,checkpoint=None,mode="test",
-                      batch_size=None,num_samples=None,num_stochastic_samples=1,
+                      batch_size=None,num_samples=None,num_stochastic_samples=1,stochastic_plot_id=0,
                       gpu_mem_frac=None,seed=None,args=None):
         """
         The function for inference, generate results and images
@@ -50,6 +50,7 @@ class Postprocess(TrainModel,ERA5Pkl2Tfrecords):
         checkpoint    :str, the directory point to the checkpoints
         mode          :str, default is test, could be "train","val", and "test"
         dataset       :str, the dataset type, "era5","moving_mnist", or "kth"
+        stochastic_plot_id :  int the index for stochastic generated images to plot
         """
         #super(Postprocess,self).__init__(input_dir=input_dir,output_dir=None,datasplit_dir=data_split_dir,
         #                                  model_hparams_dict=model_hparams_dict,model=model,checkpoint=checkpoint,dataset=dataset,
@@ -61,18 +62,20 @@ class Postprocess(TrainModel,ERA5Pkl2Tfrecords):
         self.seed = seed
         self.num_samples = num_samples
         self.num_stochastic_samples = num_stochastic_samples
+        self.stochastic_plot_id = stochastic_plot_id
         self.input_dir_tfrecords = os.path.join(self.input_dir,"tfrecords")
         self.input_dir_pkl = os.path.join(self.input_dir,"pickle") 
         if checkpoint is None: raise ("The directory point to checkpoint is empty, must be provided for postprocess step")     
         self.args = args 
         self.checkpoint = checkpoint
         self.mode = mode
+    
 
     def __call__(self):
         self.set_seed()
         self.get_metadata()#get the vars_in variables which contains the list of input variable names
         self.copy_data_model_json()
-        self.load_json()
+        self.load_jsons()
         self.setup_test_dataset()
         self.setup_model()
         self.get_data_params()
@@ -136,10 +139,10 @@ class Postprocess(TrainModel,ERA5Pkl2Tfrecords):
         if self.num_samples:
             if self.num_samples > self.test_dataset.num_examples_per_epoch():
                 raise ValueError('num_samples cannot be larger than the dataset')
-            self.num_examples_per_epoch = self.num_samples
+            self.num_samples_per_epoch = self.num_samples
         else:
-            self.num_examples_per_epoch = self.test_dataset.num_examples_per_epoch()
-        return self.num_examples_per_epoch
+            self.num_samples_per_epoch = self.test_dataset.num_examples_per_epoch()
+        return self.num_samples_per_epoch
    
     def get_data_params(self):
         """
@@ -194,6 +197,10 @@ class Postprocess(TrainModel,ERA5Pkl2Tfrecords):
 
 
     def check_stochastic_samples_ind_based_on_model(self):
+        """
+        stochastic forecasting only suitable for the geneerate models such as SAVP, vae. 
+        For convLSTM, McNet only do determinstic forecasting
+        """
         if self.model == "convLSTM" or self.model == "test_model": self.num_stochastic_samples = 1
     
     def init_session(self):
@@ -212,68 +219,61 @@ class Postprocess(TrainModel,ERA5Pkl2Tfrecords):
         #get one seq and the corresponding start time poin
         self.t_starts = self.input_results["T_start"]
         for batch_id in range(self.batch_size):
-            self.input_images_ = Postprocess.get_one_seq_and_time_from_batch(self.input_images,self.t_starts,batch_id)
+            self.input_images_ = Postprocess.get_one_seq_from_batch(self.input_images,batch_id)
             #Renormalized data for inputs
+            ts = Postprocess.generate_seq_timestamps(self.t_starts[batch_id],len_seq=self.sequence_length)
             self.input_images_denorm = Postprocess.denorm_images_all_channels(self.stat_fl,self.input_images_,self.vars_in)
-            Postprocess.plot_seq_imgs(imgs = self.input_images_denorm[self.context_frames+1:,:,:,0],lats=self.lats,lons=self.lons,ts=self.ts[self.context_frames+1:],label="Ground Truth",output_png_dir=self.results_dir)  
-        return self.input_images
+            assert len(self.input_images_denorm.shape) == 4
+            Postprocess.plot_seq_imgs(imgs = self.input_images_denorm[self.context_frames+1:,:,:,0],lats=self.lats,lons=self.lons,ts=ts[self.context_frames+1:],label="Ground Truth",output_png_dir=self.results_dir)  
+        return self.input_results, self.input_images,self.t_starts
 
-    def plot_persistence_images(self):
-       # I am not sure about the number of frames given with context_frames and context_frames +
-        Postprocess.plot_seq_imgs(imgs=self.persistence_images[self.context_frames+1:,:,:,0],lats=self.lats,lons=self.lons,ts=self.ts_persistence[self.context_frames+1:], label="Persistence Forecast" + self.model,output_png_dir=self.results_dir) 
-
-
-
-    def plot_generate_images(self,stochastic_sample_ind):
-           #Generate images inputs
-        if stochastic_sample_ind == 0: 
-          #Generate forecast images
-            Postprocess.plot_seq_imgs(imgs=self.gen_images_denorm[self.context_frames:,:,:,0],lats=self.lats,lons=self.lons,ts=self.ts[self.context_frames+1:],label="Forecast by Model " + self.model,output_png_dir=self.results_dir) 
-            #Generate persistent images
-        else:
-            pass
 
     def run(self):
+        """
+        Run session, save results to netcdf, plot input images, generate images and persistent images
+        """
         self.init_session()     
-        self.restore(self.sess, args.checkpoint)
+        self.restore(self.sess, self.checkpoint)
         #Loop for samples
         while self.sample_ind < self.num_samples_per_epoch:
             gen_images_stochastic = []
             if self.num_samples_per_epoch < self.sample_ind:
                 break
             else:
-                self.input_images = self.run_and_plot_inputs_per_batch() #run the inputs and plot each sequence images
+                self.input_results, self.input_images,self.t_starts = self.run_and_plot_inputs_per_batch() #run the inputs and plot each sequence images
 
-            feed_dict = {input_ph: input_results[name] for name, input_ph in self.inputs.items()}
+            feed_dict = {input_ph: self.input_results[name] for name, input_ph in self.inputs.items()}
             gen_images_stochastic = [] #[stochastic_ind,batch_size,seq_len,lat,lon,channels]
             #Loop for stochastics 
             for stochastic_sample_ind in range(self.num_stochastic_samples):
-                gen_images = sess.run(model.outputs['gen_images'], feed_dict=feed_dict)#return [batchsize,seq_len,lat,lon,channel]
+                gen_images = self.sess.run(self.video_model.outputs['gen_images'], feed_dict=feed_dict)#return [batchsize,seq_len,lat,lon,channel]
                 assert gen_images.shape[1] == self.sequence_length-1 #The generate images seq_len should be sequence_len -1, since the last one is not used for comparing with groud truth 
                 gen_images_per_batch = []
                 ts_batch = [] 
                 for i in range(self.batch_size):
                     #generate time stamps for sequences
                     if stochastic_sample_ind == 0: 
-                        ts = Postprocess.generate_seq_timestamps(self.t_starts[i],len_seq=self.sequence_length)
-                        init_date_str = ts[0].strftime("%Y%m%d%H")
+                        self.ts = Postprocess.generate_seq_timestamps(self.t_starts[i],len_seq=self.sequence_length)
+                        init_date_str = self.ts[0].strftime("%Y%m%d%H")
                         ts_batch.append(init_date_str)
-                        #only plot when the first stochastic ind 
-                        self.plot_generate_images(stochastic_sample_ind)
-                        #get persistence_images
-                        self.persistence_images, self.ts_persistence = Postprocess.get_persistence(ts,self.input_dir_pkl)
+                         #get persistence_images
+                        self.persistence_images, self.ts_persistence = Postprocess.get_persistence(self.ts,self.input_dir_pkl)
                         self.plot_persistence_images()
 
                     #Renormalized data for generate
                     gen_images_ = gen_images[i]
-                    gen_images_denorm = Postprocess.denorm_images_all_channels(self.stat_fl,gen_images_,self.vars_in)
-                    gen_images_per_batch.append(gen_images_denorm)
-
-            self.gen_images_stochastic.append(gen_images_per_batch)
+                    self.gen_images_denorm = Postprocess.denorm_images_all_channels(self.stat_fl,gen_images_,self.vars_in)
+                    gen_images_per_batch.append(self.gen_images_denorm)
+ 
+                    #only plot when the first stochastic ind 
+                    self.plot_generate_images(stochastic_sample_ind, self.stochastic_plot_id)
+ 
+            gen_images_stochastic.append(gen_images_per_batch)
             #save input and stochastic generate images to netcdf file
             for batch_id in range(self.batch_size):
-                self.save_to_netcdf_for_stochastic_generate_images(input_images[batch_id],
-                                                            gen_images_stochastic[:,batch_id,:,:,:,:],                                                                fl_name="vfp_date_{}_sample_ind_{}.nc".format(ts_batch[batch_id],sample_ind+batch_id))
+                self.save_to_netcdf_for_stochastic_generate_images(self.input_images[batch_id],
+                                                            gen_images_stochastic[:,batch_id,:,:,:,:], 
+                                                            fl_name="vfp_date_{}_sample_ind_{}.nc".format(ts_batch[batch_id],sample_ind+batch_id))
             
             sample_ind += self.batch_size
 
@@ -287,17 +287,17 @@ class Postprocess(TrainModel,ERA5Pkl2Tfrecords):
         return input_images_denorm
 
     @staticmethod
-    def denorm_images_all_channels(stat_fl,input_images_,*args):
+    def denorm_images_all_channels(stat_fl,input_images_,vars_in):
         input_images_all_channles_denorm = []
         input_images_ = np.array(input_images_)
-        args = [item for item in args][0]
-        for c in range(len(args)):
-            input_images_all_channles_denorm.append(Postprocess.denorm_images(stat_fl,input_images_,channel=c,var=args[c]))           
+        
+        for c in range(len(vars_in)):
+            input_images_all_channles_denorm.append(Postprocess.denorm_images(stat_fl,input_images_,channel=c,var=vars_in[c]))           
         input_images_denorm = np.stack(input_images_all_channles_denorm, axis=-1)
         return input_images_denorm
     
     @staticmethod
-    def get_one_seq_and_time_from_batch(input_images,t_starts,i):
+    def get_one_seq_from_batch(input_images,i):
         assert (len(np.array(input_images).shape)==5)
         input_images_ = input_images[i,:,:,:,:]
         return input_images_
@@ -307,8 +307,22 @@ class Postprocess(TrainModel,ERA5Pkl2Tfrecords):
         if isinstance(t_start,int): t_start = str(t_start)
         if isinstance(t_start,np.ndarray):t_start = str(t_start[0])
         s_datetime = datetime.datetime.strptime(t_start, '%Y%m%d%H')
-        seq_ts = [s_datetime + datetime. timedelta(hours = i+1) for i in range(len_seq)]
+        seq_ts = [s_datetime + datetime.timedelta(hours = i+1) for i in range(len_seq)]
         return seq_ts
+
+    def plot_persistence_images(self):
+       # I am not sure about the number of frames given with context_frames and context_frames +
+        Postprocess.plot_seq_imgs(imgs=self.persistence_images[self.context_frames+1:,:,:,0],lats=self.lats,lons=self.lons,
+                                  ts=self.ts_persistence[self.context_frames+1:], label="Persistence Forecast" + self.model,output_png_dir=self.results_dir) 
+
+
+
+    def plot_generate_images(self,stochastic_sample_ind,stochastic_plot_id=0):
+        if stochastic_sample_ind == stochastic_plot_id: 
+            Postprocess.plot_seq_imgs(imgs=self.gen_images_denorm[self.context_frames:,:,:,0],lats=self.lats,lons=self.lons,
+                                      ts=self.ts[self.context_frames+1:],label="Forecast by Model " + self.model,output_png_dir=self.results_dir) 
+        else:
+            pass
 
 
     def save_to_netcdf_for_stochastic_generate_images(self,persistent_images_,input_images_,gen_images_stochastic,fl_name="test.nc"):
@@ -447,6 +461,7 @@ class Postprocess(TrainModel,ERA5Pkl2Tfrecords):
             t = ts[i]
             ax1 = plt.subplot(gs[i])
             plt.imshow(imgs[i] ,cmap = 'jet', vmin=270, vmax=300)
+            #plt.imshow(imgs[i] ,cmap = 'jet')
             ax1.title.set_text("t = " + t.strftime("%Y%m%d%H"))
             plt.setp([ax1], xticks = [], xticklabels = [], yticks = [], yticklabels = [])
             if i == 0:
@@ -488,9 +503,9 @@ class Postprocess(TrainModel,ERA5Pkl2Tfrecords):
         # only one pickle file is needed (all hours during the same month)
         if month_start == month_end: 
             # Open files to search for the indizes of the corresponding time
-            time_pickle  = load_pickle_for_persistence(input_dir_pkl, year_start, month_start, 'T')
+            time_pickle  = Postprocess.load_pickle_for_persistence(input_dir_pkl, year_start, month_start, 'T')
             # Open file to search for the correspoding meteorological fields
-            var_pickle  = load_pickle_for_persistence(input_dir_pkl, year_start, month_start, 'X')
+            var_pickle  = Postprocess.load_pickle_for_persistence(input_dir_pkl, year_start, month_start, 'X')
             # Retrieve starting index
             ind = list(time_pickle).index(np.array(ts_persistence[0]))
             #print('Scarlet, Original', ts_persistence)
@@ -515,12 +530,12 @@ class Postprocess(TrainModel,ERA5Pkl2Tfrecords):
                     t_persistence_second_m.append(ts_persistence[t])
         
             # Open files to search for the indizes of the corresponding time
-            time_pickle_first  = self.load_pickle_for_persistence(year_start, month_start, 'T')
-            time_pickle_second = self.load_pickle_for_persistence(year_start, month_end, 'T')
+            time_pickle_first  = Postprocess.load_pickle_for_persistence(input_dir_pkl,year_start, month_start, 'T')
+            time_pickle_second = Postprocess.load_pickle_for_persistence(input_dir_pkl,year_start, month_end, 'T')
         
             # Open file to search for the correspoding meteorological fields
-            var_pickle_first  = self.load_pickle_for_persistence(year_start, month_start, 'X')
-            var_pickle_second = self.load_pickle_for_persistence(year_start, month_end, 'X')
+            var_pickle_first  =  Postprocess.load_pickle_for_persistence(input_dir_pkl,year_start, month_start, 'X')
+            var_pickle_second =  Postprocess.load_pickle_for_persistence(input_dir_pkl,year_start, month_end, 'X')
         
             # Retrieve starting index
             ind_first_m = list(time_pickle_first).index(np.array(t_persistence_first_m[0]))
@@ -543,13 +558,14 @@ class Postprocess(TrainModel,ERA5Pkl2Tfrecords):
         # tolist() is needed for plotting
         return var_persistence, time_persistence.tolist()
     
-    def load_pickle_for_persistence(self,year_start, month_start, pkl_type):
+    @staticmethod
+    def load_pickle_for_persistence(input_dir_pkl,year_start, month_start, pkl_type):
         """Helper to get the content of the pickle files. There are two types in our workflow:
         T_[month].pkl where the time stamp is stored
         X_[month].pkl where the variables are stored, e.g. temperature, geopotential and pressure
         This helper function constructs the directory, opens the file to read it, returns the variable. 
         """
-        path_to_pickle = self.input_dir_pkl+'/'+str(year_start)+'/'+pkl_type+'_{:02}.pkl'.format(month_start)
+        path_to_pickle = input_dir_pkl+'/'+str(year_start)+'/'+pkl_type+'_{:02}.pkl'.format(month_start)
         infile = open(path_to_pickle,'rb')    
         var = pickle.load(infile)
         return var
@@ -575,6 +591,7 @@ def main():
     parser.add_argument("--num_samples", type = int, help = "number of samples in total (all of them by default)")
     parser.add_argument("--num_epochs", type = int, default = 1)
     parser.add_argument("--num_stochastic_samples", type = int, default = 1)
+    parser.add_argument("--stochastic_plot_id", type = int, default = 0, help = "The stochastic generate images index to plot")
     parser.add_argument("--gpu_mem_frac", type = float, default = 0.95, help = "fraction of gpu memory to use")
     parser.add_argument("--seed", type = int, default = 7)
     args = parser.parse_args()
@@ -586,7 +603,7 @@ def main():
 
     test_instance = Postprocess(input_dir=args.input_dir,results_dir=args.results_dir,checkpoint=args.checkpoint,mode="test",
                       batch_size=None,num_samples=args.num_samples,num_stochastic_samples=args.num_stochastic_samples,
-                      gpu_mem_frac=args.gpu_mem_frac,seed=args.seed,args=args)
+                      gpu_mem_frac=args.gpu_mem_frac,seed=args.seed,stochastic_plot_id=args.stochastic_plot_id,args=args)
 
     test_instance.setup()
     test_instance.run()

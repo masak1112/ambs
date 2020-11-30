@@ -9,8 +9,8 @@ import numpy as np
 import json
 import datetime
 
-input_dir =  "/p/project/deepacf/deeprain/video_prediction_shared_folder/preprocessedData/test"
-output_dir = "/p/project/deepacf/deeprain/video_prediction_shared_folder/preprocessedData/test"
+input_dir =  "/p/project/deepacf/deeprain/video_prediction_shared_folder/preprocessedData/era5_test"
+output_dir = "/p/project/deepacf/deeprain/video_prediction_shared_folder/preprocessedData/era5_test"
 datasplit_config = "/p/project/deepacf/deeprain/bing/ambs/video_prediction_tools/data_split/cv_test.json"
 hparams_dict_config = "/p/project/deepacf/deeprain/bing/ambs/video_prediction_tools/hparams/era5/convLSTM/model_hparams.json"
 vars_in = ["T2","MSL","gph500"]
@@ -33,8 +33,8 @@ def test_get_metadata(era5_dataset_case1):
     """
     Test if the meta data extracted properly
     """
-    assert era5_dataset_case1.height == 160
-    assert era5_dataset_case1.width == 128
+    assert era5_dataset_case1.height == 128
+    assert era5_dataset_case1.width == 160
     assert era5_dataset_case1.vars_in == ["T2","MSL","gph500"]
 
 def test_parse_hparams(era5_dataset_case1):
@@ -62,9 +62,9 @@ def test_save_tf_record(era5_dataset_case1):
 
 def test_read_pkl_and_save_tfrecords(era5_dataset_case1):
     print("var in:",era5_dataset_case1.vars_in)
-    month_test = 1
+    month_test = 2
     #Bing comments the following since the test for even one month will take very long time
-    #era5_dataset_case1.read_pkl_and_save_tfrecords(year=2017,month=month_test)
+    era5_dataset_case1.read_pkl_and_save_tfrecords(year=2017,month=month_test)
     #assert the input folder is proper
     #assert era5_dataset_case1.input_file_year=="/p/project/deepacf/deeprain/video_prediction_shared_folder/preprocessedData/era5-Y2010toY2222M01to12-160x128-2970N1500W-T2_MSL_gph500/pickle/2017"
     #assert the output tfrecords is saved properly

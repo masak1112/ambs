@@ -88,6 +88,9 @@ class TestModelVideoPredictionModel(object):
         self.total_loss = tf.reduce_mean(tf.square(self.y_data - self.y))
         self.train_op = tf.train.AdamOptimizer(
             learning_rate = self.learning_rate).minimize(self.total_loss, global_step = self.global_step)
+        
+        self.outputs = {}
+        self.outputs["gen_images"] = self.x[:,1:,:,:,:]
         # Summary op
         self.loss_summary = tf.summary.scalar("total_loss", self.total_loss)
         self.summary_op = tf.summary.merge_all()
@@ -106,3 +109,4 @@ class TestModelVideoPredictionModel(object):
         weights = tf.Variable(tf.random_uniform([1],-1,1.0),name="weights")
         biases = tf.Variable(tf.zeros([1]),name="biases")
         self.y = x_data * weights + biases
+        

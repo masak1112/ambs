@@ -103,8 +103,8 @@ class ERA5Pkl2Tfrecords(ERA5Dataset):
             with open(self.metadata_fl) as f:
                 self.metadata = json.load(f)
             self.frame_size = self.metadata["frame_size"]
-            self.height = self.frame_size["nx"]
-            self.width = self.frame_size["ny"]
+            self.height = self.frame_size["ny"]
+            self.width = self.frame_size["nx"]
             self.variables = self.metadata["variables"]
             self.vars_in = [list(var.values())[0] for var in self.variables]
            

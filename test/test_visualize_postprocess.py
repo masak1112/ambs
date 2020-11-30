@@ -60,7 +60,7 @@ def test_setup_num_samples_per_epoch(vis_case1):
     vis_case1.load_jsons()
     vis_case1.setup_test_dataset()
     vis_case1.setup_num_samples_per_epoch()  
-    assert vis_case1.num_examples_per_epoch == 16
+    assert vis_case1.num_samples_per_epoch == 16
     
 def test_get_data_params(vis_case1):
     vis_case1.get_data_params()
@@ -87,6 +87,7 @@ def test_run_and_plot_inputs_per_batch(vis_case1):
     """
     Test we get the right datasplit data
     """
+    vis_case1.get_stat_file()
     vis_case1.setup_gpu_config()
     vis_case1.init_session()
     vis_case1.run_and_plot_inputs_per_batch()
@@ -101,5 +102,5 @@ def test_run_test(vis_case1):
     Test the running on test dataset
     """
     vis_case1()
-    vis_case1.run_test()
+    vis_case1.run()
 
