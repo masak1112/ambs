@@ -202,7 +202,7 @@ class TrainModel(object):
         """
         Create saver to save the models latest checkpoints, and a summery writer to store the train/val metrics  
         """
-        self.saver = tf.train.Saver(var_list=self.video_model.saveable_variables, max_to_keep=1)
+        self.saver = tf.train.Saver(var_list=self.video_model.saveable_variables, max_to_keep=2)
         self.summary_writer = tf.summary.FileWriter(self.output_dir)
 
     def setup_gpu_config(self):
