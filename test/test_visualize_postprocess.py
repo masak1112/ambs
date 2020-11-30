@@ -65,7 +65,7 @@ def test_setup_num_samples_per_epoch(vis_case1):
 def test_get_data_params(vis_case1):
     vis_case1.get_data_params()
     assert vis_case1.context_frames == 10
-    assert vis_case1.future_frames == 10
+    assert vis_case1.future_length == 10
 
 
 def test_get_coordinates(vis_case1):
