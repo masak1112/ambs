@@ -17,6 +17,7 @@ import cv2
 import numpy as np
 import tensorflow as tf
 import pandas as pd
+import warnings
 import re
 import pickle
 from random import seed
@@ -38,6 +39,7 @@ from main_scripts.main_train_models import *
 from data_preprocess.preprocess_data_step2 import *
 import shutil
 from video_prediction import datasets, models
+
 
 class Postprocess(TrainModel,ERA5Pkl2Tfrecords):
     def __init__(self,input_dir=None,results_dir=None,checkpoint=None,mode="test",
@@ -73,7 +75,6 @@ class Postprocess(TrainModel,ERA5Pkl2Tfrecords):
 
     def __call__(self):
         self.set_seed()
-        self.get_metadata()#get the vars_in variables which contains the list of input variable names
         self.copy_data_model_json()
         self.load_jsons()
         self.setup_test_dataset()
@@ -86,7 +87,6 @@ class Postprocess(TrainModel,ERA5Pkl2Tfrecords):
         self.check_stochastic_samples_ind_based_on_model()
         self.setup_graph()
         self.setup_gpu_config()
-        self.initia_save_data()
        
                 
     def copy_data_model_json(self):
@@ -172,12 +172,6 @@ class Postprocess(TrainModel,ERA5Pkl2Tfrecords):
         """
         self.stat_fl = os.path.join(self.input_dir,"pickle/statistics.json")
  
-    def initia_save_data(self):
-        self.sample_ind = 0
-        self.gen_images_all = []
-        self.persistent_images_all = []
-        self.input_images_all = []
-        return self.sample_ind, self.gen_images_all, self.persistent_images_all, self.input_images_all
 
 
     def make_test_dataset_iterator(self):
@@ -235,6 +229,7 @@ class Postprocess(TrainModel,ERA5Pkl2Tfrecords):
         self.init_session()     
         self.restore(self.sess, self.checkpoint)
         #Loop for samples
+        self.sample_ind = 0
         while self.sample_ind < self.num_samples_per_epoch:
             gen_images_stochastic = []
             if self.num_samples_per_epoch < self.sample_ind:
@@ -275,10 +270,20 @@ class Postprocess(TrainModel,ERA5Pkl2Tfrecords):
                                                             gen_images_stochastic[:,batch_id,:,:,:,:], 
                                                             fl_name="vfp_date_{}_sample_ind_{}.nc".format(ts_batch[batch_id],sample_ind+batch_id))
             
+            
             sample_ind += self.batch_size
 
     @staticmethod
     def denorm_images(stat_fl,input_images_,channel,var):
+        """
+        denormaize one channel of images for particular var
+        args:
+            stat_fl       : str, the path of the statistical json file
+            input_images_ : list/array [seq, lat,lon,channel], the input images are  denormalized
+            channel       : the channel of images going to be denormalized
+            var           : the variable name of the channel, 
+
+        """
         norm_cls  = Norm_data(var)
         norm = 'minmax' #can be replaced by loading option.json from previous step
         with open(stat_fl) as js_file:
@@ -288,6 +293,14 @@ class Postprocess(TrainModel,ERA5Pkl2Tfrecords):
 
     @staticmethod
     def denorm_images_all_channels(stat_fl,input_images_,vars_in):
+        """
+        Denormalized all the channles of images
+        args:
+            stat_fl       : str, the path of the statistical json file
+            input_images_ : list/array [seq, lat,lon,channel], the input images are  denormalized
+            vars_in       : list of str, the variable names of all the channels
+        """
+        
         input_images_all_channles_denorm = []
         input_images_ = np.array(input_images_)
         
@@ -298,19 +311,37 @@ class Postprocess(TrainModel,ERA5Pkl2Tfrecords):
     
     @staticmethod
     def get_one_seq_from_batch(input_images,i):
+        """
+        Get one sequence images from batch images
+        """
         assert (len(np.array(input_images).shape)==5)
         input_images_ = input_images[i,:,:,:,:]
         return input_images_
 
     @staticmethod
     def generate_seq_timestamps(t_start,len_seq=20):
+
+        """
+        Given the start timestampe and generate the len_seq hourly sequence timestamps
+        
+        args:
+            t_start   :int, str, array, the defined start timestamps
+            len_seq   :int, the sequence length for generating hourly timestamps
+        """
         if isinstance(t_start,int): t_start = str(t_start)
-        if isinstance(t_start,np.ndarray):t_start = str(t_start[0])
+        if isinstance(t_start,np.ndarray):
+            warnings.warn("You give array of timestamps, we only use the first timestamp as start datetime to generate sequence timestamps")
+            t_start = str(t_start[0])
+        if not len(t_start) == 8:
+            raise ValueError ("The timestamp gived should following the pattern '%Y%m%d%H' : 2017121209")
         s_datetime = datetime.datetime.strptime(t_start, '%Y%m%d%H')
         seq_ts = [s_datetime + datetime.timedelta(hours = i+1) for i in range(len_seq)]
         return seq_ts
 
     def plot_persistence_images(self):
+        """
+        Plot the persistence images
+        """
        # I am not sure about the number of frames given with context_frames and context_frames +
         Postprocess.plot_seq_imgs(imgs=self.persistence_images[self.context_frames+1:,:,:,0],lats=self.lats,lons=self.lons,
                                   ts=self.ts_persistence[self.context_frames+1:], label="Persistence Forecast" + self.model,output_png_dir=self.results_dir) 
@@ -318,6 +349,9 @@ class Postprocess(TrainModel,ERA5Pkl2Tfrecords):
 
 
     def plot_generate_images(self,stochastic_sample_ind,stochastic_plot_id=0):
+        """
+        Plot the generate image for specific stochastic index
+        """
         if stochastic_sample_ind == stochastic_plot_id: 
             Postprocess.plot_seq_imgs(imgs=self.gen_images_denorm[self.context_frames:,:,:,0],lats=self.lats,lons=self.lons,
                                       ts=self.ts[self.context_frames+1:],label="Forecast by Model " + self.model,output_png_dir=self.results_dir) 

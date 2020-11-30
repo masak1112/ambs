@@ -7,7 +7,7 @@ We took the code implementation from https://github.com/alexlee-gk/video_predict
 """
 
 __email__ = "b.gong@fz-juelich.de"
-__author__ = "Bing Gong, Scarlet Stadtler, Michael Langguth"
+__author__ = "Bing Gong"
 __date__ = "2020-10-22"
 
 import argparse
