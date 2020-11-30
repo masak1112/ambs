@@ -58,7 +58,8 @@ class Postprocess(TrainModel,ERA5Pkl2Tfrecords):
         #                                  model_hparams_dict=model_hparams_dict,model=model,checkpoint=checkpoint,dataset=dataset,
         #                                  gpu_mem_frac=gpu_mem_frac,seed=seed,args=args)        
         self.input_dir = input_dir
-        self.results_dir = results_dir
+        self.results_dir = self.output_dir = results_dir
+        if not os.path.exists(self.results_dir):os.makedirs(self.results_dir)
         self.batch_size = batch_size
         self.gpu_mem_frac = gpu_mem_frac
         self.seed = seed
@@ -75,6 +76,7 @@ class Postprocess(TrainModel,ERA5Pkl2Tfrecords):
 
     def __call__(self):
         self.set_seed()
+        self.get_metadata()
         self.copy_data_model_json()
         self.load_jsons()
         self.setup_test_dataset()
@@ -636,8 +638,6 @@ def main():
     parser.add_argument("--mode", type = str, choices = ['train','val', 'test'], default = 'test',
                         help = 'mode for dataset, val or test.')
     parser.add_argument("--dataset", type = str, help = "dataset class name")
-    parser.add_argument("--dataset_hparams", type = str,
-                        help = "a string of comma separated list of dataset hyperparameters")
     parser.add_argument("--model", type = str, help = "model class name")
     parser.add_argument("--batch_size", type = int, default = 8, help = "number of samples in batch")
     parser.add_argument("--num_samples", type = int, help = "number of samples in total (all of them by default)")
@@ -654,10 +654,10 @@ def main():
     print('------------------------------------- End --------------------------------------')
 
     test_instance = Postprocess(input_dir=args.input_dir,results_dir=args.results_dir,checkpoint=args.checkpoint,mode="test",
-                      batch_size=None,num_samples=args.num_samples,num_stochastic_samples=args.num_stochastic_samples,
+                      batch_size=args.batch_size,num_samples=args.num_samples,num_stochastic_samples=args.num_stochastic_samples,
                       gpu_mem_frac=args.gpu_mem_frac,seed=args.seed,stochastic_plot_id=args.stochastic_plot_id,args=args)
 
-    test_instance.setup()
+    test_instance()
     test_instance.run()
 
 
