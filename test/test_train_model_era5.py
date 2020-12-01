@@ -20,8 +20,8 @@ seed = 1234
 class MyClass:
     def __init__(self, i):
          self.input_dir = i
-         self.dataset = "era5"
-         self.model = "test_model"
+         self.dataset = dataset # Scarlet: because defined above 
+         self.model = model # Scarlet: because define above
 args = MyClass(input_dir)
 
 @pytest.fixture(scope="module")
@@ -121,7 +121,7 @@ def test_make_dataset_iterator_for_val(train_model_case1):
 
 def test_save_dataset_model_params_to_checkpoint_dir(train_model_case1):
     """
-    Test if all the args, model hparamters, data hparamters are saved properly to outoput directory
+    Test if all the args, model hparamters, data hparamters are saved to outoput directory
     """
     train_model_case1.save_dataset_model_params_to_checkpoint_dir()
     #check if options.json was stored in the right place
@@ -144,7 +144,7 @@ def test_create_fetches_for_train(train_model_case1):
     if "train_op" in list(train_model_case1.fetches.keys()):if_train_op = True 
     assert if_train_op == True
     if "g_losses" in list(train_model_case1.fetches.keys()):if_g_losses = True
-    assert if_g_losses == False
+    assert if_g_losses == False #Scarlet: ?
 
 def test_setup_graph(train_model_case1):
     #train_model_case1.setup_graph()
@@ -200,11 +200,12 @@ def test_inputs_varying_seeds(train_model_case1,train_model_case2):
 
 def test_load_params_from_checkpoints_dir(train_model_case1,train_model_case2,train_model_case3):
     """
-    If the checkpoint is provided by user, the model_hparams.json should be override by the one from the checkpoint folder
-    This test will test if the paratermer is override properly
+    If a checkpoint is provided by the user, the model_hparams.json should be overridden by the ones from the checkpoint folder.
+    This test will test if the paratermers areoverridden properly.
     """
     train_model_case3.load_params_from_checkpoints_dir()
     assert train_model_case3.model_hparams_dict_load["batch_size"] == 4
+    # Scarlet: for what do I need the other instanes (case1, case2) in this test? 
 
 
 
