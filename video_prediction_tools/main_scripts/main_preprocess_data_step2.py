@@ -17,12 +17,12 @@ from collections import OrderedDict
 from tensorflow.contrib.training import HParams
 from mpi4py import MPI
 from video_prediction.datasets.base_dataset import VarLenFeatureVideoDataset
-import data_preprocess.process_netCDF_v2
+from data_preprocess.process_netCDF_v2 import *
 from general_utils import get_unique_vars
 from statistics import Calc_data_stat
 from metadata import MetaData
 from normalization import Norm_data
-from video_prediction.datasets.era5_dataset import *
+from data_preprocess.preprocess_data_step2 import ERA5Pkl2Tfrecords
 
 
 
