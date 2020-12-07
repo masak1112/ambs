@@ -72,6 +72,7 @@ class Postprocess(TrainModel,ERA5Pkl2Tfrecords):
         self.args = args 
         self.checkpoint = checkpoint
         self.mode = mode
+        if self.num_samples < self.batch_size: raise ValueError("The number of samples should be at least as large as the batch size. Currently, number of samples: {} batch size: {}".format(self.num_samples, self.batch_size))
     
 
     def __call__(self):
@@ -136,7 +137,8 @@ class Postprocess(TrainModel,ERA5Pkl2Tfrecords):
         
     def setup_num_samples_per_epoch(self):
         """
-        For generating images, the user can define the examples used, and will be taken as num_examples_per_epoch 
+        For generating images, the user can define the examples used, and will be taken as num_examples_per_epoch
+        For testing we only use exactly one epoch, but to be consistent with the training, we keep the name '_per_epoch'
         """
         if self.num_samples:
             if self.num_samples > self.test_dataset.num_examples_per_epoch():
@@ -197,7 +199,7 @@ class Postprocess(TrainModel,ERA5Pkl2Tfrecords):
         stochastic forecasting only suitable for the geneerate models such as SAVP, vae. 
         For convLSTM, McNet only do determinstic forecasting
         """
-        if self.model == "convLSTM" or self.model == "test_model": self.num_stochastic_samples = 1
+        if self.model == "convLSTM" or self.model == "test_model" or self.model == 'mcnet': self.num_stochastic_samples = 1
     
     def init_session(self):
         self.sess = tf.Session(config = self.config)
@@ -233,7 +235,6 @@ class Postprocess(TrainModel,ERA5Pkl2Tfrecords):
         #Loop for samples
         self.sample_ind = 0
         while self.sample_ind < self.num_samples_per_epoch:
-            gen_images_stochastic = []
             if self.num_samples_per_epoch < self.sample_ind:
                 break
             else:
@@ -249,27 +250,28 @@ class Postprocess(TrainModel,ERA5Pkl2Tfrecords):
                 persistent_images_per_batch = []
                 ts_batch = [] 
                 for i in range(self.batch_size):
-                    #generate time stamps for sequences
+                    # generate time stamps for sequences only once, since they are the same for all ensemble members
                     if stochastic_sample_ind == 0: 
                         self.ts = Postprocess.generate_seq_timestamps(self.t_starts[i],len_seq=self.sequence_length)
                         init_date_str = self.ts[0].strftime("%Y%m%d%H")
                         ts_batch.append(init_date_str)
-                         #get persistence_images
+                        # get persistence_images
                         self.persistence_images, self.ts_persistence = Postprocess.get_persistence(self.ts,self.input_dir_pkl)
                         persistent_images_per_batch.append(self.persistence_images)
                         self.plot_persistence_images()
 
-                    #Renormalized data for generate
+                    #Denormalized data for generate
                     gen_images_ = gen_images[i]
                     self.gen_images_denorm = Postprocess.denorm_images_all_channels(self.stat_fl,gen_images_,self.vars_in)
                     gen_images_per_batch.append(self.gen_images_denorm)
  
-                    #only plot when the first stochastic ind 
+                    #only plot when the first stochastic ind otherwise too many plots would be created 
                     self.plot_generate_images(stochastic_sample_ind, self.stochastic_plot_id)
  
             gen_images_stochastic.append(gen_images_per_batch)
             gen_images_stochastic = Postprocess.check_gen_images_stochastic_shape(gen_images_stochastic)         
-            #save input and stochastic generate images to netcdf file
+            # save input and stochastic generate images to netcdf file
+            # For each prediction (either deterministic or ensemble) we create one netCDF file.
             for batch_id in range(self.batch_size):
                 self.save_to_netcdf_for_stochastic_generate_images(self.input_images[batch_id], persistent_images_per_batch[batch_id],
                                                             np.array(gen_images_stochastic)[:,batch_id,:,:,:,:], 
@@ -283,6 +285,10 @@ class Postprocess(TrainModel,ERA5Pkl2Tfrecords):
 
     @staticmethod
     def check_gen_images_stochastic_shape(gen_images_stochastic):
+        """
+        For models with deterministic forecasts, one dimension would be lacking. Therefore, here the array
+        dimension is expanded by one.
+        """
         if len(np.array(gen_images_stochastic).shape) == 6:
             pass
         elif len(np.array(gen_images_stochastic).shape) == 5:
