@@ -51,12 +51,14 @@ class Postprocess(TrainModel,ERA5Pkl2Tfrecords):
         results_dir   :str, the output directory to save results
         checkpoint    :str, the directory point to the checkpoints
         mode          :str, default is test, could be "train","val", and "test"
-        dataset       :str, the dataset type, "era5","moving_mnist", or "kth"
-        stochastic_plot_id :  int the index for stochastic generated images to plot
+        batch_size    :int, the batch size used for generate test samples for each iteration
+        num_samples   :int, the number of test samples used for generating output. the maxium values should be the total number of samples for test dataset
+        num_stochastic_samples: int, for the stochastic models such as SAVP, VAE, it is used for generate a number of ensemble for each prediction. For determinsitic model such as convLSTM, it is default setup to 1
+        stochastic_plot_id :int, the index for stochastic generated images to plot
+        gpu_mem_frac       :int, the gpu fraction 
+        seed               :seed for control test samples
         """
-        #super(Postprocess,self).__init__(input_dir=input_dir,output_dir=None,datasplit_dir=data_split_dir,
-        #                                  model_hparams_dict=model_hparams_dict,model=model,checkpoint=checkpoint,dataset=dataset,
-        #                                  gpu_mem_frac=gpu_mem_frac,seed=seed,args=args)        
+     
         self.input_dir = input_dir
         self.results_dir = self.output_dir = results_dir
         if not os.path.exists(self.results_dir):os.makedirs(self.results_dir)
@@ -68,17 +70,18 @@ class Postprocess(TrainModel,ERA5Pkl2Tfrecords):
         self.stochastic_plot_id = stochastic_plot_id
         self.input_dir_tfrecords = os.path.join(self.input_dir,"tfrecords")
         self.input_dir_pkl = os.path.join(self.input_dir,"pickle") 
-        if checkpoint is None: raise ("The directory point to checkpoint is empty, must be provided for postprocess step")     
         self.args = args 
         self.checkpoint = checkpoint
         self.mode = mode
         if self.num_samples < self.batch_size: raise ValueError("The number of samples should be at least as large as the batch size. Currently, number of samples: {} batch size: {}".format(self.num_samples, self.batch_size))
+        if checkpoint is None: raise ("The directory point to checkpoint is empty, must be provided for postprocess step")     
     
 
     def __call__(self):
         self.set_seed()
         self.get_metadata()
         self.copy_data_model_json()
+        self.save_args_to_option_json()
         self.load_jsons()
         self.setup_test_dataset()
         self.setup_model()
@@ -114,6 +117,16 @@ class Postprocess(TrainModel,ERA5Pkl2Tfrecords):
             shutil.copy(os.path.join(self.checkpoint,"data_dict.json"), os.path.join(self.results_dir,"data_dict.json"))
         else:
             raise FileNotFoundError("the file {} does not exist".format(os.path.join(self.checkpoint,"data_dict.json")))
+
+
+    def save_args_to_option_json(self):
+        """
+        Save the argments defined by user to the results dir
+        """
+    
+        with open(os.path.join(self.results_dir, "options.json"), "w") as f:
+            f.write(json.dumps(vars(self.args), sort_keys=True, indent=4))
+
 
     def load_jsons(self):
         """
@@ -644,11 +657,8 @@ def main():
                         help = "directory with checkpoint or checkpoint name (e.g. checkpoint_dir/model-200000)")
     parser.add_argument("--mode", type = str, choices = ['train','val', 'test'], default = 'test',
                         help = 'mode for dataset, val or test.')
-    parser.add_argument("--dataset", type = str, help = "dataset class name")
-    parser.add_argument("--model", type = str, help = "model class name")
     parser.add_argument("--batch_size", type = int, default = 8, help = "number of samples in batch")
     parser.add_argument("--num_samples", type = int, help = "number of samples in total (all of them by default)")
-    parser.add_argument("--num_epochs", type = int, default = 1)
     parser.add_argument("--num_stochastic_samples", type = int, default = 1)
     parser.add_argument("--stochastic_plot_id", type = int, default = 0, help = "The stochastic generate images index to plot")
     parser.add_argument("--gpu_mem_frac", type = float, default = 0.95, help = "fraction of gpu memory to use")
