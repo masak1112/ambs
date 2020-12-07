@@ -151,6 +151,7 @@ class Postprocess(TrainModel,ERA5Pkl2Tfrecords):
     def get_data_params(self):
         """
         Get the context_frames, future_frames and total frames from hparamters settings.
+        Note that future_frames_length is the number of predicted frames.
         """
         self.context_frames = self.model_hparams_dict_load["context_frames"]
         self.sequence_length = self.model_hparams_dict_load["sequence_length"]
@@ -168,11 +169,11 @@ class Postprocess(TrainModel,ERA5Pkl2Tfrecords):
             self.lons = md.lon
             return md.lat, md.lon
         except:
-            raise ValueError("Error when handling: '"+metadata_fname+"'")
+            raise ValueError("Error when handling latitude and longitude in: '"+metadata_fname+"'")
 
     def get_stat_file(self):
         """
-        Load the statistic files from input directory
+        Load the statistics from statistic file from the input directory
         """
         self.stat_fl = os.path.join(self.input_dir,"pickle/statistics.json")
  
@@ -309,7 +310,7 @@ class Postprocess(TrainModel,ERA5Pkl2Tfrecords):
 
         """
         norm_cls  = Norm_data(var)
-        norm = 'minmax' #can be replaced by loading option.json from previous step
+        norm = 'minmax' # TODO: can be replaced by loading option.json from previous step, if this information is saved there.
         with open(stat_fl) as js_file:
              norm_cls.check_and_set_norm(json.load(js_file),norm)
         input_images_denorm = norm_cls.denorm_var(input_images_[:, :, :,channel], var, norm)
@@ -536,7 +537,7 @@ class Postprocess(TrainModel,ERA5Pkl2Tfrecords):
     @staticmethod
     def get_persistence(ts,input_dir_pkl):
         """This function gets the persistence forecast.
-        'Today's weather will be like yesterday's weather.
+        'Today's weather will be like yesterday's weather.'
     
         Inputs:
         ts: output by generate_seq_timestamps(t_start,len_seq=sequence_length)
@@ -573,7 +574,7 @@ class Postprocess(TrainModel,ERA5Pkl2Tfrecords):
         
             var_persistence  = var_pickle[ind:ind+len(ts_persistence)]
             time_persistence = time_pickle[ind:ind+len(ts_persistence)].ravel()
-            print(' Scarlet Shape of time persistence',time_persistence.shape)
+            #print(' Scarlet Shape of time persistence',time_persistence.shape)
             #print(' Scarlet Shape of var persistence',var_persistence.shape)
     
     
@@ -612,7 +613,7 @@ class Postprocess(TrainModel,ERA5Pkl2Tfrecords):
             time_persistence = np.concatenate((time_pickle_first[ind_first_m:ind_first_m+len(t_persistence_first_m)],
                                           time_pickle_second[ind_second_m:ind_second_m+len(t_persistence_second_m)]), 
                                           axis=0).ravel() # ravel is needed to eliminate the unnecessary dimension (20,1) becomes (20,)
-            print(' Scarlet concatenate and ravel (time)', var_persistence.shape, time_persistence.shape)
+            #print(' Scarlet concatenate and ravel (time)', var_persistence.shape, time_persistence.shape)
             
             
         # tolist() is needed for plotting
