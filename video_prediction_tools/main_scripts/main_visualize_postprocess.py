@@ -51,8 +51,12 @@ class Postprocess(TrainModel,ERA5Pkl2Tfrecords):
         results_dir   :str, the output directory to save results
         checkpoint    :str, the directory point to the checkpoints
         mode          :str, default is test, could be "train","val", and "test"
-        dataset       :str, the dataset type, "era5","moving_mnist", or "kth"
-        stochastic_plot_id :  int the index for stochastic generated images to plot
+        batch_size    :int, the batch size used for generate test samples for each iteration
+        num_samples   :int, the number of test samples used for generating output. the maxium values should be the total number of samples for test dataset
+        num_stochastic_samples: int, for the stochastic models such as SAVP, VAE, it is used for generate a number of ensemble for each prediction. For determinsitic model such as convLSTM, it is default setup to 1
+        stochastic_plot_id :int, the index for stochastic generated images to plot
+        gpu_mem_frac       :int, the gpu fraction 
+        seed               :seed for control test samples
         """
         #super(Postprocess,self).__init__(input_dir=input_dir,output_dir=None,datasplit_dir=data_split_dir,
         #                                  model_hparams_dict=model_hparams_dict,model=model,checkpoint=checkpoint,dataset=dataset,
@@ -643,11 +647,8 @@ def main():
                         help = "directory with checkpoint or checkpoint name (e.g. checkpoint_dir/model-200000)")
     parser.add_argument("--mode", type = str, choices = ['train','val', 'test'], default = 'test',
                         help = 'mode for dataset, val or test.')
-    parser.add_argument("--dataset", type = str, help = "dataset class name")
-    parser.add_argument("--model", type = str, help = "model class name")
     parser.add_argument("--batch_size", type = int, default = 8, help = "number of samples in batch")
     parser.add_argument("--num_samples", type = int, help = "number of samples in total (all of them by default)")
-    parser.add_argument("--num_epochs", type = int, default = 1)
     parser.add_argument("--num_stochastic_samples", type = int, default = 1)
     parser.add_argument("--stochastic_plot_id", type = int, default = 0, help = "The stochastic generate images index to plot")
     parser.add_argument("--gpu_mem_frac", type = float, default = 0.95, help = "fraction of gpu memory to use")
