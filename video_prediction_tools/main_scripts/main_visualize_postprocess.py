@@ -83,6 +83,7 @@ class Postprocess(TrainModel,ERA5Pkl2Tfrecords):
         self.set_seed()
         self.get_metadata()
         self.copy_data_model_json()
+        self.save_args_to_option_json()
         self.load_jsons()
         self.setup_test_dataset()
         self.setup_model()
@@ -118,6 +119,12 @@ class Postprocess(TrainModel,ERA5Pkl2Tfrecords):
             shutil.copy(os.path.join(self.checkpoint,"data_dict.json"), os.path.join(self.results_dir,"data_dict.json"))
         else:
             raise FileNotFoundError("the file {} does not exist".format(os.path.join(self.checkpoint,"data_dict.json")))
+
+
+    def save_args_to_option_json(self):
+        with open(os.path.join(self.results_dir, "options.json"), "w") as f:
+            f.write(json.dumps(vars(self.args), sort_keys=True, indent=4))
+
 
     def load_jsons(self):
         """
