@@ -58,9 +58,7 @@ class Postprocess(TrainModel,ERA5Pkl2Tfrecords):
         gpu_mem_frac       :int, the gpu fraction 
         seed               :seed for control test samples
         """
-        #super(Postprocess,self).__init__(input_dir=input_dir,output_dir=None,datasplit_dir=data_split_dir,
-        #                                  model_hparams_dict=model_hparams_dict,model=model,checkpoint=checkpoint,dataset=dataset,
-        #                                  gpu_mem_frac=gpu_mem_frac,seed=seed,args=args)        
+     
         self.input_dir = input_dir
         self.results_dir = self.output_dir = results_dir
         if not os.path.exists(self.results_dir):os.makedirs(self.results_dir)
@@ -72,11 +70,11 @@ class Postprocess(TrainModel,ERA5Pkl2Tfrecords):
         self.stochastic_plot_id = stochastic_plot_id
         self.input_dir_tfrecords = os.path.join(self.input_dir,"tfrecords")
         self.input_dir_pkl = os.path.join(self.input_dir,"pickle") 
-        if checkpoint is None: raise ("The directory point to checkpoint is empty, must be provided for postprocess step")     
         self.args = args 
         self.checkpoint = checkpoint
         self.mode = mode
         if self.num_samples < self.batch_size: raise ValueError("The number of samples should be at least as large as the batch size. Currently, number of samples: {} batch size: {}".format(self.num_samples, self.batch_size))
+        if checkpoint is None: raise ("The directory point to checkpoint is empty, must be provided for postprocess step")     
     
 
     def __call__(self):
@@ -122,6 +120,10 @@ class Postprocess(TrainModel,ERA5Pkl2Tfrecords):
 
 
     def save_args_to_option_json(self):
+        """
+        Save the argments defined by user to the results dir
+        """
+    
         with open(os.path.join(self.results_dir, "options.json"), "w") as f:
             f.write(json.dumps(vars(self.args), sort_keys=True, indent=4))
 
