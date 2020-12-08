@@ -371,7 +371,7 @@ class VideoPredictionModel(BaseVideoPredictionModel):
             beta2=0.999,
             context_frames=-1,
             sequence_length=-1,
-            clip_length=10, #Bing: TODO What is the clip_length, original is 10,
+            clip_length=10, 
             l1_weight=0.0,
             l2_weight=1.0,
             vgg_cdist_weight=0.0,
@@ -474,18 +474,6 @@ class VideoPredictionModel(BaseVideoPredictionModel):
         # be captured here.
         original_global_variables = tf.global_variables()
 
-
-        # ########Bing: fine-tune#######
-        # variables_to_restore = tf.contrib.framework.get_variables_to_restore(
-        #     exclude = ["discriminator/video/sn_fc4/dense/bias"])
-        # init_fn = tf.contrib.framework.assign_from_checkpoint_fn(checkpoint)
-        # restore_variables = tf.contrib.framework.get_variables("discriminator/video/sn_fc4/dense/bias")
-        # restore_init = tf.variables_initializer(restore_variables)
-        # restore_optimizer = tf.train.GradientDescentOptimizer(
-        #     learning_rate = 0.001)  # TODO: need to change the learning rate
-        # ###Bing: fine-tune#######
-        # skip_vars = {" discriminator_encoder/video_sn_fc4/dense/bias"}
-
         if self.num_gpus <= 1:  # cpu or 1 gpu
             outputs_tuple, losses_tuple, loss_tuple, metrics_tuple = self.tower_fn(self.inputs)
             self.outputs, self.eval_outputs = outputs_tuple
@@ -497,13 +485,6 @@ class VideoPredictionModel(BaseVideoPredictionModel):
             self.g_vars = tf.trainable_variables(self.generator_scope)
             g_optimizer = tf.train.AdamOptimizer(self.learning_rate, self.hparams.beta1, self.hparams.beta2)
             d_optimizer = tf.train.AdamOptimizer(self.learning_rate, self.hparams.beta1, self.hparams.beta2)
-
-            if finetune:
-                ##Bing: fine-tune
-                #self.g_vars = tf.contrib.framework.get_variables("discriminator/video/sn_fc4/dense/bias")#generator/encoder/layer_3/conv2d/kernel/Adam_1
-                self.g_vars = tf.contrib.framework.get_variables("discriminator/encoder/video/sn_conv3_0/conv3d/kernel")
-                self.g_vars_init = tf.variables_initializer(self.g_vars)
-                g_optimizer = tf.train.AdamOptimizer(0.00001)
         
 
             if self.mode == 'train' and (self.d_losses or self.g_losses):
