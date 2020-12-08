@@ -487,7 +487,6 @@ class VideoPredictionModel(BaseVideoPredictionModel):
         # skip_vars = {" discriminator_encoder/video_sn_fc4/dense/bias"}
 
         if self.num_gpus <= 1:  # cpu or 1 gpu
-            print("self.inputs:>20200822",self.inputs)
             outputs_tuple, losses_tuple, loss_tuple, metrics_tuple = self.tower_fn(self.inputs)
             self.outputs, self.eval_outputs = outputs_tuple
             self.d_losses, self.g_losses, g_losses_post = losses_tuple
@@ -505,7 +504,7 @@ class VideoPredictionModel(BaseVideoPredictionModel):
                 self.g_vars = tf.contrib.framework.get_variables("discriminator/encoder/video/sn_conv3_0/conv3d/kernel")
                 self.g_vars_init = tf.variables_initializer(self.g_vars)
                 g_optimizer = tf.train.AdamOptimizer(0.00001)
-                print("############Bing: Fine Tune here##########")
+        
 
             if self.mode == 'train' and (self.d_losses or self.g_losses):
                 with tf.control_dependencies(tf.get_collection(tf.GraphKeys.UPDATE_OPS)):
@@ -525,11 +524,6 @@ class VideoPredictionModel(BaseVideoPredictionModel):
                             g_gradvars = g_optimizer.compute_gradients(g_loss_post, var_list=self.g_vars)
                         with tf.name_scope('g_apply_gradients'):
                             g_train_op = g_optimizer.apply_gradients(g_gradvars)
-                        # #######Bing; finetune########
-                        # with tf.name_scope("finetune_gradients"):
-                        #     finetune_grads_vars = finetune_vars_optimizer.compute_gradients(self.d_loss, var_list = self.finetune_vars)
-                        # with tf.name_scope("finetune_apply_gradients"):
-                        #     finetune_train_op = finetune_vars_optimizer.apply_gradients(finetune_grads_vars)
                     else:
                         g_train_op = tf.no_op()
                 with tf.control_dependencies([g_train_op]):
