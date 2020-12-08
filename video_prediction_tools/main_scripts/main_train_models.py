@@ -336,6 +336,9 @@ class TrainModel(object):
         self.fetches["d_losses"] = self.video_model.d_losses
         self.fetches["d_loss"] = self.video_model.d_loss
         self.fetches["g_loss"] = self.video_model.g_loss
+        self.fetches["total_loss"] = self.video_model.g_loss
+
+
 
     def fetches_for_train_mcnet(self):
         """
@@ -357,7 +360,11 @@ class TrainModel(object):
         """
         Fetch variables in the graph for validation dataset, this can be custermized based on models and based on the needs of users
         """
-        self.val_fetches = {"total_loss": self.video_model.total_loss}
+        if self.video_model.__class__.__name__ == "SAVPVideoPredictionModel":
+            self.val_fetches = {"total_loss": self.video_model.g_loss}
+        else:
+            self.val_fetches = {"total_loss": self.video_model.total_loss}
+        
         self.val_fetches["summary"] = self.video_model.summary_op
 
     def write_to_summary(self):
