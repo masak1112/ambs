@@ -188,6 +188,7 @@ class Postprocess(TrainModel,ERA5Pkl2Tfrecords):
         self.iterator = tf.data.Iterator.from_string_handle(
             self.test_handle, self.test_tf_dataset.output_types, self.test_tf_dataset.output_shapes)
         self.inputs = self.iterator.get_next()
+        self.input_ts = self.inputs["T_start"]
         if self.dataset == "era5" and self.model == "savp":
            del  self.inputs["T_start"]      
 
@@ -212,8 +213,11 @@ class Postprocess(TrainModel,ERA5Pkl2Tfrecords):
         """
         self.input_results = self.sess.run(self.inputs)
         self.input_images = self.input_results["images"]
+        self.t_starts_results = self.sess.run(self.input_ts)
+        print("t_starts_results:",self.t_starts_results)
+        self.t_starts = self.t_starts_results
         #get one seq and the corresponding start time poin
-        self.t_starts = self.input_results["T_start"]
+        #self.t_starts = self.input_results["T_start"]
         for batch_id in range(self.batch_size):
             self.input_images_ = Postprocess.get_one_seq_from_batch(self.input_images,batch_id)
             #Renormalized data for inputs
