@@ -129,5 +129,5 @@ The details can be found [name_convention](docs/structure_name_convention.md)
 
 - Amirpash Mozafarri: a.mozafarri@fz-juelich.de
 - Michael Langguth: m.langguth@fz-juelich.de
-- Bing Gong: b.gong@fz-juelich.de
+- Bing Gong (PI): b.gong@fz-juelich.de
 - Scarlet Stadtler: s.stadtler@fz-juelich.de 
