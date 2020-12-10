@@ -5,35 +5,9 @@ import sys
 import subprocess
 import logging
 import time
-import hashlib
+
  
 # ======================= List of functions ====================================== #
- 
-# check the rank and print it
- 
-def logger(file_name, logger_level, program_name):
-    #  Log file starter
- 
-    logging.basicConfig(filename=file_name, level=logger_level,
-                        format='%(asctime)s:%(levelname)s:%(message)s')
-    logging.debug(' === PyStager is started === ')
-    print(str(program_name) + ' is Running .... ')
- 
- 
-def config_file(config_file_name):
-    params = {}
-    for line in open(config_file_name):
-        line = line.strip()
-        read_in_value = line.split("=")
-        if len(read_in_value) == 2:
-            params[read_in_value[0].strip()] = read_in_value[1].strip()
- 
-    source_dir = str(params["Source_Directory"])
-    print(source_dir)
-    destination_dir = str(params["Destination_Directory"])
-    log_dir = str(params["Log_Directory"])
-    rsync_status = int(params["Rsync_Status"])
-    return source_dir, destination_dir, log_dir, rsync_status
  
  
 def directory_scanner(source_path):
@@ -112,48 +86,3 @@ def sync_file(source_path, destination_dir, job_name, rsync_status):
         os.system(rsync_msg)
  
  
- 
-def hash_directory(source_path,job_name,hash_rep_file,input_status):
-    #sha256_hash = hashlib.sha256()
-    md5_hash = hashlib.md5()
- 
-    ########## Create a hashed file repasitory for direcotry(ies) assigned to node #######
-    hash_repo_text = input_status + "_"+job_name +"_hashed.txt"
-    os.chdir(hash_rep_file)
-    hashed_text_note=open(hash_repo_text,"w+")
- 
-    # job_name is the name of the subdirectory that is going to be processed 
-    directory_to_process = source_path  + job_name
-    # print(directory_to_process)
-    files_list = []
-    for dirpath, dirnames, filenames in os.walk(directory_to_process):
-        files_list.extend(filenames)
-     
-    os.chdir(directory_to_process) # change to the working directory 
- 
-    for file_to_process in filenames:
-         
-        ## ======= this is the sha256 checksum ========= # 
-        #with open(file_to_process,"rb") as f:
-        #    # Read and update hash in chunks of 4K
-        #   for byte_block in iter(lambda: f.read(4096),b""):
-        #       sha256_hash.update(byte_block)
-        #       hashed_file = sha256_hash.hexdigest()
- 
-        with open(file_to_process,"rb") as f:
-            # Read and update hash in chunks of 4K
-           for byte_block in iter(lambda: f.read(4096),b""):
-               md5_hash.update(byte_block)
-               hashed_file = md5_hash.hexdigest()
- 
-        hashed_text_note.write(hashed_file)
- 
-    return
- 
-def md5(fname):
-    md5_hash = hashlib.md5()
-    with open(fname,"rb") as f:
-        # Read and update hash in chunks of 4K
-        for byte_block in iter(lambda: f.read(4096),b""):
-            md5_hash.update(byte_block)
-    return md5_hash.hexdigest()

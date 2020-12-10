@@ -154,3 +154,6 @@ def process_era5_in_dir(job_name,src_dir,target_dir):
             else:
                 print ("==========Processing file {} =============== ".format(src_file))
                 prepare_era5_data_one_file(src_file=src_file,directory_to_process=directory_to_process, target=src_file, target_dir=target_dir2)
+    # here the defeinition of the failure, success is placed  0=success / -1= fatal-failure / +1 = non-fatal -failure 
+    worker_status = 0
+    return worker_status
