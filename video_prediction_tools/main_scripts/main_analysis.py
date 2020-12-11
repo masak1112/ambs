@@ -55,7 +55,7 @@ class Analysis(object):
             self.f = json.load(f)
         self.metrics = self.f["metric"]
         self.results_dirs = self.f["results_dir"]
-
+        self.compare_by = self.f["compare_by"]
   
     @staticmethod
     def load_prediction_and_real_from_one_dir(results_dir,var="T2",stochastic_ind=1):
@@ -87,7 +87,7 @@ class Analysis(object):
 
 
     @staticmethod
-    def calculate_metric_one_dir(real, persistent,forecast,metric="mse"):
+    def calculate_metric_one_img(real, persistent,forecast,metric="mse"):
         if metric == "mse":
          #compare real and persistent
             eval_persistent = mse_imgs(real,persistent)
@@ -135,7 +135,7 @@ class Analysis(object):
                     eval_forecast_per_sample_over_ts = []
                     for time in range(len(self.time_forecast)):
                         #loop for each sample and each timestamp
-                        self.eval_persistent, self.eval_forecast = Analysis.calculate_metric_one_dir(real_all[idx][time],persistent_all[idx][time],forecast_all[idx][time], metric=metric)
+                        self.eval_persistent, self.eval_forecast = Analysis.calculate_metric_one_img(real_all[idx][time],persistent_all[idx][time],forecast_all[idx][time], metric=metric)
                         eval_persistent_per_sample_over_ts.append(self.eval_persistent)
                         eval_forecast_per_sample_over_ts.append(self.eval_forecast)
 
@@ -151,9 +151,19 @@ class Analysis(object):
 
          
     def load_results_dir_parameters(self):
-        pass    
-    
+        self.compare_by_values = []
+        for results_dir in self.results_dirs:
+            with open(os.path.join(results_dir, "options.json")) as f:
+                self.options = json.loads(f.read())
+                if self.compare_by == "model":
+                    self.compare_by_values.append(self.options["model"])
   
+    
+    def calculate_mean_vars_forecast(self):
+        for results_dir in self.results_dirs:
+            evals = self.eval_val[results_dir]
+           
+         
+
     def plot_results(self):
         pass
-     
