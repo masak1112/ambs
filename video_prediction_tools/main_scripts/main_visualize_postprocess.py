@@ -486,17 +486,17 @@ class Postprocess(TrainModel,ERA5Pkl2Tfrecords):
             ################ forecast group  #####################
             for stochastic_sample_ind in range(self.num_stochastic_samples):
                 #Temperature:
-                t2 = nc_file.createVariable("/forecast/T2/stochastic/{}".format(stochastic_sample_ind),"f4",("time_forecast","lat","lon"), zlib = True)
+                t2 = nc_file.createVariable("/forecasts/T2/stochastic/{}".format(stochastic_sample_ind),"f4",("time_forecast","lat","lon"), zlib = True)
                 t2.units = 'K'
                 t2[:,:,:] = gen_images_[stochastic_sample_ind,self.context_frames-1:,:,:,0]
 
                 #mean sea level pressure
-                msl = nc_file.createVariable("/forecast/MSL/stochastic/{}".format(stochastic_sample_ind),"f4",("time_forecast","lat","lon"), zlib = True)
+                msl = nc_file.createVariable("/forecasts/MSL/stochastic/{}".format(stochastic_sample_ind),"f4",("time_forecast","lat","lon"), zlib = True)
                 msl.units = 'Pa'
                 msl[:,:,:] = gen_images_[stochastic_sample_ind,self.context_frames-1:,:,:,1]
 
                 #Geopotential at 500 
-                gph500 = nc_file.createVariable("/forecast/GPH500/stochastic/{}".format(stochastic_sample_ind),"f4",("time_forecast","lat","lon"), zlib = True)
+                gph500 = nc_file.createVariable("/forecasts/GPH500/stochastic/{}".format(stochastic_sample_ind),"f4",("time_forecast","lat","lon"), zlib = True)
                 gph500.units = 'm'
                 gph500[:,:,:] = gen_images_[stochastic_sample_ind,self.context_frames-1:,:,:,2]        
 
