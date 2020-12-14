@@ -7,32 +7,19 @@ __author__ = "Bing Gong"
 __date__ = "2020-11-10"
 
 import argparse
-import errno
 import os
-from os import path
-import sys
-import math
-import random
-import cv2
 import numpy as np
 import tensorflow as tf
-import pandas as pd
 import warnings
-import re
 import pickle
 from random import seed
 import datetime
 import json
-from os.path import dirname
 from netCDF4 import Dataset,date2num
 import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
-import matplotlib.animation as animation
-from video_prediction import datasets, models
-from matplotlib.colors import LinearSegmentedColormap
-from skimage.metrics import structural_similarity as ssim
 from normalization import Norm_data
 from metadata import MetaData as MetaData
 from main_scripts.main_train_models import *
@@ -42,20 +29,23 @@ from video_prediction import datasets, models
 
 
 class Postprocess(TrainModel,ERA5Pkl2Tfrecords):
-    def __init__(self,input_dir=None,results_dir=None,checkpoint=None,mode="test",
-                      batch_size=None,num_samples=None,num_stochastic_samples=1,stochastic_plot_id=0,
-                      gpu_mem_frac=None,seed=None,args=None):
+    def __init__(self, input_dir=None, results_dir=None, checkpoint=None, mode="test",
+                      batch_size=None, num_samples=None, num_stochastic_samples=1, stochastic_plot_id=0,
+                      gpu_mem_frac=None, seed=None,args=None):
         """
         The function for inference, generate results and images
-        input_dir     :str, the root directory of tfrecords 
-        results_dir   :str, the output directory to save results
-        checkpoint    :str, the directory point to the checkpoints
-        mode          :str, default is test, could be "train","val", and "test"
-        batch_size    :int, the batch size used for generate test samples for each iteration
-        num_samples   :int, the number of test samples used for generating output. the maxium values should be the total number of samples for test dataset
-        num_stochastic_samples: int, for the stochastic models such as SAVP, VAE, it is used for generate a number of ensemble for each prediction. For determinsitic model such as convLSTM, it is default setup to 1
-        stochastic_plot_id :int, the index for stochastic generated images to plot
-        gpu_mem_frac       :int, the gpu fraction 
+        input_dir     :str, The root directory of tfrecords
+        results_dir   :str, The output directory to save results
+        checkpoint    :str, The directory point to the checkpoints
+        mode          :str, Default is test, could be "train","val", and "test"
+        batch_size    :int, The batch size used for generating test samples for each iteration
+        num_samples   :int, The number of test samples used for generating output.
+                            The maximum values should be the total number of samples for test dataset
+        num_stochastic_samples: int, for the stochastic models such as SAVP, VAE, it is used for generate a number of
+                                     ensemble for each prediction.
+                                     For deterministic model such as convLSTM, it is default setup to 1
+        stochastic_plot_id :int, the index for stochastically generated images to plot
+        gpu_mem_frac       :int, GPU memory fraction to be used
         seed               :seed for control test samples
         """
      
@@ -68,8 +58,8 @@ class Postprocess(TrainModel,ERA5Pkl2Tfrecords):
         self.num_samples = num_samples
         self.num_stochastic_samples = num_stochastic_samples
         self.stochastic_plot_id = stochastic_plot_id
-        self.input_dir_tfrecords = os.path.join(self.input_dir,"tfrecords")
-        self.input_dir_pkl = os.path.join(self.input_dir,"pickle") 
+        self.input_dir_tfrecords = os.path.join(self.input_dir, "tfrecords")
+        self.input_dir_pkl = os.path.join(self.input_dir, "pickle")
         self.args = args 
         self.checkpoint = checkpoint
         self.mode = mode
@@ -100,18 +90,22 @@ class Postprocess(TrainModel,ERA5Pkl2Tfrecords):
         Copy the datasplit_conf.json model.json files from checkpoints directory to results_dir
         """
         if os.path.isfile(os.path.join(self.checkpoint,"options.json")):
-            shutil.copy(os.path.join(self.checkpoint,"options.json"), os.path.join(self.results_dir,"options_checkpoints.json"))                  
+            shutil.copy(os.path.join(self.checkpoint,"options.json"),
+                        os.path.join(self.results_dir,"options_checkpoints.json"))
         else:
             raise FileNotFoundError("the file {} does not exist".format(os.path.join(self.checkpoint,"options.json")))
         if os.path.isfile(os.path.join(self.checkpoint,"dataset_hparams.json")):
-            shutil.copy(os.path.join(self.checkpoint,"dataset_hparams.json"), os.path.join(self.results_dir,"dataset_hparams.json"))
+            shutil.copy(os.path.join(self.checkpoint,"dataset_hparams.json"),
+                        os.path.join(self.results_dir,"dataset_hparams.json"))
         else:
             raise FileNotFoundError("the file {} does not exist".format(os.path.join(self.checkpoint,"dataset_hparams.json"))) 
 
         if os.path.isfile(os.path.join(self.checkpoint,"model_hparams.json")):
-            shutil.copy(os.path.join(self.checkpoint,"model_hparams.json"), os.path.join(self.results_dir,"model_hparams.json"))
+            shutil.copy(os.path.join(self.checkpoint,"model_hparams.json"),
+                        os.path.join(self.results_dir,"model_hparams.json"))
         else:
-            raise FileNotFoundError("the file {} does not exist".format(os.path.join(self.checkpoint,"model_hparams.json")))
+            raise FileNotFoundError("the file {} does not exist".format(os.path.join(self.checkpoint,
+                                                                                     "model_hparams.json")))
 
         if os.path.isfile(os.path.join(self.checkpoint,"data_dict.json")):
             shutil.copy(os.path.join(self.checkpoint,"data_dict.json"), os.path.join(self.results_dir,"data_dict.json"))
@@ -205,7 +199,7 @@ class Postprocess(TrainModel,ERA5Pkl2Tfrecords):
             self.test_handle, self.test_tf_dataset.output_types, self.test_tf_dataset.output_shapes)
         self.inputs = self.iterator.get_next()
         if self.dataset == "era5" and self.model == "savp":
-           del  self.inputs["T_start"]      
+           del self.inputs["T_start"]
 
 
     def check_stochastic_samples_ind_based_on_model(self):
@@ -213,7 +207,10 @@ class Postprocess(TrainModel,ERA5Pkl2Tfrecords):
         stochastic forecasting only suitable for the geneerate models such as SAVP, vae. 
         For convLSTM, McNet only do determinstic forecasting
         """
-        if self.model == "convLSTM" or self.model == "test_model" or self.model == 'mcnet': self.num_stochastic_samples = 1
+        if self.model == "convLSTM" or self.model == "test_model" or self.model == 'mcnet':
+            if self.num_stochastic_samples > 1:
+                print("Number of samples for deterministic model cannot be larger than 1. Higher values are ignored.")
+            self.num_stochastic_samples = 1
     
     def init_session(self):
         self.sess = tf.Session(config = self.config)
@@ -252,34 +249,37 @@ class Postprocess(TrainModel,ERA5Pkl2Tfrecords):
             if self.num_samples_per_epoch < self.sample_ind:
                 break
             else:
-                self.input_results, self.input_images,self.t_starts = self.run_and_plot_inputs_per_batch() #run the inputs and plot each sequence images
+                self.input_results, self.input_images, self.t_starts = self.run_and_plot_inputs_per_batch() #run the inputs and plot each sequence images
 
             feed_dict = {input_ph: self.input_results[name] for name, input_ph in self.inputs.items()}
             gen_images_stochastic = [] #[stochastic_ind,batch_size,seq_len,lat,lon,channels]
             #Loop for stochastics 
             for stochastic_sample_ind in range(self.num_stochastic_samples):
                 gen_images = self.sess.run(self.video_model.outputs['gen_images'], feed_dict=feed_dict)#return [batchsize,seq_len,lat,lon,channel]
-                assert gen_images.shape[1] == self.sequence_length-1 #The generate images seq_len should be sequence_len -1, since the last one is not used for comparing with groud truth 
+                assert gen_images.shape[1] == self.sequence_length - 1 #The generate images seq_len should be sequence_len -1, since the last one is not used for comparing with groud truth
                 gen_images_per_batch = []
                 persistent_images_per_batch = []
                 ts_batch = [] 
                 for i in range(self.batch_size):
                     # generate time stamps for sequences only once, since they are the same for all ensemble members
                     if stochastic_sample_ind == 0: 
-                        self.ts = Postprocess.generate_seq_timestamps(self.t_starts[i],len_seq=self.sequence_length)
+                        self.ts = Postprocess.generate_seq_timestamps(self.t_starts[i], len_seq=self.sequence_length)
                         init_date_str = self.ts[0].strftime("%Y%m%d%H")
                         ts_batch.append(init_date_str)
                         # get persistence_images
-                        self.persistence_images, self.ts_persistence = Postprocess.get_persistence(self.ts,self.input_dir_pkl)
+                        self.persistence_images, self.ts_persistence = Postprocess.get_persistence(self.ts,
+                                                                                                   self.input_dir_pkl)
                         persistent_images_per_batch.append(self.persistence_images)
                         self.plot_persistence_images()
 
-                    #Denormalized data for generate
+                    # Denormalized data for generate
                     gen_images_ = gen_images[i]
-                    self.gen_images_denorm = Postprocess.denorm_images_all_channels(self.stat_fl,gen_images_,self.vars_in)
+                    self.gen_images_denorm = Postprocess.denorm_images_all_channels(self.stat_fl, gen_images_,
+                                                                                    self.vars_in)
                     gen_images_per_batch.append(self.gen_images_denorm)
  
-                    #only plot when the first stochastic ind otherwise too many plots would be created 
+                    # only plot when the first stochastic ind otherwise too many plots would be created
+                    # only plot the stochastic results of user-defined ind
                     self.plot_generate_images(stochastic_sample_ind, self.stochastic_plot_id)
  
             gen_images_stochastic.append(gen_images_per_batch)
