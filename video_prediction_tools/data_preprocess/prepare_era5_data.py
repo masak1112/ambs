@@ -1,11 +1,15 @@
-
+"""
+Functions required for extracting ERA5 data.
+"""
 import numpy as np
 from datetime import datetime
 from netCDF4 import Dataset, date2num
 from shiftgrid import shiftgrid
 import os
 
-AUTHOR = 'Severin Hussmann (s.hussmann@fz-juelich.de)'
+__email__ = "b.gong@fz-juelich.de"
+__author__ = "Bing Gong, Scarlet Stadtler, Michael Langguth, Severin Hussmann"
+__date__ = "unknown"
 # specify source and target directories
 
 def source_file_name(year, month, day, hour):
