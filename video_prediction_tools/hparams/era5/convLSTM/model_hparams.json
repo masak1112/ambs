@@ -5,7 +5,8 @@
     "max_epochs":20,
     "context_frames":10,
     "sequence_length":20,
-    "loss_fun":"rmse"
+    "loss_fun":"rmse",
+    "shuffle_on_val":false
 
 }
 

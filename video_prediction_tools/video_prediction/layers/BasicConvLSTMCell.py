@@ -87,7 +87,13 @@ class BasicConvLSTMCell(ConvRNNCell):
                 c, h = state
             else:
                 c, h = tf.split(axis = 3, num_or_size_splits = 2, value = state)
-            concat = _conv_linear([inputs, h], self.filter_size, self.num_features * 4, True)
+
+            input_h = [inputs,h]
+            #Bing20200930#replace with non-linear convolutional layers
+            #concat = _conv_linear([inputs, h], self.filter_size, self.num_features * 4, True)
+            input_h_con = tf.concat(axis = 3, values = input_h)
+            concat = conv_layer(input_h_con, self.filter_size, 1, self.num_features*4, "decode_1", activate="sigmoid")  
+
             print("concat1:",concat)
             # i = input_gate, j = new_input, f = forget_gate, o = output_gate
             i, j, f, o = tf.split(axis = 3, num_or_size_splits = 4, value = concat)
