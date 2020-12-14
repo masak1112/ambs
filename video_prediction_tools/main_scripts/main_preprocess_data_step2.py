@@ -3,7 +3,7 @@ Driver for preprocessing step 2 which parses the input arguments from the runscr
 and performs parallelization with OpenMPI.
 """
 __email__ = "b.gong@fz-juelich.de"
-__author__ = "Bing Gong, Scarlet Stadtler,Michael Langguth"
+__author__ = "Bing Gong"
 
 # import modules
 import os

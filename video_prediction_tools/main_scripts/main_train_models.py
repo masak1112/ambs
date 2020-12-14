@@ -7,7 +7,7 @@ We took the code implementation from https://github.com/alexlee-gk/video_predict
 """
 
 __email__ = "b.gong@fz-juelich.de"
-__author__ = "Bing Gong, Scarlet Stadtler, Michael Langguth"
+__author__ = "Bing Gong"
 __date__ = "2020-10-22"
 
 import argparse
@@ -56,16 +56,17 @@ class TrainModel(object):
         self.seed = seed
         self.args = args
         self.save_interval = save_interval
-        self.check_output_dir()
 
     def setup(self):
+        self.generate_output_dir()
         self.set_seed()
+        self.get_model_hparams_dict()
         self.load_params_from_checkpoints_dir()
         self.setup_dataset()
         self.setup_model()
         self.make_dataset_iterator()
         self.setup_graph()
-        self.save_dataset_model_params_to_output_dir()
+        self.save_dataset_model_params_to_checkpoint_dir(dataset=self.train_dataset,video_model=self.video_model)
         self.count_parameters()
         self.create_saver_and_writer()
         self.setup_gpu_config()
@@ -109,7 +110,6 @@ class TrainModel(object):
         If the checkpoint is given, the configuration of dataset, model and options in the checkpoint dir will be
         restored and used for continue training.
         """
-        self.get_model_hparams_dict()
         if self.checkpoint:
             self.checkpoint_dir = os.path.normpath(self.checkpoint)
             if not os.path.isdir(self.checkpoint):
@@ -180,19 +180,19 @@ class TrainModel(object):
            del self.inputs["T_start"]
 
 
-    def save_dataset_model_params_to_output_dir(self):
+
+    def save_dataset_model_params_to_checkpoint_dir(self, dataset, video_model):
         """
         Save all setup configurations such as args, data_hparams, and model_hparams into output directory
         """
         with open(os.path.join(self.output_dir, "options.json"), "w") as f:
             f.write(json.dumps(vars(self.args), sort_keys=True, indent=4))
         with open(os.path.join(self.output_dir, "dataset_hparams.json"), "w") as f:
-            f.write(json.dumps(self.train_dataset.hparams.values(), sort_keys=True, indent=4))
+            f.write(json.dumps(dataset.hparams.values(), sort_keys=True, indent=4))
         with open(os.path.join(self.output_dir, "model_hparams.json"), "w") as f:
-            f.write(json.dumps(self.video_model.hparams.values(), sort_keys=True, indent=4))
-        with open(os.path.join(self.output_dir, "datasplit_dict.json"), "w") as f:
-            f.write(json.dumps(self.train_dataset.data_dict, sort_keys=True, indent=4))  
-
+            f.write(json.dumps(video_model.hparams.values(), sort_keys=True, indent=4))
+        with open(os.path.join(self.output_dir, "data_dict.json"), "w") as f:
+            f.write(json.dumps(dataset.data_dict, sort_keys=True, indent=4))
 
 
     def count_parameters(self):
@@ -209,7 +209,7 @@ class TrainModel(object):
         """
         Create saver to save the models latest checkpoints, and a summery writer to store the train/val metrics  
         """
-        self.saver = tf.train.Saver(var_list=self.video_model.saveable_variables, max_to_keep=1)
+        self.saver = tf.train.Saver(var_list=self.video_model.saveable_variables, max_to_keep=2)
         self.summary_writer = tf.summary.FileWriter(self.output_dir)
 
     def setup_gpu_config(self):

@@ -1,3 +1,10 @@
+__email__ = "b.gong@fz-juelich.de"
+__author__ = "Bing Gong, Amirpasha Mozaffari"
+__date__ = "2020-11-10"
+
+
+
+
 from mpi4py import MPI
 import sys
 import subprocess
