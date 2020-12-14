@@ -20,8 +20,8 @@ seed = 1234
 class MyClass:
     def __init__(self, i):
          self.input_dir = i
-         self.dataset = dataset # Scarlet: because defined above 
-         self.model = model # Scarlet: because define above
+         self.dataset = dataset  
+         self.model = model 
 args = MyClass(input_dir)
 
 @pytest.fixture(scope="module")
@@ -144,7 +144,7 @@ def test_create_fetches_for_train(train_model_case1):
     if "train_op" in list(train_model_case1.fetches.keys()):if_train_op = True 
     assert if_train_op == True
     if "g_losses" in list(train_model_case1.fetches.keys()):if_g_losses = True
-    assert if_g_losses == False #Scarlet: ?
+    assert if_g_losses == False 
 
 def test_setup_graph(train_model_case1):
     #train_model_case1.setup_graph()
@@ -205,7 +205,6 @@ def test_load_params_from_checkpoints_dir(train_model_case1,train_model_case2,tr
     """
     train_model_case3.load_params_from_checkpoints_dir()
     assert train_model_case3.model_hparams_dict_load["batch_size"] == 4
-    # Scarlet: for what do I need the other instanes (case1, case2) in this test? 
 
 
 
