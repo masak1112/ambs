@@ -32,7 +32,7 @@ class Analysis(object):
         self.create_analysis_dir()
         self.copy_analysis_config_to_analysis_dir()
         self.load_analysis_config()
-        #self.load_results_dir_parameters()
+        self.load_results_dir_parameters()
         #self.load_prediction_and_persistent_real()
         self.calculate_evaluation_metrics()
         self.save_metrics_all_dir_to_json()
@@ -162,8 +162,27 @@ class Analysis(object):
     def calculate_mean_vars_forecast(self):
         for results_dir in self.results_dirs:
             evals = self.eval_val[results_dir]
-           
-         
+            eval_persistent = evals["persistent"]
+            eval_forecast = evals["forecast"]
+            self.results_dict = {} 
+            for metric in self.metrics:
+                err_stat = []
+                for time in range(len(self.time_forecast)):
+                    forecast_values_all = eval_forecast[metric][:,time,:]
+                    persistent_values_all = eval_persistent[metric][:,time,:]
+                    forecast_mean = np.mean(np.array(forecast_values_all),axis=0)
+                    persistent_mean = np.mean(np.array(persistent_values_all),axis=0)
+                    forecast_var = np.var(np.array(forecast_values_all),axis=0)
+                    persistent_var = np.var(np.array(persistent_values_all),axis=0)
+                    #[time,mean,vars]
+                    self.dict_              
+
 
     def plot_results(self):
         pass
+
+
+
+
+
+   

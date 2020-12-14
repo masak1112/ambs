@@ -4,6 +4,8 @@
 "results_dir": ["/p/home/jusers/gong1/juwels/video_prediction_shared_folder/results/era5_test/convLSTM/20201130T1748_gong1",
 	        "/p/home/jusers/gong1/juwels/video_prediction_shared_folder/results/era5_test/convLSTM/20201130T1748_gong1"],
 
-"metric": ["mse"]
+"metric": ["mse"],
+
+"compare_by":["model"]
 
 }
