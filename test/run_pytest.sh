@@ -28,4 +28,4 @@ source ../video_prediction_tools/env_setup/modules_train.sh
 #rm /p/project/deepacf/deeprain/video_prediction_shared_folder/models/test/* 
 #python -m pytest test_train_model_era5.py
 #python -m pytest test_visualize_postprocess.py
-python -m pytest test_analysis.py
+python -m pytest test_meta_postprocess.py
