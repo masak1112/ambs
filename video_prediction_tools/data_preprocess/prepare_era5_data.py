@@ -1,11 +1,15 @@
-
+"""
+Functions required for extracting ERA5 data.
+"""
 import numpy as np
 from datetime import datetime
 from netCDF4 import Dataset, date2num
 from shiftgrid import shiftgrid
 import os
 
-AUTHOR = 'Severin Hussmann (s.hussmann@fz-juelich.de)'
+__email__ = "b.gong@fz-juelich.de"
+__author__ = "Bing Gong, Scarlet Stadtler, Michael Langguth, Severin Hussmann"
+__date__ = "unknown"
 # specify source and target directories
 
 def source_file_name(year, month, day, hour):
@@ -154,3 +158,6 @@ def process_era5_in_dir(job_name,src_dir,target_dir):
             else:
                 print ("==========Processing file {} =============== ".format(src_file))
                 prepare_era5_data_one_file(src_file=src_file,directory_to_process=directory_to_process, target=src_file, target_dir=target_dir2)
+    # here the defeinition of the failure, success is placed  0=success / -1= fatal-failure / +1 = non-fatal -failure 
+    worker_status = 0
+    return worker_status
