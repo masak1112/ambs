@@ -11,7 +11,7 @@ import argparse
 from mpi4py import MPI
 from general_utils import get_unique_vars
 from statistics import Calc_data_stat
-from video_prediction.datasets.era5_dataset import *
+from data_preprocess.preprocess_data_step2 import *
 
 
 def main():

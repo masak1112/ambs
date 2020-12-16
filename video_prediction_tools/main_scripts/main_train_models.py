@@ -58,7 +58,6 @@ class TrainModel(object):
         self.save_interval = save_interval
 
     def setup(self):
-        self.generate_output_dir()
         self.set_seed()
         self.get_model_hparams_dict()
         self.load_params_from_checkpoints_dir()
