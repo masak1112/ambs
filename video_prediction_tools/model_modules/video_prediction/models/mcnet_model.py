@@ -10,18 +10,18 @@ from collections import OrderedDict
 import numpy as np
 import tensorflow as tf
 from tensorflow.python.util import nest
-from video_prediction import ops, flow_ops
-from video_prediction.models import BaseVideoPredictionModel
-from video_prediction.models import networks
-from video_prediction.ops import dense, pad2d, conv2d, flatten, tile_concat
-from video_prediction.rnn_ops import BasicConv2DLSTMCell, Conv2DGRUCell
-from video_prediction.utils import tf_utils
+from model_modules.video_prediction import ops, flow_ops
+from model_modules.video_prediction.models import BaseVideoPredictionModel
+from model_modules.video_prediction.models import networks
+from model_modules.video_prediction.ops import dense, pad2d, conv2d, flatten, tile_concat
+from model_modules.video_prediction.rnn_ops import BasicConv2DLSTMCell, Conv2DGRUCell
+from model_modules.video_prediction.utils import tf_utils
 from datetime import datetime
 from pathlib import Path
-from video_prediction.layers import layer_def as ld
-from video_prediction.layers.BasicConvLSTMCell import BasicConvLSTMCell
-from video_prediction.layers.mcnet_ops import *
-from video_prediction.utils.mcnet_utils import *
+from model_modules.video_prediction.layers import layer_def as ld
+from model_modules.video_prediction.layers.BasicConvLSTMCell import BasicConvLSTMCell
+from model_modules.video_prediction.layers.mcnet_ops import *
+from model_modules.video_prediction.utils.mcnet_utils import *
 import os
 
 class McNetVideoPredictionModel(BaseVideoPredictionModel):

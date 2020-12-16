@@ -8,8 +8,7 @@ import re
 import tensorflow as tf
 import numpy as np
 import skimage.io
-
-from video_prediction.datasets.base_dataset import VarLenFeatureVideoDataset
+from model_modules.video_prediction.datasets.base_dataset import VarLenFeatureVideoDataset
 
 
 class KTHVideoDataset(VarLenFeatureVideoDataset):
