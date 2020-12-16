@@ -193,6 +193,7 @@ class MetaPostprocess(object):
         """
         Plot the mean and vars for the user-defined metrics
         """
+        
         self.load_results_dir_parameters()
         is_first_persistent=True
         mean_all_persistent = []
@@ -200,11 +201,15 @@ class MetaPostprocess(object):
         mean_all_model = []
         vars_all_model = []
         for results_dir in self.results_dirs:
-            mean_all_persistent.append(self.results_dict[results_dir]["persistent"][0])
-            vars_all_persistent.append(self.results_dict[results_dir]["persistent"][1])
             mean_all_model.append(self.results_dict[results_dir]["forecast"][0])
             vars_all_model.append(self.results_dict[results_dir]["forecast"][1]) 
-    
+        
+        if one_persistent==True:
+            mean_all_model.append(self.results_dict[results_dir]["persistent"][0])
+            vars_all_model.append(self.results_dict[results_dir]["persistent"][1])
+            self.compare_by_values.append("persistent")
+        
+        
         x = np.array(self.compare_by_values)
         y = np.array(mean_all_model)
         e = np.array(vars_all_model)

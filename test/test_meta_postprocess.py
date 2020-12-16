@@ -69,4 +69,5 @@ def test_calculate_mean_vars_forecast(analysis_inst):
 
 
 def test_plot_results(analysis_inst):
+    analysis_inst.compare_by_values[0] = "savp"
     analysis_inst.plot_results()
