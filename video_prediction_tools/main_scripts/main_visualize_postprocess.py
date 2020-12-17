@@ -25,7 +25,7 @@ from metadata import MetaData as MetaData
 from main_scripts.main_train_models import *
 from data_preprocess.preprocess_data_step2 import *
 import shutil
-from video_prediction import datasets, models
+from model_modules.video_prediction import datasets, models
 
 
 class Postprocess(TrainModel,ERA5Pkl2Tfrecords):
@@ -531,7 +531,7 @@ class Postprocess(TrainModel,ERA5Pkl2Tfrecords):
         if len(np.array(imgs).shape)!=3:raise("img dims should be four: (seq_len,lat,lon)")
         if np.array(imgs).shape[0]!= len(ts): raise("The len of timestamps should be equal the image seq_len") 
         fig = plt.figure(figsize=(18,6))
-        gs = gridspec.GridSpec(1, 10)
+        gs = gridspec.GridSpec(1, len(ts))
         gs.update(wspace = 0., hspace = 0.)
         xlables = [round(i,2) for i  in list(np.linspace(np.min(lons),np.max(lons),5))]
         ylabels = [round(i,2) for i  in list(np.linspace(np.max(lats),np.min(lats),5))]
