@@ -547,6 +547,7 @@ class Postprocess(TrainModel,ERA5Pkl2Tfrecords):
                 plt.ylabel(label, fontsize=10)
         plt.savefig(os.path.join(output_png_dir, label + "_TS_" + str(ts[0]) + ".jpg"))
         plt.clf()
+        plt.close()
         output_fname = label + "_TS_" + ts[0].strftime("%Y%m%d%H") + ".jpg"
         print("image {} saved".format(output_fname))
 
