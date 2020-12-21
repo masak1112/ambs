@@ -260,8 +260,9 @@ class Postprocess(TrainModel,ERA5Pkl2Tfrecords):
                 gen_images = self.sess.run(self.video_model.outputs['gen_images'], feed_dict=feed_dict)#return [batchsize,seq_len,lat,lon,channel]
                 assert gen_images.shape[1] == self.sequence_length - 1 #The generate images seq_len should be sequence_len -1, since the last one is not used for comparing with groud truth
                 gen_images_per_batch = []
-                persistent_images_per_batch = []
-                ts_batch = [] 
+                if stochastic_sample_ind == 0: 
+                    persistent_images_per_batch = []
+                    ts_batch = [] 
                 for i in range(self.batch_size):
                     # generate time stamps for sequences only once, since they are the same for all ensemble members
                     if stochastic_sample_ind == 0: 
@@ -269,26 +270,26 @@ class Postprocess(TrainModel,ERA5Pkl2Tfrecords):
                         init_date_str = self.ts[0].strftime("%Y%m%d%H")
                         ts_batch.append(init_date_str)
                         # get persistence_images
-                        self.persistence_images, self.ts_persistence = Postprocess.get_persistence(self.ts,
-                                                                                                   self.input_dir_pkl)
+                        self.persistence_images, self.ts_persistence = Postprocess.get_persistence(self.ts,self.input_dir_pkl)
                         persistent_images_per_batch.append(self.persistence_images)
                         self.plot_persistence_images()
 
                     # Denormalized data for generate
                     gen_images_ = gen_images[i]
-                    self.gen_images_denorm = Postprocess.denorm_images_all_channels(self.stat_fl, gen_images_,
-                                                                                    self.vars_in)
+                    self.gen_images_denorm = Postprocess.denorm_images_all_channels(self.stat_fl, gen_images_, self.vars_in)
                     gen_images_per_batch.append(self.gen_images_denorm)
  
                     # only plot when the first stochastic ind otherwise too many plots would be created
                     # only plot the stochastic results of user-defined ind
                     self.plot_generate_images(stochastic_sample_ind, self.stochastic_plot_id)
  
-            gen_images_stochastic.append(gen_images_per_batch)
+                gen_images_stochastic.append(gen_images_per_batch)
             gen_images_stochastic = Postprocess.check_gen_images_stochastic_shape(gen_images_stochastic)         
             # save input and stochastic generate images to netcdf file
             # For each prediction (either deterministic or ensemble) we create one netCDF file.
+            print("persistent_images_per_batch",len(np.array(persistent_images_per_batch)))
             for batch_id in range(self.batch_size):
+                print("batch_id is here",batch_id)
                 self.save_to_netcdf_for_stochastic_generate_images(self.input_images[batch_id], persistent_images_per_batch[batch_id],
                                                             np.array(gen_images_stochastic)[:,batch_id,:,:,:,:], 
                                                             fl_name="vfp_date_{}_sample_ind_{}.nc".format(ts_batch[batch_id],self.sample_ind+batch_id))
@@ -630,7 +631,8 @@ class Postprocess(TrainModel,ERA5Pkl2Tfrecords):
                                           axis=0).ravel() # ravel is needed to eliminate the unnecessary dimension (20,1) becomes (20,)
             #print(' Scarlet concatenate and ravel (time)', var_persistence.shape, time_persistence.shape)
             
-            
+        if len(time_persistence.tolist()) == 0 : raise ("The time_persistent is empty!")    
+        if len(var_persistence) ==0 : raise ("The var persistence is empty!")
         # tolist() is needed for plotting
         return var_persistence, time_persistence.tolist()
     
