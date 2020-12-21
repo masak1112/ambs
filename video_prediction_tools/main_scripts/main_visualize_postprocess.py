@@ -270,6 +270,7 @@ class Postprocess(TrainModel,ERA5Pkl2Tfrecords):
                         init_date_str = self.ts[0].strftime("%Y%m%d%H")
                         ts_batch.append(init_date_str)
                         # get persistence_images
+                        print("self.ts:",self.ts)
                         self.persistence_images, self.ts_persistence = Postprocess.get_persistence(self.ts,self.input_dir_pkl)
                         persistent_images_per_batch.append(self.persistence_images)
                         self.plot_persistence_images()
@@ -568,28 +569,36 @@ class Postprocess(TrainModel,ERA5Pkl2Tfrecords):
                        in ts_persistence
         """
         ts_persistence = []
+        year_origin = ts[0].year
         for t in range(len(ts)): # Scarlet: this certainly can be made nicer with list comprehension 
             ts_temp = ts[t] - datetime.timedelta(days=1)
             ts_persistence.append(ts_temp)
         t_persistence_start = ts_persistence[0]
         t_persistence_end = ts_persistence[-1]
-        year_start = t_persistence_start.year
+        year_start = t_persistence_start.year #Bing to address the issue #43 and Scarelet please confirm this change
         month_start = t_persistence_start.month
         month_end = t_persistence_end.month
-    
+        print("start year:",year_start)    
         # only one pickle file is needed (all hours during the same month)
         if month_start == month_end: 
             # Open files to search for the indizes of the corresponding time
-            time_pickle  = Postprocess.load_pickle_for_persistence(input_dir_pkl, year_start, month_start, 'T')
+            time_pickle  = list(Postprocess.load_pickle_for_persistence(input_dir_pkl, year_start, month_start, 'T'))
             # Open file to search for the correspoding meteorological fields
-            var_pickle  = Postprocess.load_pickle_for_persistence(input_dir_pkl, year_start, month_start, 'X')
-            # Retrieve starting index
+            var_pickle  = list(Postprocess.load_pickle_for_persistence(input_dir_pkl, year_start, month_start, 'X'))
+            
+            if year_origin != year_start:
+               time_origin_pickle = list(Postprocess.load_pickle_for_persistence(input_dir_pkl, year_origin, 12, 'T'))
+               var_origin_pickle  = list(Postprocess.load_pickle_for_persistence(input_dir_pkl, year_origin, 12, 'X'))            
+               time_pickle.extend(time_origin_pickle)
+               var_pickle.extend(var_origin_pickle)
+            
+           # Retrieve starting index
             ind = list(time_pickle).index(np.array(ts_persistence[0]))
             #print('Scarlet, Original', ts_persistence)
             #print('From Pickle', time_pickle[ind:ind+len(ts_persistence)])
         
-            var_persistence  = var_pickle[ind:ind+len(ts_persistence)]
-            time_persistence = time_pickle[ind:ind+len(ts_persistence)].ravel()
+            var_persistence  = np.array(var_pickle)[ind:ind+len(ts_persistence)]
+            time_persistence = np.array(time_pickle)[ind:ind+len(ts_persistence)].ravel()
             #print(' Scarlet Shape of time persistence',time_persistence.shape)
             #print(' Scarlet Shape of var persistence',var_persistence.shape)
     
@@ -605,24 +614,34 @@ class Postprocess(TrainModel,ERA5Pkl2Tfrecords):
                     t_persistence_first_m.append(ts_persistence[t])
                 if m == month_end:
                     t_persistence_second_m.append(ts_persistence[t])
+            if year_origin == year_start: 
+                # Open files to search for the indizes of the corresponding time
+                time_pickle_first  = Postprocess.load_pickle_for_persistence(input_dir_pkl,year_start, month_start, 'T')
+                time_pickle_second = Postprocess.load_pickle_for_persistence(input_dir_pkl,year_start, month_end, 'T')
         
-            # Open files to search for the indizes of the corresponding time
-            time_pickle_first  = Postprocess.load_pickle_for_persistence(input_dir_pkl,year_start, month_start, 'T')
-            time_pickle_second = Postprocess.load_pickle_for_persistence(input_dir_pkl,year_start, month_end, 'T')
-        
-            # Open file to search for the correspoding meteorological fields
-            var_pickle_first  =  Postprocess.load_pickle_for_persistence(input_dir_pkl,year_start, month_start, 'X')
-            var_pickle_second =  Postprocess.load_pickle_for_persistence(input_dir_pkl,year_start, month_end, 'X')
-        
+                # Open file to search for the correspoding meteorological fields
+                var_pickle_first  =  Postprocess.load_pickle_for_persistence(input_dir_pkl,year_start, month_start, 'X')
+                var_pickle_second =  Postprocess.load_pickle_for_persistence(input_dir_pkl,year_start, month_end, 'X')
+           
+            if year_origin != year_start:
+                # Open files to search for the indizes of the corresponding time
+                time_pickle_second = Postprocess.load_pickle_for_persistence(input_dir_pkl,year_origin, 1, 'T')
+                time_pickle_first = Postprocess.load_pickle_for_persistence(input_dir_pkl,year_start, 12, 'T')
+
+                # Open file to search for the correspoding meteorological fields
+                var_pickle_second  =  Postprocess.load_pickle_for_persistence(input_dir_pkl,year_origin, 1, 'X')
+                var_pickle_first =  Postprocess.load_pickle_for_persistence(input_dir_pkl,year_start, 12, 'X')
+                
+                #print('Scarlet, Original', ts_persistence)
+                #print('From Pickle', time_pickle_first[ind_first_m:ind_first_m+len(t_persistence_first_m)], time_pickle_second[ind_second_m:ind_second_m+len(t_persistence_second_m)])
+                #print(' Scarlet before', time_pickle_first[ind_first_m:ind_first_m+len(t_persistence_first_m)].shape, time_pickle_second[ind_second_m:ind_second_m+len(t_persistence_second_m)].shape)
+            
             # Retrieve starting index
             ind_first_m = list(time_pickle_first).index(np.array(t_persistence_first_m[0]))
+            print ("time_pickle_second:",time_pickle_second)
             ind_second_m = list(time_pickle_second).index(np.array(t_persistence_second_m[0]))
         
-            #print('Scarlet, Original', ts_persistence)
-            #print('From Pickle', time_pickle_first[ind_first_m:ind_first_m+len(t_persistence_first_m)], time_pickle_second[ind_second_m:ind_second_m+len(t_persistence_second_m)])
-            #print(' Scarlet before', time_pickle_first[ind_first_m:ind_first_m+len(t_persistence_first_m)].shape, time_pickle_second[ind_second_m:ind_second_m+len(t_persistence_second_m)].shape)
-        
-            # append the sequence of the second month to the first month
+             # append the sequence of the second month to the first month
             var_persistence  = np.concatenate((var_pickle_first[ind_first_m:ind_first_m+len(t_persistence_first_m)], 
                                           var_pickle_second[ind_second_m:ind_second_m+len(t_persistence_second_m)]), 
                                           axis=0)
@@ -630,7 +649,11 @@ class Postprocess(TrainModel,ERA5Pkl2Tfrecords):
                                           time_pickle_second[ind_second_m:ind_second_m+len(t_persistence_second_m)]), 
                                           axis=0).ravel() # ravel is needed to eliminate the unnecessary dimension (20,1) becomes (20,)
             #print(' Scarlet concatenate and ravel (time)', var_persistence.shape, time_persistence.shape)
-            
+           
+               
+                        
+ 
+           
         if len(time_persistence.tolist()) == 0 : raise ("The time_persistent is empty!")    
         if len(var_persistence) ==0 : raise ("The var persistence is empty!")
         # tolist() is needed for plotting
