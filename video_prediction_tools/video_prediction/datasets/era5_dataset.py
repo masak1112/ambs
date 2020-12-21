@@ -126,7 +126,7 @@ class ERA5Dataset(object):
         if self.filenames:
             self.filenames = sorted(self.filenames)  # ensures order is the same across systems
         if not self.filenames:
-            raise FileNotFoundError('No tfrecords were found in %s.' % self.input_dir_tfrecords)
+            raise FileNotFoundError('No tfrecords were found in %s' % self.input_dir_tfrecords)
 
 
     def get_example_info(self):

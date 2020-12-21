@@ -187,9 +187,11 @@ class Postprocess(TrainModel,ERA5Pkl2Tfrecords):
         self.test_handle = self.test_iterator.string_handle()
         self.iterator = tf.data.Iterator.from_string_handle(
             self.test_handle, self.test_tf_dataset.output_types, self.test_tf_dataset.output_shapes)
-        self.inputs = self.iterator.get_next()
-        if self.dataset == "era5" and self.model == "savp":
-           del  self.inputs["T_start"]      
+        self.inputs1 = self.iterator.get_next()
+        self.inputs = self.inputs1
+       # if self.dataset == "era5" and self.model == "savp":
+       #     self.inputs = self.inputs1
+       #     del  self.inputs["T_start"]      
 
 
     def check_stochastic_samples_ind_based_on_model(self):
@@ -210,7 +212,7 @@ class Postprocess(TrainModel,ERA5Pkl2Tfrecords):
         """
         batch_id :int, the index in each batch size, maximum value is the batch_size
         """
-        self.input_results = self.sess.run(self.inputs)
+        self.input_results = self.sess.run(self.inputs1)
         self.input_images = self.input_results["images"]
         #get one seq and the corresponding start time poin
         self.t_starts = self.input_results["T_start"]
@@ -238,7 +240,6 @@ class Postprocess(TrainModel,ERA5Pkl2Tfrecords):
                 break
             else:
                 self.input_results, self.input_images,self.t_starts = self.run_and_plot_inputs_per_batch() #run the inputs and plot each sequence images
-
             feed_dict = {input_ph: self.input_results[name] for name, input_ph in self.inputs.items()}
             gen_images_stochastic = [] #[stochastic_ind,batch_size,seq_len,lat,lon,channels]
             #Loop for stochastics 
