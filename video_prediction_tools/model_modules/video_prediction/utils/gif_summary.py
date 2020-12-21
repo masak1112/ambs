@@ -21,7 +21,7 @@ import numpy as np
 import tensorflow as tf
 from tensorflow.python.ops import summary_op_util
 #from tensorflow.python.distribute.summary_op_util import skip_summary TODO: IMPORT ERRORS IN juwels
-from video_prediction.utils import ffmpeg_gif
+from model_modules.video_prediction.utils import ffmpeg_gif
 
 
 def py_gif_summary(tag, images, max_outputs, fps):

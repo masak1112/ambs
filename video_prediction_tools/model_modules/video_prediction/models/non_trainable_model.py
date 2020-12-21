@@ -1,6 +1,6 @@
 from collections import OrderedDict
 from tensorflow.python.util import nest
-from video_prediction.utils.tf_utils import transpose_batch_time
+from model_modules.video_prediction.utils.tf_utils import transpose_batch_time
 
 import tensorflow as tf
 

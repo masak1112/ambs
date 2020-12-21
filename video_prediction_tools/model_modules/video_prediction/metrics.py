@@ -1,7 +1,7 @@
 import tensorflow as tf
 #import lpips_tf
-
-
+import numpy as np
+import math
 def mse(a, b):
     return tf.reduce_mean(tf.squared_difference(a, b), [-3, -2, -1])
 
@@ -21,7 +21,9 @@ def psnr_imgs(img1, img2):
     return 20 * math.log10(PIXEL_MAX / math.sqrt(mse))
 
 
-
+def mse_imgs(image1,image2):
+    mse = ((image1 - image2)**2).mean(axis=None)
+    return mse
 # def lpips(input0, input1):
 #     if input0.shape[-1].value == 1:
 #         input0 = tf.tile(input0, [1] * (input0.shape.ndims - 1) + [3])

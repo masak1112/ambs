@@ -18,10 +18,10 @@ import random
 import time
 import numpy as np
 import tensorflow as tf
-from video_prediction import datasets, models
+from model_modules.video_prediction import datasets, models
 import matplotlib.pyplot as plt
 import pickle as pkl
-from video_prediction.utils import tf_utils
+from model_modules.video_prediction.utils import tf_utils
 
 
 class TrainModel(object):

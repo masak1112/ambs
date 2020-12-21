@@ -25,7 +25,7 @@ from metadata import MetaData as MetaData
 from main_scripts.main_train_models import *
 from data_preprocess.preprocess_data_step2 import *
 import shutil
-from video_prediction import datasets, models
+from model_modules.video_prediction import datasets, models
 
 
 class Postprocess(TrainModel,ERA5Pkl2Tfrecords):
@@ -197,11 +197,10 @@ class Postprocess(TrainModel,ERA5Pkl2Tfrecords):
         self.test_handle = self.test_iterator.string_handle()
         self.iterator = tf.data.Iterator.from_string_handle(
             self.test_handle, self.test_tf_dataset.output_types, self.test_tf_dataset.output_shapes)
-        self.inputs1 = self.iterator.get_next()
-        self.inputs = self.inputs1
-       # if self.dataset == "era5" and self.model == "savp":
-       #     self.inputs = self.inputs1
-       #     del  self.inputs["T_start"]      
+        self.inputs = self.iterator.get_next()
+        self.input_ts = self.inputs["T_start"]
+        if self.dataset == "era5" and self.model == "savp":
+           del self.inputs["T_start"]
 
 
     def check_stochastic_samples_ind_based_on_model(self):
@@ -225,10 +224,13 @@ class Postprocess(TrainModel,ERA5Pkl2Tfrecords):
         """
         batch_id :int, the index in each batch size, maximum value is the batch_size
         """
-        self.input_results = self.sess.run(self.inputs1)
+        self.input_results = self.sess.run(self.inputs)
         self.input_images = self.input_results["images"]
+        self.t_starts_results = self.sess.run(self.input_ts)
+        print("t_starts_results:",self.t_starts_results)
+        self.t_starts = self.t_starts_results
         #get one seq and the corresponding start time poin
-        self.t_starts = self.input_results["T_start"]
+        #self.t_starts = self.input_results["T_start"]
         for batch_id in range(self.batch_size):
             self.input_images_ = Postprocess.get_one_seq_from_batch(self.input_images,batch_id)
             #Renormalized data for inputs
@@ -506,17 +508,17 @@ class Postprocess(TrainModel,ERA5Pkl2Tfrecords):
             ################ forecast group  #####################
             for stochastic_sample_ind in range(self.num_stochastic_samples):
                 #Temperature:
-                t2 = nc_file.createVariable("/forecast/T2/stochastic/{}".format(stochastic_sample_ind),"f4",("time_forecast","lat","lon"), zlib = True)
+                t2 = nc_file.createVariable("/forecasts/T2/stochastic/{}".format(stochastic_sample_ind),"f4",("time_forecast","lat","lon"), zlib = True)
                 t2.units = 'K'
                 t2[:,:,:] = gen_images_[stochastic_sample_ind,self.context_frames-1:,:,:,0]
 
                 #mean sea level pressure
-                msl = nc_file.createVariable("/forecast/MSL/stochastic/{}".format(stochastic_sample_ind),"f4",("time_forecast","lat","lon"), zlib = True)
+                msl = nc_file.createVariable("/forecasts/MSL/stochastic/{}".format(stochastic_sample_ind),"f4",("time_forecast","lat","lon"), zlib = True)
                 msl.units = 'Pa'
                 msl[:,:,:] = gen_images_[stochastic_sample_ind,self.context_frames-1:,:,:,1]
 
                 #Geopotential at 500 
-                gph500 = nc_file.createVariable("/forecast/GPH500/stochastic/{}".format(stochastic_sample_ind),"f4",("time_forecast","lat","lon"), zlib = True)
+                gph500 = nc_file.createVariable("/forecasts/GPH500/stochastic/{}".format(stochastic_sample_ind),"f4",("time_forecast","lat","lon"), zlib = True)
                 gph500.units = 'm'
                 gph500[:,:,:] = gen_images_[stochastic_sample_ind,self.context_frames-1:,:,:,2]        
 
@@ -531,7 +533,7 @@ class Postprocess(TrainModel,ERA5Pkl2Tfrecords):
         if len(np.array(imgs).shape)!=3:raise("img dims should be four: (seq_len,lat,lon)")
         if np.array(imgs).shape[0]!= len(ts): raise("The len of timestamps should be equal the image seq_len") 
         fig = plt.figure(figsize=(18,6))
-        gs = gridspec.GridSpec(1, 10)
+        gs = gridspec.GridSpec(1, len(ts))
         gs.update(wspace = 0., hspace = 0.)
         xlables = [round(i,2) for i  in list(np.linspace(np.min(lons),np.max(lons),5))]
         ylabels = [round(i,2) for i  in list(np.linspace(np.max(lats),np.min(lats),5))]

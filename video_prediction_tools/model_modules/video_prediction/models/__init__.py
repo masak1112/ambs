@@ -10,6 +10,7 @@ from .sv2p_model import SV2PVideoPredictionModel
 from .vanilla_vae_model import VanillaVAEVideoPredictionModel
 from .vanilla_convLSTM_model import VanillaConvLstmVideoPredictionModel
 from .mcnet_model import McNetVideoPredictionModel
+from .test_model import TestModelVideoPredictionModel
 from model_modules.model_architectures import known_models
 
 def get_model_class(model):

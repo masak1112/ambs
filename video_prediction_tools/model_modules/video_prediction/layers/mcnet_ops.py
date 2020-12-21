@@ -3,7 +3,7 @@ import numpy as np
 import tensorflow as tf
 
 from tensorflow.python.framework import ops
-from video_prediction.utils.mcnet_utils import *
+from model_modules.video_prediction.utils.mcnet_utils import *
 
 
 def batch_norm(inputs, name, train=True, reuse=False):

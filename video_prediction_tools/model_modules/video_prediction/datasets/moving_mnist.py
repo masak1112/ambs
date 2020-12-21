@@ -14,7 +14,7 @@ from mpi4py import MPI
 from collections import OrderedDict
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
-from video_prediction.datasets.base_dataset import VarLenFeatureVideoDataset
+from model_modules.video_prediction.datasets.base_dataset import VarLenFeatureVideoDataset
 import data_preprocess.process_netCDF_v2 
 from general_utils import get_unique_vars
 from statistics import Calc_data_stat 

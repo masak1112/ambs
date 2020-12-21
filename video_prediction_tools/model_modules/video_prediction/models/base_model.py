@@ -7,9 +7,9 @@ import numpy as np
 import tensorflow as tf
 from tensorflow.contrib.training import HParams
 from tensorflow.python.util import nest
-import video_prediction as vp
-from video_prediction.utils import tf_utils
-from video_prediction.utils.tf_utils import compute_averaged_gradients, reduce_tensors, local_device_setter, \
+import model_modules.video_prediction as vp
+from model_modules.video_prediction.utils import tf_utils
+from model_modules.video_prediction.utils.tf_utils import compute_averaged_gradients, reduce_tensors, local_device_setter, \
     replace_read_ops, print_loss_info, transpose_batch_time, add_gif_summaries, add_scalar_summaries, \
     add_plot_and_scalar_summaries, add_summaries
 

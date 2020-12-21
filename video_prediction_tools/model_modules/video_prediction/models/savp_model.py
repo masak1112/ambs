@@ -2,17 +2,15 @@ import collections
 import functools
 import itertools
 from collections import OrderedDict
-
 import numpy as np
 import tensorflow as tf
 from tensorflow.python.util import nest
-
-from video_prediction import ops, flow_ops
-from video_prediction.models import VideoPredictionModel
-from video_prediction.models import networks
-from video_prediction.ops import dense, pad2d, conv2d, flatten, tile_concat
-from video_prediction.rnn_ops import BasicConv2DLSTMCell, Conv2DGRUCell
-from video_prediction.utils import tf_utils
+from model_modules.video_prediction import ops, flow_ops
+from model_modules.video_prediction.models import VideoPredictionModel
+from model_modules.video_prediction.models import networks
+from model_modules.video_prediction.ops import dense, pad2d, conv2d, flatten, tile_concat
+from model_modules.video_prediction.rnn_ops import BasicConv2DLSTMCell, Conv2DGRUCell
+from model_modules.video_prediction.utils import tf_utils
 
 # Amount to use when lower bounding tensors
 RELU_SHIFT = 1e-12

@@ -1,12 +1,12 @@
 import tensorflow as tf
 from tensorflow.python.util import nest
 
-from video_prediction import ops
-from video_prediction.ops import conv2d
-from video_prediction.ops import dense
-from video_prediction.ops import lrelu
-from video_prediction.ops import pool2d
-from video_prediction.utils import tf_utils
+from model_modules.video_prediction import ops
+from model_modules.video_prediction.ops import conv2d
+from model_modules.video_prediction.ops import dense
+from model_modules.video_prediction.ops import lrelu
+from model_modules.video_prediction.ops import pool2d
+from model_modules.video_prediction.utils import tf_utils
 
 
 def encoder(inputs, nef=64, n_layers=3, norm_layer='instance'):

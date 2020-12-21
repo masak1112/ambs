@@ -41,9 +41,12 @@ destination_dir=/p/project/deepacf/deeprain/video_prediction_shared_folder/model
 # valid identifiers for model-argument are: convLSTM, savp, mcnet and vae
 # the destination_dir_full cannot end up with "/", this will cause to save all the checkpoints issue in the results_dir
 model=convLSTM
+datasplit_dict=../data_split/cv_test.json
 model_hparams=${destination_dir}/model_hparams.json
 
 # run training
-srun python ../main_scripts/main_train_models.py --input_dir  ${source_dir}/tfrecords/ --dataset era5  --model ${model} --model_hparams_dict ${model_hparams} --output_dir ${destination_dir}/
+srun python ../main_scripts/main_train_models.py --input_dir  ${source_dir} --datasplit_dict ${datasplit_dict} --dataset era5  --model ${model} --model_hparams_dict ${model_hparams} --output_dir ${destination_dir}
+
+
 
  

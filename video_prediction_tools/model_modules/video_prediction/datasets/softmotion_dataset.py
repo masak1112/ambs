@@ -1,10 +1,8 @@
 import itertools
 import os
 import re
-
 import tensorflow as tf
-
-from video_prediction.utils import tf_utils
+from model_modules.video_prediction.utils import tf_utils
 from .base_dataset import VideoDataset
 
 
