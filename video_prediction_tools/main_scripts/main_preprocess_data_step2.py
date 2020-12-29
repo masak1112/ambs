@@ -28,8 +28,6 @@ def main():
                             hparams_dict_config=args.hparams_dict_config,
                             sequences_per_file=args.sequences_per_file)
     
-    partition = ins.data_dict
-    partition_data = partition.values()
     years, months = ins.get_years_months()
     input_dir_pkl = os.path.join(args.input_dir, "pickle")
     # ini. MPI
