@@ -38,7 +38,7 @@ def test_load_analysis_config(analysis_inst):
 
 
 def test_read_values_by_var_from_nc(analysis_inst):
-    file_nc = "/p/home/jusers/gong1/juwels/video_prediction_shared_folder/results/era5_test/convLSTM/20201130T1748_gong1/vfp_date_2017031312_sample_ind_229.nc"
+    file_nc = "/p/project/deepacf/deeprain/video_prediction_shared_folder/results/era5-Y2015to2017M01to12-64x64-3930N0000E-T2_MSL_gph500/convLSTM/20201221T181605_gong1_sunny/vfp_date_2017030118_sample_ind_13.nc"
     real,persistent,forecast,time_forecast  = analysis_inst.read_values_by_var_from_nc(fl_nc = file_nc)
     assert len(real) == len(persistent) == len(forecast) 
     assert len(time_forecast) == len(forecast)
