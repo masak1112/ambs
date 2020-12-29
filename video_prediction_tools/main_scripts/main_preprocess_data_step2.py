@@ -17,16 +17,12 @@ from data_preprocess.preprocess_data_step2 import *
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("-input_dir", type=str)
-    parser.add_argument("-output_dir", type=str)
-    parser.add_argument("-datasplit_config", type=str, \
-                        help="The path to the datasplit_config json file which contains the details of train/val/testing")
-    parser.add_argument("-hparams_dict_config", type=str,\
-                        help="The path to the dict that contains hparameters.", default="")
+    parser.add_argument("-sequence_length", type=int, default=20)
     parser.add_argument("-sequences_per_file", type=int, default=20)
     args = parser.parse_args()
-    ins = ERA5Pkl2Tfrecords(input_dir=args.input_dir, output_dir=args.output_dir,
-                            hparams_dict_config=args.hparams_dict_config,
-                            sequences_per_file=args.sequences_per_file)
+    ins = ERA5Pkl2Tfrecords(input_dir=args.input_dir,
+                             sequence_length = args.sequence_length,
+                             sequences_per_file=args.sequences_per_file)
     
     years, months,years_months = ins.get_years_months()
     input_dir_pkl = os.path.join(args.input_dir, "pickle")
@@ -96,8 +92,9 @@ def main():
             year_rank = "Y_{}_M_{}".format(year, my_rank)
             if year_rank in real_years_months:
                 # Initilial instance
-                ins2 = ERA5Pkl2Tfrecords(input_dir=args.input_dir, output_dir=args.output_dir,
-                            hparams_dict_config=args.hparams_dict_config, sequences_per_file=args.sequences_per_file)
+                ins2 = ERA5Pkl2Tfrecords(input_dir=args.input_dir,
+                                         sequence_length = args.sequence_length,
+                                         sequences_per_file=args.sequences_per_file)
                 # create the tfrecords-files
                 ins2.read_pkl_and_save_tfrecords(year=year, month=my_rank)
                 print("Year {} finished", year)

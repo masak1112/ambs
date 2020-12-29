@@ -19,32 +19,26 @@ from model_modules.video_prediction.datasets import ERA5Dataset
 
 
 class ERA5Pkl2Tfrecords(ERA5Dataset):
-    def __init__(self, input_dir=None, output_dir=None, hparams_dict_config=None, \
-                 sequences_per_file=128, norm="minmax"):
+    def __init__(self, input_dir=None,  sequence_length=20, sequences_per_file=128,norm="minmax"):
         """
         This class is used for converting pkl files to tfrecords
         args:
             input_dir            : str, the path to the PreprocessData directory which is parent directory of "Pickle"
                                    and "tfrecords" files directiory.
-            outpout_dir          : str, the one upper  level of the path to save the tfrecords files 
-            datasplit_config     : the path pointing to the datasplit_config json file
-            hparams_dict_config  : the path to the dict that contains hparameters,
+            sequence_length      : int, default is 20, the sequen length per sample
             sequences_per_file   : int, how many sequences/samples per tfrecord to be saved
             norm                 : str, normalization methods from Norm_data class ("minmax" or "znorm";
                                    default: "minmax")
         """
         self.input_dir = input_dir
         self.input_dir_pkl = os.path.join(input_dir,"pickle")
-        self.output_dir = os.path.join(output_dir, "tfrecords")
+        self.output_dir = os.path.join(input_dir, "tfrecords_seq_len_" + str(sequence_length))
         # if the output_dir is not exist, then create it
         os.makedirs(self.output_dir, exist_ok=True)
         # get metadata,includes the var_in, image height, width etc.
         self.get_metadata()
         # Get the data split informaiton
-        self.hparams_dict_config = hparams_dict_config      
-        self.hparams_dict = self.get_model_hparams_dict()
-        self.hparams = self.parse_hparams()
-        self.sequence_length = self.hparams.sequence_length
+        self.sequence_length = sequence_length
         if norm == "minmax" or norm == "znorm":
             self.norm = norm
         else:
