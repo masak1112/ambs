@@ -101,7 +101,6 @@ def main():
             if year_rank in real_years_months:
                 # Initilial instance
                 ins2 = ERA5Pkl2Tfrecords(input_dir=args.input_dir, output_dir=args.output_dir,
-                            datasplit_config=args.datasplit_config,
                             hparams_dict_config=args.hparams_dict_config, sequences_per_file=args.sequences_per_file)
                 # create the tfrecords-files
                 ins2.read_pkl_and_save_tfrecords(year=year, month=my_rank)
