@@ -57,7 +57,6 @@ def main():
         stat_obj.write_stat_json(input_dir_pkl)
 
         # organize parallelized partioning 
-        
         real_years_months = []
         for i in range(len(years)):
             year = years[i]
@@ -87,8 +86,6 @@ def main():
         real_years_months = message_in[1] 
    
         for year in years:
-            # loop over the years in the datasplit_dict which we want to process,
-            # while months that are not in the datasplit_dict are skipped
             year_rank = "Y_{}_M_{}".format(year, my_rank)
             if year_rank in real_years_months:
                 # Initilial instance
