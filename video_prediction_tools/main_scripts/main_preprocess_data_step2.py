@@ -25,7 +25,6 @@ def main():
     parser.add_argument("-sequences_per_file", type=int, default=20)
     args = parser.parse_args()
     ins = ERA5Pkl2Tfrecords(input_dir=args.input_dir, output_dir=args.output_dir,
-                            datasplit_config=args.datasplit_config,
                             hparams_dict_config=args.hparams_dict_config,
                             sequences_per_file=args.sequences_per_file)
     
