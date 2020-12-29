@@ -270,14 +270,14 @@ class TrainModel(object):
         """
         Start session and train the model
         """
-        global_step = tf.train.get_or_create_global_step()
+        self.global_step = tf.train.get_or_create_global_step()
         with tf.Session(config=self.config) as sess:
             print("parameter_count =", sess.run(self.parameter_count))
             sess.run(tf.global_variables_initializer())
             sess.run(tf.local_variables_initializer())
             self.restore(sess, self.checkpoint)
             #sess.graph.finalize()
-            self.start_step = sess.run(global_step)
+            self.start_step = sess.run(self.global_step)
             print("start_step", self.start_step)
             # start at one step earlier to log everything without doing any training
             # step is relative to the start_step
@@ -321,8 +321,7 @@ class TrainModel(object):
        #This is the base fetch that for all the  models
        self.fetches = {"train_op": self.video_model.train_op}         # fetching the optimizer!
        self.fetches["summary"] = self.video_model.summary_op
-       self.fetches["global_step"] = self.video_model.global_step
-       self.fetches["total_loss"] = self.video_model.total_loss
+       self.fetches["global_step"] = self.global_step
        if self.video_model.__class__.__name__ == "McNetVideoPredictionModel": self.fetches_for_train_mcnet()
        if self.video_model.__class__.__name__ == "VanillaConvLstmVideoPredictionModel": self.fetches_for_train_convLSTM()
        if self.video_model.__class__.__name__ == "SAVPVideoPredictionModel": self.fetches_for_train_savp()
@@ -333,7 +332,9 @@ class TrainModel(object):
         """
         Fetch variables in the graph for convLSTM model, this can be custermized based on models and the needs of users
         """
-        pass
+        self.fetches["total_loss"] = self.video_model.total_loss
+ 
+
 
  
     def fetches_for_train_savp(self):
@@ -344,6 +345,9 @@ class TrainModel(object):
         self.fetches["d_losses"] = self.video_model.d_losses
         self.fetches["d_loss"] = self.video_model.d_loss
         self.fetches["g_loss"] = self.video_model.g_loss
+        self.fetches["total_loss"] = self.video_model.g_loss
+
+
 
     def fetches_for_train_mcnet(self):
         """
@@ -359,13 +363,17 @@ class TrainModel(object):
         """
         self.fetches["latent_loss"] = self.video_model.latent_loss
         self.fetches["recon_loss"] = self.video_model.recon_loss
-
+        self.fetches["total_loss"] = self.video_model.total_loss
 
     def create_fetches_for_val(self):
         """
         Fetch variables in the graph for validation dataset, this can be custermized based on models and the needs of users
         """
-        self.val_fetches = {"total_loss": self.video_model.total_loss}
+        if self.video_model.__class__.__name__ == "SAVPVideoPredictionModel":
+            self.val_fetches = {"total_loss": self.video_model.g_loss}
+        else:
+            self.val_fetches = {"total_loss": self.video_model.total_loss}
+        
         self.val_fetches["summary"] = self.video_model.summary_op
 
     def write_to_summary(self):
