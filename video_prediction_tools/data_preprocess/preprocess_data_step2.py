@@ -59,17 +59,19 @@ class ERA5Pkl2Tfrecords(ERA5Dataset):
                 two elements: each contains 1-dim array with the months set from data_split_config json file
         """
         self.months = []
+        self.years_months = []
         #search for pickle names with pattern 'X_{}.pkl'for months
-        self.years  = os.listdir(self.input_dir_pkl)
+        self.years =  [ name for name in os.listdir(self.input_dir_pkl) if os.path.isdir(os.path.join(self.input_dir_pkl,name)) ] 
         #search for folder names from pickle folder to get years
         patt = "X_*.pkl"         
         for year in self.years:
-            print("pahtL:",os.path.join(self.input_dir_pkl,patt))
+            print("pahtL:",os.path.join(self.input_dir_pkl,year,patt))
             months_pkl_list = glob.glob(os.path.join(self.input_dir_pkl,year,patt))
             print ("months_pkl_list",months_pkl_list)
             months_list = [int(m[-6:-4]) for m in months_pkl_list]
             self.months.extend(months_list)
-        return set(self.years), set(self.months)
+            self.years_months.append(months_list)
+        return self.years, list(set(self.months)),self.years_months
 
     def get_stats_file(self):
         """

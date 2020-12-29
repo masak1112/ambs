@@ -28,7 +28,7 @@ def main():
                             hparams_dict_config=args.hparams_dict_config,
                             sequences_per_file=args.sequences_per_file)
     
-    years, months = ins.get_years_months()
+    years, months,years_months = ins.get_years_months()
     input_dir_pkl = os.path.join(args.input_dir, "pickle")
     # ini. MPI
     comm = MPI.COMM_WORLD
@@ -46,16 +46,15 @@ def main():
     
         # loop over whole data set (training, dev and test set) to collect the intermediate statistics
         print("Start collecting statistics from the whole dataset to be processed...")
-        for split in partition.keys():
-            values = partition[split]
-            for year in values.keys():
-                file_dir = os.path.join(stat_dir_prefix, year)
-                for month in values[year]:
-                    if os.path.isfile(os.path.join(file_dir, "stat_" + '{0:02}'.format(month) + ".json")):
-                        # process stat-file:
-                        stat_obj.acc_stat_master(file_dir, int(month))  # process monthly statistic-file
-                    else:
-                        raise ("The stat file does not exist:", os.path.join(file_dir, "stat_" + '{0:02}'.\
+       
+        for year in years:
+            file_dir = os.path.join(stat_dir_prefix, year)
+            for month in months:
+                if os.path.isfile(os.path.join(file_dir, "stat_" + '{0:02}'.format(month) + ".json")):
+                    # process stat-file:
+                    stat_obj.acc_stat_master(file_dir, int(month))  # process monthly statistic-file
+                else:
+                    raise ("The stat file does not exist:", os.path.join(file_dir, "stat_" + '{0:02}'.\
                                                                              format(month) + ".json"))
         # finalize statistics and write to json-file
         stat_obj.finalize_stat_master(vars_uni)
@@ -64,13 +63,13 @@ def main():
         # organize parallelized partioning 
         
         real_years_months = []
-        for year_months in partition_data:
-            print("I am here year:", year_months)
-            for year in year_months.keys():
-                for month in year_months[year]:
-                    print("I am here month", month)
-                    year_month = "Y_{}_M_{}".format(year, month)
-                    real_years_months.append(year_month)
+        for i in range(len(years)):
+            year = years[i]
+            print("I am here year:", year)
+            for month in years_months[i]:
+                print("I am here month", month)
+                year_month = "Y_{}_M_{}".format(year, month)
+                real_years_months.append(year_month)
  
         broadcast_lists = [list(years), real_years_months]
 
