@@ -11,7 +11,6 @@ import datetime
 
 input_dir =  "/p/project/deepacf/deeprain/video_prediction_shared_folder/preprocessedData/era5_test"
 output_dir = "/p/project/deepacf/deeprain/video_prediction_shared_folder/preprocessedData/era5_test"
-datasplit_config = "/p/project/deepacf/deeprain/bing/ambs/video_prediction_tools/data_split/cv_test.json"
 hparams_dict_config = "/p/project/deepacf/deeprain/bing/ambs/video_prediction_tools/hparams/era5/convLSTM/model_hparams.json"
 vars_in = ["T2","MSL","gph500"]
 sequences_per_file = 10
@@ -19,15 +18,12 @@ sequences_per_file = 10
 #generate an instance for ERA5Pkl2Tfrecords
 @pytest.fixture(scope="module")
 def era5_dataset_case1():
-    return ERA5Pkl2Tfrecords(input_dir=input_dir,output_dir=output_dir,datasplit_config=datasplit_config,
-                             hparams_dict_config=hparams_dict_config,sequences_per_file=sequences_per_file)
-
-def test_get_datasplit(era5_dataset_case1):
-    assert input_dir == era5_dataset_case1.input_dir
-    d = era5_dataset_case1.get_datasplit()
+    return ERA5Pkl2Tfrecords(input_dir=input_dir,output_dir=output_dir,
+                             hparams_dict_config=hparams_dict_config,
+                             sequences_per_file=sequences_per_file)
 
 def test_get_months(era5_dataset_case1):
-    assert len(era5_dataset_case1.get_years_months()[1]) == 3
+    assert len(era5_dataset_case1.get_years_months()[1]) == 12
 
 def test_get_metadata(era5_dataset_case1):
     """
