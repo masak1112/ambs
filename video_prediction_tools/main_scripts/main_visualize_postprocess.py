@@ -198,8 +198,9 @@ class Postprocess(TrainModel,ERA5Pkl2Tfrecords):
         self.iterator = tf.data.Iterator.from_string_handle(
             self.test_handle, self.test_tf_dataset.output_types, self.test_tf_dataset.output_shapes)
         self.inputs = self.iterator.get_next()
-        if self.dataset == "era5" and self.model == "savp":
-           del self.inputs["T_start"]
+        self.input_ts = self.inputs["T_start"]
+        #if self.dataset == "era5" and self.model == "savp":
+        #   del self.inputs["T_start"]
 
 
     def check_stochastic_samples_ind_based_on_model(self):
@@ -225,16 +226,23 @@ class Postprocess(TrainModel,ERA5Pkl2Tfrecords):
         """
         self.input_results = self.sess.run(self.inputs)
         self.input_images = self.input_results["images"]
+        self.t_starts_results = self.input_results["T_start"]
+        print("t_starts_results:",self.t_starts_results)
+        self.t_starts = self.t_starts_results
         #get one seq and the corresponding start time poin
-        self.t_starts = self.input_results["T_start"]
+        #self.t_starts = self.input_results["T_start"]
+        self.input_images_denorm_all = []
         for batch_id in range(self.batch_size):
             self.input_images_ = Postprocess.get_one_seq_from_batch(self.input_images,batch_id)
             #Renormalized data for inputs
             ts = Postprocess.generate_seq_timestamps(self.t_starts[batch_id],len_seq=self.sequence_length)
-            self.input_images_denorm = Postprocess.denorm_images_all_channels(self.stat_fl,self.input_images_,self.vars_in)
-            assert len(self.input_images_denorm.shape) == 4
-            Postprocess.plot_seq_imgs(imgs = self.input_images_denorm[self.context_frames+1:,:,:,0],lats=self.lats,lons=self.lons,ts=ts[self.context_frames+1:],label="Ground Truth",output_png_dir=self.results_dir)  
-        return self.input_results, self.input_images,self.t_starts
+            input_images_denorm = Postprocess.denorm_images_all_channels(self.stat_fl,self.input_images_,self.vars_in)
+            assert len(input_images_denorm.shape) == 4
+            Postprocess.plot_seq_imgs(imgs = input_images_denorm[self.context_frames+1:,:,:,0],lats=self.lats,lons=self.lons,ts=ts[self.context_frames+1:],label="Ground Truth",output_png_dir=self.results_dir)
+            
+            self.input_images_denorm_all.append(list(input_images_denorm))
+
+        return self.input_results, np.array(self.input_images_denorm_all),self.t_starts
 
 
     def run(self):
@@ -249,7 +257,7 @@ class Postprocess(TrainModel,ERA5Pkl2Tfrecords):
             if self.num_samples_per_epoch < self.sample_ind:
                 break
             else:
-                self.input_results, self.input_images, self.t_starts = self.run_and_plot_inputs_per_batch() #run the inputs and plot each sequence images
+                self.input_results, self.input_images_denorm_all, self.t_starts = self.run_and_plot_inputs_per_batch() #run the inputs and plot each sequence images
 
             feed_dict = {input_ph: self.input_results[name] for name, input_ph in self.inputs.items()}
             gen_images_stochastic = [] #[stochastic_ind,batch_size,seq_len,lat,lon,channels]
@@ -287,7 +295,8 @@ class Postprocess(TrainModel,ERA5Pkl2Tfrecords):
             # save input and stochastic generate images to netcdf file
             # For each prediction (either deterministic or ensemble) we create one netCDF file.
             for batch_id in range(self.batch_size):
-                self.save_to_netcdf_for_stochastic_generate_images(self.input_images[batch_id], persistent_images_per_batch[batch_id],
+                print("batch_id is here",batch_id)
+                self.save_to_netcdf_for_stochastic_generate_images(self.input_images_denorm_all[batch_id], persistent_images_per_batch[batch_id],
                                                             np.array(gen_images_stochastic)[:,batch_id,:,:,:,:], 
                                                             fl_name="vfp_date_{}_sample_ind_{}.nc".format(ts_batch[batch_id],self.sample_ind+batch_id))
             
@@ -406,6 +415,7 @@ class Postprocess(TrainModel,ERA5Pkl2Tfrecords):
             gen_images_stochastic: list/array (float), [stochastic_number,seq,lat,lon,channel]
             fl_name              : str, the netcdf file name to be saved
         """
+        print("inputs fpor netcdf:",input_images_)
         assert (len(np.array(input_images_).shape)==len(np.array(gen_images_stochastic).shape))-1
         persistent_images_ = np.array(persistent_images_)
         assert len(persistent_images_.shape) == 4 #[seq,lat,lon,channel]
@@ -679,5 +689,4 @@ def main():
 
 
 if __name__ == '__main__':
-    main() 
-
+    main()
