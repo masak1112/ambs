@@ -39,6 +39,7 @@ datasplit_dir=../data_split/cv_test.json
 model=convLSTM
 hparams_dict_config=../hparams/era5/${model}/model_hparams.json
 sequences_per_file=10
+
 # run Preprocessing (step 2 where Tf-records are generated)
-srun python ../main_scripts/main_preprocess_data_step2.py -input_dir ${source_dir} -output_dir ${destination_dir}/tfrecords -datasplit_config ${datasplit_dir}  -hparams_dict_config ${hparams_dict_config} -sequences_per_file ${sequences_per_file}
+srun python ../main_scripts/main_preprocess_data_step2.py -input_dir ${source_dir} -output_dir ${destination_dir}  -datasplit_config ${datasplit_dir}  -hparams_dict_config ${hparams_dict_config} -sequences_per_file ${sequences_per_file}
 

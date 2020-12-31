@@ -78,7 +78,7 @@ class MetaPostprocess(object):
 
     @staticmethod
     def read_values_by_var_from_nc(fl_nc,var="T2",stochastic_ind=0):
-        #if not var in ["T2","MSL","GPH500"]: raise ValueError ("var name is not correct, should be 'T2','MSL',or 'GPH500'")
+        if not var in ["T2","MSL","GPH500"]: raise ValueError ("var name is not correct, should be 'T2','MSL',or 'GPH500'")
         with Dataset(fl_nc, mode = 'r') as fl:
            #load var prediction, real and persistent values
            real = fl["/analysis/reference/"].variables[var][:]
@@ -132,24 +132,6 @@ class MetaPostprocess(object):
         print("shape of list",np.array(eval_forecast_all_dirs).shape)
         evals_forecast = xr.DataArray(eval_forecast_all_dirs, coords=[self.results_dirs, samples , times], dims=["results_dirs", "samples","time_forecast"])
         return evals_forecast
-
-        
-    def save_metrics_all_dir_to_json(self):
-        with open("metrics_results.json","w") as f:
-            json.dump(self.eval_all,f)
-
-         
-    def load_results_dir_parameters(self,compare_by="model"):
-        self.compare_by_values = []
-        for results_dir in self.results_dirs:
-            with open(os.path.join(results_dir, "options_checkpoints.json")) as f:
-                self.options = json.loads(f.read())
-                print("self.options:",self.options)
-                #if self.compare_by == "model":
-                self.compare_by_values.append(self.options[compare_by])
-  
-    
-              
 
     
     def plot_results(self,one_persistent=True):

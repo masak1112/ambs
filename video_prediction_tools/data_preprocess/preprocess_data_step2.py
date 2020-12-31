@@ -14,7 +14,7 @@ import json
 import tensorflow as tf
 from normalization import Norm_data
 import datetime
-from video_prediction.datasets import ERA5Dataset
+from model_modules.video_prediction.datasets import ERA5Dataset
 
 
 class ERA5Pkl2Tfrecords(ERA5Dataset):
@@ -236,6 +236,10 @@ class ERA5Pkl2Tfrecords(ERA5Dataset):
             ERA5Pkl2Tfrecords.save_tf_record(output_fname, list(sequences), t_start_points)
 
     def write_sequence_file(self):
+        """
+        Generate a txt file, with the numbers of sequences for each tfrecords file.
+        This is mainly used for calculting the number of samples for each epoch during training epoch
+        """
         with open(os.path.join(self.output_dir, 'sequence_lengths.txt'), 'w') as seq_file:
             seq_file.write("%d\n" % self.sequences_per_file)
 

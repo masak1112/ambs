@@ -41,9 +41,10 @@ results_dir=/p/project/deepacf/deeprain/video_prediction_shared_folder/results/
 
 # name of model
 model=convLSTM
-exp=[specify experiment name]
+
 # run postprocessing/generation of model results including evaluation metrics
 srun python -u ../main_scripts/main_visualize_postprocess.py \
---input_dir ${source_dir} --dataset_hparams sequence_length=20 --checkpoint  ${checkpoint_dir}/${model}/${exp} \
---mode test --model ${model} --results_dir ${results_dir}/${model}/${exp}/ --batch_size 2 --dataset era5   > generate_era5-out.out
-
+--input_dir ${source_dir}  --checkpoint  ${checkpoint_dir} \
+--mode test --results_dir ${results_dir}  \
+--batch_size 2 --num_samples 20 --num_stochastic_samples 2  \
+  > generate_era5-out.out
