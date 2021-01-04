@@ -34,7 +34,7 @@ if [ -z ${VIRTUAL_ENV} ]; then
    fi
 fi
 
-# declare directory-variables which will be modified appropriately during Preprocessing (invoked by mpi_split_data_multi_years.py)
+# declare directory-variables which will be modified by config_runscript.py
 source_dir=/p/project/deepacf/deeprain/video_prediction_shared_folder/preprocessedData/
 destination_dir=/p/project/deepacf/deeprain/video_prediction_shared_folder/models/
 
