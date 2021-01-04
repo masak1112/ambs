@@ -112,7 +112,6 @@ class MetaPostprocess(object):
         eval_forecast_all_dirs = []
         for results_dir in self.results_dirs:
             real_all, persistent_all, forecast_all, self.time_forecast = MetaPostprocess.load_prediction_and_real_from_one_dir(results_dir,var="T2",stochastic_ind=self.stochastic_ind)
-            
             if is_persistent: forecast_all = persistent_all
             eval_forecast_all = []
             #loop for real data
@@ -133,6 +132,18 @@ class MetaPostprocess(object):
         evals_forecast = xr.DataArray(eval_forecast_all_dirs, coords=[self.results_dirs, samples , times], dims=["results_dirs", "samples","time_forecast"])
         return evals_forecast
 
+
+
+
+    def load_results_dir_parameters(self,compare_by="model"):
+        self.compare_by_values = []
+        for results_dir in self.results_dirs:
+            with open(os.path.join(results_dir, "options_checkpoints.json")) as f:
+                self.options = json.loads(f.read())
+                print("self.options:",self.options)
+                #if self.compare_by == "model":
+                self.compare_by_values.append(self.options[compare_by])
+
     
     def plot_results(self,one_persistent=True):
         """
@@ -148,7 +159,8 @@ class MetaPostprocess(object):
         y = np.array(mean_forecast)
         e = np.array(var_forecast)
        
-        plt.errorbar(t,y[0],e[0],linestyle="None",marker='^')
+       # plt.errorbar(t,y[0],e[0],label="convlstm")
+        plt.errorbar(t,y[0],e[0],label="savp")
         plt.show()
         plt.savefig(os.path.join(self.analysis_dir,self.metrics[0]+".png"))
         plt.close()
