@@ -62,14 +62,16 @@ else
 fi
 
 # add personal email-address to Batch-scripts
-if [[ "${HOST_NAME}" == hdfml* || "${HOST_NAME}" == juwels* ]]; then
+if [[ "${HOST_NAME}" == *hdfml* || "${HOST_NAME}" == *juwels* ]]; then
+    echo "***** Operation on HPC-system *****"
     # load modules and check for their availability
     echo "***** Checking modules required during the workflow... *****"
-    source ${ENV_SETUP_DIR}/modules_preprocess.sh
-    source ${ENV_SETUP_DIR}/modules_train.sh
+    source ${ENV_SETUP_DIR}/modules_preprocess.sh purge
+    source ${ENV_SETUP_DIR}/modules_train.sh purge
     source ${ENV_SETUP_DIR}/modules_postprocess.sh
 
 elif [[ "${HOST_NAME}" == "zam347" ]]; then
+    echo "***** Operation on unknown HPC-system or standard computer *****"
     unset PYTHONPATH
 fi
 
@@ -85,11 +87,11 @@ if [[ "$ENV_EXIST" == 0 ]]; then
   source ${activate_virt_env}
   
   # install some packages not available on HPC software stacks/required on other systems
-  if [[ "${HOST_NAME}" == hdfml* || "${HOST_NAME}" == juwels* ]]; then
+  if [[ "${HOST_NAME}" == *hdfml* || "${HOST_NAME}" == *juwels* ]]; then
     # check module availability for the first time on known HPC-systems
     echo "***** Start installing additional Python modules with pip... *****"
-    pip3 install --no-cache-dir --ignore-installed -r ${ENV_SETUP_DIR}/requirements.txt
-  elif [[ "${HOST_NAME}" == "zam347" ]]; then
+    pip3 install --no-cache-dir -r ${ENV_SETUP_DIR}/requirements.txt
+  else
     echo "***** Start installing additional Python modules with pip... *****"
     pip3 install --upgrade pip
     pip3 install -r ${ENV_SETUP_DIR}/requirements.txt
@@ -123,11 +125,11 @@ if [[ "$ENV_EXIST" == 0 ]]; then
   fi
 elif [[ "$ENV_EXIST" == 1 ]]; then
   echo "ERROR: Virtual environment ${ENV_NAME} already exists, please choose another name or delete the existing one."
-  exit
+  return
 fi
 # Finish by creating runscripts
  # After checking and setting up the virt env, create user-specific runscripts for all steps of the workflow
-if [[ "${HOST_NAME}" == hdfml* || "${HOST_NAME}" == juwels* ]]; then
+if [[ "${HOST_NAME}" == *hdfml* || "${HOST_NAME}" == *juwels* ]]; then
   script_dir=../HPC_scripts
 elif [[ "${HOST_NAME}" == "zam347" ]]; then
   script_dir=../Zam347_scripts
