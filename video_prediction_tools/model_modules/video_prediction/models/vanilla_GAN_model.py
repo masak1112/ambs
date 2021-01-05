@@ -1,6 +1,6 @@
 __email__ = "b.gong@fz-juelich.de"
 __author__ = "Bing Gong"
-__date__ = "2020-11-05"
+__date__ = "2021=01-05"
 
 import collections
 import functools
@@ -119,24 +119,107 @@ class VanillaConvLstmVideoPredictionModel(object):
 
 
 
-   def get_noise(n_samples,z_dim):
+   def get_noise(self,n_samples,z_dim):
        """
        Function for creating noise: Given the dimensions (n_samples,z_dim)
        """ 
        return np.random.uniform(-1., 1., size=[n_samples, z_dim])
 
 
-
-   def get_generator_block(input_dim,output_dim,idx):
-       output1 = ld.conv_layer(input_dim,2,stride=1,num_features=output_dim,idx=idx,activate="linear")
+   def get_generator_block(self,inputs,output_dim,idx):
+       
+       """
+       Generator Block
+       Function for return a neural network of the generator given input and output dimensions
+       args:
+            inputs : the  input vector
+            output_dim: the dimeniosn of output vector
+       return:
+             a generator neural network layer, with a convolutional layers followed by batch normalization and a relu activation
+       
+       """
+       output1 = ld.conv_layer(inputs,kernel_size=2,stride=1,num_features=output_dim,idx=idx,activate="linear")
        output2 = ld.bn_layers(output1,idx,is_train=False)
        output3 = tf.nn.relu(output2)
        return output_3
 
 
-   def generator(z_dim,im_dim,hidden_dim):
+   def generator(self,noise,im_dim,hidden_dim):
        """
+       Function to build up the generator architecture
+       args:
+           noise: a noise tensor with dimension (n_samples,z_dim)
+           im_dim: the dimension of the input image
+           hidden_dim: the inner dimension
+       """
+       with tf.variable_scope("generator",reuse=tf.AUTO_REUSE):
+
+           layer1 = self.get_generator_block(noise,hidden_dim,1)
+           layer2 = self.get_generator_block(layer1,hidden_dim*2,2)
+           layer3 = self.get_generator_block(layer2,hidden_dim*4,3)
+           layer4 = self.get_generator_block(layer3,hidden_dim*8,4)
+           layer5 = ld.conv_layer(layer4,kernel_size=2,stride=1,num_features=im_dim,idx=5,activate="linear")
+           layer6 = tf.nn.sigmoid(layer5,name="6_conv")
+       return layer6
+
+
+
+   def get_discriminator_block(self,inputs,output_dim,idx):
 
        """
+       Distriminator block
+       Function for ruturn a neural network of a descriminator given input and output dimensions
+
+       args:
+           inputs : the dimension of input vector
+           output_dim: the dimension of output dim
+           idx:      : the index for the namespace of this block
+       Return:
+           a distriminator neural network layer with a convolutional layers followed by a leakyRelu function 
+       """
+       output1 = ld.conv_layer(inputs,2,stride=1,nun_features=output_dim,idx=idx,activate="linear")
+       output2 = tf.nn.leaky_relu(output1)
+       return output2
+
+
+   def discriminator(self,image,hidden_dim):
+       """
+       Function that get discriminator architecture      
+       """
+       with tf.variable_scope("discriminator",reuse=tf.AUTO_REUSE):
+           layer1 = self.get_discriminator_block(image,hidden_dim)
+           layer2 = self.get_discriminator_block(layer1,hidden_dim*4)
+           layer3 = self.get_discriminator_block(layer2,hidden_dim*2)
+           layer4 = self.get_discriminator_block(layer3,hidden_dim)
+           layer5 = tf.nn.sigmoid(layer4,1)
+       return layer5
+
+
+   def get_disc_loss(self):
+       """
+       Return the loss of discriminator given inputs
+       """
+       noise = self.get_noise(1000,10)
+       G_samples = self.generator(noise)
+       D_real = self.discriminator(image)
+       D_fake = self.discriminator(G_samples)
+       real_labels = tf.ones_like(D_real)
+       gen_labels = tf.zeros_like(D_fake)
+
+
 
    
+   def define_gan(self,image):
+       noise = self.get_noise(1000,10)
+       G_samples = self.generator(noise)
+       D_real = self.discriminator(image)
+       D_fake = self.discriminator(G_samples)
+
+       discriminator.trainable = False
+
+
+   def generator
+
+
+
+
