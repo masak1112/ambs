@@ -15,8 +15,6 @@ test_nc_fl = "/p/project/deepacf/deeprain/video_prediction_shared_folder/results
 test_dir = "/p/project/deepacf/deeprain/video_prediction_shared_folder/results/era5-Y2015to2017M01to12-64x64-3930N0000E-T2_MSL_gph500/convLSTM/20201221T181605_gong1_sunny"
 
 
-
-
 #setup instance
 @pytest.fixture(scope="module")
 def analysis_inst():
