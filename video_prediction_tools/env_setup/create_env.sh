@@ -42,6 +42,20 @@ WORKING_DIR="$(dirname "$ENV_SETUP_DIR")"
 EXE_DIR="$(basename "$ENV_SETUP_DIR")"
 ENV_DIR=${WORKING_DIR}/${ENV_NAME}
 
+# list of (Batch) scripts used for the steps in the workflow
+# !!! Expects that a template named [script_name]_template.sh exists!!!
+if [[ "${HOST_NAME}" == jwlogin2[1-3]* ]]; then
+  workflow_scripts=(train_model_era5_booster)
+  # another sanity check for Juwels Booster -> ensure running singularity
+  if [[ -z "${SINGULARITY_NAME}" ]]; then
+    echo "ERROR: create_env.sh must be executed in a running singularity on Juwels Booster."
+    echo "Thus, execute 'singularity shell [my_docker_image]' first!"
+    return
+  fi
+else
+  workflow_scripts=(data_extraction_era5 preprocess_data_era5_step1 preprocess_data_era5_step2 train_model_era5 visualize_postprocess_era5 preprocess_data_moving_mnist train_model_moving_mnist visualize_postprocess_moving_mnist)
+fi
+
 # further sanity checks:
 # * ensure execution from env_setup-directory
 # * check if virtual env has already been set up
@@ -68,7 +82,12 @@ if [[ "${HOST_NAME}" == hdfml* || "${HOST_NAME}" == juwels* ]]; then
     source ${ENV_SETUP_DIR}/modules_train.sh
 
 elif [[ "${HOST_NAME}" == "zam347" ]]; then
-    unset PYTHONPATH
+  unset PYTHONPATH
+elif [[ "${HOST_NAME}" == jwlogin2[1-3]* ]]; then  # for JUWELS Booster
+  echo "***** Note for Juwels Booster! *****"
+  echo "Already checked the required modules?"
+  echo "To do so, run 'source modules_train.sh' after exiting the singularity."
+  echo "***** Note for Juwels Booster! *****"
 fi
 
 if [[ "$ENV_EXIST" == 0 ]]; then
