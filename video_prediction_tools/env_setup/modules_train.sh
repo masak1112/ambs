@@ -16,7 +16,7 @@ echo "* visualize_postprocess_era5_<exp_id>.sh"
 
 module purge
 module use $OTHERSTAGES
-if [[ "${HOST_NAME}" == jwlogin21* || "${HOST_NAME}" == jwlogin22* || "${HOST_NAME}" == jwlogin23* || "${HOST_NAME}" == jwb*]]; then
+if [[ "${HOST_NAME}" == jwlogin21* || "${HOST_NAME}" == jwlogin22* || "${HOST_NAME}" == jwlogin23* || "${HOST_NAME}" == jwb* ]]; then
   module load Stages/2020
   module load UCX/1.8.1
   module load GCC/9.3.0
