@@ -1,43 +1,46 @@
+"""
+Driver for preprocessing step 1 which parses the input arguments from the runscript
+and performs parallelization with PyStager.
+"""
+
+__email__ = "b.gong@fz-juelich.de"
+__author__ = "Bing Gong, Scarlet Stadtler,Michael Langguth"
+
 from mpi4py import MPI
-from os import walk
-import sys
-import subprocess
+import os, sys, glob
 import logging
 import time
+import argparse
 from utils.external_function import directory_scanner
 from utils.external_function import load_distributor
-from utils.external_function import hash_directory
-from utils.external_function import md5
 from data_preprocess.process_netCDF_v2 import *  
 from metadata import MetaData as MetaData
-import os
-import argparse
-import json
+
 
 def main():
 
     parser = argparse.ArgumentParser()
     parser.add_argument("--source_dir", type=str, default="/p/scratch/deepacf/bing/extractedData/")
-    parser.add_argument("--destination_dir", type=str, default="/p/scratch/deepacf/bing/processData_size_64_64_3_3t_norm")
-    parser.add_argument("--script_dir","-scr_dir",dest="script_dir",type=str)
+    parser.add_argument("--destination_dir", type=str,\
+                        default="/p/scratch/deepacf/bing/processData_size_64_64_3_3t_norm")
+    parser.add_argument("--script_dir", "-scr_dir", dest="script_dir", type=str)
     parser.add_argument("--years", "-y", dest="years")
-    parser.add_argument("--checksum_status", type=int, default=0)
     parser.add_argument("--rsync_status", type=int, default=1)
-    parser.add_argument("--vars", nargs="+",default = ["T2","T2","T2"]) #"MSL","gph500"
-    parser.add_argument("--lat_s", type=int, default=74+32)
-    parser.add_argument("--lat_e", type=int, default=202-32)
-    parser.add_argument("--lon_s", type=int, default=550+16+32)
-    parser.add_argument("--lon_e", type=int, default=710-16-32)
-    parser.add_argument("--experimental_id","-exp_id",dest="exp_id",type=str, default="exp1",\
+    parser.add_argument("--vars", nargs="+", default=["T2", "T2", "T2"])  #"MSL","gph500"
+    parser.add_argument("--lat_s", type=int, default=106)
+    parser.add_argument("--lat_e", type=int, default=170)
+    parser.add_argument("--lon_s", type=int, default=598)
+    parser.add_argument("--lon_e", type=int, default=662)
+    parser.add_argument("--experimental_id", "-exp_id", dest="exp_id", type=str, default="exp1",\
                         help="Experimental identifier helping to distinguish between different experiments.")
     args = parser.parse_args()
 
     current_path = os.getcwd()
     years        = args.years
-    source_dir   = os.path.join(args.source_dir,str(years))+"/"
+    source_dir   = args.source_dir
+    source_dir_full = os.path.join(source_dir, str(years))+"/"
     destination_dir = args.destination_dir
     scr_dir         = args.script_dir
-    checksum_status = args.checksum_status
     rsync_status = args.rsync_status
 
     vars = args.vars
@@ -51,14 +54,13 @@ def main():
               "lon_s": lon_s,
               "lon_e": lon_e
               }
-    print("Selected variables",vars)
-    print("Selected Slices",slices)
+    print("Selected variables", vars)
+    print("Selected Slices", slices)
 
     exp_id = args.exp_id
 
     os.chdir(current_path)
     time.sleep(0)
-    
 
     # ini. MPI
     comm = MPI.COMM_WORLD
@@ -81,27 +83,9 @@ def main():
         print('PyStager is Running .... ')
 
     # ================================== ALL Nodes:  Read-in parameters ====================================== #
-    #Bing: using the args to configure the directories
-    # fileName = "parameters_process_netCDF.dat"  # input parameters file
-    # fileObj = open(fileName)
-    # params = {}
-    #
-    # for line in fileObj:
-    #     line = line.strip()
-    #     read_in_value = line.split("=")
-    #     if len(read_in_value) == 2:
-    #         params[read_in_value[0].strip()] = read_in_value[1].strip()
-    #
-    # # input from the user:
-    # source_dir = str(params["Source_Directory"])
-    # destination_dir = str(params["Destination_Directory"])
-    # log_dir = str(params["Log_Directory"])
-    # rsync_status = int(params["Rsync_Status"])
-    # checksum_status = int(params["Checksum_Status"])
 
     # check the existence of teh folders :
-
-    if not os.path.exists(source_dir):  # check if the source dir. is existing
+    if not os.path.exists(source_dir_full):  # check if the source dir. is existing
         if my_rank == 0:
             logging.critical('The source does not exist')
             logging.info('exit status : 1')
@@ -109,22 +93,24 @@ def main():
 
         sys.exit(1)
         
-    # ML 2020/04/26 
-    # Expand destination_dir-variable by searching for netCDF-files in source_dir and processing the file from the first list element to obtain all relevant (meta-)data. 
+    # Expand destination_dir-variable by searching for netCDF-files in source_dir
+    # and processing the file from the first list element to obtain all relevant (meta-)data.
     if my_rank == 0:
-        data_files_list = glob.glob(source_dir+"/**/*.nc",recursive=True)
-        if not data_files_list: raise ValueError("Could not find any data to be processed in '"+source_dir+"'")
+        data_files_list = glob.glob(source_dir_full+"/**/*.nc", recursive=True)
+        if not data_files_list:
+            raise IOError("Could not find any data to be processed in '"+source_dir_full+"'")
         
-        md = MetaData(suffix_indir=destination_dir,exp_id=exp_id,data_filename=data_files_list[0],slices=slices,variables=vars)
+        md = MetaData(suffix_indir=destination_dir, exp_id=exp_id, data_filename=data_files_list[0], slices=slices,\
+                      variables=vars)
         # modify Batch scripts if metadata has been retrieved for the first time (md.status = "new")
-        if (md.status == "new"):
+        if md.status == "new":
             md.write_dirs_to_batch_scripts(scr_dir+"/preprocess_data_era5_step2.sh")
             md.write_dirs_to_batch_scripts(scr_dir + "/train_model_era5.sh")
             md.write_dirs_to_batch_scripts(scr_dir+"/visualize_postprocess_era5.sh")
 
-        elif (md.status == "old"):      # meta-data file already exists and is ok
+        elif md.status == "old":        # meta-data file already exists and is ok
                                         # check for temp.json in working directory (required by slave nodes)
-            tmp_file = os.path.join(current_path,"temp.json")
+            tmp_file = os.path.join(current_path, "temp.json")
             if os.path.isfile(tmp_file):
                 os.remove(tmp_file)
                 mess_tmp_file = "Auxiliary file '"+tmp_file+"' already exists, but is cleaned up to be updated" + \
@@ -138,14 +124,13 @@ def main():
         md.write_destdir_jsontmp(os.path.join(md.expdir, md.expname), tmp_dir=current_path)
         
         # expand destination directory by pickle-subfolder and...
-        destination_dir= os.path.join(md.expdir,md.expname,"pickle",years)
+        destination_dir = os.path.join(md.expdir, md.expname, "pickle", years)
 
         # ...create directory if necessary
         if not os.path.exists(destination_dir):  # check if the Destination dir. is existing
             logging.critical('The Destination does not exist')
             logging.info('Create new destination dir')
-            os.makedirs(destination_dir,exist_ok=True)
-    
+            os.makedirs(destination_dir, exist_ok=True)
     # ML 2020/04/24 E   
 
     if my_rank == 0:  # node is master:
@@ -153,7 +138,7 @@ def main():
 
         print(" # ==============  Directory scanner : start    ==================# ")
 
-        ret_dir_scanner = directory_scanner(source_dir)
+        ret_dir_scanner = directory_scanner(source_dir_full)
         print(ret_dir_scanner)
         dir_detail_list = ret_dir_scanner[0]
         sub_dir_list = ret_dir_scanner[1]
@@ -164,8 +149,9 @@ def main():
         # ===================================  Master : Load Distribution   ========================== #
 
         print(" # ==============  Load Distrbution  : start  ==================# ")
-        #def load_distributor(dir_detail_list, sub_dir_list, total_size_source, total_num_files, total_num_directories, p):
-        ret_load_balancer = load_distributor(dir_detail_list, sub_dir_list, total_size_source, total_num_files, total_num_dir, p)
+        
+        ret_load_balancer = load_distributor(dir_detail_list, sub_dir_list, total_size_source, total_num_files,\
+                                             total_num_dir, p)
         transfer_dict = ret_load_balancer
 
         print(ret_load_balancer)
@@ -182,7 +168,7 @@ def main():
         while idle_counter > 1:  # non-blocking receive function
             message_in = comm.recv()
             logging.warning(message_in)
-            #print('Warning:', message_in)
+            # print('Warning:', message_in)
             idle_counter = idle_counter - 1
 
         # Receive : Message from slave nodes confirming the sync
@@ -191,9 +177,6 @@ def main():
             message_in = comm.recv()
             logging.info(message_in)
             message_counter = message_counter + 1
-        #Bing
-        # ML 2020/05/19: Splitting now controlled from batch-script
-        # split_data(target_dir=destination_dir, partition = [0.6, 0.2, 0.2])
 
         # stamp the end of the runtime
         end = time.time()
@@ -205,48 +188,25 @@ def main():
 
     else:  # node is slave
 
-        # ============================================= Slave : Send / Receive ============================================ #
+        # ========================================== Slave : Send / Receive ========================================= #
         message_in = comm.recv()
 
         if message_in is None:  # in case more than number of the dir. processor is assigned todo Tag it!
             message_out = ('Node', str(my_rank), 'is idle')
             comm.send(message_out, dest=0)
 
-        else: # if the Slave node has joblist to do
+        else:  # if the Slave node has joblist to do
             job_list = message_in.split(';')
 
             for job_count in range(0, len(job_list)):
-                job = job_list[job_count] # job is the name of the directory(ies) assigned to slave_node
-                #print(job)
-
-                #grib_2_netcdf(rot_grid,source_dir, destination_dir, job)
-
-                # creat a checksum ( hash) from the source folder.
-                if checksum_status == 1:
-                    hash_directory(source_dir, job, current_path, "source")
-
+                job = job_list[job_count]  # job is the name of the directory(ies) assigned to slave_node
+                # grib_2_netcdf(rot_grid,source_dir, destination_dir, job)
                 if rsync_status == 1:
-                    # prepare the rsync commoand to be excexuted by the worker node
-                    #rsync_str = ("rsync -r " + source_dir + job + "/" + " " + destination_dir + "/" + job)
-                    #os.system(rsync_str)
-
-                    #process_era5_in_dir(job, src_dir=source_dir, target_dir=destination_dir)
                     # ML 2020/06/09: workaround to get correct destination_dir obtained by the master node
-                    destination_dir = os.path.join(MetaData.get_destdir_jsontmp(tmp_dir=current_path),"pickle",years)
-                    process_netCDF_in_dir(job_name=job, src_dir=source_dir, target_dir=destination_dir,slices=slices,vars=vars)
-
-                    if checksum_status == 1:
-                        hash_directory(destination_dir, job, current_path, "destination")
-                        os.chdir(current_path)
-                        source_hash_text = "source" + "_"+ job +"_hashed.txt"
-                        destination_hash_text = "destination" + "_"+ job +"_hashed.txt"
-                        if md5(source_hash_text) == md5(destination_hash_text):
-                            msg_out = 'source: ' + job +' and destination: ' + job + ' files are identical'
-                            print(msg_out)
-
-                        else:
-                            msg_out = 'integrity of source: ' + job +' and destination: ' + job +' files could not be verified'
-                            print(msg_out)
+                    destination_dir = MetaData.get_destdir_jsontmp(tmp_dir=current_path)
+                    process_data = PreprocessNcToPkl(src_dir=source_dir, target_dir=destination_dir, year=years, \
+                                                     job_name=job, slices=slices, vars=vars)
+                    process_data()
 
                 # Send : the finish of the sync message back to master node
                 message_out = ('Node:', str(my_rank), 'finished :', "", '\r\n')
@@ -257,6 +217,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
-
-

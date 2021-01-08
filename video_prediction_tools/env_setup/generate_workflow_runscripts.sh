@@ -1,28 +1,34 @@
 #!/usr/bin/env bash
 #
 # __authors__ = Michael Langguth
-# __date__  = '2020_09_29'
+# __date__  = '2020_10_28'
 #
 # **************** Description ****************
 # Converts a given template workflow script (path/name has to be passed as first argument) to
-# an executable workflow (Batch) script.
+# an executable workflow (Batch) script. However, use 'config_train.py' for convenience when runscripts for the
+# training and postprocessing substeps should be generated.
 # Note, that the first argument has to be passed with "_template.sh" omitted!
 # The second argument denotes the name of the virtual environment to be used.
-# Additionally, -exp_id=[some_id] and -exp_dir=[some_dir] can be optionally passed as NON-POSITIONAL arguments.
-# -exp_id allows to set an experimental identifier explicitly (default is -exp_id=exp1) while 
-# -exp_dir allows setting manually the experimental directory.
-# Note, that the latter is done during the preprocessing step in an end-to-end workflow.
-# However, if the preprocessing step can be skipped (i.e. preprocessed data already exists),
-# one may wish to set the experimental directory explicitly
+# Additionally, the following optional arguments can be passed as NON-POSITIONAL arguments:
+# -exp_id     : set an experimental identifier explicitly (default is -exp_id=exp1)
+# -exp_dir    : set manually the basic experimental directory
+# -exp_dir_ext: set manually the extended basic experimental directory (has to be passed in conjunction with
+#               -exp_dir!) following the naming convention for storing the trained models and their postprocessed data
+# -model      : set manually the model to be trained/postprocessed
+# Note, that -exp_dir is useful if the first preprocessing step can be skipped (i.e. preprocessed netCDf files already
+# exist).
+# The optional arguments -exp_dir_ext and -model are additionally used by config_train.py to create the runscripts for
+# the training and postprocessing step.
 #
 # Examples:
-#    ./generate_workflow_scripts.sh ../HPC_scripts/generate_era5 venv_hdfml -exp_id=exp5
-#    ... will convert generate_era5_template.sh to generate_era5_exp5.sh where
+#    ./generate_workflow_scripts.sh ../HPC_scripts/preprocess_data_era5_step2 venv_hdfml -exp_id=exp5
+#    ... will convert process_data_era5_template.sh to process_data_era5_exp5.sh where
 #    venv_hdfml is the virtual environment for operation.
+#    Note, that source_dir and destination_dir are not properly set in that case!
 #
-#    ./generate_workflow_scripts.sh ../HPC_scripts/generate_era5 venv_hdfml -exp_id=exp5 -exp_dir=testdata
-#    ... does the same as the previous example, but additionally extends source_dir=[...]/preprocessedData/,
-#    checkpoint_dir=[...]/models/ and results_dir=[...]/results/ by testdata/
+#    ./generate_workflow_scripts.sh ../HPC_scripts/preprocess_data_era5_step2 venv_hdfml -exp_id=exp5 -exp_dir=testdata
+#    ... does the same as the previous example, but additionally extends source_dir=[...]/preprocessedData/ and
+#    destination_dir=[...]/models/ properly
 # **************** Description ****************
 #
 # **************** Auxilary functions ****************
@@ -34,16 +40,21 @@ check_argin() {
           exp_id=${argin#"-exp_id="}
         elif [[ $argin == *"-exp_dir="* ]]; then
           exp_dir=${argin#"-exp_dir="}
+        elif [[ $argin == *"-exp_dir_ext"* ]]; then
+          exp_dir_ext=${argin#"-exp_dir_ext="}
+        elif [[ $argin == *"-model"* ]]; then
+          model=${argin#"-model="}
         fi
     done
 }
 
-add_exp_dir() {
-# Add exp_dir to paths in <target_script> which end with /<prefix>/
+extend_path() {
+# Add <extension> to paths in <target_script> which end with /<prefix>/
   prefix=$1
+  extension=$2
   if [[ `grep "/${prefix}/$" ${target_script}` ]]; then
-   echo "Add experimental directory after '${prefix}/' in runscript '${target_script}'"
-   sed -i "s|/${prefix}/$|/${prefix}/${exp_dir}/|g" ${target_script}
+   echo "Perform extension on path '${prefix}/' in runscript '${target_script}'"
+   sed -i "s|/${prefix}/$|/${prefix}/${extension}/|g" ${target_script}
    status=1
   fi
 }
@@ -68,10 +79,13 @@ if [[ "$#" -lt 2 ]]; then
 else
   curr_script=$1
   curr_script_loc="$(basename "$curr_script")"
-  curr_venv=$2
+  curr_venv=$2                          #
   # check if any known non-positional argument is present...
   if [[ "$#" -gt 2 ]]; then
     check_argin ${@:3}
+    if [[ ! -z "${exp_dir_ext}" ]] && [[ -z "${exp_dir}" ]]; then
+      echo "WARNING: -exp_dir_ext is passed without passing -ext_dir and thus has no effect!"
+    fi
   fi
   #...and ensure that exp_id is always set
   if [[ -z "${exp_id}" ]]; then
@@ -142,7 +156,7 @@ if [[ `grep "exp_id=" ${target_script}` ]]; then
 fi
 
 # set correct e-mail address in Batch scripts on Juwels and HDF-ML
-if [[ "${HOST_NAME}" == hdfml* || "${HOST_NAME}" == juwels* ]]; then
+if [[ "${HOST_NAME}" == hdfml* || "${HOST_NAME}" == *juwels* ]]; then
   if ! [[ -z `command -v jutil` ]]; then
     USER_EMAIL=$(jutil user show -o json | grep email | cut -f2 -d':' | cut -f1 -d',' | cut -f2 -d'"')
   else
@@ -151,13 +165,26 @@ if [[ "${HOST_NAME}" == hdfml* || "${HOST_NAME}" == juwels* ]]; then
   sed -i "s/--mail-user=.*/--mail-user=$USER_EMAIL/g" ${target_script}
 fi
 
+# set model if model was passed as optional argument
+if [[ ! -z "${model}" ]]; then
+  sed -i "s/model=.*/model=${model}/g" ${target_script}
+fi
+
 # finally set experimental directory if exp_dir is present
 if [[ ! -z "${exp_dir}" ]]; then
+  if [[ ! -z "${exp_dir_ext}" ]]; then
+    status=0                      # status to check if exp_dir_ext is added to the runscript at hand
+                                  # -> will be set to one by extend_path if modifictaion takes place
+    extend_path models ${exp_dir_ext}/
+    extend_path results ${exp_dir_ext}
+
+    if [[ ${status} == 0 ]]; then
+      echo "WARNING: -exp_dir_ext has been passed, but no addition to any path in runscript at hand done..."
+    fi
+  fi
   status=0                        # status to check if exp_dir is added to the runscript at hand
                                   # -> will be set to one by add_exp_dir if modifictaion takes place
-  add_exp_dir preprocessedData
-  add_exp_dir models
-  add_exp_dir results
+  extend_path preprocessedData ${exp_dir}
 
   if [[ ${status} == 0 ]]; then
     echo "WARNING: -exp_dir has been passed, but no addition to any path in runscript at hand done..."

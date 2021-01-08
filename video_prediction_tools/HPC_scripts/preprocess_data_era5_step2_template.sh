@@ -35,6 +35,11 @@ fi
 # declare directory-variables which will be modified appropriately during Preprocessing (invoked by mpi_split_data_multi_years.py)
 source_dir=/p/project/deepacf/deeprain/video_prediction_shared_folder/preprocessedData/
 destination_dir=/p/project/deepacf/deeprain/video_prediction_shared_folder/preprocessedData/
+datasplit_dir=../data_split/cv_test.json
+model=convLSTM
+hparams_dict_config=../hparams/era5/${model}/model_hparams.json
+sequences_per_file=10
 
 # run Preprocessing (step 2 where Tf-records are generated)
-srun python ../main_scripts/main_preprocess_data_step2.py ${source_dir}/pickle ${destination_dir}/tfrecords -vars T2 MSL gph500 -height 128 -width 160 -seq_length 20 
+srun python ../main_scripts/main_preprocess_data_step2.py -input_dir ${source_dir} -output_dir ${destination_dir}  -datasplit_config ${datasplit_dir}  -hparams_dict_config ${hparams_dict_config} -sequences_per_file ${sequences_per_file}
+
