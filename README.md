@@ -87,7 +87,7 @@ The experimental identifer can be passed by adding `-exp_id=<id>`while the path 
 *Specific example:*
 ``` bash
 
-./generate_workflow_runscripts.sh train_model_era5 venv_juwels -exp_id=exp_test -exp_dir=era5-Y2010toY2222M01to12-160x128-2970N1500W-T2_MSL_gph500
+./generate_workflow_runscripts.sh ../HPC_scripts/train_model_era5 venv_juwels -exp_id=exp_test -exp_dir=era5-Y2010toY2222M01to12-160x128-2970N1500W-T2_MSL_gph500
 ```
 
 ### Notes for Juwels Booster ###
