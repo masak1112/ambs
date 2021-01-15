@@ -1,11 +1,10 @@
 #!/usr/bin/env bash
 #
 # __authors__ = Bing Gong, Michael Langguth
-# __date__  = '2020_09_10'
+# __date__  = '2020_01_15'
 #
 # **************** Description ****************
-# This script can be used for setting up the virtual environment needed for ambs-project
-# or to simply activate it.
+# This script can be used for setting up the virtual environment needed for AMBS-project
 # It also converts the (Batch) runscript templates to executable runscripts.
 # Note, that you may pass an experiment identifier as second argument (default 'exp1') to this runscript
 # which will also be used as suffix in the executable runscripts.
@@ -32,8 +31,9 @@ fi
 
 # list of (Batch) scripts used for the steps in the workflow
 # !!! Expects that a template named [script_name]_template.sh exists                   !!!
-# !!! Runscripts for training and postprocessing shall be created with config_train.py !!!
-workflow_scripts=(data_extraction_era5 preprocess_data_era5_step1 preprocess_data_era5_step2 preprocess_data_moving_mnist)
+# !!! Only create runscripts for data extraction and preprocessing step 1.             !!!
+# !!! For the rest, make use of config_runscript.sh                                    !!!
+workflow_scripts=(data_extraction_era5 preprocess_data_era5_step1)
 
 HOST_NAME=`hostname`
 ENV_NAME=$1
@@ -85,10 +85,11 @@ if [[ "${HOST_NAME}" == hdfml* || "${HOST_NAME}" == *juwels* ]]; then
   else
     # load modules and check for their availability
     echo "***** Checking modules required during the workflow... *****"
-    source ${ENV_SETUP_DIR}/modules_preprocess.sh
+    source ${ENV_SETUP_DIR}/modules_preprocess.sh purge
     source ${ENV_SETUP_DIR}/modules_train.sh
   fi
-else  
+else 
+  # unset PYTHONPATH on every other machine that is not a known HPC-system	
   unset PYTHONPATH
 fi
 
@@ -99,8 +100,8 @@ if [[ "$ENV_EXIST" == 0 ]]; then
   python3 -m venv $ENV_DIR
   
   activate_virt_env=${ENV_DIR}/bin/activate
-  echo ${activate_virt_env}
-  
+
+  echo "Entering virtual environment ${ENV_DIR} to install required Python modules..."
   source ${activate_virt_env}
   
   # install some requirements and/or check for modules
@@ -110,7 +111,7 @@ if [[ "$ENV_EXIST" == 0 ]]; then
     req_file=${ENV_SETUP_DIR}/requirements.txt 
     if [[ "${HOST_NAME}" == jwlogin2[1-4]* ]]; then req_file=${ENV_SETUP_DIR}/requirements_booster.txt; fi
     
-    pip3 install --no-cache-dir --ignore-installed -r ${req_file}
+    pip3 install --no-cache-dir -r ${req_file}
   else
     echo "***** Start installing additional Python modules with pip... *****"
     pip3 install --upgrade pip
@@ -149,18 +150,18 @@ if [[ "$ENV_EXIST" == 0 ]]; then
      fi
   fi
 elif [[ "$ENV_EXIST" == 1 ]]; then
-  # activating virtual env is suifficient
-  echo "Virtual environment '${ENV_DIR}' already exists. Provide another name if a new environment is desired or delete the existing one."  
+  echo "ERROR: Virtual environment ${ENV_NAME} already exists, please choose another name or delete the existing one."
+  return
 fi
 # Finish by creating runscripts
  # After checking and setting up the virt env, create user-specific runscripts for all steps of the workflow
-if [[ "${HOST_NAME}" == hdfml* || "${HOST_NAME}" == *juwels* ]]; then
+if [[ "${HOST_NAME}" == *hdfml* || "${HOST_NAME}" == *juwels* ]]; then
   script_dir=../HPC_scripts
 else
   script_dir=../Zam347_scripts
 fi
 
-echo "***** Creating Batch-scripts for data extraction and preprpcessing substeps... *****"
+echo "***** Creating Batch-scripts for data extraction and prepropcessing step 1... *****"
 for wf_script in "${workflow_scripts[@]}"; do
   curr_script=${script_dir}/${wf_script}
   if [[ -z "${exp_id}" ]]; then
@@ -170,5 +171,11 @@ for wf_script in "${workflow_scripts[@]}"; do
   fi
 done
 echo "******************************************** NOTE ********************************************"
-echo "Runscripts for training and postprocessing can be generated with ../HPC_scripts/config_train.py"
+echo "Runscripts for the remaining workflow steps can be generated with config_runscript.py!        "
+
+# finally deactivate virtual environment and clean up loaded modules (if we are not on Juwels)
+deactivate
+if [[ "${HOST_NAME}" == *hdfml* || "${HOST_NAME}" == *juwels* ]] && [[ "${HOST_NAME}" == jwlogin2[1-4]* ]]; then
+  module --force purge
+fi
 
