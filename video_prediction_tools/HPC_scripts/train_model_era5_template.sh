@@ -6,9 +6,9 @@
 #SBATCH --cpus-per-task=1
 #SBATCH --output=train_era5-out.%j
 #SBATCH --error=train_era5-err.%j
-#SBATCH --time=00:20:00
-#SBATCH --gres=gpu:2
-#SBATCH --partition=develgpus
+#SBATCH --time=20:00:00
+#SBATCH --gres=gpu:1
+#SBATCH --partition=gpus
 #SBATCH --mail-type=ALL
 #SBATCH --mail-user=b.gong@fz-juelich.de
 ##jutil env activate -p cjjsc42
@@ -34,7 +34,7 @@ if [ -z ${VIRTUAL_ENV} ]; then
    fi
 fi
 
-# declare directory-variables which will be modified appropriately during Preprocessing (invoked by mpi_split_data_multi_years.py)
+# declare directory-variables which will be modified by config_runscript.py
 source_dir=/p/project/deepacf/deeprain/video_prediction_shared_folder/preprocessedData/
 destination_dir=/p/project/deepacf/deeprain/video_prediction_shared_folder/models/
 
