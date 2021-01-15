@@ -6,9 +6,9 @@
 #SBATCH --cpus-per-task=1
 #SBATCH --output=train_era5-out.%j
 #SBATCH --error=train_era5-err.%j
-#SBATCH --time=00:20:00
-#SBATCH --gres=gpu:2
-#SBATCH --partition=develgpus
+#SBATCH --time=20:00:00
+#SBATCH --gres=gpu:1
+#SBATCH --partition=gpus
 #SBATCH --mail-type=ALL
 #SBATCH --mail-user=b.gong@fz-juelich.de
 ##jutil env activate -p cjjsc42
