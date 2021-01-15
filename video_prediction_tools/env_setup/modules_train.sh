@@ -24,15 +24,18 @@ if [[ "${HOST_NAME}" == jwlogin2[1-4]* || "${HOST_NAME}" == jwb* ]]; then
 else
   ml Stages/2019a
   ml GCC/8.3.0
-  ml MVAPICH2/2.3.3-GDR
+  ml ParaStationMPI/5.4.4-1
   ml mpi4py/3.0.1-Python-3.6.8
-  # serialized version of HDF5 is used since only this version is compatible with TensorFlow/1.13.1-GPU-Python-3.6.8
   ml h5py/2.9.0-serial-Python-3.6.8
   ml TensorFlow/1.13.1-GPU-Python-3.6.8
-  ml Horovod/0.16.2-GPU-Python-3.6.8
   ml cuDNN/7.5.1.10-CUDA-10.1.105
   ml SciPy-Stack/2019a-Python-3.6.8
   ml scikit/2019a-Python-3.6.8
+  ml netcdf4-python/1.5.0.1-Python-3.6.8
+  # Horovod is excluded as long as parallelization does not work properly
+  # Note: Horovod/0.16.2 requires MVAPICH2 which is incomaptible with netcdf4-python
+  #ml MVAPICH2/2.3.3-GDR               # 
+  #ml Horovod/0.16.2-GPU-Python-3.6.8
 fi
 
 # clean up if triggered via script argument
