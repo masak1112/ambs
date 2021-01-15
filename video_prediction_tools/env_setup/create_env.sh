@@ -45,7 +45,10 @@ ENV_DIR=${WORKING_DIR}/${ENV_NAME}
 # list of (Batch) scripts used for the steps in the workflow
 # !!! Expects that a template named [script_name]_template.sh exists!!!
 if [[ "${HOST_NAME}" == jwlogin2[1-4]* ]]; then
-  workflow_scripts=(train_model_era5_booster)
+  echo "******************************************** NOTE ********************************************"
+  echo "                Make use of dedicated Horovod-related working branches only!!!                "
+  echo "******************************************** NOTE ********************************************"
+  workflow_scripts=()
   # another sanity check for Juwels Booster -> ensure running singularity
   if [[ -z "${SINGULARITY_NAME}" ]]; then
     echo "ERROR: create_env.sh must be executed in a running singularity on Juwels Booster."
@@ -175,7 +178,7 @@ echo "Runscripts for the remaining workflow steps can be generated with config_r
 
 # finally deactivate virtual environment and clean up loaded modules (if we are not on Juwels)
 deactivate
-if [[ "${HOST_NAME}" == *hdfml* || "${HOST_NAME}" == *juwels* ]] && [[ "${HOST_NAME}" == jwlogin2[1-4]* ]]; then
+if [[ "${HOST_NAME}" == *hdfml* || "${HOST_NAME}" == *juwels* ]] && [[ "${HOST_NAME}" != jwlogin2[1-4]* ]]; then
   module --force purge
 fi
 
