@@ -44,7 +44,7 @@ ENV_DIR=${WORKING_DIR}/${ENV_NAME}
 
 # list of (Batch) scripts used for the steps in the workflow
 # !!! Expects that a template named [script_name]_template.sh exists!!!
-if [[ "${HOST_NAME}" == jwlogin2[1-3]* ]]; then
+if [[ "${HOST_NAME}" == jwlogin2[1-4]* ]]; then
   workflow_scripts=(train_model_era5_booster)
   # another sanity check for Juwels Booster -> ensure running singularity
   if [[ -z "${SINGULARITY_NAME}" ]]; then
@@ -75,19 +75,21 @@ else
 fi
 
 # add personal email-address to Batch-scripts
-if [[ "${HOST_NAME}" == hdfml* || "${HOST_NAME}" == juwels* ]]; then
+if [[ "${HOST_NAME}" == hdfml* || "${HOST_NAME}" == *juwels* ]]; then
+  if [[ "${HOST_NAME}" == jwlogin2[1-4]* ]]; then  
+    # on Juwels Booster, we are in a container environment -> loading modules is not possible	  
+    echo "***** Note for Juwels Booster! *****"
+    echo "Already checked the required modules?"
+    echo "To do so, run 'source modules_train.sh' after exiting the singularity."
+    echo "***** Note for Juwels Booster! *****"
+  else
     # load modules and check for their availability
     echo "***** Checking modules required during the workflow... *****"
     source ${ENV_SETUP_DIR}/modules_preprocess.sh
     source ${ENV_SETUP_DIR}/modules_train.sh
-
-elif [[ "${HOST_NAME}" == "zam347" ]]; then
+  fi
+else  
   unset PYTHONPATH
-elif [[ "${HOST_NAME}" == jwlogin2[1-3]* ]]; then  # for JUWELS Booster
-  echo "***** Note for Juwels Booster! *****"
-  echo "Already checked the required modules?"
-  echo "To do so, run 'source modules_train.sh' after exiting the singularity."
-  echo "***** Note for Juwels Booster! *****"
 fi
 
 if [[ "$ENV_EXIST" == 0 ]]; then
@@ -102,13 +104,14 @@ if [[ "$ENV_EXIST" == 0 ]]; then
   source ${activate_virt_env}
   
   # install some requirements and/or check for modules
-  if [[ "${HOST_NAME}" == hdfml* || "${HOST_NAME}" == juwels* ]]; then
-    # check module availability for the first time on known HPC-systems
+  if [[ "${HOST_NAME}" == hdfml* || "${HOST_NAME}" == *juwels* ]]; then
+    # Install packages depending on host
     echo "***** Start installing additional Python modules with pip... *****"
-    pip3 install --no-cache-dir --ignore-installed -r ${ENV_SETUP_DIR}/requirements.txt
-    #pip3 install --user netCDF4
-    #pip3 install --user numpy
-  elif [[ "${HOST_NAME}" == "zam347" ]]; then
+    req_file=${ENV_SETUP_DIR}/requirements.txt 
+    if [[ "${HOST_NAME}" == jwlogin2[1-4]* ]]; then req_file=${ENV_SETUP_DIR}/requirements_booster.txt; fi
+    
+    pip3 install --no-cache-dir --ignore-installed -r ${req_file}
+  else
     echo "***** Start installing additional Python modules with pip... *****"
     pip3 install --upgrade pip
     pip3 install -r ${ENV_SETUP_DIR}/requirements.txt
@@ -125,8 +128,11 @@ if [[ "$ENV_EXIST" == 0 ]]; then
   export PYTHONPATH=${WORKING_DIR}/external_package/lpips-tensorflow:$PYTHONPATH >> ${activate_virt_env}
   export PYTHONPATH=${WORKING_DIR}/model_modules:$PYTHONPATH >> ${activate_virt_env}
 
-  if [[ "${HOST_NAME}" == hdfml* || "${HOST_NAME}" == juwels* ]]; then
+  if [[ "${HOST_NAME}" == hdfml* || "${HOST_NAME}" == *juwels* ]]; then
      export PYTHONPATH=${ENV_DIR}/lib/python3.6/site-packages:$PYTHONPATH >> ${activate_virt_env}
+     if [[ "${HOST_NAME}" == jwlogin2[1-4]* ]]; then
+       export PYTONPATH=/usr/locali/lib/python3.6/dist-packages:$PYTHONPATH
+     fi
   fi
   # ...and ensure that this also done when the 
   echo "" >> ${activate_virt_env}
@@ -136,18 +142,21 @@ if [[ "$ENV_EXIST" == 0 ]]; then
   echo "export PYTHONPATH=${WORKING_DIR}/model_modules:$PYTHONPATH " >> ${activate_virt_env}
   echo "export PYTHONPATH=${WORKING_DIR}/external_package/lpips-tensorflow:\$PYTHONPATH" >> ${activate_virt_env}
 
-  if [[ "${HOST_NAME}" == hdfml* || "${HOST_NAME}" == juwels* ]]; then
+  if [[ "${HOST_NAME}" == hdfml* || "${HOST_NAME}" == *juwels* ]]; then
     echo "export PYTHONPATH=${ENV_DIR}/lib/python3.6/site-packages:\$PYTHONPATH" >> ${activate_virt_env}
+     if [[ "${HOST_NAME}" == jwlogin2[1-4]* ]]; then
+       echo "export PYTONPATH=/usr/locali/lib/python3.6/dist-packages:\$PYTHONPATH" >> ${activate_virt_env}
+     fi
   fi
 elif [[ "$ENV_EXIST" == 1 ]]; then
   # activating virtual env is suifficient
-  source ${ENV_DIR}/bin/activate  
+  echo "Virtual environment '${ENV_DIR}' already exists. Provide another name if a new environment is desired or delete the existing one."  
 fi
 # Finish by creating runscripts
  # After checking and setting up the virt env, create user-specific runscripts for all steps of the workflow
-if [[ "${HOST_NAME}" == hdfml* || "${HOST_NAME}" == juwels* ]]; then
+if [[ "${HOST_NAME}" == hdfml* || "${HOST_NAME}" == *juwels* ]]; then
   script_dir=../HPC_scripts
-elif [[ "${HOST_NAME}" == "zam347" ]]; then
+else
   script_dir=../Zam347_scripts
 fi
 
