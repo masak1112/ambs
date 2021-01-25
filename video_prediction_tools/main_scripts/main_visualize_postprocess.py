@@ -253,14 +253,17 @@ class Postprocess(TrainModel,ERA5Pkl2Tfrecords):
         self.restore(self.sess, self.checkpoint)
         #Loop for samples
         self.sample_ind = 0
+        self.input_images_denorm_all_batches = []
+        self.persistent_images_all_batches = []
         while self.sample_ind < self.num_samples_per_epoch:
             if self.num_samples_per_epoch < self.sample_ind:
                 break
             else:
                 self.input_results, self.input_images_denorm_all, self.t_starts = self.run_and_plot_inputs_per_batch() #run the inputs and plot each sequence images
-
+            
+            self.input_images_denoram_all_batches.append(self.input_images_denorm_all)
             feed_dict = {input_ph: self.input_results[name] for name, input_ph in self.inputs.items()}
-            gen_images_stochastic = [] #[stochastic_ind,batch_size,seq_len,lat,lon,channels]
+            self.gen_images_stochastic = [] #[stochastic_ind,batch_size,seq_len,lat,lon,channels]
             #Loop for stochastics 
             for stochastic_sample_ind in range(self.num_stochastic_samples):
                 gen_images = self.sess.run(self.video_model.outputs['gen_images'], feed_dict=feed_dict)#return [batchsize,seq_len,lat,lon,channel]
@@ -290,22 +293,32 @@ class Postprocess(TrainModel,ERA5Pkl2Tfrecords):
                     # only plot the stochastic results of user-defined ind
                     self.plot_generate_images(stochastic_sample_ind, self.stochastic_plot_id)
  
-                gen_images_stochastic.append(gen_images_per_batch)
-            gen_images_stochastic = Postprocess.check_gen_images_stochastic_shape(gen_images_stochastic)         
+                self.gen_images_stochastic.append(gen_images_per_batch)
+            gen_images_stochastic = Postprocess.check_gen_images_stochastic_shape(self.gen_images_stochastic)         
             # save input and stochastic generate images to netcdf file
             # For each prediction (either deterministic or ensemble) we create one netCDF file.
             print("persistent_images_per_batch",len(np.array(persistent_images_per_batch)))
+            self.persistent_images_all_batches.append(self.persistent_images_per_batch)
             for batch_id in range(self.batch_size):
                 print("batch_id is here",batch_id)
                 self.save_to_netcdf_for_stochastic_generate_images(self.input_images_denorm_all[batch_id], persistent_images_per_batch[batch_id],
-                                                            np.array(gen_images_stochastic)[:,batch_id,:,:,:,:], 
+                                                            np.array(self.gen_images_stochastic)[:,batch_id,:,:,:,:], 
                                                             fl_name="vfp_date_{}_sample_ind_{}.nc".format(ts_batch[batch_id],self.sample_ind+batch_id))
-            
-            
             self.sample_ind += self.batch_size
 
+        self.calculate_metrics()
+         
 
-
+    def calculate_metrics(self):
+        eval_metrics = {}
+        #calcualte the metric on persistent
+        mse_persistent =  np.mean(self.input_images_denorm_all_batches,self.persistent_images_all_batches)
+        eval_metrics["persistent"] = mse_persistent
+        for stochastic_sample_ind in range(self.num_stochastic_samples):
+            mse_model = np.mean(self.input_images_denorm_all_batches,self.gen_images_stochastoc[stochastic_samples_ind])
+            eval_metrics["stochastic_idx_".format(stochastic_sample_ind)] = mse_model
+        with open ("mse","w") as fjs:
+            json.dump(eval_metrics,fjs)
 
     @staticmethod
     def check_gen_images_stochastic_shape(gen_images_stochastic):
