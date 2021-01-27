@@ -23,8 +23,12 @@ class Config_runscript_base:
         self.run_config = None
 
     def run(self):
+        """
+        Acts as generic wrapper: Checks if run_config is already set up as a callable
+        :return: Executes run_config
+        """
 
-        method_name = Config_runscript_base.__run__.__name__ + " of Class " + Config_runscript_base.cls_name
+        method_name = "run" + " of Class " + Config_runscript_base.cls_name
         if self.run_config is None:
             raise ValueError("%{0}: run-method is still uninitialized.".format(method_name))
 
@@ -32,7 +36,7 @@ class Config_runscript_base:
             raise ValueError("%{0}: run-method is not callable".format(method_name))
 
         # simply execute it
-        self.run_config()
+        self.run_config(self)
 
     def check_and_set_basic(self, wrk_flw_step):
 
@@ -48,19 +52,19 @@ class Config_runscript_base:
 
         if wrk_flw_step == "extract":
             self.long_name_wrk_step = "Data Extraction"
-            self.rscrpt_tmpl_suffix = "data_extraction_era5"
+            self.rscrpt_tmpl_suffix = "data_extraction"
         elif wrk_flw_step == "preprocess1":
             self.long_name_wrk_step = "Preprocessing step 1"
-            self.runscript_template = "preprocess_data"
+            self.rscrpt_tmpl_suffix = "preprocess_data"
         elif wrk_flw_step == "preprocess2":
             self.long_name_wrk_step = "Preproccessing step 2"
-            self.runscript_template = "preprocess_data"
+            self.rscrpt_tmpl_suffix = "preprocess_data"
         elif wrk_flw_step == "train":
             self.long_name_wrk_step = "Training"
-            self.runscript_template = "train_model"
+            self.rscrpt_tmpl_suffix = "train_model"
         elif wrk_flw_step == "postprocess":
             self.long_name_wrk_step = "Postprocessing"
-            self.runscript_template = "visualize_postprocess"
+            self.rscrpt_tmpl_suffix = "visualize_postprocess"
         else:
             raise ValueError("%{0}: Workflow step {1} is unknown / not implemented.".format(method_name, wrk_flw_step))
 
@@ -114,10 +118,11 @@ class Config_Extraction(Config_runscript_base):
     def __init__(self, wrk_flw_step, runscript_base):
         super().__init__(wrk_flw_step, runscript_base)
 
+        self.runscript_template = self.rscrpt_tmpl_suffix + "era5" + self.suffix_template
         self.year = None
-        #self.run_config = Config_Extraction.run_extraction(self)
+        self.run_config = Config_Extraction.run_extraction
 
-    def run_config(self):
+    def run_extraction(self):
         """
         Runs the keyboard interaction for data extraction step
         :return: all attributes of class Data_Extraction are set
@@ -168,9 +173,9 @@ class Config_Extraction(Config_runscript_base):
             status = False
             if not silent: print("{0} is not a numeric number.".format(year_in))
 
-        if not int(year_in) > 1950:
+        if not int(year_in) > 1970:
             status = False
-            if not silent: print("{0} must match the format YYYY and must be larger than 1950.")
+            if not silent: print("{0} must match the format YYYY and must be larger than 1970.")
 
         return status
 
@@ -185,12 +190,15 @@ class Config_Preprocess1(Config_runscript_base):
     def __init__(self, wrk_flw_step, runscript_base):
         super().__init__(wrk_flw_step, runscript_base)
 
+        self.runscript_template = self.rscrpt_tmpl_suffix + "era5" + self.suffix_template
         self.years = None
-        self.variables = [None, None, None]         # hard-code to three variables so far
+        self.variables = [None] * self.nvars
         self.lat_inds = [np.nan, np.nan]
         self.lon_inds = [np.nan, np.nan]
 
-    def run_config(self):
+        self.run_config = Config_Preprocess1.run_preprocess1
+
+    def run_preprocess1(self):
         """
         Runs the keyboard interaction for Preprocessing step 1
         :return: all attributes of class Config_Preprocess1 are set
@@ -208,12 +216,12 @@ class Config_Preprocess1(Config_runscript_base):
         years_str = Config_Extraction.keyboard_interaction(years_req_str, Config_Preprocess1.check_years,
                                                            years_err, ntries=2)
 
-        self.years = [int(year.strip()) for year in years_str]
+        self.years = [int(year.strip()) for year in years_str.split(",")]
 
         # get variables for later training
         print("**** Info ****\n List of known variables which can be processed")
         for known_var in Config_Preprocess1.known_vars:
-            print("* {0}".format(var))
+            print("* {0}".format(known_var))
 
         vars_req_str = "Enter either three or one variable names to be processed:\n"
         vars_err = ValueError("Cannot get variabes for preprocessing.")
@@ -221,7 +229,7 @@ class Config_Preprocess1(Config_runscript_base):
                                                            vars_err, ntries=2)
 
         vars_list = vars_str.split(",")
-        if len(vars_list == 1):
+        if len(vars_list) == 1:
             self.variables = vars_list * Config_Preprocess1.nvars
         else:
             self.variables = vars_list
@@ -284,19 +292,20 @@ class Config_Preprocess1(Config_runscript_base):
         years_list = years_str.split(",")
         # check if all elements of list are numeric elements
         check_years = [year.strip().isnumeric() for year in years_list]
-        status = np.all(check_years)
+        status = all(check_years)
         if not status:
             inds_bad = np.where(~np.array(check_years))[0]
-            print("The following comma-separated elements could not be interpreted as valid years:")
-            for ind in inds_bad:
-                print(years_list[ind])
+            if not silent:
+                print("The following comma-separated elements could not be interpreted as valid years:")
+                for ind in inds_bad:
+                    print(years_list[ind])
             return status
 
         # check if all year-values are ok
         check_years_val = [int(year) > 1950 for year in years_list]
-        status = np.all(check_years_val)
+        status = all(check_years_val)
         if not status:
-            print("All years must be after year 1950.")
+            if not silent: print("All years must be after year 1950.")
 
         return status
 
@@ -310,11 +319,13 @@ class Config_Preprocess1(Config_runscript_base):
         """
         vars_list = vars_str.split(",")
         check_vars = [var.strip().lower() in Config_Preprocess1.known_vars for var in vars_list]
-        status = np.all(check_vars)
+        status = all(check_vars)
         if not status:
-            print("The following comma-separated elements are unknown variables:")
-            for ind in inds_bad:
-                print(vars_list[ind])
+            inds_bad = np.where(~np.array(check_vars))[0]
+            if not silent:
+                print("The following comma-separated elements are unknown variables:")
+                for ind in inds_bad:
+                    print(vars_list[ind])
             return status
 
         if not (len(check_vars) == Config_Preprocess1.nvars or len(check_vars) == 1):
@@ -335,17 +346,18 @@ class Config_Preprocess1(Config_runscript_base):
         status = False
         inds_list = inds_str.split(",")
         if not len(inds_list) == 2:
-            print("Invalid number of indices identified.")
+            if not silent: print("Invalid number of indices identified.")
             return status
 
+        inds_list = [ind.strip() for ind in inds_list]
         if inds_list[0].isnumeric() and inds_list[1].isnumeric():
             ind1, ind2 = int(inds_list[0]), int(inds_list[1])
-            if ind1 <= ind2 or ind1 < 0 or ind2 <= 0:
-                print("Indices must be non-negative and passed in increasing order.")
+            if ind1 >= ind2 or ind1 < 0 or ind2 <= 0:
+                if not silent: print("Indices must be non-negative and passed in increasing order.")
             else:
                 status = True
         else:
-            print("Indices must be numbers.")
+            if not silent: print("Indices must be numbers.")
 
         return status
 
