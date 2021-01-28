@@ -2,7 +2,7 @@
 Child class used for configuring the runscript of preprocessing step 1 of the workflow.
 """
 __author__ = "Michael Langguth"
-__date__ = "2021-01-28"
+__date__ = "2021-01-27"
 
 # import modules
 import os, glob
@@ -21,11 +21,12 @@ class Config_Preprocess1(Config_runscript_base):
         super().__init__(wrk_flw_step, runscript_base)
 
         self.runscript_template = self.rscrpt_tmpl_prefix + "era5" + self.suffix_template
+        self.dataset = "era5"
         self.years = None
         self.variables = [None] * self.nvars
         self.lat_inds = [np.nan, np.nan]
         self.lon_inds = [np.nan, np.nan]
-
+        # set the attributes which are still None via keyboard interaction
         self.run_config = Config_Preprocess1.run_preprocess1
 
     def run_preprocess1(self):

@@ -2,7 +2,7 @@
 Child class used for configuring the runscript of data extraction of the workflow.
 """
 __author__ = "Michael Langguth"
-__date__ = "2021-01-28"
+__date__ = "2021-01-27"
 
 # import modules
 import os, glob
@@ -16,7 +16,9 @@ class Config_Extraction(Config_runscript_base):
         super().__init__(wrk_flw_step, runscript_base)
 
         self.runscript_template = self.rscrpt_tmpl_prefix + "era5" + self.suffix_template
+        self.dataset = "era5"
         self.year = None
+        # set the attributes which are still None via keyboard interaction
         self.run_config = Config_Extraction.run_extraction
 
     def run_extraction(self):
