@@ -42,8 +42,12 @@ class Config_Preprocess2(Config_runscript_base):
         self.runscript_template = self.rscrpt_tmpl_prefix + self.dataset + self.suffix_template
 
         # get source dir
-        source_req_str = "Enter the path where the extracted ERA5 netCDF-files are located:\n"
-        source_err = FileNotFoundError("Cannot retrieve extracted ERA5 netCDF-files from passed path.")
+        if self.dataset == "era5":
+            file_type = "ERA5 pickle-files are"
+        elif self.dataset == "moving_mnist":
+            file_type = "The movingMNIST data file is"
+        source_req_str = "Enter the path where the extracted "+file_type+" located:\n"
+        source_err = FileNotFoundError("Cannot retrieve "+file_type+" from passed path.")
 
         self.source_dir = Config_Preprocess2.keyboard_interaction(source_req_str, Config_Preprocess2.check_data_indir,
                                                                   source_err, ntries=3)
@@ -53,8 +57,8 @@ class Config_Preprocess2(Config_runscript_base):
         # * moving_MNIST: singgle npy-file
         if self.dataset == "era5":
             if not any(glob.glob(os.path.join(self.source_dir, "**", "*X*.pkl"), recursive=True)):
-                raise FileNotFoundError("Could not find any pickle-files under '{0}' which are expected for the "+
-                                        "ERA5-dataset.".format(self.source_dir))
+                raise FileNotFoundError("Could not find any pickle-files under '{0}'".format(self.source_dir) +
+                                        "which are expected for the ERA5-dataset.".format(self.source_dir))
         elif self.dataset == "moving_mnist":
             if not os.path.isfile(os.path.join(self.source_dir, "mnist_test_seq.npy")):
                 raise FileNotFoundError("Could not find expected file 'mnist_test_seq.npy' under {0}"
@@ -85,7 +89,7 @@ class Config_Preprocess2(Config_runscript_base):
         if not dataset_name in Config_Preprocess2.allowed_datasets:
             if not silent:
                 print("The following dataset can be used for preproessing step 2:")
-                for dataset_avail in Config_Preprocess2.list_datasets: print("* " + dataset_avail)
+                for dataset_avail in Config_Preprocess2.allowed_datasets: print("* " + dataset_avail)
             return False
         else:
             return True
