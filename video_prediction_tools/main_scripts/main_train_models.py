@@ -45,7 +45,7 @@ class TrainModel(object):
             gpu_mem_frac         : float, fraction of gpu memory to use
             save_interval        : int, how many steps for saving the train/val loss be saved
         """ 
-        self.input_dir = input_dir
+        self.input_dir = os.path.normpath(input_dir)
         self.output_dir = output_dir
         self.datasplit_dict = datasplit_dict
         self.model_hparams_dict = model_hparams_dict
