@@ -38,6 +38,8 @@ class Config_Preprocess2(Config_runscript_base):
 
         self.dataset = Config_Preprocess2.keyboard_interaction(dset_type_req_str, Config_Preprocess2.check_dataset,
                                                                dset_err, ntries=3)
+        # now, we are also ready to set the correct name of the runscript template
+        self.runscript_template = self.rscrpt_tmpl_prefix + self.dataset + self.suffix_template
 
         # get source dir
         source_req_str = "Enter the path where the extracted ERA5 netCDF-files are located:\n"
@@ -58,6 +60,7 @@ class Config_Preprocess2(Config_runscript_base):
                 raise FileNotFoundError("Could not find expected file 'mnist_test_seq.npy' under {0}"
                                         .format(self.source_dir))
 
+        # final keyboard interaction when ERA5-dataset is used
         if self.dataset == "era5":
             # get desired sequence length
             seql_req_str = "Enter desired total sequence length (i.e. number of frames/images):\n"
