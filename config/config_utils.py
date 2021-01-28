@@ -22,7 +22,8 @@ class Config_runscript_base:
         self.long_name_wrk_step = None
         self.rscrpt_tmpl_prefix = None
         self.suffix_template = "_template.sh"
-        self.runscript_template = None             # will be set in child class of the workflow step
+        self.runscript_template = None             # will be constructed in child class of the workflow step
+        self.dataset            = None
         Config_runscript_base.check_and_set_basic(self, wrk_flw_step)
 
         self.source_dir = None
