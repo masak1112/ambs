@@ -1,8 +1,9 @@
 """
-Class and subclasses to control behaviour of config_runscript.py which generates executable runscripts from templates
+Parent class which contains some basic atributes and methods shared by all subclasses which are
+used to configure the runscripts of dedicated workflow steps (done by config_runscript.py).
 """
 __author__ = "Michael Langguth"
-date = "2021-01-25"
+__date__ = "2021-01-25"
 
 # import modules
 import os, glob
@@ -13,10 +14,16 @@ class Config_runscript_base:
     cls_name = "Config_runscript_base"
 
     def __init__(self, wrk_flw_step, runscript_base):
+        """
+        Sets some basic attributes required by all workflow steps
+        :param wrk_flw_step: short-name of the workflow step
+        :param runscript_base: (relative or absolute) path to directory where runscript templates are stored
+        """
         self.runscript_base     = runscript_base
         self.long_name_wrk_step = None
-        self.runscript_template = None
+        self.rscrpt_tmpl_prefix = None
         self.suffix_template = "_template.sh"
+        self.runscript_template = None             # will be set in child class of the workflow step
         Config_runscript_base.check_and_set_basic(self, wrk_flw_step)
 
         self.source_dir = None
@@ -39,6 +46,14 @@ class Config_runscript_base:
         self.run_config(self)
 
     def check_and_set_basic(self, wrk_flw_step):
+        """
+        Set the following basic attributes depending on the workflow step (initialized with None in __init__):
+        * long_name_wrk_step: long-name of the workflow step
+        * rscrpt_tmpl_suffix: prefix of the corresponding runscript template (used for constructing the name of the
+                              runscript template file
+        :param wrk_flw_step: short-name of the workflow step
+        :return: class instance with the aforementioned attributes set
+        """
 
         method_name = Config_runscript_base.check_and_set_basic.__name__ + " of Class " + Config_runscript_base.cls_name
 
@@ -52,19 +67,19 @@ class Config_runscript_base:
 
         if wrk_flw_step == "extract":
             self.long_name_wrk_step = "Data Extraction"
-            self.rscrpt_tmpl_suffix = "data_extraction"
+            self.rscrpt_tmpl_prefix = "data_extraction"
         elif wrk_flw_step == "preprocess1":
             self.long_name_wrk_step = "Preprocessing step 1"
-            self.rscrpt_tmpl_suffix = "preprocess_data"
+            self.rscrpt_tmpl_prefix = "preprocess_data"
         elif wrk_flw_step == "preprocess2":
             self.long_name_wrk_step = "Preproccessing step 2"
-            self.rscrpt_tmpl_suffix = "preprocess_data"
+            self.rscrpt_tmpl_prefix = "preprocess_data"
         elif wrk_flw_step == "train":
             self.long_name_wrk_step = "Training"
-            self.rscrpt_tmpl_suffix = "train_model"
+            self.rscrpt_tmpl_prefix = "train_model"
         elif wrk_flw_step == "postprocess":
             self.long_name_wrk_step = "Postprocessing"
-            self.rscrpt_tmpl_suffix = "visualize_postprocess"
+            self.rscrpt_tmpl_prefix = "visualize_postprocess"
         else:
             raise ValueError("%{0}: Workflow step {1} is unknown / not implemented.".format(method_name, wrk_flw_step))
 
@@ -118,7 +133,7 @@ class Config_Extraction(Config_runscript_base):
     def __init__(self, wrk_flw_step, runscript_base):
         super().__init__(wrk_flw_step, runscript_base)
 
-        self.runscript_template = self.rscrpt_tmpl_suffix + "era5" + self.suffix_template
+        self.runscript_template = self.rscrpt_tmpl_prefix + "era5" + self.suffix_template
         self.year = None
         self.run_config = Config_Extraction.run_extraction
 
@@ -190,7 +205,7 @@ class Config_Preprocess1(Config_runscript_base):
     def __init__(self, wrk_flw_step, runscript_base):
         super().__init__(wrk_flw_step, runscript_base)
 
-        self.runscript_template = self.rscrpt_tmpl_suffix + "era5" + self.suffix_template
+        self.runscript_template = self.rscrpt_tmpl_prefix + "era5" + self.suffix_template
         self.years = None
         self.variables = [None] * self.nvars
         self.lat_inds = [np.nan, np.nan]
