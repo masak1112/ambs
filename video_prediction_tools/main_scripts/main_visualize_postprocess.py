@@ -261,7 +261,7 @@ class Postprocess(TrainModel,ERA5Pkl2Tfrecords):
             else:
                 self.input_results, self.input_images_denorm_all, self.t_starts = self.run_and_plot_inputs_per_batch() #run the inputs and plot each sequence images
             
-            self.input_images_denoram_all_batches.append(self.input_images_denorm_all)
+            self.input_images_denorm_all_batches.append(self.input_images_denorm_all)
             feed_dict = {input_ph: self.input_results[name] for name, input_ph in self.inputs.items()}
             self.gen_images_stochastic = [] #[stochastic_ind,batch_size,seq_len,lat,lon,channels]
             #Loop for stochastics 
@@ -298,7 +298,7 @@ class Postprocess(TrainModel,ERA5Pkl2Tfrecords):
             # save input and stochastic generate images to netcdf file
             # For each prediction (either deterministic or ensemble) we create one netCDF file.
             print("persistent_images_per_batch",len(np.array(persistent_images_per_batch)))
-            self.persistent_images_all_batches.append(self.persistent_images_per_batch)
+            self.persistent_images_all_batches.append(persistent_images_per_batch)
             for batch_id in range(self.batch_size):
                 print("batch_id is here",batch_id)
                 self.save_to_netcdf_for_stochastic_generate_images(self.input_images_denorm_all[batch_id], persistent_images_per_batch[batch_id],
@@ -309,16 +309,31 @@ class Postprocess(TrainModel,ERA5Pkl2Tfrecords):
         self.calculate_metrics()
          
 
-    def calculate_metrics(self):
+    def calculate_metrics(self,metric="mse"):
+        """ 
+        Calculate the mes metrics
+        return a dictionary
+        eval_metrics = {
+                         "{mse{_{t1}":[stochast_error1,stochast_err2,.....]
+                         "{mse}_{t2}": [stochast_erro1,stochast_err2,.....]
+                         "persistent_{t1}":[determinstic_error1]
+                         "persistent_{t2}":[determinstic_error1]
+                       }
+        {t1} is the forecasting timestamp
+        """
         eval_metrics = {}
-        #calcualte the metric on persistent
-        mse_persistent =  np.mean(self.input_images_denorm_all_batches,self.persistent_images_all_batches)
-        eval_metrics["persistent"] = mse_persistent
-        for stochastic_sample_ind in range(self.num_stochastic_samples):
-            mse_model = np.mean(self.input_images_denorm_all_batches,self.gen_images_stochastoc[stochastic_samples_ind])
-            eval_metrics["stochastic_idx_".format(stochastic_sample_ind)] = mse_model
-        with open ("mse","w") as fjs:
-            json.dump(eval_metrics,fjs)
+        for ts in range(self.input_images_denorm_all.shape[1]):
+            
+            #calcualte the metric on persistent
+            mse_persistent =  np.mean(self.input_images_denorm_all_batches,self.persistent_images_all_batches)
+            eval_metrics["persistent"] = mse_persistent
+            for stochastic_sample_ind in range(self.num_stochastic_samples):
+                mse_model = np.mean(self.input_images_denorm_all_batches,self.gen_images_stochastoc[stochastic_samples_ind])
+                eval_metrics["stochastic_idx_".format(stochastic_sample_ind)] = mse_model
+            with open ("mse","w") as fjs:
+                json.dump(eval_metrics,fjs)
+
+
 
     @staticmethod
     def check_gen_images_stochastic_shape(gen_images_stochastic):
