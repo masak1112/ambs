@@ -1,0 +1,78 @@
+"""
+Child class used for configuring the runscript of data extraction of the workflow.
+"""
+__author__ = "Michael Langguth"
+__date__ = "2021-01-28"
+
+# import modules
+import os, glob
+from config_utils import Config_runscript_base    # import parent class
+
+class Config_Extraction(Config_runscript_base):
+
+    cls_name = "Config_Extraction"#.__name__
+
+    def __init__(self, wrk_flw_step, runscript_base):
+        super().__init__(wrk_flw_step, runscript_base)
+
+        self.runscript_template = self.rscrpt_tmpl_prefix + "era5" + self.suffix_template
+        self.year = None
+        self.run_config = Config_Extraction.run_extraction
+
+    def run_extraction(self):
+        """
+        Runs the keyboard interaction for data extraction step
+        :return: all attributes of class Data_Extraction are set
+        """
+
+        dataset_req_str = "Enter the path where the original ERA5 netCDF-files are located:\n"
+        dataset_err = FileNotFoundError("Cannot retrieve input data from passed path.")
+
+        self.source_dir = Config_Extraction.keyboard_interaction(dataset_req_str, Config_Extraction.check_data_indir,
+                                                                 dataset_err, ntries=3)
+
+        year_req_str = "Enter the year for which data extraction should be performed:\n"
+        year_err = ValueError("Please type in a year (after 1970) in YYYY-format.")
+
+        self.year = Config_Extraction.keyboard_interaction(year_req_str, Config_Extraction.check_year,
+                                                           year_err, ntries = 2, test_arg="2012")
+
+    # auxiliary functions for keyboard interaction
+    @staticmethod
+    def check_data_indir(indir, silent=False):
+        """
+        Check recursively for existence era5 netCDF-files in indir.
+        This is just a simplified check, i.e. the script will fail if the directory tree is not
+        built up like '<indir>/YYYY/MM/'.
+        Also used in Config_preprocess1!
+        :param indir: path to passed input directory
+        :param silent: flag if print-statement are executed
+        :return: status with True confirming success
+        """
+        status = False
+        if os.path.isdir(indir):
+            # the built-in 'any'-function has a short-sircuit mechanism, i.e. returns True
+            # if the first True element is met
+            fexist = any(glob.glob(os.path.join(indir, "**", "*era5*.nc"), recursive=True))
+            if fexist:
+                status = True
+            else:
+                if not silent: print("{0} does not contain any ERA5 netCDF-files.".format(indir))
+        else:
+            if not silent: print("Could not find data directory '{0}'.".format(indir))
+
+        return status
+
+    @staticmethod
+    def check_year(year_in, silent=False):
+        status = True
+        if not year_in.isnumeric():
+            status = False
+            if not silent: print("{0} is not a numeric number.".format(year_in))
+
+        if not int(year_in) > 1970:
+            status = False
+            if not silent: print("{0} must match the format YYYY and must be larger than 1970.")
+
+        return status
+
