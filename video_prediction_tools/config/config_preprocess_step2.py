@@ -6,7 +6,6 @@ __date__ = "2021-01-28"
 
 # import modules
 import os, glob
-import numpy as np
 from data_preprocess.dataset_options import known_datasets
 from config_utils import Config_runscript_base    # import parent class
 
@@ -26,7 +25,9 @@ class Config_Preprocess2(Config_runscript_base):
                                       # -> do not set to None in order to avoid jeopardizing attribute-check
         # set the attributes which are still None via keyboard interaction
         self.run_config = Config_Preprocess2.run_preprocess2
-
+    #
+    # -----------------------------------------------------------------------------------
+    #
     def run_preprocess2(self):
         """
         Runs the keyboard interaction for Preprocessing step 2
@@ -73,12 +74,9 @@ class Config_Preprocess2(Config_runscript_base):
             seql_str = Config_Preprocess2.keyboard_interaction(seql_req_str, Config_Preprocess2.get_seq_length,
                                                                seql_err)
             self.sequence_length = int(seql_str)
-
-
-
-
-
-
+    #
+    # -----------------------------------------------------------------------------------
+    #
     @staticmethod
     # dataset used for training
     def check_dataset(dataset_name, silent=False):
@@ -93,7 +91,9 @@ class Config_Preprocess2(Config_runscript_base):
             return False
         else:
             return True
-
+    #
+    # -----------------------------------------------------------------------------------
+    #
     @staticmethod
     def check_data_indir(indir, silent=False):
         """
@@ -109,7 +109,9 @@ class Config_Preprocess2(Config_runscript_base):
             if not silent: print("Could not find data directory '{0}'.".format(indir))
 
         return status
-
+    #
+    # -----------------------------------------------------------------------------------
+    #
     @staticmethod
     def get_seq_length(seq_length, silent=False):
         """
@@ -124,6 +126,6 @@ class Config_Preprocess2(Config_runscript_base):
                 status = True
 
         return status
-
-
-
+#
+# -----------------------------------------------------------------------------------
+#

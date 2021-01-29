@@ -28,7 +28,9 @@ class Config_runscript_base:
 
         self.source_dir = None
         self.run_config = None
-
+    #
+    # -----------------------------------------------------------------------------------
+    #
     def run(self):
         """
         Acts as generic wrapper: Checks if run_config is already set up as a callable
@@ -44,7 +46,9 @@ class Config_runscript_base:
 
         # simply execute it
         self.run_config(self)
-
+    #
+    # -----------------------------------------------------------------------------------
+    #
     def check_and_set_basic(self, wrk_flw_step):
         """
         Set the following basic attributes depending on the workflow step (initialized with None in __init__):
@@ -82,18 +86,20 @@ class Config_runscript_base:
             self.rscrpt_tmpl_prefix = "visualize_postprocess"
         else:
             raise ValueError("%{0}: Workflow step {1} is unknown / not implemented.".format(method_name, wrk_flw_step))
-
+    #
+    # -----------------------------------------------------------------------------------
+    #
     @staticmethod
-    def keyboard_interaction(console_str, check_input, err, ntries=1, test_arg=None):
+    def keyboard_interaction(console_str, check_input, err, ntries=1, test_arg="xxx"):
         """
         Function to check if the user has passed a proper input via keyboard interaction
         :param console_str: Request printed to the console
         :param check_input: function returning boolean which needs to be passed by input from keyboard interaction.
                             Must have two arguments with the latter being an optional bool called silent.
         :param ntries: maximum number of tries (default: 1)
+        :param test_arg: test argument to check_input-function (default: "xxx")
         :return: The approved input from keyboard interaction
         """
-        if test_arg is None: test_arg = "xxx"
         # sanity checks
         if not callable(check_input):
             raise ValueError("check_input must be a function!")
@@ -124,19 +130,3 @@ class Config_runscript_base:
                     raise err
 
         return input_req
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

@@ -28,7 +28,9 @@ class Config_Preprocess1(Config_runscript_base):
         self.lon_inds = [np.nan, np.nan]
         # set the attributes which are still None via keyboard interaction
         self.run_config = Config_Preprocess1.run_preprocess1
-
+    #
+    # -----------------------------------------------------------------------------------
+    #
     def run_preprocess1(self):
         """
         Runs the keyboard interaction for Preprocessing step 1
@@ -84,7 +86,9 @@ class Config_Preprocess1(Config_runscript_base):
 
         lon_inds_list = lon_inds_str.split(",")
         self.lon_inds = [int(ind.strip()) for ind in lon_inds_list]
-
+    #
+    # -----------------------------------------------------------------------------------
+    #
     # auxiliary functions for keyboard interaction
     @staticmethod
     def check_data_indir(indir, silent=False):
@@ -110,12 +114,14 @@ class Config_Preprocess1(Config_runscript_base):
             if not silent: print("Could not find data directory '{0}'.".format(indir))
 
         return status
-
+    #
+    # -----------------------------------------------------------------------------------
+    #
     @staticmethod
     def check_years(years_str, silent=False):
         """
         Check if comma-separated string of years contains vaild entities (i.e. numbers and years after 1950)
-        :param years: Comma separated string of years with format YYYY
+        :param years_str: Comma separated string of years with format YYYY
         :param silent: flag if print-statement are executed
         :return: status with True confirming success
         """
@@ -139,7 +145,9 @@ class Config_Preprocess1(Config_runscript_base):
             if not silent: print("All years must be after year 1950.")
 
         return status
-
+    #
+    # -----------------------------------------------------------------------------------
+    #
     @staticmethod
     def check_variables(vars_str, silent=False):
         """
@@ -163,7 +171,9 @@ class Config_Preprocess1(Config_runscript_base):
             status = False
 
         return status
-
+    #
+    # -----------------------------------------------------------------------------------
+    #
     @staticmethod
     def check_latlon_inds(inds_str, silent=False):
         """
@@ -191,3 +201,6 @@ class Config_Preprocess1(Config_runscript_base):
             if not silent: print("Indices must be numbers.")
 
         return status
+#
+# -----------------------------------------------------------------------------------
+#

@@ -20,7 +20,9 @@ class Config_Extraction(Config_runscript_base):
         self.year = None
         # set the attributes which are still None via keyboard interaction
         self.run_config = Config_Extraction.run_extraction
-
+    #
+    # -----------------------------------------------------------------------------------
+    #
     def run_extraction(self):
         """
         Runs the keyboard interaction for data extraction step
@@ -38,7 +40,9 @@ class Config_Extraction(Config_runscript_base):
 
         self.year = Config_Extraction.keyboard_interaction(year_req_str, Config_Extraction.check_year,
                                                            year_err, ntries = 2, test_arg="2012")
-
+    #
+    # -----------------------------------------------------------------------------------
+    #
     # auxiliary functions for keyboard interaction
     @staticmethod
     def check_data_indir(indir, silent=False):
@@ -64,7 +68,9 @@ class Config_Extraction(Config_runscript_base):
             if not silent: print("Could not find data directory '{0}'.".format(indir))
 
         return status
-
+    #
+    # -----------------------------------------------------------------------------------
+    #
     @staticmethod
     def check_year(year_in, silent=False):
         status = True
@@ -77,4 +83,6 @@ class Config_Extraction(Config_runscript_base):
             if not silent: print("{0} must match the format YYYY and must be larger than 1970.")
 
         return status
-
+#
+# -----------------------------------------------------------------------------------
+#
