@@ -321,14 +321,14 @@ class Postprocess(TrainModel,ERA5Pkl2Tfrecords):
                        }
         {t1} is the forecasting timestamp
         """
+        assert len(self.input_images_denorm_all_batches.shape) + 1 == len(self.gen_images_stochastic.shape) = len(self.persistent_images_all_batches.shape))
         eval_metrics = {}
         for ts in range(self.input_images_denorm_all.shape[1]):
-            
             #calcualte the metric on persistent
-            mse_persistent =  np.mean(self.input_images_denorm_all_batches,self.persistent_images_all_batches)
+            mse_persistent =  np.mean(self.input_images_denorm_all_batches[:,ts,:,:,:],self.persistent_images_all_batches)
             eval_metrics["persistent"] = mse_persistent
             for stochastic_sample_ind in range(self.num_stochastic_samples):
-                mse_model = np.mean(self.input_images_denorm_all_batches,self.gen_images_stochastoc[stochastic_samples_ind])
+                mse_model = np.mean(self.input_images_denorm_all_batches,self.gen_images_stochastic[stochastic_samples_ind])
                 eval_metrics["stochastic_idx_".format(stochastic_sample_ind)] = mse_model
             with open ("mse","w") as fjs:
                 json.dump(eval_metrics,fjs)
