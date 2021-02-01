@@ -1,5 +1,5 @@
 """
-Child class used for configuring the runscript of preprocessing step 1 of the workflow.
+Child class used for configuring the preprocessing step 1 runscript of the workflow.
 """
 __author__ = "Michael Langguth"
 __date__ = "2021-01-27"
@@ -20,8 +20,9 @@ class Config_Preprocess1(Config_runscript_base):
     def __init__(self, wrk_flw_step, runscript_base):
         super().__init__(wrk_flw_step, runscript_base)
 
-        self.runscript_template = self.rscrpt_tmpl_prefix + "era5" + self.suffix_template
         self.dataset = "era5"
+        self.runscript_template = self.rscrpt_tmpl_prefix + self.dataset + self.suffix_template
+        self.runscript_target = self.rscrpt_tmpl_prefix + self.dataset
         self.years = None
         self.variables = [None] * self.nvars
         self.lat_inds = [np.nan, np.nan]

@@ -1,5 +1,5 @@
 """
-Child class used for configuring the runscript of training step of the workflow.
+Child class used for configuring the training runscript of the workflow.
 """
 __author__ = "Michael Langguth"
 __date__ = "2021-01-29"
@@ -7,6 +7,7 @@ __date__ = "2021-01-29"
 # import modules
 import os, glob
 import time
+import datetime as dt
 import subprocess as sp
 from model_modules.model_architectures import known_models
 from data_preprocess.dataset_options import known_datasets
@@ -41,10 +42,11 @@ class Config_Train(Config_runscript_base):
         dset_err = ValueError("Please select a dataset from the ones listed above.")
 
         self.dataset = Config_Train.keyboard_interaction(dset_type_req_str, Config_Train.check_dataset,
-                                                         dset_err, ntries=3)
+                                                         dset_err, ntries=2)
 
-        # now, we are also ready to set the correct name of the runscript template
+        # now, we are also ready to set the correct name of the runscript template and the target
         self.runscript_template = self.rscrpt_tmpl_prefix + self.dataset + self.suffix_template
+        self.runscript_target = self.rscrpt_tmpl_prefix + self.dataset
 
         # get the source directory
 

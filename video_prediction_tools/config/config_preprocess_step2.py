@@ -1,5 +1,5 @@
 """
-Child class used for configuring the runscript of preprocessing step 2 of the workflow.
+Child class used for configuring the preprocessing step 2 runscript of the workflow.
 """
 __author__ = "Michael Langguth"
 __date__ = "2021-01-28"
@@ -39,8 +39,9 @@ class Config_Preprocess2(Config_runscript_base):
 
         self.dataset = Config_Preprocess2.keyboard_interaction(dset_type_req_str, Config_Preprocess2.check_dataset,
                                                                dset_err, ntries=3)
-        # now, we are also ready to set the correct name of the runscript template
+        # now, we are also ready to set the correct name of the runscript template and the target
         self.runscript_template = self.rscrpt_tmpl_prefix + self.dataset + self.suffix_template
+        self.runscript_target = self.rscrpt_tmpl_prefix + self.dataset
 
         # get source dir
         if self.dataset == "era5":
