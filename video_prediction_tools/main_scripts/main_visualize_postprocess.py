@@ -436,8 +436,6 @@ class Postprocess(TrainModel,ERA5Pkl2Tfrecords):
         Postprocess.plot_seq_imgs(imgs=self.persistence_images[self.context_frames:,:,:,0],lats=self.lats,lons=self.lons,
                                   ts=self.ts_persistence[self.context_frames:], label="Persistence Forecast" + self.model,output_png_dir=self.results_dir) 
 
-
-
     def plot_generate_images(self,stochastic_sample_ind,stochastic_plot_id=0):
         """
         Plot the generate image for specific stochastic index
@@ -447,7 +445,6 @@ class Postprocess(TrainModel,ERA5Pkl2Tfrecords):
                                       ts=self.ts[self.context_frames:],label="Forecast by Model " + self.model,output_png_dir=self.results_dir) 
         else:
             pass
-
 
     def save_to_netcdf_for_stochastic_generate_images(self,input_images_,persistent_images_,gen_images_stochastic,fl_name="test.nc"):
         """
@@ -746,7 +743,6 @@ class Postprocess(TrainModel,ERA5Pkl2Tfrecords):
         ax.set_xlabel('Time stamps')
         ax.set_ylabel("Errors")
         print("Saving plot for err")
- 
         plt.savefig(os.path.join(self.results_dir,"evaluation.png"))
 
 
