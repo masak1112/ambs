@@ -12,20 +12,28 @@ class Config_runscript_base:
 
     cls_name = "Config_runscript_base"
 
-    def __init__(self, wrk_flw_step, runscript_base):
+    def __init__(self, wrk_flw_step, runscript_base, venv_name, lhpc=False):
         """
         Sets some basic attributes required by all workflow steps
         :param wrk_flw_step: short-name of the workflow step
         :param runscript_base: (relative or absolute) path to directory where runscript templates are stored
         """
-        self.runscript_base     = runscript_base
+        self.runscript_base = runscript_base
+        self.virt_env_name = venv_name
+        if lhpc:
+            self.runscript_dir = "../HPC_scripts"
+        else:
+            self.runscript_dir = "../Zam347_scripts"
+
         self.long_name_wrk_step = None
         self.rscrpt_tmpl_prefix = None
         self.suffix_template = "_template.sh"
         self.runscript_template = None             # will be constructed in child class of the workflow step
-        self.dataset            = None
+        self.runscript_target   = None
         Config_runscript_base.check_and_set_basic(self, wrk_flw_step)
 
+        self.list_batch_vars = None
+        self.dataset = None
         self.source_dir = None
         self.run_config = None
     #
@@ -49,6 +57,27 @@ class Config_runscript_base:
     #
     # -----------------------------------------------------------------------------------
     #
+    def finalize(self):
+        """
+        Converts runscript template to executable and sets user-defined Batch-script variables from class attributes
+        :return:
+        """
+        # some sanity checks (note that the file existence is already check during keyboard interaction)
+        if self.runscript_template is None:
+            raise AttributeError("The attribute runscript_template is still uninitialzed." +
+                                 "Run keyboard interaction (self.run) first")
+
+        if self.runscript_target is None:
+            raise AttributeError("The attribute runscript_target is still uninitialzed." +
+                                 "Run keyboard interaction (self.run) first")
+
+        runscript_temp = os.path.join(self.runscript_dir, self.runscript_template)
+        runscript_tar = os.path.join(self.runscript_dir, self.runscript_target)
+        cmd_gen = "./generate_work_runscripts.sh {0} {1}".format(runscript_temp, runscript_tar)
+        os.system(cmd_gen)
+
+        Config_runscript_base.write_batch_vars(self, runscript_tar)
+
     def check_and_set_basic(self, wrk_flw_step):
         """
         Set the following basic attributes depending on the workflow step (initialized with None in __init__):
@@ -86,6 +115,81 @@ class Config_runscript_base:
             self.rscrpt_tmpl_prefix = "visualize_postprocess"
         else:
             raise ValueError("%{0}: Workflow step {1} is unknown / not implemented.".format(method_name, wrk_flw_step))
+    #
+    # -----------------------------------------------------------------------------------
+    #
+    def write_batch_vars(self, runscript):
+        """
+        Writes batch-script variables from self.list_batch_vars into target runscript
+        :param runscript: name of the runscript to work on
+        :return: modified runscript
+        """
+
+        method_name = Config_runscript_base.write_batch_vars.__name__ + " of Class " + Config_runscript_base.cls_name
+
+        # sanity check if list of batch variables to be written is initialized
+        if self.list_batch_vars is None:
+            raise AttributeError("The attribute list_batch_vars is still unintialized." +
+                                 "Run keyboard interaction (self.run) first!")
+
+        for batch_var in self.list_batch_var:
+            err = None
+            if not hasattr(self, batch_var):
+                err= AttributeError("%{0}: Cannot find attribute '{1}'".format(method_name, batch_var))
+            else:
+                batch_var_val = getattr(self, batch_var)
+                if batch_var_val is None:
+                    err= AttributeError("%{0}: Attribute '{1}' is still None.".format(method_name, batch_var))
+
+            if not err is None:
+                raise err
+
+            write_cmd = "sed -i \"s/{0}=.*/{0}={1}/g\" {2}".format(batch_var, batch_var_val, runscript)
+            stat_batch_var = Config_runscript_base.check_variable_from_runscript(batch_var, runscript)
+
+            if stat_batch_var:
+                os.cmd(write_cmd)
+            else:
+                print("%{0}: Batch script variable {1} could not be set.".format(method_name, batch_var))
+    #
+    # -----------------------------------------------------------------------------------
+    #
+    @staticmethod
+    def path_rec_split(full_path):
+        """
+        :param full_path: input path to be splitted in its components
+        :return: list of all splitted components
+        """
+        rest, tail = os.path.split(full_path)
+        if rest in ('', os.path.sep): return tail,
+
+        return Config_runscript_base.path_rec_split(rest) + (tail,)
+    #
+    # -----------------------------------------------------------------------------------
+    #
+    @staticmethod
+    def check_variable_from_runscript(runscript_file, script_variable):
+        '''
+        Search for the declaration of variable in a Shell script and returns its value.
+        :param runscript_file: path to shell script/runscript
+        :param script_variable: name of variable which is declared in shell script at hand
+        :return: value of script_variable
+        '''
+        script_variable = script_variable + "="
+        found = False
+
+        with open(runscript_file) as runscript:
+            # Skips text before the beginning of the interesting block:
+            for line in runscript:
+                if script_variable in line:
+                    var_value = (line.strip(script_variable)).replace("\n", "")
+                    found = True
+                    break
+
+        if not found:
+            print("Could not find declaration of '" + script_variable + "' in '" + runscript_file + "'.")
+
+        return found, var_value
     #
     # -----------------------------------------------------------------------------------
     #
