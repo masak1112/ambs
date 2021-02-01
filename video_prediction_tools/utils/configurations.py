@@ -48,7 +48,7 @@ def check_virtualenv(labort=False):
 #
 # --------------------------------------------------------------------------------------------------------
 #
-def get_variable_from_runscript(runscript_file,script_variable):
+def get_variable_from_runscript(runscript_file, script_variable):
     '''
     Search for the declaration of variable in a Shell script and returns its value.
     :param runscript_file: path to shell script/runscript
