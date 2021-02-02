@@ -18,8 +18,9 @@ class Config_runscript_base:
         :param wrk_flw_step: short-name of the workflow step
         :param runscript_base: (relative or absolute) path to directory where runscript templates are stored
         """
+        self.VIRT_ENV_NAME = venv_name
+        # runscript related attributes
         self.runscript_base = runscript_base
-        self.virt_env_name = venv_name
         if lhpc:
             self.runscript_dir = "../HPC_scripts"
         else:
@@ -31,10 +32,11 @@ class Config_runscript_base:
         self.runscript_template = None             # will be constructed in child class of the workflow step
         self.runscript_target   = None
         Config_runscript_base.check_and_set_basic(self, wrk_flw_step)
-
+        # general to be expected attributes
         self.list_batch_vars = None
         self.dataset = None
         self.source_dir = None
+        # attribute storing workflow-step dependant function for keyboard interaction
         self.run_config = None
     #
     # -----------------------------------------------------------------------------------
@@ -76,7 +78,7 @@ class Config_runscript_base:
         cmd_gen = "./generate_work_runscripts.sh {0} {1}".format(runscript_temp, runscript_tar)
         os.system(cmd_gen)
 
-        Config_runscript_base.write_batch_vars(self, runscript_tar)
+        Config_runscript_base.write_rscr_vars(self, runscript_tar)
 
     def check_and_set_basic(self, wrk_flw_step):
         """
@@ -118,24 +120,24 @@ class Config_runscript_base:
     #
     # -----------------------------------------------------------------------------------
     #
-    def write_batch_vars(self, runscript):
+    def write_rscr_vars(self, runscript):
         """
         Writes batch-script variables from self.list_batch_vars into target runscript
         :param runscript: name of the runscript to work on
         :return: modified runscript
         """
 
-        method_name = Config_runscript_base.write_batch_vars.__name__ + " of Class " + Config_runscript_base.cls_name
+        method_name = Config_runscript_base.write_rscr_vars.__name__ + " of Class " + Config_runscript_base.cls_name
 
         # sanity check if list of batch variables to be written is initialized
         if self.list_batch_vars is None:
             raise AttributeError("The attribute list_batch_vars is still unintialized." +
                                  "Run keyboard interaction (self.run) first!")
 
-        for batch_var in self.list_batch_var:
+        for batch_var in self.list_batch_vars:
             err = None
             if not hasattr(self, batch_var):
-                err= AttributeError("%{0}: Cannot find attribute '{1}'".format(method_name, batch_var))
+                err = AttributeError("%{0}: Cannot find attribute '{1}'".format(method_name, batch_var))
             else:
                 batch_var_val = getattr(self, batch_var)
                 if batch_var_val is None:
@@ -144,13 +146,17 @@ class Config_runscript_base:
             if not err is None:
                 raise err
 
+            if isinstance(batch_var_val, list):
+                # translate to string generating Bash-array
+                batch_var_val = "(\"" + "\"\n\"".join(batch_var_val) + "\")"
+
             write_cmd = "sed -i \"s/{0}=.*/{0}={1}/g\" {2}".format(batch_var, batch_var_val, runscript)
-            stat_batch_var = Config_runscript_base.check_variable_from_runscript(batch_var, runscript)
+            stat_batch_var = Config_runscript_base.check_var_in_runscript(batch_var, runscript)
 
             if stat_batch_var:
-                os.cmd(write_cmd)
+                os.system(write_cmd)
             else:
-                print("%{0}: Batch script variable {1} could not be set.".format(method_name, batch_var))
+                print("%{0}: Runscript script variable {1} could not be set.".format(method_name, batch_var))
     #
     # -----------------------------------------------------------------------------------
     #
@@ -168,28 +174,23 @@ class Config_runscript_base:
     # -----------------------------------------------------------------------------------
     #
     @staticmethod
-    def check_variable_from_runscript(runscript_file, script_variable):
+    def check_var_in_runscript(scr_file, scr_var):
         '''
-        Search for the declaration of variable in a Shell script and returns its value.
-        :param runscript_file: path to shell script/runscript
-        :param script_variable: name of variable which is declared in shell script at hand
-        :return: value of script_variable
+        Checks if variable in a Shell script is declared, i.e. if "scr_var=*" is part of the script
+        :param scr_file: path to shell script/runscript
+        :param scr_var: name of variable whose declaration should be checked
+        :return stat: True if variable declaration was detected
         '''
-        script_variable = script_variable + "="
-        found = False
 
-        with open(runscript_file) as runscript:
-            # Skips text before the beginning of the interesting block:
-            for line in runscript:
-                if script_variable in line:
-                    var_value = (line.strip(script_variable)).replace("\n", "")
-                    found = True
-                    break
+        test = sp.Popen(['grep', scr_var+'=', scr_file], stdout=sp.PIPE).communicate()[0]
+        test = str(test).strip("b''")                     # if nothing is found, this will return an empty string
 
-        if not found:
-            print("Could not find declaration of '" + script_variable + "' in '" + runscript_file + "'.")
+        stat = False
+        if test:
+            stat = True
 
-        return found, var_value
+        return stat
+
     #
     # -----------------------------------------------------------------------------------
     #
