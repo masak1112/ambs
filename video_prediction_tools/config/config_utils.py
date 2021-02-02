@@ -46,7 +46,6 @@ class Config_runscript_base:
         Acts as generic wrapper: Checks if run_config is already set up as a callable
         :return: Executes run_config
         """
-
         method_name = "run" + " of Class " + Config_runscript_base.cls_name
         if self.run_config is None:
             raise ValueError("%{0}: run-method is still uninitialized.".format(method_name))
@@ -62,7 +61,7 @@ class Config_runscript_base:
     def finalize(self):
         """
         Converts runscript template to executable and sets user-defined Batch-script variables from class attributes
-        :return:
+        :return: user-defined runscript
         """
         # some sanity checks (note that the file existence is already check during keyboard interaction)
         if self.runscript_template is None:
@@ -72,12 +71,12 @@ class Config_runscript_base:
         if self.runscript_target is None:
             raise AttributeError("The attribute runscript_target is still uninitialzed." +
                                  "Run keyboard interaction (self.run) first")
-
-        runscript_temp = os.path.join(self.runscript_dir, self.runscript_template)
+        # generate runscript...
+        runscript_temp = os.path.join(self.runscript_dir, self.runscript_template).rstrip("_template.sh")
         runscript_tar = os.path.join(self.runscript_dir, self.runscript_target)
         cmd_gen = "./generate_work_runscripts.sh {0} {1}".format(runscript_temp, runscript_tar)
         os.system(cmd_gen)
-
+        # ...do modificatios stored in attributes of class instance
         Config_runscript_base.write_rscr_vars(self, runscript_tar)
 
     def check_and_set_basic(self, wrk_flw_step):
@@ -190,7 +189,6 @@ class Config_runscript_base:
             stat = True
 
         return stat
-
     #
     # -----------------------------------------------------------------------------------
     #
