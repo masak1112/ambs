@@ -117,6 +117,9 @@ class Config_Train(Config_runscript_base):
         time.sleep(3)
         cmd_vim = os.environ.get('EDITOR', 'vi') + ' ' + os.path.join(self.destination_dir, "model_hparams.json")
         sp.call(cmd_vim, shell=True)
+
+        # list of variables to be written to runscript
+        self.list_batch_vars = ["VIRT_ENV_NAME", "source_dir", "model", "exp_id", "destination_dir"]
     #
     # -----------------------------------------------------------------------------------
     #

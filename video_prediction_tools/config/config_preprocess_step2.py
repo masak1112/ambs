@@ -75,6 +75,10 @@ class Config_Preprocess2(Config_runscript_base):
             seql_str = Config_Preprocess2.keyboard_interaction(seql_req_str, Config_Preprocess2.get_seq_length,
                                                                seql_err)
             self.sequence_length = int(seql_str)
+
+        # list of variables to be written to runscript
+        self.list_batch_vars = ["VIRT_ENV_NAME", "source_dir"]
+        if self.dataset == "era5": self.list_batch_vars.append("sequence_length")
     #
     # -----------------------------------------------------------------------------------
     #

@@ -41,6 +41,9 @@ class Config_Extraction(Config_runscript_base):
 
         self.year = Config_Extraction.keyboard_interaction(year_req_str, Config_Extraction.check_year,
                                                            year_err, ntries = 2, test_arg="2012")
+        # list of variables to be written to runscript
+        self.list_batch_vars = ["VIRT_ENV_NAME", "source_dir", "year"]
+
     #
     # -----------------------------------------------------------------------------------
     #

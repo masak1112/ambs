@@ -87,6 +87,9 @@ class Config_Preprocess1(Config_runscript_base):
 
         lon_inds_list = lon_inds_str.split(",")
         self.lon_inds = [int(ind.strip()) for ind in lon_inds_list]
+
+        # list of variables to be written to runscript
+        self.list_batch_vars = ["VIRT_ENV_NAME", "source_dir", "years", "variables", "lat_inds", "lon_inds"]
     #
     # -----------------------------------------------------------------------------------
     #
