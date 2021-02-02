@@ -217,7 +217,7 @@ class VanillaConvLstmVideoPredictionModel(object):
        disc_gen_images = self.disrciminator(gen_images,hidden_dim)
        real_labels = tf.ones_like(gen_images)
        gen_loss = tf.reduce_mean(tf.nn.sigmoid_cross_entropy_with_logits(logits=D_logit_fake, labels=tf.ones_like(D_logit_fake)))
-       pass         
+       return gen_loss         
     
   
    def define_gan(self,image):
