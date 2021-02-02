@@ -24,17 +24,6 @@ if [[ ! -n "$1" ]]; then
   return
 fi
 
-if [[ -n "$2" ]]; then
-  exp_id=$2
-else
-  exp_id=""
-fi
-
-# list of (Batch) scripts used for the steps in the workflow
-# !!! Expects that a template named [script_name]_template.sh exists                   !!!
-# !!! Runscripts for training and postprocessing shall be created with config_train.py !!!
-workflow_scripts=(data_extraction_era5 preprocess_data_era5_step1 preprocess_data_era5_step2 preprocess_data_moving_mnist)
-
 HOST_NAME=`hostname`
 ENV_NAME=$1
 ENV_SETUP_DIR=`pwd`
@@ -122,27 +111,14 @@ if [[ "$ENV_EXIST" == 0 ]]; then
   if [[ "${HOST_NAME}" == hdfml* || "${HOST_NAME}" == juwels* ]]; then
     echo "export PYTHONPATH=${ENV_DIR}/lib/python3.6/site-packages:\$PYTHONPATH" >> ${activate_virt_env}
   fi
+  info_str= "Virtual environment ${ENV_DIR} has been set up successfully."
 elif [[ "$ENV_EXIST" == 1 ]]; then
   # activating virtual env is suifficient
-  source ${ENV_DIR}/bin/activate  
-fi
-# Finish by creating runscripts
- # After checking and setting up the virt env, create user-specific runscripts for all steps of the workflow
-if [[ "${HOST_NAME}" == hdfml* || "${HOST_NAME}" == juwels* ]]; then
-  script_dir=../HPC_scripts
-elif [[ "${HOST_NAME}" == "zam347" ]]; then
-  script_dir=../Zam347_scripts
+  source ${ENV_DIR}/bin/activate
+  info_str= "Virtual environment ${ENV_DIR} has been activated successfully."
 fi
 
-echo "***** Creating Batch-scripts for data extraction and preprpcessing substeps... *****"
-for wf_script in "${workflow_scripts[@]}"; do
-  curr_script=${script_dir}/${wf_script}
-  if [[ -z "${exp_id}" ]]; then
-    ./generate_workflow_runscripts.sh ${curr_script} ${ENV_NAME}
-  else
-    ./generate_workflow_runscripts.sh ${curr_script}  ${ENV_NAME} -exp_id=${exp_id}
-  fi
-done
 echo "******************************************** NOTE ********************************************"
-echo "Runscripts for training and postprocessing can be generated with ../HPC_scripts/config_train.py"
-
+echo ${info_str}
+echo "Make use of config_runscript.py to generate customized runscripts of the workflow steps."
+echo "******************************************** NOTE ********************************************"
