@@ -1,37 +1,20 @@
 #!/usr/bin/env bash
 #
 # __authors__ = Michael Langguth
-# __date__  = '2020_10_28'
+# __date__  = '2021_02_02'
 #
 # **************** Description ****************
 # Converts a given template workflow script (path/name has to be passed as first argument) to
 # an executable workflow (Batch) script. However, use 'config_train.py' for convenience when runscripts for the
 # training and postprocessing substeps should be generated.
-# Note, that the first argument has to be passed with "_template.sh" omitted!
-# The second argument denotes the name of the virtual environment to be used.
-# Additionally, the following optional arguments can be passed as NON-POSITIONAL arguments:
-# -exp_id     : set an experimental identifier explicitly (default is -exp_id=exp1)
-# -exp_dir    : set manually the basic experimental directory
-# -exp_dir_ext: set manually the extended basic experimental directory (has to be passed in conjunction with
-#               -exp_dir!) following the naming convention for storing the trained models and their postprocessed data
-# -model      : set manually the model to be trained/postprocessed
-# Note, that -exp_dir is useful if the first preprocessing step can be skipped (i.e. preprocessed netCDf files already
-# exist).
-# The optional arguments -exp_dir_ext and -model are additionally used by config_train.py to create the runscripts for
-# the training and postprocessing step.
 #
 # Examples:
-#    ./generate_workflow_scripts.sh ../HPC_scripts/preprocess_data_era5_step2 venv_hdfml -exp_id=exp5
-#    ... will convert process_data_era5_template.sh to process_data_era5_exp5.sh where
-#    venv_hdfml is the virtual environment for operation.
-#    Note, that source_dir and destination_dir are not properly set in that case!
-#
-#    ./generate_workflow_scripts.sh ../HPC_scripts/preprocess_data_era5_step2 venv_hdfml -exp_id=exp5 -exp_dir=testdata
-#    ... does the same as the previous example, but additionally extends source_dir=[...]/preprocessedData/ and
-#    destination_dir=[...]/models/ properly
+#    ./generate_workflow_scripts.sh ../HPC_scripts/train_model_era5 ../HPC_scripts/train_model_era5_test.sh
+#    ... will convert train_model_era5_template.sh to ../HPC_scripts/train_model_era5_test.sh
 # **************** Description ****************
 #
-# **************** Auxilary functions ****************
+# **************** Auxiliary functions ****************
+# ML 2021-02-02: Not in use, but retained since they are quite helpful
 check_argin() {
 # Handle input arguments and check if one of them holds -exp_id= 
 # or -exp_dir= to emulate them as non-positional arguments
@@ -58,7 +41,7 @@ extend_path() {
    status=1
   fi
 }
-# **************** Auxilary functions ****************
+# **************** Auxiliary functions ****************
 
 HOST_NAME=`hostname`
 BASE_DIR=`pwd`
@@ -67,30 +50,19 @@ EXE_DIR="$(basename "$BASE_DIR")"
 
 ### Some sanity checks ###
 # ensure that the script is executed from the env_setup-subdirectory
-if [[ "${EXE_DIR}" != "env_setup"  ]]; then
+if [[ "${EXE_DIR}" != "config"  ]]; then
   echo "ERROR: Execute 'generate_workflow_scripts.sh' from the env_setup-subdirectory only!"
   exit 1
 fi
 # check input arguments
-if [[ "$#" -lt 2 ]]; then
-  echo "ERROR: Pass path to workflow runscript (without '_template.sh') and pass name of virtual environment..."
-  echo "Example: ./generate_workflow_scripts.sh ../HPC_scripts/DataExtraction venv_hdfml"
+if [[ "$#" -ne 2 ]]; then
+  echo "ERROR: Pass path to workflow runscript (without '_template.sh') as well as name of target file"
+  echo "Example: ./generate_workflow_scripts.sh ../HPC_scripts/DataExtraction ../HPC_scripts/DataExtraction_test.sh"
   exit 1
 else
   curr_script=$1
   curr_script_loc="$(basename "$curr_script")"
-  curr_venv=$2                          #
-  # check if any known non-positional argument is present...
-  if [[ "$#" -gt 2 ]]; then
-    check_argin ${@:3}
-    if [[ ! -z "${exp_dir_ext}" ]] && [[ -z "${exp_dir}" ]]; then
-      echo "WARNING: -exp_dir_ext is passed without passing -ext_dir and thus has no effect!"
-    fi
-  fi
-  #...and ensure that exp_id is always set
-  if [[ -z "${exp_id}" ]]; then
-    exp_id="exp1"
-  fi
+  target_script=$2
 fi
 
 # check existence of template script
@@ -105,22 +77,9 @@ if ! [[ -f ${curr_script}_template.sh ]]; then
   fi
 fi
 
-# Check existence of virtual environment (2nd argument)
-if [[ ! -d ${WORKING_DIR}/${curr_venv} ]]; then
-  echo "ERROR: Could not find directory of virtual environment under ${WORKING_DIR}/${curr_venv} "
-  exit 3
-fi
-
 # Check if target script is unique
-target_script=${curr_script}_${exp_id}.sh
-if [[ -f ${target_script} ]]; then
-  echo "ERROR: ${target_script} already exist."
-  echo "Set explicitly a different experiment identifier."
-  exit 4
-else 
-  echo "Convert ${curr_script}_template.sh to executable runscript"
-  echo "The executable runscript is saved under ${target_script}" 
-fi
+echo "Convert ${curr_script}_template.sh to executable runscript"
+echo "The executable runscript is saved under ${target_script}"
 
 ### Do the work ###
 # create copy of template which is modified subsequently
@@ -132,16 +91,10 @@ line_e=`echo ${num_lines} | cut -d' ' -f 2`
 if [[ ${line_s} == "" || ${line_e} == "" ]]; then
   echo "ERROR: ${curr_script}_template.sh exists, but does not seem to be a valid template script."
   rm ${target_script}     # remove copy again
-  exit 5
+  exit 3
 else
   sed -i "${line_s},${line_e}d" ${target_script}
 fi
-
-# set virtual environment to be used in Batch scripts
-if [[ `grep "VIRT_ENV_NAME=" ${target_script}` ]]; then
-  sed -i 's/VIRT_ENV_NAME=.*/VIRT_ENV_NAME="'${curr_venv}'"/g' ${target_script}
-fi
-
 # also adapt name output- and error-files of submitted job with exp_id (if we are on Juwels or HDF-ML)
 if [[ `grep "#SBATCH --output=" ${target_script}` ]]; then
   sed -i "s|#SBATCH --output=.*|#SBATCH --output=${curr_script_loc}_${exp_id}-out\.%j|g" ${target_script}
@@ -149,12 +102,6 @@ fi
 if [[ `grep "#SBATCH --error=" ${target_script}` ]]; then
   sed -i "s|#SBATCH --error=.*|#SBATCH --error=${curr_script_loc}_${exp_id}-err\.%j|g" ${target_script}
 fi
-
-# set exp_id in (Batch) script if present
-if [[ `grep "exp_id=" ${target_script}` ]]; then
-  sed -i "s/exp_id=.*/exp_id=$exp_id/g" ${target_script}
-fi
-
 # set correct e-mail address in Batch scripts on Juwels and HDF-ML
 if [[ "${HOST_NAME}" == hdfml* || "${HOST_NAME}" == *juwels* ]]; then
   if ! [[ -z `command -v jutil` ]]; then
@@ -164,32 +111,4 @@ if [[ "${HOST_NAME}" == hdfml* || "${HOST_NAME}" == *juwels* ]]; then
   fi
   sed -i "s/--mail-user=.*/--mail-user=$USER_EMAIL/g" ${target_script}
 fi
-
-# set model if model was passed as optional argument
-if [[ ! -z "${model}" ]]; then
-  sed -i "s/model=.*/model=${model}/g" ${target_script}
-fi
-
-# finally set experimental directory if exp_dir is present
-if [[ ! -z "${exp_dir}" ]]; then
-  if [[ ! -z "${exp_dir_ext}" ]]; then
-    status=0                      # status to check if exp_dir_ext is added to the runscript at hand
-                                  # -> will be set to one by extend_path if modifictaion takes place
-    extend_path models ${exp_dir_ext}/
-    extend_path results ${exp_dir_ext}
-
-    if [[ ${status} == 0 ]]; then
-      echo "WARNING: -exp_dir_ext has been passed, but no addition to any path in runscript at hand done..."
-    fi
-  fi
-  status=0                        # status to check if exp_dir is added to the runscript at hand
-                                  # -> will be set to one by add_exp_dir if modifictaion takes place
-  extend_path preprocessedData ${exp_dir}
-
-  if [[ ${status} == 0 ]]; then
-    echo "WARNING: -exp_dir has been passed, but no addition to any path in runscript at hand done..."
-  fi
-fi
-
-
-
+# end
