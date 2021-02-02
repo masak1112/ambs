@@ -81,7 +81,7 @@ class VanillaConvLstmVideoPredictionModel(object):
         self.x = x["images"]
         self.global_step = tf.train.get_or_create_global_step()
         original_global_variables = tf.global_variables()
-        # ARCHITECTURE
+        # Architecture
         self.gan_network()
         #This is the loss function (RMSE):
         #This is loss function only for 1 channel (temperature RMSE)
@@ -113,11 +113,6 @@ class VanillaConvLstmVideoPredictionModel(object):
         return self.is_build_graph 
 
     
-    def gan_network(self):
-        pass
-
-
-
 
    def get_noise(self,n_samples,z_dim):
        """
@@ -153,7 +148,6 @@ class VanillaConvLstmVideoPredictionModel(object):
            hidden_dim: the inner dimension
        """
        with tf.variable_scope("generator",reuse=tf.AUTO_REUSE):
-
            layer1 = self.get_generator_block(noise,hidden_dim,1)
            layer2 = self.get_generator_block(layer1,hidden_dim*2,2)
            layer3 = self.get_generator_block(layer2,hidden_dim*4,3)
@@ -205,20 +199,38 @@ class VanillaConvLstmVideoPredictionModel(object):
        D_fake = self.discriminator(G_samples)
        real_labels = tf.ones_like(D_real)
        gen_labels = tf.zeros_like(D_fake)
+       D_loss_real = tf.reduce_mean(tf.nn.sigmoid_cross_entropy_with_logits(logits=D_real, labels=real_labels))
+       D_loss_fake = tf.reduce_mean(tf.nn.sigmoid_cross_entropy_with_logits(logits=D_fake, labels=get_labels))
+       D_loss = D_loss_real + D_loss_fake
+       return gen_labels
 
 
-
-   
+   def get_gen_loss(self,num_images,z_dim):
+       """
+       Param:
+	    num_images: the number of images the generator should produce, which is also the lenght of the real image
+            z_dim     : the dimension of the noise vector, a scalar
+       Return the loss of generator given inputs
+       """
+       noises = self.get_noise(num_images,z_dim)
+       gen_images = self.generator(noise,im_dim,hidden_dim)
+       disc_gen_images = self.disrciminator(gen_images,hidden_dim)
+       real_labels = tf.ones_like(gen_images)
+       gen_loss = tf.reduce_mean(tf.nn.sigmoid_cross_entropy_with_logits(logits=D_logit_fake, labels=tf.ones_like(D_logit_fake)))
+       pass         
+    
+  
    def define_gan(self,image):
+       """
+       Define gan architectures
+       """
        noise = self.get_noise(1000,10)
        G_samples = self.generator(noise)
        D_real = self.discriminator(image)
        D_fake = self.discriminator(G_samples)
-
        discriminator.trainable = False
-
-
-   def generator
+            
+     
 
 
 
