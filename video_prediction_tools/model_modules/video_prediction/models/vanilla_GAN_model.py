@@ -85,16 +85,9 @@ class VanillaConvLstmVideoPredictionModel(object):
         self.gan_network()
         #This is the loss function (RMSE):
         #This is loss function only for 1 channel (temperature RMSE)
-        if self.loss_fun == "rmse":
-            self.total_loss = tf.reduce_mean(
-                tf.square(self.x[:, self.context_frames:,:,:,0] - self.x_hat_predict_frames[:,:,:,:,0]))
-        elif self.loss_fun == "cross_entropy":
-            x_flatten = tf.reshape(self.x[:, self.context_frames:,:,:,0],[-1])
-            x_hat_predict_frames_flatten = tf.reshape(self.x_hat_predict_frames[:,:,:,:,0],[-1])
-            bce = tf.keras.losses.BinaryCrossentropy()
-            self.total_loss = bce(x_flatten,x_hat_predict_frames_flatten)  
-        else:
-            raise ValueError("Loss function is not selected properly, you should chose either 'rmse' or 'cross_entropy'")
+        D_solver = tf.train.AdamOptimizer().minimize(self.D_loss, var_list=theta_D)
+        G_solver = tf.train.AdamOptimizer().minimize(self.G_loss, var_list=theta_G)
+        self.total_loss = bce(x_flatten,x_hat_predict_frames_flatten)  
 
         #This is the loss for only all the channels(temperature, geo500, pressure)
         #self.total_loss = tf.reduce_mean(
@@ -201,8 +194,8 @@ class VanillaConvLstmVideoPredictionModel(object):
        gen_labels = tf.zeros_like(D_fake)
        D_loss_real = tf.reduce_mean(tf.nn.sigmoid_cross_entropy_with_logits(logits=D_real, labels=real_labels))
        D_loss_fake = tf.reduce_mean(tf.nn.sigmoid_cross_entropy_with_logits(logits=D_fake, labels=get_labels))
-       D_loss = D_loss_real + D_loss_fake
-       return gen_labels
+       self.D_loss = D_loss_real + D_loss_fake
+       return self.D_loss
 
 
    def get_gen_loss(self,num_images,z_dim):
@@ -216,9 +209,17 @@ class VanillaConvLstmVideoPredictionModel(object):
        gen_images = self.generator(noise,im_dim,hidden_dim)
        disc_gen_images = self.disrciminator(gen_images,hidden_dim)
        real_labels = tf.ones_like(gen_images)
-       gen_loss = tf.reduce_mean(tf.nn.sigmoid_cross_entropy_with_logits(logits=D_logit_fake, labels=tf.ones_like(D_logit_fake)))
-       return gen_loss         
-    
+       self.gen_loss = tf.reduce_mean(tf.nn.sigmoid_cross_entropy_with_logits(logits=disc_gen_images, labels=real_labels))
+       return self.gen_loss         
+   
+   def get_vars(self):
+       """
+       Get trainable variables from discriminator and generator
+       """
+       self.disc_vars = [var for var in tf.trainable_variables() if var.name.startswith("disc")]
+       self.gen_vars = [var for var in tf.trainable_variables() if var.name.startswith("gen")]
+
+ 
   
    def define_gan(self,image):
        """
@@ -229,9 +230,6 @@ class VanillaConvLstmVideoPredictionModel(object):
        D_real = self.discriminator(image)
        D_fake = self.discriminator(G_samples)
        discriminator.trainable = False
-            
-     
+                  
 
-
-
-
+   
