@@ -238,11 +238,10 @@ class Postprocess(TrainModel,ERA5Pkl2Tfrecords):
             ts = Postprocess.generate_seq_timestamps(self.t_starts[batch_id],len_seq=self.sequence_length)
             input_images_denorm = Postprocess.denorm_images_all_channels(self.stat_fl,self.input_images_,self.vars_in)
             assert len(input_images_denorm.shape) == 4
-            Postprocess.plot_seq_imgs(imgs = input_images_denorm[self.context_frames+1:,:,:,0],lats=self.lats,lons=self.lons,ts=ts[self.context_frames+1:],label="Ground Truth",output_png_dir=self.results_dir)
-            
+            Postprocess.plot_seq_imgs(imgs = input_images_denorm[self.context_frames:,:,:,0],lats=self.lats,lons=self.lons,ts=ts[self.context_frames:],label="Ground Truth",output_png_dir=self.results_dir)
             self.input_images_denorm_all.append(list(input_images_denorm))
-
-        return self.input_results, np.array(self.input_images_denorm_all),self.t_starts
+        assert len(np.array(self.input_images_denorm_all).shape) == 5
+        return self.input_results, self.input_images_denorm_all,self.t_starts
 
 
     def run(self):
@@ -253,14 +252,19 @@ class Postprocess(TrainModel,ERA5Pkl2Tfrecords):
         self.restore(self.sess, self.checkpoint)
         #Loop for samples
         self.sample_ind = 0
+        self.input_images_denorm_all_batches = []
+        self.persistent_images_all_batches = []
+        self.stochastic_images_all_batches = []
         while self.sample_ind < self.num_samples_per_epoch:
             if self.num_samples_per_epoch < self.sample_ind:
                 break
             else:
                 self.input_results, self.input_images_denorm_all, self.t_starts = self.run_and_plot_inputs_per_batch() #run the inputs and plot each sequence images
-
+            
+            self.input_images_denorm_all_batches.extend(self.input_images_denorm_all)
             feed_dict = {input_ph: self.input_results[name] for name, input_ph in self.inputs.items()}
-            gen_images_stochastic = [] #[stochastic_ind,batch_size,seq_len,lat,lon,channels]
+            self.gen_images_stochastic = [] #[stochastic_ind,batch_size,seq_len,lat,lon,channels]
+            
             #Loop for stochastics 
             for stochastic_sample_ind in range(self.num_stochastic_samples):
                 gen_images = self.sess.run(self.video_model.outputs['gen_images'], feed_dict=feed_dict)#return [batchsize,seq_len,lat,lon,channel]
@@ -276,35 +280,73 @@ class Postprocess(TrainModel,ERA5Pkl2Tfrecords):
                         init_date_str = self.ts[0].strftime("%Y%m%d%H")
                         ts_batch.append(init_date_str)
                         # get persistence_images
-                        print("self.ts:",self.ts)
                         self.persistence_images, self.ts_persistence = Postprocess.get_persistence(self.ts,self.input_dir_pkl)
                         persistent_images_per_batch.append(self.persistence_images)
+                        assert len(np.array(persistent_images_per_batch).shape) == 5 
                         self.plot_persistence_images()
-
+                           
                     # Denormalized data for generate
                     gen_images_ = gen_images[i]
                     self.gen_images_denorm = Postprocess.denorm_images_all_channels(self.stat_fl, gen_images_, self.vars_in)
                     gen_images_per_batch.append(self.gen_images_denorm)
- 
+                    assert len(np.array(gen_images_per_batch).shape) == 5 
                     # only plot when the first stochastic ind otherwise too many plots would be created
                     # only plot the stochastic results of user-defined ind
                     self.plot_generate_images(stochastic_sample_ind, self.stochastic_plot_id)
- 
-                gen_images_stochastic.append(gen_images_per_batch)
-            gen_images_stochastic = Postprocess.check_gen_images_stochastic_shape(gen_images_stochastic)         
+                self.gen_images_stochastic.append(gen_images_per_batch) # self.gen_images_stochastic[stochastic,batch,seq_len,lat,lon,channel]
+                #Switch the 0 and 1 position
+                print("before transpose:",np.array(self.gen_images_stochastic).shape)
+                self.gen_images_stochastic = np.transpose(np.array(self.gen_images_stochastic),(1,0,2,3,4,5))
+                Postprocess.check_gen_images_stochastic_shape(self.gen_images_stochastic)         
+                assert len(self.gen_images_stochastic.shape) == 6
+                assert np.array(self.gen_images_stochastic).shape[1] == self.num_stochastic_samples
             # save input and stochastic generate images to netcdf file
             # For each prediction (either deterministic or ensemble) we create one netCDF file.
-            print("persistent_images_per_batch",len(np.array(persistent_images_per_batch)))
+            self.persistent_images_all_batches.extend(persistent_images_per_batch)
+            self.stochastic_images_all_batches.extend(self.gen_images_stochastic)
+            assert len(np.array(self.stochastic_images_all_batches).shape) == 6
             for batch_id in range(self.batch_size):
-                print("batch_id is here",batch_id)
                 self.save_to_netcdf_for_stochastic_generate_images(self.input_images_denorm_all[batch_id], persistent_images_per_batch[batch_id],
-                                                            np.array(gen_images_stochastic)[:,batch_id,:,:,:,:], 
+                                                            np.array(self.gen_images_stochastic)[batch_id], 
                                                             fl_name="vfp_date_{}_sample_ind_{}.nc".format(ts_batch[batch_id],self.sample_ind+batch_id))
-            
-            
             self.sample_ind += self.batch_size
 
+         
 
+    def calculate_metrics(self,metric="mse",by=0):
+        """ 
+        args:
+             mse: str the metric type, mse
+             by: which channel of output based on to calculate error
+        Calculate the mes metrics
+        return a dictionary
+        eval_metrics = {
+                         "model_ts_{t1}":[stochast_error1,stochast_err2,.....]
+                         "model_ts_{t2}": [stochast_erro1,stochast_err2,.....]
+                         "persisent_ts_{t1}":[determinstic_error1]
+                         "persistent_ts_{t2}":[determinstic_error1]
+                       }
+        {t1} is the forecasting timestamp
+        """
+        self.input_images_denorm_all_batches = np.array(self.input_images_denorm_all_batches)
+        self.persistent_images_all_batches = np.array(self.persistent_images_all_batches)
+        self.stochastic_images_all_batches  = np.array(self.stochastic_images_all_batches)
+        assert len(self.input_images_denorm_all_batches.shape) == 5
+        assert len(self.stochastic_images_all_batches.shape) == 6
+        assert len(self.persistent_images_all_batches.shape) == 5
+        self.eval_metrics = {}
+        for ts in range(self.future_length-1):
+            #calcualte the metric on persistent
+            mse_persistent =  (np.square(self.input_images_denorm_all_batches[:,self.context_frames+ts,:,:,by] -  self.persistent_images_all_batches[:,self.context_frames+ts-1,:,:,by])).mean()
+            self.eval_metrics["persistent_ts_"+str(ts)] = [mse_persistent]
+            self.stochastic_evals = []
+            for stochastic_sample_ind in range(self.num_stochastic_samples):
+                mse_model = (np.square(self.input_images_denorm_all_batches[:,self.context_frames+ts,:,:,by]- self.stochastic_images_all_batches[:,stochastic_sample_ind,self.context_frames+ts-1,:,:,by])).mean()
+                self.stochastic_evals.append(str(mse_model))
+                self.eval_metrics["model_ts_"+str(ts)] = self.stochastic_evals
+        print("metric",self.eval_metrics)
+        with open (os.path.join(self.results_dir,metric),"w") as fjs:
+            json.dump(self.eval_metrics,fjs)
 
 
     @staticmethod
@@ -391,21 +433,18 @@ class Postprocess(TrainModel,ERA5Pkl2Tfrecords):
         Plot the persistence images
         """
        # I am not sure about the number of frames given with context_frames and context_frames +
-        Postprocess.plot_seq_imgs(imgs=self.persistence_images[self.context_frames+1:,:,:,0],lats=self.lats,lons=self.lons,
-                                  ts=self.ts_persistence[self.context_frames+1:], label="Persistence Forecast" + self.model,output_png_dir=self.results_dir) 
-
-
+        Postprocess.plot_seq_imgs(imgs=self.persistence_images[self.context_frames:,:,:,0],lats=self.lats,lons=self.lons,
+                                  ts=self.ts_persistence[self.context_frames:], label="Persistence Forecast" + self.model,output_png_dir=self.results_dir) 
 
     def plot_generate_images(self,stochastic_sample_ind,stochastic_plot_id=0):
         """
         Plot the generate image for specific stochastic index
         """
         if stochastic_sample_ind == stochastic_plot_id: 
-            Postprocess.plot_seq_imgs(imgs=self.gen_images_denorm[self.context_frames:,:,:,0],lats=self.lats,lons=self.lons,
-                                      ts=self.ts[self.context_frames+1:],label="Forecast by Model " + self.model,output_png_dir=self.results_dir) 
+            Postprocess.plot_seq_imgs(imgs=self.gen_images_denorm[self.context_frames-1:,:,:,0],lats=self.lats,lons=self.lons,
+                                      ts=self.ts[self.context_frames:],label="Forecast by Model " + self.model,output_png_dir=self.results_dir) 
         else:
             pass
-
 
     def save_to_netcdf_for_stochastic_generate_images(self,input_images_,persistent_images_,gen_images_stochastic,fl_name="test.nc"):
         """
@@ -417,6 +456,10 @@ class Postprocess(TrainModel,ERA5Pkl2Tfrecords):
             fl_name              : str, the netcdf file name to be saved
         """
         print("inputs fpor netcdf:",input_images_)
+        input_images_ = np.array(input_images_)
+        persistent_images_ = np.array(persistent_images_)
+        gen_images_stochastic = np.array(gen_images_stochastic)
+
         assert (len(np.array(input_images_).shape)==len(np.array(gen_images_stochastic).shape))-1
         persistent_images_ = np.array(persistent_images_)
         assert len(persistent_images_.shape) == 4 #[seq,lat,lon,channel]
@@ -467,7 +510,7 @@ class Postprocess(TrainModel,ERA5Pkl2Tfrecords):
             #Temperature
             t2 = nc_file.createVariable("/analysis/inputs/T2","f4",("time_input","lat","lon"), zlib = True)
             t2.units = 'K'
-            t2[:,:,:] = self.input_images_[:self.context_frames,:,:,0]
+            t2[:,:,:] = input_images_[:self.context_frames,:,:,0]
 
             #mean sea level pressure
             msl = nc_file.createVariable("/analysis/inputs/MSL","f4",("time_input","lat","lon"), zlib = True)
@@ -658,10 +701,6 @@ class Postprocess(TrainModel,ERA5Pkl2Tfrecords):
                                           axis=0).ravel() # ravel is needed to eliminate the unnecessary dimension (20,1) becomes (20,)
             #print(' Scarlet concatenate and ravel (time)', var_persistence.shape, time_persistence.shape)
            
-               
-                        
- 
-           
         if len(time_persistence.tolist()) == 0 : raise ("The time_persistent is empty!")    
         if len(var_persistence) ==0 : raise ("The var persistence is empty!")
         # tolist() is needed for plotting
@@ -678,6 +717,33 @@ class Postprocess(TrainModel,ERA5Pkl2Tfrecords):
         infile = open(path_to_pickle,'rb')    
         var = pickle.load(infile)
         return var
+
+    def plot_evalution_metrics(self):
+        model_names = self.eval_metrics.keys()
+        model_ts_errors = [] # [timestamps,stochastic_number]
+        persistent_ts_errors = []
+        for ts in range(self.future_length-1):
+            stochastic_err = self.eval_metrics["model_ts_"+str(ts)]  
+            stochastic_err = [float(item) for item in stochastic_err]
+            model_ts_errors.append(stochastic_err)  
+            persistent_err = self.eval_metrics["persistent_ts_"+str(ts)]
+            persistent_err = float(persistent_err[0])
+            persistent_ts_errors.append(persistent_err)
+        if len(np.array(model_ts_errors).shape) == 1:  model_ts_errors = np.expand_dims(np.array(model_ts_errors), axis=1)
+        model_ts_errors = np.array(model_ts_errors)
+        persistent_ts_errors = np.array(persistent_ts_errors)
+        fig = plt.figure(figsize=(6,4))
+        ax = plt.axes([0.1, 0.15, 0.75, 0.75])
+        for stoch_ind in range(len(model_ts_errors[0])):
+            plt.plot(model_ts_errors[:,stoch_ind],lw=1)
+        plt.plot(persistent_ts_errors)
+        plt.xticks(np.arange(1,self.future_length))
+        ax.set_ylim(0., 6)
+        legend = ax.legend(loc='upper left')
+        ax.set_xlabel('Time stamps')
+        ax.set_ylabel("Errors")
+        print("Saving plot for err")
+        plt.savefig(os.path.join(self.results_dir,"evaluation.png"))
 
 
 def main():
@@ -711,7 +777,7 @@ def main():
 
     test_instance()
     test_instance.run()
-
-
+    test_instance.calculate_metrics()
+    test_instance.plot_evalution_metrics() 
 if __name__ == '__main__':
     main()

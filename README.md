@@ -1,6 +1,9 @@
 # AMBS
 
-Atmopsheric Machine learning Benchmarking Systems (AMBS) aims to privde state-of-the-art benchmarking machine learning architectures for video prediction on HPC in the context of atmospheric domain, which is developed by Amirpasha, Michael, Bing, and Scarlet
+**A**tmopsheric **M**achine learning **B**enchmarking **S**ystem (AMBS) aims to provide state-of-the-art video prediction methods applied to the meteorological domain.
+In the scope of the current application, the hourly evolution of the 2m temperature over a used-defined region is the target application. Different Deep Learning video prediction architectures such as convLSTM, MCnet or SAVP are trained with ERA5 reanalysis to perform a 10 hour prediction based on the previous 10 hours. In addition to the 2m temperature, additional meteorological variables like the mean sealevel pressure and the 500 hPa geopotential are fed to the underlying neural networks in order to enhance the model's capability to capture the atmospheric state and its (expected) evolution over time.
+
+The project is currently developed by Amirpasha Mozafarri, Michael Langguth, Bing Gong, and Scarlet Stadtler.
 
 
 ### Prerequisites
@@ -8,7 +11,7 @@ Atmopsheric Machine learning Benchmarking Systems (AMBS) aims to privde state-of
 - Python 3
 - CPU or NVIDIA GPU + CUDA CuDNN
 - MPI
-- Tensorflow 1.13.1
+- Tensorflow 1.13.1 or CUDA-enabled NVIDIA TensorFlow 1.15 converted to singularity container (on Juwels Booster)
 
 ### Installation 
 
@@ -24,43 +27,43 @@ either on Juwels, HDF-ML (HPC clusters) or on zam347 for you.
 The script `create_env.sh` automatically detects on which machine it is executed and loads/installs
 all required Python (binary) modules and packages.
 The virtual environment is set up under the subfolder `video_prediction_savp/<env_name>`.
-Besides, user-specific runscripts for each step of the workflow may be created,
-e.g. `train_era5_exp1.sh` where `exp1` denotes the default experiment identifier.
-The name of this identifier can be controlled by the optional second argument `<exp_id>`.
+Besides, user-specific runscripts for each step of the workflow are created.
+If no experimental identifier is passed as a second (optional) argument (`exp1` denotes the default identifer.)  `train_era5_exp1.sh` among other runscripts are set up which enables the user to run sequentially through all workflow steps (see below). 
 
 ```bash
-cd video_prediction_savp/env_setup
+cd video_prediction_tools/env_setup
 source create_env.sh <env_name> [<exp_id>]
 ```
 
-### Run workflow the workflow
+### Run the workflow
 
-Depending on the machine you are workin on, change either to 
-`video_prediction_savp/HPC_scripts` (on Juwels and HDF-ML) or to 
-`video_prediction_savp/Zam347_scripts`.
+Depending on the machine you are working on, change either to 
+`video_prediction_tools/HPC_scripts` (on Juwels and HDF-ML) or to 
+`video_prediction_tools/Zam347_scripts`.
 There, the respective runscripts for all steps of the workflow are located
-whose order is the following:
+whose order is the following. Note that `[sbatch]` only has to precede on one of the HPC systems.
 
 
 1. Data Extraction: Retrieve ERA5 reanalysis data for one year. For multiple year, execute the runscript sequentially.  
 ```bash
-./DataExtraction_<exp_id>.sh
+[sbatch] ./data_extraction_era5_<exp_id>.sh
 ```
 
-2. Data Preprocessing: Crop all data (multiple years possible) to the region of interest and perform normalization
+2. Data Preprocessing: Crop all data (multiple years possible) to the region of interest, perform normalization and create tf-record files. Note, that the first preprocessing step involves an automatic determination of the experimental directory where the input data for training, the model and the output data will be stored. 
+The direcory paths in the subsequent workflow steps are also automatically adapted. 
 ```bash
-./DataPreprocess_<exp_id>.sh
-./DataPreprocess2tf_<exp_id>.sh
+[sbatch] ./preprocess_data_step1_<exp_id>.sh
+[sbatch] ./preprocess_data_step2_<exp_id>.sh
 ```
 
 3. Training: Training of one of the available models (see bewlow) with the preprocessed data. 
 ```bash
-./train_era5_<exp_id>.sh
+[sbatch] ./train_model_era5_<exp_id>.sh
 ```
 
 4. Postprocess: Create some plots and calculate evaluation metrics for test dataset.
 ```bash
-./generate_era5_<exp_id>.sh
+[sbatch] ./visualize_postprocess_era5_<exp_id>.sh
 ```
 
 ### Create additional runscripts ###
@@ -71,7 +74,7 @@ The first argument `<runscript_name>` defines the **relative path** to the templ
 which should be converted to an executable one. Note that only the suffix of the 
 template's name must be passed, e.g. `../HPC_scripts/train_era5` in order to create 
 a runscript for the training substep.
-The second argument `<venv_name>` denotes the name of the virtual environment which has to be set up in advanceand which should be used by the runscript.
+The second argument `<venv_name>` denotes the name of the virtual environment which has to be set up in advance and which should be used by the runscript at hand.
 
 Additional optional arguments can be passed to control the experimental identifier and to set manually the realtive path to the 
 directory where the preprocessed data is stored (used for the training and postprocessing substep). These optional arguments have to follow a naming convention in order to be identified by `generate_workflow_runscripts.sh`.
@@ -83,8 +86,62 @@ The experimental identifer can be passed by adding `-exp_id=<id>`while the path 
 
 *Specific example:*
 ``` bash
-./generate_workflow_runscripts.sh ../HPC_scripts/train_era5 venv_juwels -exp_id=exp_test -exp_dir=era5-Y2010toY2222M01to12-160x128-2970N1500W-T2_MSL_gph500
+
+./generate_workflow_runscripts.sh train_model_era5 venv_juwels -exp_id=exp_test -exp_dir=era5-Y2010toY2222M01to12-160x128-2970N1500W-T2_MSL_gph500
 ```
+
+### Notes for Juwels Booster ###
+
+The computionally expensive training of the Deep Learning video prediction architectures is supposed to benefit from the Booster module which is installed at JSC in autumn 2020. In order to test the potential speed-up on this state-of-the-art HPC system, optimized for massively parallel workloads, we selected the convLSTM-architecture as a test candidate in the scope of the Juwels Booster Early Access program.
+
+To run the training on the Booster, change to the recent Booster related working branch of this git repository.
+
+```bash 
+git checkout scarlet_issue#031_booster
+
+
+```
+
+Currently, there is no system installation of TensorFlow available on Juwels Booster. As an intermediate solution,
+a singularity container with a CUDA-enabled NVIDIA TensorFlow v1.15 was made available which has to be reflected when setting up the virtual environment and when submiiting the job. 
+The corresponding singularity image file is shared under `/p/project/deepacf/deeprain/video_prediction_shared_folder/containers_juwels_booster/` and needs to be linked to the `HPC_scripts`-directory. If you are not part of the *deepacf*-project, the singularity file can be accessed alternatively from 
+
+```bash
+cd video_prediction_tools/HPC_scripts
+ln -sf /p/project/deepacf/deeprain/video_prediction_shared_folder/containers_juwels_booster/tf-1.15-ofed-venv.sif tf-1.15-ofed-venv.sif 
+```
+
+Before setting up the virtual environment for the workflow, some required modules have to be loaded and an interactive shell has to be spawn within the container.
+
+```bash
+cd ../env_setup
+source modules_train.sh 
+cd ../HPC_scripts/
+singularity shell tf-1.15-ofed-venv.sif
+```
+
+Now, the virtual environment can be created as usual, i.e. by doing the following steps within the container shell:
+
+```bash
+cd ../env_setup
+source create_env.sh <env_name> [<exp_id>]
+```
+
+This creates a corresponding directory `video_prediction_tools/<env_name>`.
+
+Note that `create_env.sh` is *system-aware* and therefore only creates an executable runscript for the training step,
+e.g. `video_prediction_tools/HPC_scripts/train_model_era5_booster_exp1.sh`. 
+Since all other substeps of the workflow are supposed to be performed on other systems so far, the data in-and output directories cannot be determined automatically during the workflow.
+Thus, the user has to modify the corresponding runscript by adapting manually the script varibales `source_dir` and `destination_dir` in line 19+20 of `train_model_era5_booster_<exp_id>.sh`. 
+
+Finally, the training job can be submitted to Juwels Booster after exiting from the cotainer instance by 
+
+``` bash
+exit 
+cd ../HPC_scripts
+salloc --partition=booster --nodes=1 --account=ea_deepacf --time=00:10:00 --reservation  earlyaccess srun  singularity exec --nv tf-1.15-ofed-venv.sif  ./train_model_era5_booster_<exp_id>.sh
+```
+
 
 ### Output folder structure and naming convention
 The details can be found [name_convention](docs/structure_name_convention.md)
@@ -129,5 +186,5 @@ The details can be found [name_convention](docs/structure_name_convention.md)
 
 - Amirpash Mozafarri: a.mozafarri@fz-juelich.de
 - Michael Langguth: m.langguth@fz-juelich.de
-- Bing Gong (PI): b.gong@fz-juelich.de
+- Bing Gong: b.gong@fz-juelich.de
 - Scarlet Stadtler: s.stadtler@fz-juelich.de 
