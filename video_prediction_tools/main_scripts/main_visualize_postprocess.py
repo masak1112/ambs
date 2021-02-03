@@ -299,16 +299,15 @@ class Postprocess(TrainModel,ERA5Pkl2Tfrecords):
                 gen_loss_per_batch =  Postprocess.calculate_metric_per_batch(self.input_images_denorm_all,gen_images_per_batch,self.future_length,self.context_frames,matric="mse",channel=0)                   
                 self.gen_loss_stochastic.append(gen_loss_per_batch) # self.gen_images_stochastic[stochastic,future_length]
                
-                gen_images_stochastic.append(gen_images_per_batch)# [stochastic,batch_size,lat,lon, channel]
+                gen_images_stochastic.append(gen_images_per_batch)# [stochastic,batch_size, seq_len, lat, lon, channel]
                 #Switch the 0 and 1 po
                 print("before transpose:",np.array(gen_images_stochastic).shape)
-                gen_images_stochastic = np.transpose(np.array(gen_images_stochastic),(1,0,2,3,4,5)) #[batch_size,stochastic,lat,lon,chanel]
+                gen_images_stochastic = np.transpose(np.array(gen_images_stochastic),(1,0,2,3,4,5)) #[batch_size, stochastic, seq_len, lat, lon, chanel]
                 Postprocess.check_gen_images_stochastic_shape(gen_images_stochastic)         
                 assert len(gen_images_stochastic.shape) == 6
                 assert np.array(gen_images_stochastic).shape[1] == self.num_stochastic_samples
             # save input and stochastic generate images to netcdf file
             # For each prediction (either deterministic or ensemble) we create one netCDF file.
-            assert len(np.array(self.stochastic_images_all_batches).shape) == 6
             for batch_id in range(self.batch_size):
                 self.save_to_netcdf_for_stochastic_generate_images(self.input_images_denorm_all[batch_id], persistent_images_per_batch[batch_id],
                                                             np.array(gen_images_stochastic)[batch_id], 
