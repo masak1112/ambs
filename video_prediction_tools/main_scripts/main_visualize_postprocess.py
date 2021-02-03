@@ -252,26 +252,24 @@ class Postprocess(TrainModel,ERA5Pkl2Tfrecords):
         self.restore(self.sess, self.checkpoint)
         #Loop for samples
         self.sample_ind = 0
-        self.input_images_denorm_all_batches = []
-        self.persistent_images_all_batches = []
-        self.stochastic_images_all_batches = []
+        self.persistent_loss_all_batches = []
+        self.stochastic_loss_all_batches = []
         while self.sample_ind < self.num_samples_per_epoch:
             if self.num_samples_per_epoch < self.sample_ind:
                 break
             else:
                 self.input_results, self.input_images_denorm_all, self.t_starts = self.run_and_plot_inputs_per_batch() #run the inputs and plot each sequence images
             
-            self.input_images_denorm_all_batches.extend(self.input_images_denorm_all)
             feed_dict = {input_ph: self.input_results[name] for name, input_ph in self.inputs.items()}
-            self.gen_images_stochastic = [] #[stochastic_ind,batch_size,seq_len,lat,lon,channels]
-            
+            self.gen_loss_stochastic = [] #[stochastic_ind,batch_size,seq_len,lat,lon,channels]
+            gen_images_stochastic = [] 
             #Loop for stochastics 
             for stochastic_sample_ind in range(self.num_stochastic_samples):
                 gen_images = self.sess.run(self.video_model.outputs['gen_images'], feed_dict=feed_dict)#return [batchsize,seq_len,lat,lon,channel]
                 assert gen_images.shape[1] == self.sequence_length - 1 #The generate images seq_len should be sequence_len -1, since the last one is not used for comparing with groud truth
                 gen_images_per_batch = []
                 if stochastic_sample_ind == 0: 
-                    persistent_images_per_batch = []
+                    persistent_images_per_batch = [] #[batch_size,seq_len,lat,lon,channel]
                     ts_batch = [] 
                 for i in range(self.batch_size):
                     # generate time stamps for sequences only once, since they are the same for all ensemble members
@@ -284,7 +282,7 @@ class Postprocess(TrainModel,ERA5Pkl2Tfrecords):
                         persistent_images_per_batch.append(self.persistence_images)
                         assert len(np.array(persistent_images_per_batch).shape) == 5 
                         self.plot_persistence_images()
-                           
+                                
                     # Denormalized data for generate
                     gen_images_ = gen_images[i]
                     self.gen_images_denorm = Postprocess.denorm_images_all_channels(self.stat_fl, gen_images_, self.vars_in)
@@ -293,21 +291,27 @@ class Postprocess(TrainModel,ERA5Pkl2Tfrecords):
                     # only plot when the first stochastic ind otherwise too many plots would be created
                     # only plot the stochastic results of user-defined ind
                     self.plot_generate_images(stochastic_sample_ind, self.stochastic_plot_id)
-                self.gen_images_stochastic.append(gen_images_per_batch) # self.gen_images_stochastic[stochastic,batch,seq_len,lat,lon,channel]
-                #Switch the 0 and 1 position
-                print("before transpose:",np.array(self.gen_images_stochastic).shape)
-                self.gen_images_stochastic = np.transpose(np.array(self.gen_images_stochastic),(1,0,2,3,4,5))
-                Postprocess.check_gen_images_stochastic_shape(self.gen_images_stochastic)         
-                assert len(self.gen_images_stochastic.shape) == 6
-                assert np.array(self.gen_images_stochastic).shape[1] == self.num_stochastic_samples
+                #calculate the persistnet error per batch
+                if stochastic_sample_ind == 0:
+                   persistent_loss_per_batch = Postprocess.calculate_metric_per_batch(self.input_images_denorm_all,persistent_images_per_batch,self.future_length,self.context_frames,matric="mse",channel=0)
+                  
+                #calculate the gen_images_per_batch error
+                gen_loss_per_batch =  Postprocess.calculate_metric_per_batch(self.input_images_denorm_all,gen_images_per_batch,self.future_length,self.context_frames,matric="mse",channel=0)                   
+                self.gen_loss_stochastic.append(gen_loss_per_batch) # self.gen_images_stochastic[stochastic,future_length]
+               
+                gen_images_stochastic.append(gen_images_per_batch)# [stochastic,batch_size,lat,lon, channel]
+                #Switch the 0 and 1 po
+                print("before transpose:",np.array(gen_images_stochastic).shape)
+                gen_images_stochastic = np.transpose(np.array(gen_images_stochastic),(1,0,2,3,4,5)) #[batch_size,stochastic,lat,lon,chanel]
+                Postprocess.check_gen_images_stochastic_shape(gen_images_stochastic)         
+                assert len(gen_images_stochastic.shape) == 6
+                assert np.array(gen_images_stochastic).shape[1] == self.num_stochastic_samples
             # save input and stochastic generate images to netcdf file
             # For each prediction (either deterministic or ensemble) we create one netCDF file.
-            self.persistent_images_all_batches.extend(persistent_images_per_batch)
-            self.stochastic_images_all_batches.extend(self.gen_images_stochastic)
             assert len(np.array(self.stochastic_images_all_batches).shape) == 6
             for batch_id in range(self.batch_size):
                 self.save_to_netcdf_for_stochastic_generate_images(self.input_images_denorm_all[batch_id], persistent_images_per_batch[batch_id],
-                                                            np.array(self.gen_images_stochastic)[batch_id], 
+                                                            np.array(gen_images_stochastic)[batch_id], 
                                                             fl_name="vfp_date_{}_sample_ind_{}.nc".format(ts_batch[batch_id],self.sample_ind+batch_id))
             self.sample_ind += self.batch_size
 
@@ -335,7 +339,7 @@ class Postprocess(TrainModel,ERA5Pkl2Tfrecords):
         assert len(self.stochastic_images_all_batches.shape) == 6
         assert len(self.persistent_images_all_batches.shape) == 5
         self.eval_metrics = {}
-        for ts in range(self.future_length-1):
+        for ts in range(self.future_length):
             #calcualte the metric on persistent
             mse_persistent =  (np.square(self.input_images_denorm_all_batches[:,self.context_frames+ts,:,:,by] -  self.persistent_images_all_batches[:,self.context_frames+ts-1,:,:,by])).mean()
             self.eval_metrics["persistent_ts_"+str(ts)] = [mse_persistent]
@@ -347,7 +351,30 @@ class Postprocess(TrainModel,ERA5Pkl2Tfrecords):
         print("metric",self.eval_metrics)
         with open (os.path.join(self.results_dir,metric),"w") as fjs:
             json.dump(self.eval_metrics,fjs)
-
+    
+    @staticmethod
+    def calculate_metrics_by_batch(input_per_batch,output_per_batch,future_length,context_frames,matric="mse",channel=0):
+        """
+        Calculate the metrics by samples per batch
+        args:
+	     input_per_batch : list or array, shape is [batch_size, seq_len,lat,lon,channel], seq_len is the sum of context_frames and future_length, the references input
+             output_per_batch: list or array, shape is [batch_size,seq_len-1,lat,lon,channel],seq_len for output_per_batch is 1 less than the input_per_batch, the forecasting outputs
+             future_lengths:   int, the future frames to be predicted
+             context_frames:   int, the inputs frames used as input to the model
+             matric:       :   str, the metric evaluation type
+             channel       :   int, the channel of output which is used for calculating the metrics 
+        return:
+             loss : a list with length of future_length  
+        """
+        input_per_batch = np.array(input_per_batch)
+        output_per_batch = np.array(output_per_batch)
+        assert len(input_per_batch.shape) == 5
+        assert len(output_per_batch)  == 5
+        eval_metrics_by_ts = []
+        for ts in range(future_length):
+            loss  =  (np.square(input_per_batch[:,context_frames+ts,:,:,by] -  self.output_per_batch[:,context_frames+ts-1,:,:,by])).mean()
+        assert len(loss) == future_length
+        return loss
 
     @staticmethod
     def check_gen_images_stochastic_shape(gen_images_stochastic):
@@ -738,7 +765,7 @@ class Postprocess(TrainModel,ERA5Pkl2Tfrecords):
             plt.plot(model_ts_errors[:,stoch_ind],lw=1)
         plt.plot(persistent_ts_errors)
         plt.xticks(np.arange(1,self.future_length))
-        ax.set_ylim(0., 6)
+        ax.set_ylim(0., 10)
         legend = ax.legend(loc='upper left')
         ax.set_xlabel('Time stamps')
         ax.set_ylabel("Errors")
