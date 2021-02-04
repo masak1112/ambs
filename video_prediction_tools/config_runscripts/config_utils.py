@@ -117,13 +117,15 @@ class Config_runscript_base:
 
             if isinstance(batch_var_val, list):
                 # translate to string generating Bash-array
-                batch_var_val = "(\"" + "\"\n\"".join(batch_var_val) + "\")"
+                batch_var_val = "(\"" + "\",\" ".join(batch_var_val) + "\")"
 
-            write_cmd = "sed -i \"s|{0}=.*|{0}={1}|g\" {2}".format(batch_var, batch_var_val, runscript)
+            write_cmd = "sed -i \'s|{0}=.*|{0}={1}|g\' {2}".format(batch_var, batch_var_val, runscript)
             stat_batch_var = Config_runscript_base.check_var_in_runscript(runscript, batch_var)
 
             if stat_batch_var:
+                print(write_cmd)
                 os.system(write_cmd)
+                print("Successfully writing {0}...".format(batch_var))
             else:
                 print("%{0}: Runscript script variable {1} could not be set.".format(method_name, batch_var))
     #

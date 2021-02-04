@@ -51,10 +51,10 @@ class Config_Preprocess1(Config_runscript_base):
         # get years for preprcessing step 1
         years_req_str = "Enter a comma-separated sequence of years (format: YYYY):\n"
         years_err = ValueError("Cannot get years for preprocessing.")
-        years_str = Config_Extraction.keyboard_interaction(years_req_str, Config_Preprocess1.check_years,
+        years_str = Config_Preprocess1.keyboard_interaction(years_req_str, Config_Preprocess1.check_years,
                                                            years_err, ntries=2)
 
-        self.years = [int(year.strip()) for year in years_str.split(",")]
+        self.years = [year.strip() for year in years_str.split(",")]
 
         # get variables for later training
         print("**** Info ****\n List of known variables which can be processed")
@@ -80,7 +80,7 @@ class Config_Preprocess1(Config_runscript_base):
                                                                lat_err, ntries=2)
 
         lat_inds_list = lat_inds_str.split(",")
-        self.lat_inds = [int(ind.strip()) for ind in lat_inds_list]
+        self.lat_inds = [ind.strip() for ind in lat_inds_list]
 
         # get start and end indices in longitude direction
         lon_req_str = lat_req_str.replace("latitude", "longitude")
@@ -90,7 +90,7 @@ class Config_Preprocess1(Config_runscript_base):
                                                                lon_err, ntries=2)
 
         lon_inds_list = lon_inds_str.split(",")
-        self.lon_inds = [int(ind.strip()) for ind in lon_inds_list]
+        self.lon_inds = [ind.strip() for ind in lon_inds_list]
 
         # list of variables to be written to runscript
         self.list_batch_vars = ["VIRT_ENV_NAME", "source_dir", "years", "variables", "lat_inds", "lon_inds"]
