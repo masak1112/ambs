@@ -19,7 +19,7 @@ exit 99
 ######### Template identifier (don't remove) #########
 
 # Name of virtual environment 
-VIRT_ENV_NAME="vp"
+VIRT_ENV_NAME="my_venv"
 
 # Loading modules
 source ../env_setup/modules_postprocess.sh

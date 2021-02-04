@@ -5,8 +5,8 @@
 #SBATCH --ntasks=12
 ##SBATCH --ntasks-per-node=12
 #SBATCH --cpus-per-task=1
-#SBATCH --output=DataPreprocess-out.%j
-#SBATCH --error=DataPreprocess-err.%j
+#SBATCH --output=DataPreprocess_era5_step1-out.%j
+#SBATCH --error=DataPreprocess_era5_step1-err.%j
 #SBATCH --time=00:20:00
 #SBATCH --partition=devel
 #SBATCH --mail-type=ALL
@@ -18,7 +18,7 @@ exit 99
 ######### Template identifier (don't remove) #########
 
 # Name of virtual environment 
-VIRT_ENV_NAME="virt_env_hdfml"
+VIRT_ENV_NAME="my_venv"
 
 # Activate virtual environment if needed (and possible)
 if [ -z ${VIRTUAL_ENV} ]; then
@@ -45,7 +45,6 @@ max_year=$( printf "%d\n" "${years[@]}" | sort -n | tail -1 )
 min_year=$( printf "%d\n" "${years[@]}" | sort -nr | tail -1 )
 # set some paths
 # note, that destination_dir is used during runtime to set a proper experiment directory
-exp_id=xxx                                          # experiment identifier is set by 'generate_workflow_runscripts.sh'
 source_dir=/p/scratch/deepacf/video_prediction_shared_folder/extractedData
 destination_dir=/p/project/deepacf/deeprain/video_prediction_shared_folder/preprocessedData/era5-Y${min_year}to${max_year}M01to12
 script_dir=`pwd`

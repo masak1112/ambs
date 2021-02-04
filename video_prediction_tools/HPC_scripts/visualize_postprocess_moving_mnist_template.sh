@@ -19,7 +19,7 @@ exit 99
 ######### Template identifier (don't remove) #########
 
 # Name of virtual environment 
-VIRT_ENV_NAME="vp"
+VIRT_ENV_NAME="my_venv"
 
 # Loading modules
 source ../env_setup/modules_postprocess.sh
@@ -46,4 +46,3 @@ srun python -u ../scripts/generate_movingmnist.py \
 --input_dir ${source_dir}/ --dataset_hparams sequence_length=20 --checkpoint  ${checkpoint_dir}/${model} \
 --mode test --model ${model} --results_dir ${results_dir}/${model} --batch_size 2 --dataset era5   > generate_era5-out.out
 
-#srun  python scripts/train.py --input_dir data/era5 --dataset era5  --model savp --model_hparams_dict hparams/kth/ours_savp/model_hparams.json --output_dir logs/era5/ours_savp

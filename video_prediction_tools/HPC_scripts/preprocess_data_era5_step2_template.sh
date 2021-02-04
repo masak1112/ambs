@@ -4,8 +4,8 @@
 #SBATCH --ntasks=13
 ##SBATCH --ntasks-per-node=13
 #SBATCH --cpus-per-task=1
-#SBATCH --output=DataPreprocess_to_tf-out.%j
-#SBATCH --error=DataPreprocess_to_tf-err.%j
+#SBATCH --output=DataPreprocess_era5_step2-out.%j
+#SBATCH --error=DataPreprocess_era5_step2-err.%j
 #SBATCH --time=00:20:00
 #SBATCH --partition=devel
 #SBATCH --mail-type=ALL
@@ -17,7 +17,7 @@ exit 99
 ######### Template identifier (don't remove) #########
 
 # Name of virtual environment 
-VIRT_ENV_NAME="vp"
+VIRT_ENV_NAME="my_venv"
 
 # Loading mouldes
 source ../env_setup/modules_train.sh
@@ -40,6 +40,7 @@ datasplit_dir=../data_split/cv_test.json
 model=convLSTM
 hparams_dict_config=../hparams/era5/${model}/model_hparams.json
 sequences_per_file=10
+sequence_length=20
 
 # run preprocessing (step 2 where Tf-records are generated)
 srun python ../main_scripts/main_preprocess_data_step2.py -input_dir ${source_dir} -output_dir ${destination_dir}  -datasplit_config ${datasplit_dir}  -hparams_dict_config ${hparams_dict_config} -sequences_per_file ${sequences_per_file}

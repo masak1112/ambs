@@ -20,7 +20,7 @@ exit 99
 jutil env activate -p deepacf
 
 # Name of virtual environment 
-VIRT_ENV_NAME="virt_env_hdfml"
+VIRT_ENV_NAME="my_venv"
 
 # Loading mouldes
 source ../env_setup/modules_preprocess.sh
@@ -36,8 +36,8 @@ if [ -z ${VIRTUAL_ENV} ]; then
 fi
 
 # Declare path-variables
-source_dir="/p/fastdata/slmet/slmet111/met_data/ecmwf/era5/nc/"
-dest_dir="/p/scratch/deepacf/video_prediction_shared_folder/extractedData/"
+source_dir=/p/fastdata/slmet/slmet111/met_data/ecmwf/era5/nc/
+dest_dir=/p/scratch/deepacf/video_prediction_shared_folder/extractedData/
 
 year="2010"
 
