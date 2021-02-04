@@ -138,11 +138,11 @@ if [[ "$ENV_EXIST" == 0 ]]; then
        echo "export PYTONPATH=/usr/locali/lib/python3.6/dist-packages:\$PYTHONPATH" >> ${activate_virt_env}
      fi
   fi
-  info_str= "Virtual environment ${ENV_DIR} has been set up successfully."
+  info_str="Virtual environment ${ENV_DIR} has been set up successfully."
 elif [[ "$ENV_EXIST" == 1 ]]; then
   # activating virtual env is suifficient
   source ${ENV_DIR}/bin/activate
-  info_str= "Virtual environment ${ENV_DIR} has been activated successfully."
+  info_str="Virtual environment ${ENV_DIR} has been activated successfully."
 fi
 
 echo "******************************************** NOTE ********************************************"
