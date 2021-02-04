@@ -247,7 +247,7 @@ def check_virtualenv(labort=False):
             raise EnvironmentError("%{0}: config_train.py has to run in an activated virtual environment!"
                                    .format(method_name))
         else:
-            print "%{0}: config_train.py is not running in an activated virtual environment!".format(method_name)
+            print("%{0}: config_train.py is not running in an activated virtual environment!".format(method_name))
             return
     else:
         return os.path.basename(sys.prefix)
