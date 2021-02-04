@@ -34,12 +34,11 @@ fi
 source ../env_setup/modules_preprocess.sh
 
 
-# select years for dataset
-declare -a years=(
-                 "2015"
-                 "2016"
-                 "2017"
-                  )
+# select years and variables for dataset and define target domain 
+years=( "2015" )
+variables=( "t2" "t2" "t2" )
+lat_inds=( 74 202 )
+lon_inds=( 550 710 )
 
 max_year=$( printf "%d\n" "${years[@]}" | sort -n | tail -1 )
 min_year=$( printf "%d\n" "${years[@]}" | sort -nr | tail -1 )
@@ -55,7 +54,8 @@ for year in "${years[@]}";     do
 	echo "source_dir ${source_dir}/${year}"
 	srun python ../main_scripts/main_preprocess_data_step1.py \
         --source_dir ${source_dir} -scr_dir ${script_dir} -exp_id ${exp_id} \
-        --destination_dir ${destination_dir} --years ${year} --vars T2 MSL gph500 --lat_s 74 --lat_e 202 --lon_s 550 --lon_e 710     
+        --destination_dir ${destination_dir} --years ${year} --vars ${variables[0]} ${variables[1]} ${variables[2]}
+       	--lat_s ${lat_inds[0]} --lat_e ${lat_inds[1]} --lon_s ${lon_inds[0]} --lon_e ${lon_inds[1]}    
     done
 
 
