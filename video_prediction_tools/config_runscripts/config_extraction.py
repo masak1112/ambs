@@ -20,7 +20,7 @@ class Config_Extraction(Config_runscript_base):
         self.rscrpt_tmpl_prefix = "data_extraction_"
         self.dataset = "era5"
         self.runscript_template = self.rscrpt_tmpl_prefix + self.dataset + self.suffix_template
-        self.runscript_target = self.rscrpt_tmpl_prefix + self.dataset
+        self.runscript_target = self.rscrpt_tmpl_prefix + self.dataset + ".sh"
         # initialize additional runscript-specific attributes to be set via keyboard interaction
         self.year = None
         # copy over method for keyboard interaction

@@ -45,7 +45,7 @@ class Config_Preprocess2(Config_runscript_base):
         # now, we are also ready to set the correct name of the runscript template and the target
         self.runscript_template = self.rscrpt_tmpl_prefix + self.dataset + "_step2"+\
                                   self.suffix_template
-        self.runscript_target = self.rscrpt_tmpl_prefix + self.dataset + "_step2"
+        self.runscript_target = self.rscrpt_tmpl_prefix + self.dataset + "_step2" + ".sh"
 
         # get source dir
         if self.dataset == "era5":

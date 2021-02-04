@@ -48,7 +48,7 @@ class Config_Postprocess(Config_runscript_base):
 
         # now, we are also ready to set the correct name of the runscript template and the target
         self.runscript_template = self.rscrpt_tmpl_prefix + self.dataset + self.suffix_template
-        self.runscript_target = self.rscrpt_tmpl_prefix + self.dataset
+        self.runscript_target = self.rscrpt_tmpl_prefix + self.dataset + ".sh"
 
         # get the 'checkpoint-directory', i.e. the directory where the trained model parameters are stored
         # Note that the remaining information (model, results-directory etc.) can be retrieved form it!!!

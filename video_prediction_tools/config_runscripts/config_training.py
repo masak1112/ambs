@@ -51,7 +51,7 @@ class Config_Train(Config_runscript_base):
 
         # now, we are also ready to set the correct name of the runscript template and the target
         self.runscript_template = self.rscrpt_tmpl_prefix + self.dataset + self.suffix_template
-        self.runscript_target = self.rscrpt_tmpl_prefix + self.dataset
+        self.runscript_target = self.rscrpt_tmpl_prefix + self.dataset + ".sh"
 
         # get the source directory
 

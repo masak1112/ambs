@@ -25,7 +25,7 @@ class Config_Preprocess1(Config_runscript_base):
 
         self.dataset = "era5"
         self.runscript_template = self.rscrpt_tmpl_prefix + self.dataset + "_step1" + self.suffix_template
-        self.runscript_target = self.rscrpt_tmpl_prefix + self.dataset + "_step1"
+        self.runscript_target = self.rscrpt_tmpl_prefix + self.dataset + "_step1" + ".sh"
         # initialize additional runscript-specific attributes to be set via keyboard interaction
         self.years = None
         self.variables = [None] * self.nvars
