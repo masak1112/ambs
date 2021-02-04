@@ -29,15 +29,15 @@ from config_postprocess import Config_Postprocess
 def get_runscript_cls(target_runscript_name, venv_name, lhpc):
 
     if target_runscript_name == "extract":
-        cls_inst = Config_Extraction(target_runscript_name, venv_name, lhpc)
+        cls_inst = Config_Extraction(venv_name, lhpc)
     elif target_runscript_name == "preprocess1":
-        cls_inst = Config_Preprocess1(target_runscript_name, venv_name, lhpc)
+        cls_inst = Config_Preprocess1(venv_name, lhpc)
     elif target_runscript_name == "preprocess2":
-        cls_inst = Config_Preprocess2(target_runscript_name, venv_name, lhpc)
+        cls_inst = Config_Preprocess2(venv_name, lhpc)
     elif target_runscript_name == "train":
-        cls_inst = Config_Train(target_runscript_name, venv_name, lhpc)
+        cls_inst = Config_Train(venv_name, lhpc)
     elif target_runscript_name == "preprocess1":
-        cls_inst = Config_Postprocess(target_runscript_name, venv_name, lhpc)
+        cls_inst = Config_Postprocess(venv_name, lhpc)
     else:
         raise ValueError("%{0}: Unknown workflow runscript '{1}'. passed.")
 
@@ -55,12 +55,12 @@ def main():
     if any(map(socket.gethostname().__contains__, ["juwels", "hdfml"])):
         lhpc = True
 
-    config_dummy = Config_runscript_base()
+    config_dummy = Config_runscript_base(venv_name, lhpc)
     known_wrkflw_steps = config_dummy.known_workflow_steps
     keyboard_interaction = config_dummy.keyboard_interaction
 
     # get workflow step by keyboard interaction
-    target_runscript_req = "Please enter the name of the runscript you want to generate:\n"
+    target_runscript_req = "Please enter the name of the workflow step for which a runscript should be created:\n"
     target_runscript_err = ValueError("Workflow step is unknown. Please select one of the known listed above")
 
     def check_target_runscript(runscript_name, silent=False):
