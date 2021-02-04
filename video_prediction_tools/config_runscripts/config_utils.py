@@ -7,6 +7,7 @@ __date__ = "2021-01-25"
 
 # import modules
 import sys, os
+import subprocess as sp
 
 class Config_runscript_base:
 
@@ -64,18 +65,24 @@ class Config_runscript_base:
         Converts runscript template to executable and sets user-defined Batch-script variables from class attributes
         :return: user-defined runscript
         """
+        method_name = Config_runscript_base.finalize.__name__ + " of Class " + Config_runscript_base.cls_name
+
         # some sanity checks (note that the file existence is already check during keyboard interaction)
         if self.runscript_template is None:
-            raise AttributeError("The attribute runscript_template is still uninitialzed." +
-                                 "Run keyboard interaction (self.run) first")
+            raise AttributeError("%{0}: The attribute runscript_template is still uninitialzed." +
+                                 "Run keyboard interaction (self.run) first".format(method_name))
 
         if self.runscript_target is None:
-            raise AttributeError("The attribute runscript_target is still uninitialzed." +
-                                 "Run keyboard interaction (self.run) first")
+            raise AttributeError("%{0}: The attribute runscript_target is still uninitialzed." +
+                                 "Run keyboard interaction (self.run) first".format(method_name))
+
+        if not os.path.isfile("./generate_workflow_runscripts.sh"):
+            raise FileNotFoundError("%{0}: Cannot find generate_workflow_runscripts in current directory '{1}'."
+                                    .format(method_name, os.getcwd()))
         # generate runscript...
         runscript_temp = os.path.join(self.runscript_dir, self.runscript_template).rstrip("_template.sh")
         runscript_tar = os.path.join(self.runscript_dir, self.runscript_target)
-        cmd_gen = "./generate_work_runscripts.sh {0} {1}".format(runscript_temp, runscript_tar)
+        cmd_gen = "./generate_workflow_runscripts.sh {0} {1}".format(runscript_temp, runscript_tar)
         os.system(cmd_gen)
         # ...do modificatios stored in attributes of class instance
         Config_runscript_base.write_rscr_vars(self, runscript_tar)
@@ -144,8 +151,13 @@ class Config_runscript_base:
         :return stat: True if variable declaration was detected
         '''
 
-        test = sp.Popen(['grep', scr_var+'=', scr_file], stdout=sp.PIPE).communicate()[0]
-        test = str(test).strip("b''")                     # if nothing is found, this will return an empty string
+        method_name = Config_runscript_base.check_var_in_runscript.__name__
+
+        try:
+            test = sp.Popen(['grep', scr_var+'=', scr_file], stdout=sp.PIPE).communicate()[0]
+            test = str(test).strip("b''")                     # if nothing is found, this will return an empty string
+        except:
+            raise RuntimeError("%{0}: Could not execute grep-statement.".format(method_name))
 
         stat = False
         if test:
@@ -167,20 +179,22 @@ class Config_runscript_base:
         :return: The approved input from keyboard interaction
         """
         # sanity checks
+        method_name = Config_runscript_base.keyboard_interaction.__name__
+
         if not callable(check_input):
-            raise ValueError("check_input must be a function!")
+            raise ValueError("%{0}: check_input must be a function!".format(method_name))
         else:
             try:
                 if not type(check_input(test_arg, silent=True)) is bool:
-                    raise TypeError("check_input argument does not return a boolean.")
+                    raise TypeError("%{0}: check_input argument does not return a boolean.".format(method_name))
                 else:
                     pass
             except:
-                raise Exception("Cannot approve check_input-argument to be proper.")
+                raise Exception("%{0}: Cannot approve check_input-argument to be proper.".format(method_name))
         if not isinstance(err,BaseException):
-            raise ValueError("err_str-argument must be an instance of BaseException!")
+            raise ValueError("%{0}: err_str-argument must be an instance of BaseException!".format(method_name))
         if not isinstance(ntries,int) and ntries <= 1:
-            raise ValueError("ntries-argument must be an integer greater equal 1!")
+            raise ValueError("%{0}: ntries-argument must be an integer greater equal 1!".format(method_name))
 
         attempt = 0
         while attempt < ntries:
@@ -225,13 +239,15 @@ def check_virtualenv(labort=False):
     :param labort: If True, the an Exception is raised. If False, only a Warning is given
     :return: name of virtual environment
     '''
-    lvirt = in_virtualenv()
+    method_name = check_virtualenv.__name__
 
+    lvirt = in_virtualenv()
     if not lvirt:
         if labort:
-            raise EnvironmentError("config_train.py has to run in an activated virtual environment!")
+            raise EnvironmentError("%{0}: config_train.py has to run in an activated virtual environment!"
+                                   .format(method_name))
         else:
-            raise Warning("config_train.py is not running in an activated virtual environment!")
+            print "%{0}: config_train.py is not running in an activated virtual environment!".format(method_name)
             return
     else:
         return os.path.basename(sys.prefix)
