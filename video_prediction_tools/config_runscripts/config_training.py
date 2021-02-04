@@ -22,11 +22,16 @@ class Config_Train(Config_runscript_base):
     # or a generic template runscript, we need the following manual list
     allowed_datasets = ["era5","moving_mnist"]  # known_datasets().keys
 
-    def __init__(self, wrk_flw_step, runscript_base):
-        super().__init__(wrk_flw_step, runscript_base)
+    def __init__(self, venv_name, lhpc):
+        super().__init__(venv_name, lhpc)
 
+        # initialize attributes related to runscript name
+        self.long_name_wrk_step = "Training"
+        self.rscrpt_tmpl_prefix = "train_model"
+        # initialize additional runscript-specific attributes to be set via keyboard interaction
         self.model = None
         self.destination_dir = None
+        # copy over method for keyboard interaction
         self.run_config = Config_Train.run_training
     #
     # -----------------------------------------------------------------------------------

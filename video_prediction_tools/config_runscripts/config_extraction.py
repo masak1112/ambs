@@ -12,14 +12,18 @@ class Config_Extraction(Config_runscript_base):
 
     cls_name = "Config_Extraction"#.__name__
 
-    def __init__(self, wrk_flw_step, runscript_base):
-        super().__init__(wrk_flw_step, runscript_base)
+    def __init__(self, venv_name, lhpc):
+        super().__init__(venv_name, lhpc)
 
+        # initialize attributes related to runscript name
+        self.long_name_wrk_step = "Data Extraction"
+        self.rscrpt_tmpl_prefix = "data_extraction"
         self.dataset = "era5"
         self.runscript_template = self.rscrpt_tmpl_prefix + self.dataset + self.suffix_template
         self.runscript_target = self.rscrpt_tmpl_prefix + self.dataset
+        # initialize additional runscript-specific attributes to be set via keyboard interaction
         self.year = None
-        # set the attributes which are still None via keyboard interaction
+        # copy over method for keyboard interaction
         self.run_config = Config_Extraction.run_extraction
     #
     # -----------------------------------------------------------------------------------

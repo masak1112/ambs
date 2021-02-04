@@ -18,12 +18,15 @@ class Config_Preprocess2(Config_runscript_base):
     # or a generic template runscript, we need the following manual list
     allowed_datasets = ["era5","moving_mnist"]  # known_datasets().keys
 
-    def __init__(self, wrk_flw_step, runscript_base):
-        super().__init__(wrk_flw_step, runscript_base)
+    def __init__(self, venv_name, lhpc):
+        super().__init__(venv_name, lhpc)
 
-        #self.sequence_length = None  # only needed for ERA5
-                                      # -> do not set to None in order to avoid jeopardizing attribute-check
-        # set the attributes which are still None via keyboard interaction
+        # initialize attributes related to runscript name
+        self.long_name_wrk_step = "Preproccessing step 2"
+        self.rscrpt_tmpl_prefix = "preprocess_data"
+        # initialize additional runscript-specific attributes to be set via keyboard interaction
+        self.sequence_length = None  # only needed for ERA5
+        # copy over method for keyboard interaction
         self.run_config = Config_Preprocess2.run_preprocess2
     #
     # -----------------------------------------------------------------------------------
@@ -40,8 +43,9 @@ class Config_Preprocess2(Config_runscript_base):
         self.dataset = Config_Preprocess2.keyboard_interaction(dset_type_req_str, Config_Preprocess2.check_dataset,
                                                                dset_err, ntries=3)
         # now, we are also ready to set the correct name of the runscript template and the target
-        self.runscript_template = self.rscrpt_tmpl_prefix + self.dataset + self.suffix_template
-        self.runscript_target = self.rscrpt_tmpl_prefix + self.dataset
+        self.runscript_template = self.rscrpt_tmpl_prefix + self.dataset + "_step2"+\
+                                  self.suffix_template
+        self.runscript_target = self.rscrpt_tmpl_prefix + self.dataset + "_step2"
 
         # get source dir
         if self.dataset == "era5":

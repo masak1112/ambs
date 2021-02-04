@@ -19,17 +19,22 @@ class Config_Postprocess(Config_runscript_base):
     # or a generic template runscript, we need the following manual list
     allowed_datasets = ["era5","moving_mnist"]  # known_datasets().keys
 
-    def __init__(self, wrk_flw_step, runscript_base):
-        super().__init__(wrk_flw_step, runscript_base)
+    def __init__(self, venv_name, lhpc):
+        super().__init__(venv_name, lhpc)
 
+        # initialize attributes related to runscript name
+        self.long_name_wrk_step = "Postprocessing"
+        self.rscrpt_tmpl_prefix = "visualize_postprocess"
+        # initialize additional runscript-specific attributes to be set via keyboard interaction
         self.model = None
         self.checkpoint_dir = None
         self.destination_dir = None
-        self.run_config = Config_Postprocess.run_training
+        # copy over method for keyboard interaction
+        self.run_config = Config_Postprocess.run_postprocess
     #
     # -----------------------------------------------------------------------------------
     #
-    def run_training(self):
+    def run_postprocess(self):
         """
         Runs the keyboard interaction for Postprocessing
         :return: all attributes of class postprocess are set

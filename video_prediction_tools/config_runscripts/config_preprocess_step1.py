@@ -17,17 +17,22 @@ class Config_Preprocess1(Config_runscript_base):
                                                  # which can be used for training
     nvars = 3                                    # number of variables required for training
 
-    def __init__(self, wrk_flw_step, runscript_base):
-        super().__init__(wrk_flw_step, runscript_base)
+    def __init__(self, venv_name, lhpc):
+        super().__init__(venv_name, lhpc)
+
+        # initialize attributes related to runscript name
+        self.long_name_wrk_step = "Preprocessing step 1"
+        self.rscrpt_tmpl_prefix = "preprocess_data"
 
         self.dataset = "era5"
-        self.runscript_template = self.rscrpt_tmpl_prefix + self.dataset + self.suffix_template
-        self.runscript_target = self.rscrpt_tmpl_prefix + self.dataset
+        self.runscript_template = self.rscrpt_tmpl_prefix + self.dataset + "_step1" + self.suffix_template
+        self.runscript_target = self.rscrpt_tmpl_prefix + self.dataset + "_step1"
+        # initialize additional runscript-specific attributes to be set via keyboard interaction
         self.years = None
         self.variables = [None] * self.nvars
         self.lat_inds = [np.nan, np.nan]
         self.lon_inds = [np.nan, np.nan]
-        # set the attributes which are still None via keyboard interaction
+        # copy over method for keyboard interaction
         self.run_config = Config_Preprocess1.run_preprocess1
     #
     # -----------------------------------------------------------------------------------
