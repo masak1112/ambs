@@ -6,7 +6,7 @@ __date__ = "2021-01-27"
 
 # import modules
 import os, glob
-import numpy as np
+#import numpy as np
 from config_utils import Config_runscript_base    # import parent class
 
 class Config_Preprocess1(Config_runscript_base):
@@ -30,8 +30,8 @@ class Config_Preprocess1(Config_runscript_base):
         # initialize additional runscript-specific attributes to be set via keyboard interaction
         self.years = None
         self.variables = [None] * self.nvars
-        self.lat_inds = [np.nan, np.nan]
-        self.lon_inds = [np.nan, np.nan]
+        self.lat_inds = [-1 -1] #[np.nan, np.nan]
+        self.lon_inds = [-1 -1] #[np.nan, np.nan]
         # copy over method for keyboard interaction
         self.run_config = Config_Preprocess1.run_preprocess1
     #
@@ -140,7 +140,7 @@ class Config_Preprocess1(Config_runscript_base):
         check_years = [year.strip().isnumeric() for year in years_list]
         status = all(check_years)
         if not status:
-            inds_bad = np.where(~np.array(check_years))[0]
+            inds_bad = [i for i, e in enumerate(check_years) if e] #np.where(~np.array(check_years))[0]
             if not silent:
                 print("The following comma-separated elements could not be interpreted as valid years:")
                 for ind in inds_bad:
@@ -169,7 +169,7 @@ class Config_Preprocess1(Config_runscript_base):
         check_vars = [var.strip().lower() in Config_Preprocess1.known_vars for var in vars_list]
         status = all(check_vars)
         if not status:
-            inds_bad = np.where(~np.array(check_vars))[0]
+            inds_bad = [i for i, e in enumerate(check_vars) if e] # np.where(~np.array(check_vars))[0]
             if not silent:
                 print("The following comma-separated elements are unknown variables:")
                 for ind in inds_bad:
