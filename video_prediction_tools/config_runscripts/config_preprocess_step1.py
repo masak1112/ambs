@@ -70,7 +70,7 @@ class Config_Preprocess1(Config_runscript_base):
         if len(vars_list) == 1:
             self.variables = vars_list * Config_Preprocess1.nvars
         else:
-            self.variables = vars_list
+            self.variables = [var.strip() for var in vars_list]
 
         # get start and end indices in latitude direction
         lat_req_str = "Enter comma-separated indices of start and end index in latitude direction for target domain:\n"
@@ -176,6 +176,7 @@ class Config_Preprocess1(Config_runscript_base):
             return status
 
         if not (len(check_vars) == Config_Preprocess1.nvars or len(check_vars) == 1):
+            if not silent: print("Unexpected number of variables passed.")
             status = False
 
         return status
