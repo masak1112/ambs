@@ -119,7 +119,7 @@ class Config_runscript_base:
                 # translate to string generating Bash-array
                 batch_var_val = "(\"" + "\"\n\"".join(batch_var_val) + "\")"
 
-            write_cmd = "sed -i \"s/{0}=.*/{0}={1}/g\" {2}".format(batch_var, batch_var_val, runscript)
+            write_cmd = "sed -i \"s|{0}=.*|{0}={1}|g\" {2}".format(batch_var, batch_var_val, runscript)
             stat_batch_var = Config_runscript_base.check_var_in_runscript(runscript, batch_var)
 
             if stat_batch_var:
