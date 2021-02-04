@@ -6,7 +6,7 @@ __author__ = "Michael Langguth"
 __date__ = "2021-01-25"
 
 # import modules
-import os
+import sys, os
 
 class Config_runscript_base:
 
