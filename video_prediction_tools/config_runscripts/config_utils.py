@@ -12,15 +12,17 @@ class Config_runscript_base:
 
     cls_name = "Config_runscript_base"
 
-    def __init__(self, wrk_flw_step, runscript_base, venv_name, lhpc=False):
+    # list of known workflow steps
+    known_workflow_steps = ["extract", "preprocess1", "preprocess2", "train", "postprocess"]
+
+    def __init__(self, venv_name, lhpc=False):
         """
         Sets some basic attributes required by all workflow steps
-        :param wrk_flw_step: short-name of the workflow step
-        :param runscript_base: (relative or absolute) path to directory where runscript templates are stored
+        :param venv_name: name of the virtual environment
+        :param lhpc: flag if operation is done on an HPC system
         """
         self.VIRT_ENV_NAME = venv_name
         # runscript related attributes
-        self.runscript_base = runscript_base
         if lhpc:
             self.runscript_dir = "../HPC_scripts"
         else:
@@ -29,9 +31,8 @@ class Config_runscript_base:
         self.long_name_wrk_step = None
         self.rscrpt_tmpl_prefix = None
         self.suffix_template = "_template.sh"
-        self.runscript_template = None             # will be constructed in child class of the workflow step
+        self.runscript_template = None
         self.runscript_target   = None
-        Config_runscript_base.check_and_set_basic(self, wrk_flw_step)
         # general to be expected attributes
         self.list_batch_vars = None
         self.dataset = None
@@ -78,44 +79,6 @@ class Config_runscript_base:
         os.system(cmd_gen)
         # ...do modificatios stored in attributes of class instance
         Config_runscript_base.write_rscr_vars(self, runscript_tar)
-
-    def check_and_set_basic(self, wrk_flw_step):
-        """
-        Set the following basic attributes depending on the workflow step (initialized with None in __init__):
-        * long_name_wrk_step: long-name of the workflow step
-        * rscrpt_tmpl_suffix: prefix of the corresponding runscript template (used for constructing the name of the
-                              runscript template file
-        :param wrk_flw_step: short-name of the workflow step
-        :return: class instance with the aforementioned attributes set
-        """
-
-        method_name = Config_runscript_base.check_and_set_basic.__name__ + " of Class " + Config_runscript_base.cls_name
-
-        if not isinstance(wrk_flw_step, str):
-            raise ValueError("%{0}: wrk_flw_step-arument must be string indicating the name of workflow substep."
-                             .format(method_name))
-
-        if not os.path.isdir(self.runscript_base):
-            raise NotADirectoryError("%{0}: Could not find directory where runscript templates are expected: {1}"
-                                     .format(method_name, self.runscript_base))
-
-        if wrk_flw_step == "extract":
-            self.long_name_wrk_step = "Data Extraction"
-            self.rscrpt_tmpl_prefix = "data_extraction"
-        elif wrk_flw_step == "preprocess1":
-            self.long_name_wrk_step = "Preprocessing step 1"
-            self.rscrpt_tmpl_prefix = "preprocess_data"
-        elif wrk_flw_step == "preprocess2":
-            self.long_name_wrk_step = "Preproccessing step 2"
-            self.rscrpt_tmpl_prefix = "preprocess_data"
-        elif wrk_flw_step == "train":
-            self.long_name_wrk_step = "Training"
-            self.rscrpt_tmpl_prefix = "train_model"
-        elif wrk_flw_step == "postprocess":
-            self.long_name_wrk_step = "Postprocessing"
-            self.rscrpt_tmpl_prefix = "visualize_postprocess"
-        else:
-            raise ValueError("%{0}: Workflow step {1} is unknown / not implemented.".format(method_name, wrk_flw_step))
     #
     # -----------------------------------------------------------------------------------
     #
@@ -233,3 +196,42 @@ class Config_runscript_base:
                     raise err
 
         return input_req
+
+## some further auxiliary functions
+
+def get_base_prefix_compat():
+    """
+    Robust check if script is running in virtual env from
+    see: https://stackoverflow.com/questions/1871549/determine-if-python-is-running-inside-virtualenv/38939054
+    :return: Base/real prefix, or sys.prefix if there is none.
+    """
+    return getattr(sys, "base_prefix", None) or getattr(sys, "real_prefix", None) or sys.prefix
+#
+#--------------------------------------------------------------------------------------------------------
+#
+
+def in_virtualenv():
+    """
+    Checks if a virtual environment is activated
+    :return: True if virtual environment is running, else False
+    """
+    return get_base_prefix_compat() != sys.prefix
+#
+#--------------------------------------------------------------------------------------------------------
+#
+def check_virtualenv(labort=False):
+    '''
+    Checks if current script is running a virtual environment and returns the directory's name
+    :param labort: If True, the an Exception is raised. If False, only a Warning is given
+    :return: name of virtual environment
+    '''
+    lvirt = in_virtualenv()
+
+    if not lvirt:
+        if labort:
+            raise EnvironmentError("config_train.py has to run in an activated virtual environment!")
+        else:
+            raise Warning("config_train.py is not running in an activated virtual environment!")
+            return
+    else:
+        return os.path.basename(sys.prefix)
