@@ -15,16 +15,23 @@ echo "* preprocess_data_era5_step1_<exp_id>.sh"
 
 module purge
 module use $OTHERSTAGES
-module load Stages/2019a
-module load GCC/8.3.0
-module load ParaStationMPI/5.2.2-1
-module load mpi4py/3.0.1-Python-3.6.8
+ml Stages/2019a
+ml GCC/8.3.0
+ml ParaStationMPI/5.2.2-1
+ml mpi4py/3.0.1-Python-3.6.8
 # serialized version is not available on HFML
 # see https://gitlab.version.fz-juelich.de/haf/Wiki/-/wikis/HDF-ML%20System
 if [[ "${HOST_NAME}" == hdfml* ]]; then
-  module load h5py/2.9.0-serial-Python-3.6.8
+  ml h5py/2.9.0-serial-Python-3.6.8
 elif [[ "${HOST_NAME}" == juwels* ]]; then
-  module load h5py/2.9.0-Python-3.6.8
+  ml h5py/2.9.0-Python-3.6.8
 fi
-module load netcdf4-python/1.5.0.1-Python-3.6.8
+ml SciPy-Stack/2019a-Python-3.6.8
+ml scikit/2019a-Python-3.6.8
+ml netcdf4-python/1.5.0.1-Python-3.6.8
 
+# clean up if triggered via script argument
+if [[ $1 == purge ]]; then
+  echo "Purge all modules after loading them..."
+  module --force purge
+fi  
