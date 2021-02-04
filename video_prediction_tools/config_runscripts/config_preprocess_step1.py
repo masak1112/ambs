@@ -6,7 +6,6 @@ __date__ = "2021-01-27"
 
 # import modules
 import os, glob
-#import numpy as np
 from config_utils import Config_runscript_base    # import parent class
 
 class Config_Preprocess1(Config_runscript_base):
@@ -22,7 +21,7 @@ class Config_Preprocess1(Config_runscript_base):
 
         # initialize attributes related to runscript name
         self.long_name_wrk_step = "Preprocessing step 1"
-        self.rscrpt_tmpl_prefix = "preprocess_data"
+        self.rscrpt_tmpl_prefix = "preprocess_data_"
 
         self.dataset = "era5"
         self.runscript_template = self.rscrpt_tmpl_prefix + self.dataset + "_step1" + self.suffix_template

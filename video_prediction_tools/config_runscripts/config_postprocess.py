@@ -24,7 +24,7 @@ class Config_Postprocess(Config_runscript_base):
 
         # initialize attributes related to runscript name
         self.long_name_wrk_step = "Postprocessing"
-        self.rscrpt_tmpl_prefix = "visualize_postprocess"
+        self.rscrpt_tmpl_prefix = "visualize_postprocess_"
         # initialize additional runscript-specific attributes to be set via keyboard interaction
         self.model = None
         self.checkpoint_dir = None

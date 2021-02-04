@@ -23,7 +23,7 @@ class Config_Preprocess2(Config_runscript_base):
 
         # initialize attributes related to runscript name
         self.long_name_wrk_step = "Preproccessing step 2"
-        self.rscrpt_tmpl_prefix = "preprocess_data"
+        self.rscrpt_tmpl_prefix = "preprocess_data_"
         # initialize additional runscript-specific attributes to be set via keyboard interaction
         self.sequence_length = None  # only needed for ERA5
         # copy over method for keyboard interaction

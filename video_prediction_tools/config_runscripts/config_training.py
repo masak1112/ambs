@@ -27,7 +27,7 @@ class Config_Train(Config_runscript_base):
 
         # initialize attributes related to runscript name
         self.long_name_wrk_step = "Training"
-        self.rscrpt_tmpl_prefix = "train_model"
+        self.rscrpt_tmpl_prefix = "train_model_"
         # initialize additional runscript-specific attributes to be set via keyboard interaction
         self.model = None
         self.destination_dir = None
