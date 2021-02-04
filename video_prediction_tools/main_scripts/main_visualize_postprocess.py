@@ -49,8 +49,8 @@ class Postprocess(TrainModel,ERA5Pkl2Tfrecords):
         seed               :seed for control test samples
         """
      
-        self.input_dir = input_dir
-        self.results_dir = self.output_dir = results_dir
+        self.input_dir = os.path.normpath(input_dir)
+        self.results_dir = self.output_dir = os.path.normpath(results_dir) 
         if not os.path.exists(self.results_dir):os.makedirs(self.results_dir)
         self.batch_size = batch_size
         self.gpu_mem_frac = gpu_mem_frac
