@@ -51,13 +51,13 @@ EXE_DIR="$(basename "$BASE_DIR")"
 ### Some sanity checks ###
 # ensure that the script is executed from the env_setup-subdirectory
 if [[ "${EXE_DIR}" != "config_runscripts"  ]]; then
-  echo "ERROR: Execute 'generate_workflow_scripts.sh' from the config_runscripts-subdirectory only!"
+  echo "ERROR: Execute 'convert_runscript.sh' from the config_runscripts-subdirectory only!"
   exit 1
 fi
 # check input arguments
 if [[ "$#" -ne 2 ]]; then
   echo "ERROR: Pass path to workflow runscript (without '_template.sh') as well as name of target file"
-  echo "Example: ./generate_workflow_scripts.sh ../HPC_scripts/DataExtraction ../HPC_scripts/DataExtraction_test.sh"
+  echo "Example: ./convert_runscript.sh ../HPC_scripts/DataExtraction ../HPC_scripts/DataExtraction_test.sh"
   exit 1
 else
   curr_script=$1
