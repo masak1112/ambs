@@ -29,6 +29,9 @@ class Config_Postprocess(Config_runscript_base):
         self.model = None
         self.checkpoint_dir = None
         self.destination_dir = None
+        # list of variables to be written to runscript
+        self.list_batch_vars = ["VIRT_ENV_NAME", "source_dir", "destination_dir",
+                                "checkpoint_dir", "model", "dataset"]
         # copy over method for keyboard interaction
         self.run_config = Config_Postprocess.run_postprocess
     #
@@ -69,11 +72,6 @@ class Config_Postprocess(Config_runscript_base):
 
         self.source_dir = Config_Postprocess.check_source(os.path.join(base_dir, exp_dir_base))
         self.destination_dir = os.path.join(base_dir, "results", exp_dir_base, self.model, exp_dir)
-
-        # list of variables to be written to runscript
-        self.list_batch_vars = ["VIRT_ENV_NAME", "source_dir", "destination_dir",
-                                "checkpoint_dir", "model", "dataset"]
-
     #
     # -----------------------------------------------------------------------------------
     #

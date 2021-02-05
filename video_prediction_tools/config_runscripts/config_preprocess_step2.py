@@ -27,6 +27,8 @@ class Config_Preprocess2(Config_runscript_base):
         # initialize additional runscript-specific attributes to be set via keyboard interaction
         self.destination_dir = None
         self.sequence_length = None  # only needed for ERA5
+        # list of variables to be written to runscript
+        self.list_batch_vars = ["VIRT_ENV_NAME", "source_dir"]     # appended for ERA5 dataset
         # copy over method for keyboard interaction
         self.run_config = Config_Preprocess2.run_preprocess2
     #
@@ -78,14 +80,13 @@ class Config_Preprocess2(Config_runscript_base):
         if self.dataset == "era5":
             # get desired sequence length
             seql_req_str = "Enter desired total sequence length (i.e. number of frames/images):\n"
-            seql_err = ValueError("")
+            seql_err = ValueError("sequence length must be an integer and larger than 2.")
 
             seql_str = Config_Preprocess2.keyboard_interaction(seql_req_str, Config_Preprocess2.get_seq_length,
                                                                seql_err)
             self.sequence_length = int(seql_str)
 
         # list of variables to be written to runscript
-        self.list_batch_vars = ["VIRT_ENV_NAME", "source_dir"]
         if self.dataset == "era5": self.list_batch_vars.append("sequence_length")
     #
     # -----------------------------------------------------------------------------------

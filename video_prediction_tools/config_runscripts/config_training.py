@@ -31,6 +31,8 @@ class Config_Train(Config_runscript_base):
         # initialize additional runscript-specific attributes to be set via keyboard interaction
         self.model = None
         self.destination_dir = None
+        # list of variables to be written to runscript
+        self.list_batch_vars = ["VIRT_ENV_NAME", "source_dir", "model", "exp_id", "destination_dir"]
         # copy over method for keyboard interaction
         self.run_config = Config_Train.run_training
     #
@@ -122,9 +124,6 @@ class Config_Train(Config_runscript_base):
         time.sleep(3)
         cmd_vim = os.environ.get('EDITOR', 'vi') + ' ' + os.path.join(self.destination_dir, "model_hparams.json")
         sp.call(cmd_vim, shell=True)
-
-        # list of variables to be written to runscript
-        self.list_batch_vars = ["VIRT_ENV_NAME", "source_dir", "model", "exp_id", "destination_dir"]
     #
     # -----------------------------------------------------------------------------------
     #

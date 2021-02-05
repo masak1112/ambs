@@ -23,6 +23,8 @@ class Config_Extraction(Config_runscript_base):
         self.runscript_target = self.rscrpt_tmpl_prefix + self.dataset + ".sh"
         # initialize additional runscript-specific attributes to be set via keyboard interaction
         self.year = None
+        # list of variables to be written to runscript
+        self.list_batch_vars = ["VIRT_ENV_NAME", "source_dir", "year"]
         # copy over method for keyboard interaction
         self.run_config = Config_Extraction.run_extraction
     #
@@ -45,8 +47,6 @@ class Config_Extraction(Config_runscript_base):
 
         self.year = Config_Extraction.keyboard_interaction(year_req_str, Config_Extraction.check_year,
                                                            year_err, ntries = 2, test_arg="2012")
-        # list of variables to be written to runscript
-        self.list_batch_vars = ["VIRT_ENV_NAME", "source_dir", "year"]
 
     #
     # -----------------------------------------------------------------------------------

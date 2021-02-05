@@ -31,6 +31,8 @@ class Config_Preprocess1(Config_runscript_base):
         self.variables = [None] * self.nvars
         self.lat_inds = [-1 -1] #[np.nan, np.nan]
         self.lon_inds = [-1 -1] #[np.nan, np.nan]
+        # list of variables to be written to runscript
+        self.list_batch_vars = ["VIRT_ENV_NAME", "source_dir", "years", "variables", "lat_inds", "lon_inds"]
         # copy over method for keyboard interaction
         self.run_config = Config_Preprocess1.run_preprocess1
     #
@@ -92,8 +94,6 @@ class Config_Preprocess1(Config_runscript_base):
         lon_inds_list = lon_inds_str.split(",")
         self.lon_inds = [ind.strip() for ind in lon_inds_list]
 
-        # list of variables to be written to runscript
-        self.list_batch_vars = ["VIRT_ENV_NAME", "source_dir", "years", "variables", "lat_inds", "lon_inds"]
     #
     # -----------------------------------------------------------------------------------
     #
