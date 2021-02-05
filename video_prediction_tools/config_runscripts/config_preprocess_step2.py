@@ -25,6 +25,7 @@ class Config_Preprocess2(Config_runscript_base):
         self.long_name_wrk_step = "Preproccessing step 2"
         self.rscrpt_tmpl_prefix = "preprocess_data_"
         # initialize additional runscript-specific attributes to be set via keyboard interaction
+        self.destination_dir = None
         self.sequence_length = None  # only needed for ERA5
         # copy over method for keyboard interaction
         self.run_config = Config_Preprocess2.run_preprocess2
@@ -57,6 +58,9 @@ class Config_Preprocess2(Config_runscript_base):
 
         self.source_dir = Config_Preprocess2.keyboard_interaction(source_req_str, Config_Preprocess2.check_data_indir,
                                                                   source_err, ntries=3)
+
+        base_dir, _ = os.path.split(self.source_dir)
+        self.destination_dir = os.path.join(base_dir, "tfrecords")
         # check if expected data is available in source_dir (depending on dataset)
         # The following files are expected:
         # * ERA5: pickle-files
