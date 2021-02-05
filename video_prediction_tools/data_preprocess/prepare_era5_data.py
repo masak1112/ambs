@@ -150,7 +150,7 @@ def process_era5_in_dir(job_name,src_dir,target_dir):
     #create a subdirectory based on months
     target_dir2 = os.path.join(target_dir,job_name)
     print("The processed files are going to be saved to directory {}".format(target_dir2))
-    if not os.path.exists(target_dir2): os.makedirs((target_dir2, exist_ok=True)
+    if not os.path.exists(target_dir2): os.makedirs(target_dir2, exist_ok=True)
     for src_file in files:
         if src_file.endswith(".nc"):
             if os.path.exists(os.path.join(target_dir2, src_file)):
