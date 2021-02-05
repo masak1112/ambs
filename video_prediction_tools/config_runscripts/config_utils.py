@@ -79,7 +79,7 @@ class Config_runscript_base:
                                  "Run keyboard interaction (self.run) first".format(method_name))
 
         if not os.path.isfile(Config_runscript_base.runscript_converter):
-            raise FileNotFoundError("%{0}: Cannot find '{0}' for converting runscript templates to executables."
+            raise FileNotFoundError("%{0}: Cannot find '{1}' for converting runscript templates to executables."
                                     .format(method_name, Config_runscript_base.runscript_converter))
         # generate runscript...
         runscript_temp = os.path.join(self.runscript_dir, self.runscript_template).rstrip("_template.sh")
