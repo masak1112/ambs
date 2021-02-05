@@ -15,6 +15,8 @@ class Config_runscript_base:
 
     # list of known workflow steps
     known_workflow_steps = ["extract", "preprocess1", "preprocess2", "train", "postprocess"]
+    # auxiliary shell script for converting templates to executable
+    runscript_converter = "./convert_runscript.sh"
 
     def __init__(self, venv_name, lhpc=False):
         """
@@ -76,13 +78,13 @@ class Config_runscript_base:
             raise AttributeError("%{0}: The attribute runscript_target is still uninitialzed." +
                                  "Run keyboard interaction (self.run) first".format(method_name))
 
-        if not os.path.isfile("./generate_workflow_runscripts.sh"):
-            raise FileNotFoundError("%{0}: Cannot find generate_workflow_runscripts in current directory '{1}'."
-                                    .format(method_name, os.getcwd()))
+        if not os.path.isfile(Config_runscript_base.runscript_converter):
+            raise FileNotFoundError("%{0}: Cannot find '{0}' for converting runscript templates to executables."
+                                    .format(method_name, Config_runscript_base.runscript_converter))
         # generate runscript...
         runscript_temp = os.path.join(self.runscript_dir, self.runscript_template).rstrip("_template.sh")
         runscript_tar = os.path.join(self.runscript_dir, self.runscript_target)
-        cmd_gen = "./generate_workflow_runscripts.sh {0} {1}".format(runscript_temp, runscript_tar)
+        cmd_gen = "{0} {1} {2}".format(Config_runscript_base.runscript_converter, runscript_temp, runscript_tar)
         os.system(cmd_gen)
         # ...do modificatios stored in attributes of class instance
         Config_runscript_base.write_rscr_vars(self, runscript_tar)
