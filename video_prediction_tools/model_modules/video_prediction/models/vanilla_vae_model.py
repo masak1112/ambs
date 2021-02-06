@@ -3,7 +3,6 @@ __email__ = "b.gong@fz-juelich.de"
 __author__ = "Bing Gong"
 __date__ = "2020-09-01"
 
-
 import collections
 import functools
 import itertools
@@ -21,82 +20,88 @@ from datetime import datetime
 from pathlib import Path
 from model_modules.video_prediction.layers import layer_def as ld
 
-class VanillaVAEVideoPredictionModel(BaseVideoPredictionModel):
-    def __init__(self, mode='train', aggregate_nccl=None,hparams_dict=None,
-                 hparams=None,**kwargs):
-        super(VanillaVAEVideoPredictionModel, self).__init__(mode, hparams_dict, hparams, **kwargs)
+class VanillaVAEVideoPredictionModel(object):
+    def __init__(self, mode='train', hparams_dict=None):
+        """
+        This is class for building convLSTM architecture by using updated hparameters
+        args:
+             mode   :str, "train" or "val", side note: mode may not be used in the convLSTM, but this will be a useful argument for the GAN-based model
+             hparams_dict: dict, the dictionary contains the hparaemters names and values
+        """
         self.mode = mode
+        self.hparams_dict = hparams_dict
+        self.hparams = self.parse_hparams()
         self.learning_rate = self.hparams.lr
-        self.weight_recon = self.hparams.weight_recon
-        self.nz = self.hparams.nz
-        self.aggregate_nccl=aggregate_nccl
-        self.gen_images_enc = None
-        self.train_op = None
-        self.summary_op = None
-        self.recon_loss = None
-        self.latent_loss = None
         self.total_loss = None
-        
+        self.context_frames = self.hparams.context_frames
+        self.sequence_length = self.hparams.sequence_length
+        self.predict_frames = self.sequence_length - self.context_frames
+        self.max_epochs = self.hparams.max_epochs
+        self.nz = self.hparams.nz
+        self.loss_fun = self.hparams.loss_fun
+ 
+
+    def get_default_hparams(self):
+        return HParams(**self.get_default_hparams_dict())
+
+    def parse_hparams(self):
+        """
+        Parse the hparams setting to ovoerride the default ones
+        """
+
+        parsed_hparams = self.get_default_hparams().override_from_dict(self.hparams_dict or {})
+        return parsed_hparams
+
 
     def get_default_hparams_dict(self):
         """
-        The keys of this dict define valid hyperparameters for instances of
-        this class. A class inheriting from this one should override this
-        method if it has a different set of hyperparameters.
-
+        The function that contains default hparams
         Returns:
             A dict with the following hyperparameters.
-
-            batch_size: batch size for training.
-            lr: learning rate. if decay steps is non-zero, this is the
-                learning rate for steps <= decay_step.
-            end_lr: learning rate for steps >= end_decay_step if decay_steps
-                is non-zero, ignored otherwise.
-            decay_steps: (decay_step, end_decay_step) tuple.
-            max_epochs: number of training epochs.
-            beta1: momentum term of Adam.
-            beta2: momentum term of Adam.
-            context_frames: the number of ground-truth frames to pass in at
-                start. Must be specified during instantiation.
-            sequence_length: the number of frames in the video sequence,
-                including the context frames, so this model predicts
-                `sequence_length - context_frames` future frames. Must be
-                specified during instantiation.
+            context_frames  : the number of ground-truth frames to pass in at start.
+            sequence_length : the number of frames in the video sequence 
+            max_epochs      : the number of epochs to train model
+            lr              : learning rate
+            loss_fun        : the loss function
         """
-        default_hparams = super(VanillaVAEVideoPredictionModel, self).get_default_hparams_dict()
-        print ("default hparams",default_hparams)
         hparams = dict(
-            batch_size=16,
-            lr=0.001,
-            end_lr=0.0,
-            decay_steps=(200000, 300000),
-            lr_boundaries=(0,),
-            max_epochs=35,
-            nz=10,
-            context_frames=-1,
-            sequence_length=-1,
-            weight_recon = 0.4        
-            
+            context_frames=10,
+            sequence_length=20,
+            max_epochs = 20,
+            batch_size = 40,
+            lr = 0.001,
+            nz = 16,
+            loss_fun = "cross_entropy",
+            shuffle_on_val= True,
         )
-        return dict(itertools.chain(default_hparams.items(), hparams.items()))
+        return hparams
 
 
     def build_graph(self,x):  
         self.x = x["images"]
-        #self.global_step = tf.Variable(0, name = 'global_step', trainable = False)
         self.global_step = tf.train.get_or_create_global_step()
         original_global_variables = tf.global_variables()
         self.x_hat, self.z_log_sigma_sq, self.z_mu = self.vae_arc_all()
-        self.recon_loss = tf.reduce_mean(tf.square(self.x[:, 1:, :, :, 0] - self.x_hat[:, :-1, :, :, 0]))
-        latent_loss = -0.5 * tf.reduce_sum(
-            1 + self.z_log_sigma_sq - tf.square(self.z_mu) -
-            tf.exp(self.z_log_sigma_sq), axis=1)
+        
+        #This is the loss function (RMSE):
+        #This is loss function only for 1 channel (temperature RMSE)
+        if self.loss_fun == "rmse":
+            self.recon_loss = tf.reduce_mean(
+                tf.square(self.x[:, self.context_frames:,:,:,0] - self.x_hat_predict_frames[:,:,:,:,0]))
+        elif self.loss_fun == "cross_entropy":
+            x_flatten = tf.reshape(self.x[:, self.context_frames:,:,:,0],[-1])
+            x_hat_predict_frames_flatten = tf.reshape(self.x_hat_predict_frames[:,:,:,:,0],[-1])
+            bce = tf.keras.losses.BinaryCrossentropy()
+            self.recon_loss = bce(x_flatten,x_hat_predict_frames_flatten)
+        else:
+            raise ValueError("Loss function is not selected properly, you should chose either 'rmse' or 'cross_entropy'")        
+        
+        latent_loss = -0.5 * tf.reduce_sum(1 + self.z_log_sigma_sq - tf.square(self.z_mu) -tf.exp(self.z_log_sigma_sq), axis=1)
         self.latent_loss = tf.reduce_mean(latent_loss)
         self.total_loss = self.weight_recon * self.recon_loss + self.latent_loss
         self.train_op = tf.train.AdamOptimizer(
             learning_rate = self.learning_rate).minimize(self.total_loss, global_step=self.global_step)
         # Build a saver
-
         self.losses = {
             'recon_loss': self.recon_loss,
             'latent_loss': self.latent_loss,
