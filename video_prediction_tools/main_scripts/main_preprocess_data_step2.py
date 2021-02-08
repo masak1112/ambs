@@ -12,6 +12,7 @@ from mpi4py import MPI
 from general_utils import get_unique_vars
 from statistics import Calc_data_stat
 from data_preprocess.preprocess_data_step2 import *
+import warnings
 
 
 def main():
@@ -50,8 +51,7 @@ def main():
                     # process stat-file:
                     stat_obj.acc_stat_master(file_dir, int(month))  # process monthly statistic-file
                 else:
-                    raise ("The stat file does not exist:", os.path.join(file_dir, "stat_" + '{0:02}'.\
-                                                                             format(month) + ".json"))
+                    warnings.warn("The stat file for year {} month {} does not exist".format(year, month))
         # finalize statistics and write to json-file
         stat_obj.finalize_stat_master(vars_uni)
         stat_obj.write_stat_json(input_dir_pkl)
