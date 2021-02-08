@@ -105,8 +105,8 @@ def main():
         # modify Batch scripts if metadata has been retrieved for the first time (md.status = "new")
         if md.status == "new":
             md.write_dirs_to_batch_scripts(scr_dir+"/preprocess_data_era5_step2.sh")
-            md.write_dirs_to_batch_scripts(scr_dir + "/train_model_era5.sh")
-            md.write_dirs_to_batch_scripts(scr_dir+"/visualize_postprocess_era5.sh")
+            #md.write_dirs_to_batch_scripts(scr_dir + "/train_model_era5.sh")
+            #md.write_dirs_to_batch_scripts(scr_dir+"/visualize_postprocess_era5.sh")
 
         elif md.status == "old":        # meta-data file already exists and is ok
                                         # check for temp.json in working directory (required by slave nodes)
