@@ -48,6 +48,10 @@ class Config_Extraction(Config_runscript_base):
         self.year = Config_Extraction.keyboard_interaction(year_req_str, Config_Extraction.check_year,
                                                            year_err, ntries = 2, test_arg="2012")
 
+        # set destination directory based on base directory which can be retrieved from the template runscript
+        base_dir = Config_Extraction.get_var_from_runscript(self.runscript_template, "destination_dir")
+        self.destination_dir = os.path.join(base_dir, "extracted_data", self.year)
+
     #
     # -----------------------------------------------------------------------------------
     #
