@@ -39,10 +39,8 @@ fi
 source_dir=/p/fastdata/slmet/slmet111/met_data/ecmwf/era5/nc/
 dest_dir=/p/scratch/deepacf/video_prediction_shared_folder/extractedData/
 
-year="2010"
-
 # Run data extraction
-srun python ../main_scripts/main_data_extraction.py  --source_dir ${source_dir}/${year}/ --destination_dir ${dest_dir}
+srun python ../main_scripts/main_data_extraction.py  --source_dir ${source_dir} --destination_dir ${dest_dir}
 
 
 

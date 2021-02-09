@@ -24,7 +24,7 @@ class Config_Extraction(Config_runscript_base):
         # initialize additional runscript-specific attributes to be set via keyboard interaction
         self.year = None
         # list of variables to be written to runscript
-        self.list_batch_vars = ["VIRT_ENV_NAME", "source_dir", "destination_dir", "year"]
+        self.list_batch_vars = ["VIRT_ENV_NAME", "source_dir", "destination_dir"]
         # copy over method for keyboard interaction
         self.run_config = Config_Extraction.run_extraction
     #
