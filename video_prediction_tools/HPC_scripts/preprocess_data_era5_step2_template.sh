@@ -43,5 +43,7 @@ sequences_per_file=10
 sequence_length=20
 
 # run preprocessing (step 2 where Tf-records are generated)
-srun python ../main_scripts/main_preprocess_data_step2.py -input_dir ${source_dir} -output_dir ${destination_dir}  -datasplit_config ${datasplit_dir}  -hparams_dict_config ${hparams_dict_config} -sequences_per_file ${sequences_per_file}
+srun python ../main_scripts/main_preprocess_data_step2.py -input_dir ${source_dir} -output_dir ${destination_dir}
+   -datasplit_config ${datasplit_dir}  -hparams_dict_config ${hparams_dict_config}
+   -sequences_per_file ${sequences_per_file}
 

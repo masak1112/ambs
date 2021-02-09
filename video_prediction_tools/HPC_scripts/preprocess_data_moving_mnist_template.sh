@@ -37,4 +37,4 @@ source_dir=/p/project/deepacf/deeprain/video_prediction_shared_folder/preprocess
 destination_dir=/p/project/deepacf/deeprain/video_prediction_shared_folder/preprocessedData/moving_mnist
 
 # run Preprocessing (step 2 where Tf-records are generated)
-srun python ../video_prediction/datasets/moving_mnist.py ${source_dir} ${destination_dir}/tfrecords
+srun python ../video_prediction/datasets/moving_mnist.py ${source_dir} ${destination_dir}
