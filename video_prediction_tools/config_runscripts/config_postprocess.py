@@ -55,7 +55,7 @@ class Config_Postprocess(Config_runscript_base):
 
         # get the 'checkpoint-directory', i.e. the directory where the trained model parameters are stored
         # Note that the remaining information (model, results-directory etc.) can be retrieved form it!!!
-        trained_dir_req_str = "Enter the path to the model checkpoint directory" + \
+        trained_dir_req_str = "Enter the absolute (!) path to the model checkpoint directory" + \
                               " for which postprocessing should be done:\n"
         trained_err = FileNotFoundError("No trained model parameters found.")
 
