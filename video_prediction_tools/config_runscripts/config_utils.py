@@ -168,6 +168,32 @@ class Config_runscript_base:
             stat = True
 
         return stat
+    @staticmethod
+    #
+    # --------------------------------------------------------------------------------------------------------
+    #
+    def get_variable_from_runscript(runscript_file, script_variable):
+        '''
+        Search for the declaration of variable in a Shell script and returns its value.
+        :param runscript_file: path to shell script/runscript
+        :param script_variable: name of variable which is declared in shell script at hand
+        :return: value of script_variable
+        '''
+        script_variable = script_variable + "="
+        found = False
+
+        with open(runscript_file) as runscript:
+            # Skips text before the beginning of the interesting block:
+            for line in runscript:
+                if script_variable in line:
+                    var_value = (line.strip(script_variable)).replace("\n", "")
+                    found = True
+                    break
+
+        if not found:
+            raise Exception("Could not find declaration of '" + script_variable + "' in '" + runscript_file + "'.")
+
+        return var_value
     #
     # -----------------------------------------------------------------------------------
     #
