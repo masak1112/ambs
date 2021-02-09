@@ -133,6 +133,37 @@ class Config_runscript_base:
     #
     # -----------------------------------------------------------------------------------
     #
+    def handle_source_dir(self, subdir_name):
+
+        method_name = Config_runscript_base.write_rscr_vars.__name__ + " of Class " + Config_runscript_base.cls_name
+
+        err = None
+        if not hasattr(self, "runscript_template") or :
+            err = ValueError("%{0}: Could not find the attribute runscript_name.".format(method_name))
+        if err is None:
+            if self.runscript_template is None:
+                raise ValueError("%{0}: Attribute runscript_name is still uninitialized.".format(method_name))
+        else:
+            raise err
+
+        base_source_dir = os.path.join(Config_runscript_base.get_variable_from_runscript(self.runscript_template,
+                                                                                         "source_dir"), subdir_name)
+
+        if not os.path.isdir(base_source_dir):
+            raise NotADirectoryError("%{0}: Cannot find directory '{1}".format(method_name, base_source_dir))
+
+        list_dirs = [f.name for f in os.scandir(base_source_dir) if f.is_dir()]
+        if not list_dirs:
+            raise ValueError("%{0}: Cannot find any subdirectory in {1}".format(method_name, base_source_dir))
+
+        print("The follwoing subdiretories are found under {0}".format(base_source_dir))
+        for subdir in list_dirs:
+            print("* {0}".format(subdir))
+
+        return base_source_dir
+    #
+    # -----------------------------------------------------------------------------------
+    #
     @staticmethod
     def path_rec_split(full_path):
         """
@@ -198,7 +229,7 @@ class Config_runscript_base:
     # -----------------------------------------------------------------------------------
     #
     @staticmethod
-    def keyboard_interaction(console_str, check_input, err, ntries=1, test_arg="xxx"):
+    def keyboard_interaction(console_str, check_input, err, ntries=1, test_arg="xxx", suffix2arg=None):
         """
         Function to check if the user has passed a proper input via keyboard interaction
         :param console_str: Request printed to the console
@@ -206,6 +237,8 @@ class Config_runscript_base:
                             Must have two arguments with the latter being an optional bool called silent.
         :param ntries: maximum number of tries (default: 1)
         :param test_arg: test argument to check_input-function (default: "xxx")
+        :param suffix2arg: optional suffix that might be added to string from keyboard-interaction before it enters
+                           check_input-function
         :return: The approved input from keyboard interaction
         """
         # sanity checks
@@ -229,6 +262,8 @@ class Config_runscript_base:
         attempt = 0
         while attempt < ntries:
             input_req = input(console_str)
+            if not suffix2arg is None:
+                input_req = suffix2arg + input_req
             if check_input(input_req):
                 break
             else:
