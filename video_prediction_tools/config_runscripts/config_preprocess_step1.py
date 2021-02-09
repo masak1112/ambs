@@ -27,12 +27,14 @@ class Config_Preprocess1(Config_runscript_base):
         self.runscript_template = self.rscrpt_tmpl_prefix + self.dataset + "_step1" + self.suffix_template
         self.runscript_target = self.rscrpt_tmpl_prefix + self.dataset + "_step1" + ".sh"
         # initialize additional runscript-specific attributes to be set via keyboard interaction
+        self.destination_dir = None
         self.years = None
         self.variables = [None] * self.nvars
         self.lat_inds = [-1 -1] #[np.nan, np.nan]
         self.lon_inds = [-1 -1] #[np.nan, np.nan]
         # list of variables to be written to runscript
-        self.list_batch_vars = ["VIRT_ENV_NAME", "source_dir", "years", "variables", "lat_inds", "lon_inds"]
+        self.list_batch_vars = ["VIRT_ENV_NAME", "source_dir", "destination_dir", "years", "variables",
+                                "lat_inds", "lon_inds"]
         # copy over method for keyboard interaction
         self.run_config = Config_Preprocess1.run_preprocess1
     #
@@ -44,19 +46,29 @@ class Config_Preprocess1(Config_runscript_base):
         :return: all attributes of class Config_Preprocess1 are set
         """
         # get source_dir
-        dataset_req_str = "Enter the path where the extracted ERA5 netCDF-files are located:\n"
+        source_dir_base = Config_Preprocess1.handle_source_dir(self, "extractedData")
+
+        dataset_req_str = "Choose a subdirectory listed above where the extracted ERA5 files are located:\n"
         dataset_err = FileNotFoundError("Cannot retrieve extracted ERA5 netCDF-files from passed path.")
 
         self.source_dir = Config_Preprocess1.keyboard_interaction(dataset_req_str, Config_Preprocess1.check_data_indir,
-                                                                  dataset_err, ntries=3)
+                                                                  dataset_err, ntries=3, suffix2arg=source_dir_base+"/")
 
         # get years for preprcessing step 1
         years_req_str = "Enter a comma-separated sequence of years (format: YYYY):\n"
         years_err = ValueError("Cannot get years for preprocessing.")
         years_str = Config_Preprocess1.keyboard_interaction(years_req_str, Config_Preprocess1.check_years,
-                                                           years_err, ntries=2)
+                                                            years_err, ntries=2)
 
         self.years = [year.strip() for year in years_str.split(",")]
+        # final check data availability for each year
+        for year in self.years:
+            year_path = os.path.join(self.source_dir, year)
+            status = Config_Preprocess1.check_data_indir(year_path, recursive=False)
+            if status:
+                print("Data availability checked for year {0}".format(year))
+            else:
+                raise FileNotFoundError("Cannot retrieve ERA5 netCDF-files from {0}".format(year_path))
 
         # get variables for later training
         print("**** Info ****\n List of known variables which can be processed")
@@ -94,26 +106,32 @@ class Config_Preprocess1(Config_runscript_base):
         lon_inds_list = lon_inds_str.split(",")
         self.lon_inds = [ind.strip() for ind in lon_inds_list]
 
+        # set destination directory based on base directory which can be retrieved from the template runscript
+        base_dir = Config_Preprocess1.get_var_from_runscript(self.runscript_template, "destination_dir")
+        self.destination_dir = os.path.join(base_dir, "preprocessedData", "era5-Y{0}-{1}M01to12"
+                                            .format(min(years), max(years)))
+
     #
     # -----------------------------------------------------------------------------------
     #
     # auxiliary functions for keyboard interaction
     @staticmethod
-    def check_data_indir(indir, silent=False):
+    def check_data_indir(indir, silent=False, recursive=True):
         """
         Check recursively for existence era5 netCDF-files in indir.
-        This is just a simplified check, i.e. the script will fail if the directory tree is not
-        built up like '<indir>/YYYY/MM/'.
-        Also used in Config_preprocess1!
         :param indir: path to passed input directory
         :param silent: flag if print-statement are executed
+        :param recursive: flag if recursive search should be performed
         :return: status with True confirming success
         """
         status = False
         if os.path.isdir(indir):
             # the built-in 'any'-function has a short-sircuit mechanism, i.e. returns True
             # if the first True element is met
-            fexist = any(glob.glob(os.path.join(indir, "**", "*era5*.nc"), recursive=True))
+            if recursive:
+                fexist = any(glob.glob(os.path.join(indir, "**", "*era5*.nc"), recursive=True))
+            else:
+                fexist = any(glob.glob(os.path.join(indir, "*era5*.nc")))
             if fexist:
                 status = True
             else:

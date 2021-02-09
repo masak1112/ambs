@@ -20,7 +20,7 @@ class Config_Train(Config_runscript_base):
     # !!! Important note !!!
     # As long as we don't have runscript templates for all the datasets listed in known_datasets
     # or a generic template runscript, we need the following manual list
-    allowed_datasets = ["era5","moving_mnist"]  # known_datasets().keys
+    allowed_datasets = ["era5", "moving_mnist"]  # known_datasets().keys
 
     def __init__(self, venv_name, lhpc):
         super().__init__(venv_name, lhpc)
@@ -56,15 +56,19 @@ class Config_Train(Config_runscript_base):
         self.runscript_target = self.rscrpt_tmpl_prefix + self.dataset + ".sh"
 
         # get the source directory
+        # get source dir (relative to base_dir_source!)
+        source_dir_base = Config_Train.handle_source_dir(self, "preprocessedData")
 
-        expdir_req_str = "Enter the path to the preprocessed data (directory where tf-records files are located):\n"
+        expdir_req_str = "Choose a subdirectory listed above where the preprocessed TFrecords are located:\n"
         expdir_err = FileNotFoundError("Could not find any tfrecords.")
 
         self.source_dir = Config_Train.keyboard_interaction(expdir_req_str, Config_Train.check_expdir,
-                                                            expdir_err, ntries=3)
+                                                            expdir_err, ntries=3, suffix2arg=source_dir_base+"/")
+        # expand source_dir by tfrecords-subdirectory
+        self.source_dir = os.path.join(self.source_dir, "tfrecords")
 
         # split up directory path in order to retrieve exp_dir used for setting up the destination directory
-        exp_dir_split = path_rec_split(self.source_dir)
+        exp_dir_split = Config_Train.path_rec_split(self.source_dir)
         index = [idx for idx, s in enumerate(exp_dir_split) if self.dataset in s]
         if index == []:
             raise ValueError(

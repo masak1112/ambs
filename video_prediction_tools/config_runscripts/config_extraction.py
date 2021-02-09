@@ -48,6 +48,11 @@ class Config_Extraction(Config_runscript_base):
         self.year = Config_Extraction.keyboard_interaction(year_req_str, Config_Extraction.check_year,
                                                            year_err, ntries = 2, test_arg="2012")
 
+        # final check for input data
+        path_year = os.path.join(self.source_dir, self.year)
+        if not Config_Extraction.check_data_indir(path_year, silent=True, recursive=False):
+            raise FileNotFoundError("Cannot retrieve input data from {0}".format(path_year))
+
         # set destination directory based on base directory which can be retrieved from the template runscript
         base_dir = Config_Extraction.get_var_from_runscript(self.runscript_template, "destination_dir")
         self.destination_dir = os.path.join(base_dir, "extracted_data", self.year)
@@ -57,21 +62,25 @@ class Config_Extraction(Config_runscript_base):
     #
     # auxiliary functions for keyboard interaction
     @staticmethod
-    def check_data_indir(indir, silent=False):
+    def check_data_indir(indir, silent=False, recursive=True):
         """
         Check recursively for existence era5 netCDF-files in indir.
         This is just a simplified check, i.e. the script will fail if the directory tree is not
         built up like '<indir>/YYYY/MM/'.
-        Also used in Config_preprocess1!
         :param indir: path to passed input directory
         :param silent: flag if print-statement are executed
+        :param recursive: flag if one-level (!) recursive search should be performed
         :return: status with True confirming success
         """
         status = False
         if os.path.isdir(indir):
             # the built-in 'any'-function has a short-sircuit mechanism, i.e. returns True
             # if the first True element is met
-            fexist = any(glob.glob(os.path.join(indir, "**", "*era5*.nc"), recursive=True))
+            if recursive
+                fexist = any(glob.glob(os.path.join(indir, "*", "*era5*.nc")))
+            else:
+                fexist = any(glob.glob(os.path.join(indir, "*era5*.nc")))
+
             if fexist:
                 status = True
             else:

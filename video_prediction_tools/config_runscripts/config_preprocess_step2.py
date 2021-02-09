@@ -37,7 +37,7 @@ class Config_Preprocess2(Config_runscript_base):
     def run_preprocess2(self):
         """
         Runs the keyboard interaction for Preprocessing step 2
-        :return: all attributes of class Config_Preprocess1 are set
+        :return: all attributes of class Config_Preprocess2 set
         """
         # decide which dataset is used
         dset_type_req_str = "Enter the name of the dataset for which TFrecords should be prepard for training:\n"
@@ -50,25 +50,32 @@ class Config_Preprocess2(Config_runscript_base):
                                   self.suffix_template
         self.runscript_target = self.rscrpt_tmpl_prefix + self.dataset + "_step2" + ".sh"
 
-        # get source dir
+        # get source dir (relative to base_dir_source!)
+        source_dir_base = Config_Preprocess2.handle_source_dir(self, "preprocessedData")
+
         if self.dataset == "era5":
             file_type = "ERA5 pickle-files are"
         elif self.dataset == "moving_mnist":
             file_type = "The movingMNIST data file is"
-        source_req_str = "Enter the path where the extracted "+file_type+" located:\n"
+        source_req_str = "Choose a subdirectory listed above to {0} where the extracted {1} located:\n"\
+                             .format(base_dir_source, file_type)
         source_err = FileNotFoundError("Cannot retrieve "+file_type+" from passed path.")
 
         self.source_dir = Config_Preprocess2.keyboard_interaction(source_req_str, Config_Preprocess2.check_data_indir,
-                                                                  source_err, ntries=3)
+                                                                  source_err, ntries=3, suffix2arg=source_dir_base+"/")
+        # Note: At this stage, self.source_dir is a top-level directory.
+        # TFrecords are assumed to live in tfrecords-subdirectory,
+        # input files are assumed to live in pickle-subdirectory
+        self.destination_dir = os.path.join(source_dir_base, "tfrecords")
+        self.source_dir = os.path.join(self.source_dir, "pickle")
 
-        base_dir, _ = os.path.split(self.source_dir)
-        self.destination_dir = os.path.join(base_dir, "tfrecords")
         # check if expected data is available in source_dir (depending on dataset)
         # The following files are expected:
         # * ERA5: pickle-files
-        # * moving_MNIST: singgle npy-file
+        # * moving_MNIST: single npy-file
         if self.dataset == "era5":
-            if not any(glob.glob(os.path.join(self.source_dir, "**", "*X*.pkl"), recursive=True)):
+            # pickle files are expected to be stored in yearly-subdirectories, i.e. we need a wildcard here
+            if not any(glob.glob(os.path.join(self.source_dir, "*", "*X*.pkl"))):
                 raise FileNotFoundError("Could not find any pickle-files under '{0}'".format(self.source_dir) +
                                         "which are expected for the ERA5-dataset.".format(self.source_dir))
         elif self.dataset == "moving_mnist":
@@ -111,11 +118,9 @@ class Config_Preprocess2(Config_runscript_base):
     @staticmethod
     def check_data_indir(indir, silent=False):
         """
-        Check if the passed directory exists. If the required input data is really available depends on the dataset
-        and therefore has to be done afterwards
-        :param indir: path to input directory from keyboard interaction
+        Rough check of passed directory (if it exist at all)
+        :param indir: path to passed input directory
         :param silent: flag if print-statement are executed
-        :return: status with True confirming success
         """
         status = True
         if not os.path.isdir(indir):
