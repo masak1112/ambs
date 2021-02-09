@@ -4,19 +4,19 @@
 # __date__  = '2021_02_05'
 #
 # **************** Description ****************
-# Converts a given template workflow script (path/name has to be passed as first argument) to
-# an executable workflow (Batch) script. However, use 'config_train.py' for convenience when runscripts for the
-# training and postprocessing substeps should be generated.
+# Sets the base directory to the template runscripts under which all the data will be stored,
+# i.e. where the AMBS-directory tree will be set up.
+# If no argument is passed, the default defined by 'base_data_dir_default' is set.
 #
-# Examples:
-#    ./generate_workflow_scripts.sh ../HPC_scripts/train_model_era5 ../HPC_scripts/train_model_era5_test.sh
-#    ... will convert train_model_era5_template.sh to ../HPC_scripts/train_model_era5_test.sh
+# Example:
+#    ./setup_runscript_templates.sh [<my_path>]
 # **************** Description ****************
 #
 # **************** Auxiliary functions ****************
 
-
-HOST_NAME=`hostname`
+# default value for base directory
+base_data_dir_default=/p/project/deepacf/deeprain/video_prediction_shared_folder/
+# some further directory paths
 CURR_DIR_FULL=`pwd`
 CURR_DIR="$(basename "$CURR_DIR_FULL")"
 BASE_DIR="$(dirname "$CURR_DIR_FULL")"
@@ -27,10 +27,14 @@ if [[ "${CURR_DIR}" != "config_runscripts"  ]]; then
   echo "ERROR: Execute 'setup_runscript_templates.sh' from the config_runscripts-subdirectory only!"
   exit 1
 fi
-# check input arguments
-if [[ "$#" -ne 1 ]]; then
-  echo "ERROR: Pass path to base directory where the data of the worklfow steps should be saved."
-  echo "Example: ./setup_runscript_templates.sh /p/project/deepacf/deeprain/video_prediction_shared_folder/"
+# check/handle input arguments
+if [[ "$#" -lt 1 ]]; then
+  data_dir=${base_data_dir}
+  echo "No base directory passed. Thus, the default path ${base_data_dir_default} will be applied."
+  echo "In order to set it pass the directory path as a first argument."
+  echo "Example: ./setup_runscript_templates.sh /my/desired/path/"
+elif [[ "$#" -ge 2 ]]; then
+  echo "ERROR: Too many arguments provided. Cannot continue..."
   exit 1
 else
   data_dir=$1
@@ -46,14 +50,14 @@ else
 fi
 
 echo "Start setting up templates under nonHPC_scripts/..."
-for f in ../nonHPC_scripts/*template.sh; do
+for f in ${BASE_DIR}/nonHPC_scripts/*template.sh; do
   echo ${f}
   sed -i "s|\(.*_dir=\).*|\1${data_dir}|g" ${f}
 done
 echo "Done!"
 
 echo "Start setting up templates under HPC_scripts/"
-for f in ../HPC_scripts/data*template.sh; do
+for f in ${BASE_DIR}/HPC_scripts/data*template.sh; do
   echo ${f}
   sed -i "s|\(.*_dir=\).*|\1${data_dir}|g" ${f}
 done
