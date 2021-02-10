@@ -245,6 +245,9 @@ class Config_runscript_base:
         # sanity checks
         method_name = Config_runscript_base.keyboard_interaction.__name__
 
+        # string to emphasize pritn statements of keyboard interaction
+        kb_emph = " *** "
+
         if not callable(check_input):
             raise ValueError("%{0}: check_input must be a function!".format(method_name))
         else:
@@ -262,7 +265,7 @@ class Config_runscript_base:
 
         attempt = 0
         while attempt < ntries:
-            input_req = input(console_str)
+            input_req = input(kb_emph + console_str + kb_emph +"\n")
             if not suffix2arg is None:
                 input_req = suffix2arg + input_req
             if check_input(input_req):
