@@ -36,13 +36,13 @@ class Config_Extraction(Config_runscript_base):
         :return: all attributes of class Data_Extraction are set
         """
 
-        dataset_req_str = "Enter the path where the original ERA5 netCDF-files are located:\n"
+        dataset_req_str = "Enter the path where the original ERA5 netCDF-files are located:"
         dataset_err = FileNotFoundError("Cannot retrieve input data from passed path.")
 
         self.source_dir = Config_Extraction.keyboard_interaction(dataset_req_str, Config_Extraction.check_data_indir,
                                                                  dataset_err, ntries=3)
 
-        year_req_str = "Enter the year for which data extraction should be performed:\n"
+        year_req_str = "Enter the year for which data extraction should be performed:"
         year_err = ValueError("Please type in a year (after 1970) in YYYY-format.")
 
         self.year = Config_Extraction.keyboard_interaction(year_req_str, Config_Extraction.check_year,
