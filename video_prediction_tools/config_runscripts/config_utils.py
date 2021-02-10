@@ -135,7 +135,7 @@ class Config_runscript_base:
     #
     def handle_source_dir(self, subdir_name):
 
-        method_name = Config_runscript_base.write_rscr_vars.__name__ + " of Class " + Config_runscript_base.cls_name
+        method_name = Config_runscript_base.handle_source_dir.__name__ + " of Class " + Config_runscript_base.cls_name
 
         err = None
         if not hasattr(self, "runscript_template"):
@@ -157,7 +157,7 @@ class Config_runscript_base:
         if not list_dirs:
             raise ValueError("%{0}: Cannot find any subdirectory in {1}".format(method_name, base_source_dir))
 
-        print("The following subdiretories are found under {0}".format(base_source_dir))
+        print("%{0}: The following subdiretories are found under {1}".format(method_name, base_source_dir))
         for subdir in list_dirs:
             print("* {0}".format(subdir))
 
@@ -274,7 +274,7 @@ class Config_runscript_base:
             else:
                 attempt += 1
                 if attempt < ntries:
-                    print(func_print_emph + err)
+                    print(func_print_emph + str(err))
                     console_str = "Retry!"
                 else:
                     raise err
