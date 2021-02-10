@@ -138,7 +138,7 @@ class Config_runscript_base:
         method_name = Config_runscript_base.write_rscr_vars.__name__ + " of Class " + Config_runscript_base.cls_name
 
         err = None
-        if not hasattr(self, "runscript_template") or :
+        if not hasattr(self, "runscript_template"):
             err = ValueError("%{0}: Could not find the attribute runscript_name.".format(method_name))
         if err is None:
             if self.runscript_template is None:
@@ -146,8 +146,9 @@ class Config_runscript_base:
         else:
             raise err
 
-        base_source_dir = os.path.join(Config_runscript_base.get_variable_from_runscript(self.runscript_template,
-                                                                                         "source_dir"), subdir_name)
+        runscript_file = os.path.join(self.runscript_dir, self.runscript_template)
+        base_source_dir = os.path.join(Config_runscript_base.get_var_from_runscript(runscript_file,
+                                                                                   "source_dir"), subdir_name)
 
         if not os.path.isdir(base_source_dir):
             raise NotADirectoryError("%{0}: Cannot find directory '{1}".format(method_name, base_source_dir))
@@ -203,7 +204,7 @@ class Config_runscript_base:
     #
     # --------------------------------------------------------------------------------------------------------
     #
-    def get_variable_from_runscript(runscript_file, script_variable):
+    def get_var_from_runscript(runscript_file, script_variable):
         '''
         Search for the declaration of variable in a Shell script and returns its value.
         :param runscript_file: path to shell script/runscript
