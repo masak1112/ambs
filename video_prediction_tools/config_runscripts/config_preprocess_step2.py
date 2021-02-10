@@ -39,8 +39,10 @@ class Config_Preprocess2(Config_runscript_base):
         Runs the keyboard interaction for Preprocessing step 2
         :return: all attributes of class Config_Preprocess2 set
         """
+        method_name = Config_Preprocess2.run_preprocess2.__name__
+
         # decide which dataset is used
-        dset_type_req_str = "Enter the name of the dataset for which TFrecords should be prepard for training:\n"
+        dset_type_req_str = "Enter the name of the dataset for which TFrecords should be prepard for training:"
         dset_err = ValueError("Please select a dataset from the ones listed above.")
 
         self.dataset = Config_Preprocess2.keyboard_interaction(dset_type_req_str, Config_Preprocess2.check_dataset,
@@ -57,8 +59,8 @@ class Config_Preprocess2(Config_runscript_base):
             file_type = "ERA5 pickle-files are"
         elif self.dataset == "moving_mnist":
             file_type = "The movingMNIST data file is"
-        source_req_str = "Choose a subdirectory listed above to {0} where the extracted {1} located:\n"\
-                             .format(base_dir_source, file_type)
+        source_req_str = "Choose a subdirectory listed above to {0} where the extracted {1} located:"\
+                             .format(source_dir_base, file_type)
         source_err = FileNotFoundError("Cannot retrieve "+file_type+" from passed path.")
 
         self.source_dir = Config_Preprocess2.keyboard_interaction(source_req_str, Config_Preprocess2.check_data_indir,
@@ -66,7 +68,7 @@ class Config_Preprocess2(Config_runscript_base):
         # Note: At this stage, self.source_dir is a top-level directory.
         # TFrecords are assumed to live in tfrecords-subdirectory,
         # input files are assumed to live in pickle-subdirectory
-        self.destination_dir = os.path.join(source_dir_base, "tfrecords")
+        self.destination_dir = os.path.join(self.source_dir, "tfrecords")
         self.source_dir = os.path.join(self.source_dir, "pickle")
 
         # check if expected data is available in source_dir (depending on dataset)
@@ -76,17 +78,17 @@ class Config_Preprocess2(Config_runscript_base):
         if self.dataset == "era5":
             # pickle files are expected to be stored in yearly-subdirectories, i.e. we need a wildcard here
             if not any(glob.iglob(os.path.join(self.source_dir, "*", "*X*.pkl"))):
-                raise FileNotFoundError("Could not find any pickle-files under '{0}'".format(self.source_dir) +
-                                        "which are expected for the ERA5-dataset.".format(self.source_dir))
+                raise FileNotFoundError("%{0}: Could not find any pickle-files under '{1}'".format(method_name, self.source_dir) +
+                                        " which are expected for the ERA5-dataset.")
         elif self.dataset == "moving_mnist":
             if not os.path.isfile(os.path.join(self.source_dir, "mnist_test_seq.npy")):
-                raise FileNotFoundError("Could not find expected file 'mnist_test_seq.npy' under {0}"
-                                        .format(self.source_dir))
+                raise FileNotFoundError("%{0}: Could not find expected file 'mnist_test_seq.npy' under {1}"
+                                        .format(method_name, self.source_dir))
 
         # final keyboard interaction when ERA5-dataset is used
         if self.dataset == "era5":
             # get desired sequence length
-            seql_req_str = "Enter desired total sequence length (i.e. number of frames/images):\n"
+            seql_req_str = "Enter desired total sequence length (i.e. number of frames/images):"
             seql_err = ValueError("sequence length must be an integer and larger than 2.")
 
             seql_str = Config_Preprocess2.keyboard_interaction(seql_req_str, Config_Preprocess2.get_seq_length,
