@@ -45,17 +45,17 @@ class Config_Preprocess1(Config_runscript_base):
         Runs the keyboard interaction for Preprocessing step 1
         :return: all attributes of class Config_Preprocess1 are set
         """
-        # get source_dir
-        source_dir_base = Config_Preprocess1.handle_source_dir(self, "extractedData")
+        # get source_dir (no user interaction needed when directory tree is fixed)
+        self.source_dir = Config_Preprocess1.handle_source_dir(self, "extractedData")
 
-        dataset_req_str = "Choose a subdirectory listed above where the extracted ERA5 files are located:\n"
-        dataset_err = FileNotFoundError("Cannot retrieve extracted ERA5 netCDF-files from passed path.")
+        #dataset_req_str = "Choose a subdirectory listed above where the extracted ERA5 files are located:\n"
+        #dataset_err = FileNotFoundError("Cannot retrieve extracted ERA5 netCDF-files from passed path.")
 
-        self.source_dir = Config_Preprocess1.keyboard_interaction(dataset_req_str, Config_Preprocess1.check_data_indir,
-                                                                  dataset_err, ntries=3, suffix2arg=source_dir_base+"/")
+        #self.source_dir = Config_Preprocess1.keyboard_interaction(dataset_req_str, Config_Preprocess1.check_data_indir,
+        #                                                          dataset_err, ntries=3, suffix2arg=source_dir_base+"/")
 
         # get years for preprcessing step 1
-        years_req_str = "Enter a comma-separated sequence of years (format: YYYY):\n"
+        years_req_str = "Enter a comma-separated sequence of years (format: YYYY) from list above:"
         years_err = ValueError("Cannot get years for preprocessing.")
         years_str = Config_Preprocess1.keyboard_interaction(years_req_str, Config_Preprocess1.check_years,
                                                             years_err, ntries=2)
@@ -75,7 +75,7 @@ class Config_Preprocess1(Config_runscript_base):
         for known_var in Config_Preprocess1.known_vars:
             print("* {0}".format(known_var))
 
-        vars_req_str = "Enter either three or one variable names to be processed:\n"
+        vars_req_str = "Enter either three or one variable names to be processed:"
         vars_err = ValueError("Cannot get variabes for preprocessing.")
         vars_str = Config_Preprocess1.keyboard_interaction(vars_req_str, Config_Preprocess1.check_variables,
                                                            vars_err, ntries=2)
@@ -87,7 +87,7 @@ class Config_Preprocess1(Config_runscript_base):
             self.variables = [var.strip() for var in vars_list]
 
         # get start and end indices in latitude direction
-        lat_req_str = "Enter comma-separated indices of start and end index in latitude direction for target domain:\n"
+        lat_req_str = "Enter comma-separated indices of start and end index in latitude direction for target domain:"
         lat_err = ValueError("Cannot retrieve proper pair of latitude indices.")
 
         lat_inds_str = Config_Preprocess1.keyboard_interaction(lat_req_str, Config_Preprocess1.check_latlon_inds,
