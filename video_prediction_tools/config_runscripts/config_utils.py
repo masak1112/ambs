@@ -157,7 +157,7 @@ class Config_runscript_base:
         if not list_dirs:
             raise ValueError("%{0}: Cannot find any subdirectory in {1}".format(method_name, base_source_dir))
 
-        print("The follwoing subdiretories are found under {0}".format(base_source_dir))
+        print("The following subdiretories are found under {0}".format(base_source_dir))
         for subdir in list_dirs:
             print("* {0}".format(subdir))
 
