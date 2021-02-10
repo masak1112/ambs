@@ -40,21 +40,18 @@ variables=( "t2" "t2" "t2" )
 lat_inds=( 74 202 )
 lon_inds=( 550 710 )
 
-max_year=$( printf "%d\n" "${years[@]}" | sort -n | tail -1 )
-min_year=$( printf "%d\n" "${years[@]}" | sort -nr | tail -1 )
 # set some paths
 # note, that destination_dir is used during runtime to set a proper experiment directory
-source_dir=/p/scratch/deepacf/video_prediction_shared_folder/extractedData
-destination_dir=/p/project/deepacf/deeprain/video_prediction_shared_folder/preprocessedData/era5-Y${min_year}to${max_year}M01to12
-script_dir=`pwd`
+source_dir=/p/project/deepacf/deeprain/video_prediction_shared_folder/
+destination_dir=/p/project/deepacf/deeprain/video_prediction_shared_folder/
 
 # execute Python-scripts
 for year in "${years[@]}";     do 
         echo "Year $year"
 	echo "source_dir ${source_dir}/${year}"
 	srun python ../main_scripts/main_preprocess_data_step1.py \
-        --source_dir ${source_dir} -scr_dir ${script_dir} -exp_id ${exp_id} \
-        --destination_dir ${destination_dir} --years ${year} --vars ${variables[0]} ${variables[1]} ${variables[2]}
+        --source_dir ${source_dir} --destination_dir ${destination_dir} --years ${year} \
+       	--vars ${variables[0]} ${variables[1]} ${variables[2]}
        	--lat_s ${lat_inds[0]} --lat_e ${lat_inds[1]} --lon_s ${lon_inds[0]} --lon_e ${lon_inds[1]}    
     done
 
