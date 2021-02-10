@@ -48,16 +48,18 @@ BASE_DIR=`pwd`
 WORKING_DIR="$(dirname "$BASE_DIR")"
 EXE_DIR="$(basename "$BASE_DIR")"
 
+SCR_NAME="convert_runscript.sh"
+
 ### Some sanity checks ###
 # ensure that the script is executed from the env_setup-subdirectory
 if [[ "${EXE_DIR}" != "config_runscripts"  ]]; then
-  echo "ERROR: Execute 'convert_runscript.sh' from the config_runscripts-subdirectory only!"
+  echo "%${SCR_NAME}: ERROR: Execute 'convert_runscript.sh' from the config_runscripts-subdirectory only!"
   exit 1
 fi
 # check input arguments
 if [[ "$#" -ne 2 ]]; then
-  echo "ERROR: Pass path to workflow runscript (without '_template.sh') as well as name of target file"
-  echo "Example: ./convert_runscript.sh ../HPC_scripts/DataExtraction ../HPC_scripts/DataExtraction_test.sh"
+  echo "%${SCR_NAME}: ERROR: Pass path to workflow runscript (without '_template.sh') as well as name of target file"
+  echo "%${SCR_NAME}: Example: ./convert_runscript.sh ../HPC_scripts/DataExtraction ../HPC_scripts/DataExtraction_test.sh"
   exit 1
 else
   curr_script=$1
@@ -67,10 +69,10 @@ fi
 
 # check existence of template script
 if ! [[ -f ${curr_script}_template.sh ]]; then
-  echo "WARNING: Could not find expected Batch script '${curr_script}_template.sh'."
-  echo "Thus, no corresponding executable script is created!"
+  echo "%${SCR_NAME}: WARNING: Could not find expected Batch script '${curr_script}_template.sh'."
+  echo "%${SCR_NAME}: Thus, no corresponding executable script is created!"
   if [[ ${curr_script} == *"template"* ||  ${curr_script} == *".sh"* ]]; then
-    echo "ERROR: Omit '_template' and/or '.sh'  from Bash script argument."
+    echo "%${SCR_NAME}: ERROR: Omit '_template' and/or '.sh'  from Bash script argument."
     exit 2
   else
     exit 0              # still ok, i.e. only a WARNING is raised
@@ -78,8 +80,8 @@ if ! [[ -f ${curr_script}_template.sh ]]; then
 fi
 
 # Check if target script is unique
-echo "Convert ${curr_script}_template.sh to executable runscript"
-echo "The executable runscript is saved under ${target_script}"
+echo "%${SCR_NAME}: Convert ${curr_script}_template.sh to executable runscript"
+echo "%${SCR_NAME}: The executable runscript is saved under ${target_script}"
 
 ### Do the work ###
 # create copy of template which is modified subsequently
@@ -89,7 +91,7 @@ num_lines=`awk '/Template identifier/{ print NR }' ${target_script}`
 line_s=`echo ${num_lines} | cut -d' ' -f 1`
 line_e=`echo ${num_lines} | cut -d' ' -f 2`
 if [[ ${line_s} == "" || ${line_e} == "" ]]; then
-  echo "ERROR: ${curr_script}_template.sh exists, but does not seem to be a valid template script."
+  echo "%${SCR_NAME} ERROR: ${curr_script}_template.sh exists, but does not seem to be a valid template script."
   rm ${target_script}     # remove copy again
   exit 3
 else
