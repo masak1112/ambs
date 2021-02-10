@@ -33,7 +33,9 @@ class ERA5Pkl2Tfrecords(ERA5Dataset):
                                    default: "minmax")
         """
         self.input_dir = input_dir
-        self.output_dir = os.path.join(output_dir, "tfrecords")
+        # ML: Do not append paths inside the script (invisible even for advanced users)
+        #self.output_dir = os.path.join(output_dir, "tfrecords")
+        self.output_dir = output_dir
         # if the output_dir is not exist, then create it
         os.makedirs(self.output_dir, exist_ok=True)
         # get metadata,includes the var_in, image height, width etc.
