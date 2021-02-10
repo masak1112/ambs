@@ -29,7 +29,7 @@ if [[ "${CURR_DIR}" != "config_runscripts"  ]]; then
 fi
 # check/handle input arguments
 if [[ "$#" -lt 1 ]]; then
-  data_dir=${base_data_dir}
+  data_dir=${base_data_dir_default}
   echo "No base directory passed. Thus, the default path ${base_data_dir_default} will be applied."
   echo "In order to set it pass the directory path as a first argument."
   echo "Example: ./setup_runscript_templates.sh /my/desired/path/"
@@ -57,7 +57,7 @@ done
 echo "Done!"
 
 echo "Start setting up templates under HPC_scripts/"
-for f in ${BASE_DIR}/HPC_scripts/data*template.sh; do
+for f in ${BASE_DIR}/HPC_scripts/*template.sh; do
   echo ${f}
   sed -i "s|\(.*_dir=\).*|\1${data_dir}|g" ${f}
 done
