@@ -54,7 +54,8 @@ class Config_Extraction(Config_runscript_base):
             raise FileNotFoundError("Cannot retrieve input data from {0}".format(path_year))
 
         # set destination directory based on base directory which can be retrieved from the template runscript
-        base_dir = Config_Extraction.get_var_from_runscript(self.runscript_template, "destination_dir")
+        base_dir = Config_Extraction.get_var_from_runscript(os.path.join(self.runscript_dir, self.runscript_template),
+                                                            "destination_dir")
         self.destination_dir = os.path.join(base_dir, "extracted_data", self.year)
 
     #
@@ -76,10 +77,10 @@ class Config_Extraction(Config_runscript_base):
         if os.path.isdir(indir):
             # the built-in 'any'-function has a short-sircuit mechanism, i.e. returns True
             # if the first True element is met
-            if recursive
-                fexist = any(glob.glob(os.path.join(indir, "*", "*era5*.nc")))
+            if recursive:
+                fexist = any(glob.glob(os.path.join(indir, "**", "*era5*.nc"), recursive=True))
             else:
-                fexist = any(glob.glob(os.path.join(indir, "*era5*.nc")))
+                fexist = any(glob.glob(os.path.join(indir, "*", "*era5*.nc")))
 
             if fexist:
                 status = True
