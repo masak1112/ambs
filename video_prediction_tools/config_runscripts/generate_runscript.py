@@ -36,10 +36,10 @@ def get_runscript_cls(target_runscript_name, venv_name, lhpc):
         cls_inst = Config_Preprocess2(venv_name, lhpc)
     elif target_runscript_name == "train":
         cls_inst = Config_Train(venv_name, lhpc)
-    elif target_runscript_name == "preprocess1":
+    elif target_runscript_name == "postprocess":
         cls_inst = Config_Postprocess(venv_name, lhpc)
     else:
-        raise ValueError("%{0}: Unknown workflow runscript '{1}'. passed.")
+        raise ValueError("%{0}: Unknown workflow runscript '{1}'. passed.".format(method_name, target_runscript_name))
 
     return cls_inst
 #
