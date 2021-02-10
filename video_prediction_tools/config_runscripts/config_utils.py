@@ -142,7 +142,7 @@ class Config_runscript_base:
             err = ValueError("%{0}: Could not find the attribute runscript_name.".format(method_name))
         if err is None:
             if self.runscript_template is None:
-                raise ValueError("%{0}: Attribute runscript_name is still uninitialized.".format(method_name))
+                raise ValueError("%{0}: Attribute runscript_template is still uninitialized.".format(method_name))
         else:
             raise err
 
