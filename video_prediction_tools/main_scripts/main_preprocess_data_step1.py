@@ -23,7 +23,6 @@ def main():
     parser.add_argument("--source_dir", type=str, default="/p/scratch/deepacf/bing/extractedData/")
     parser.add_argument("--destination_dir", type=str,\
                         default="/p/scratch/deepacf/bing/processData_size_64_64_3_3t_norm")
-    parser.add_argument("--script_dir", "-scr_dir", dest="script_dir", type=str)
     parser.add_argument("--years", "-y", dest="years")
     parser.add_argument("--rsync_status", type=int, default=1)
     parser.add_argument("--vars", nargs="+", default=["T2", "T2", "T2"])  #"MSL","gph500"
@@ -31,7 +30,7 @@ def main():
     parser.add_argument("--lat_e", type=int, default=170)
     parser.add_argument("--lon_s", type=int, default=598)
     parser.add_argument("--lon_e", type=int, default=662)
-    parser.add_argument("--experimental_id", "-exp_id", dest="exp_id", type=str, default="exp1",\
+    parser.add_argument("--experimental_id", "-exp_id", dest="exp_id", type=str, default="dummy",\
                         help="Experimental identifier helping to distinguish between different experiments.")
     args = parser.parse_args()
 
@@ -40,7 +39,6 @@ def main():
     source_dir   = args.source_dir
     source_dir_full = os.path.join(source_dir, str(years))+"/"
     destination_dir = args.destination_dir
-    scr_dir         = args.script_dir
     rsync_status = args.rsync_status
 
     vars = args.vars
