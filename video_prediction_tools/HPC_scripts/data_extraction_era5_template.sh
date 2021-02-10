@@ -36,11 +36,11 @@ if [ -z ${VIRTUAL_ENV} ]; then
 fi
 
 # Declare path-variables (dest_dir will be set and configured automatically via generate_runscript.py)
-source_dir=/p/fastdata/slmet/slmet111/met_data/ecmwf/era5/nc/
-dest_dir=/p/scratch/deepacf/video_prediction_shared_folder/extractedData/
+source_dir=/p/project/deepacf/deeprain/video_prediction_shared_folder/
+destination_dir=/p/project/deepacf/deeprain/video_prediction_shared_folder/
 
 # Run data extraction
-srun python ../main_scripts/main_data_extraction.py  --source_dir ${source_dir} --destination_dir ${dest_dir}
+srun python ../main_scripts/main_data_extraction.py  --source_dir ${source_dir} --destination_dir ${destination_dir}
 
 
 
