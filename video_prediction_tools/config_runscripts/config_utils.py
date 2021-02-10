@@ -265,6 +265,7 @@ class Config_runscript_base:
 
         attempt = 0
         while attempt < ntries:
+            func_print_emph = "%" + check_input.__name__ + ": "
             input_req = input(kb_emph + console_str + kb_emph +"\n")
             if not suffix2arg is None:
                 input_req = suffix2arg + input_req
@@ -273,7 +274,7 @@ class Config_runscript_base:
             else:
                 attempt += 1
                 if attempt < ntries:
-                    print(err)
+                    print(func_print_emph + err)
                     console_str = "Retry!"
                 else:
                     raise err

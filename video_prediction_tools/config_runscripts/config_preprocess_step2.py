@@ -75,7 +75,7 @@ class Config_Preprocess2(Config_runscript_base):
         # * moving_MNIST: single npy-file
         if self.dataset == "era5":
             # pickle files are expected to be stored in yearly-subdirectories, i.e. we need a wildcard here
-            if not any(glob.glob(os.path.join(self.source_dir, "*", "*X*.pkl"))):
+            if not any(glob.iglob(os.path.join(self.source_dir, "*", "*X*.pkl"))):
                 raise FileNotFoundError("Could not find any pickle-files under '{0}'".format(self.source_dir) +
                                         "which are expected for the ERA5-dataset.".format(self.source_dir))
         elif self.dataset == "moving_mnist":
