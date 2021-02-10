@@ -145,7 +145,7 @@ class Config_Postprocess(Config_runscript_base):
         :param source_dir_in: input directory to be checked
         :return: returns source_dir_in when check is passed successfully
         """
-        real_dir = os.path.join(source_dir_in, "tfrecords", "tfrecords")
+        real_dir = os.path.join(source_dir_in, "tfrecords")
         if os.path.isdir(real_dir):
             file_list = glob.glob(os.path.join(real_dir, "sequence*.tfrecords"))
             if len(file_list) > 0:
