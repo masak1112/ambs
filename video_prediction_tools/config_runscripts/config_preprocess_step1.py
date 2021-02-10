@@ -45,6 +45,8 @@ class Config_Preprocess1(Config_runscript_base):
         Runs the keyboard interaction for Preprocessing step 1
         :return: all attributes of class Config_Preprocess1 are set
         """
+        method_name = Config_Preprocess1.run_preprocess1.__name__
+
         # get source_dir (no user interaction needed when directory tree is fixed)
         self.source_dir = Config_Preprocess1.handle_source_dir(self, "extractedData")
 
@@ -55,7 +57,7 @@ class Config_Preprocess1(Config_runscript_base):
         #                                                          dataset_err, ntries=3, suffix2arg=source_dir_base+"/")
 
         # get years for preprcessing step 1
-        years_req_str = "Enter a comma-separated sequence of years (format: YYYY) from list above:"
+        years_req_str = "Enter a comma-separated sequence of years from list above:"
         years_err = ValueError("Cannot get years for preprocessing.")
         years_str = Config_Preprocess1.keyboard_interaction(years_req_str, Config_Preprocess1.check_years,
                                                             years_err, ntries=2)
@@ -66,12 +68,12 @@ class Config_Preprocess1(Config_runscript_base):
             year_path = os.path.join(self.source_dir, year)
             status = Config_Preprocess1.check_data_indir(year_path, recursive=False)
             if status:
-                print("Data availability checked for year {0}".format(year))
+                print("%{0}: Data availability checked for year {1}".format(method_name, year))
             else:
-                raise FileNotFoundError("Cannot retrieve ERA5 netCDF-files from {0}".format(year_path))
+                raise FileNotFoundError("%{0}: Cannot retrieve ERA5 netCDF-files from {1}".format(method_name, year_path))
 
         # get variables for later training
-        print("**** Info ****\n List of known variables which can be processed")
+        print("%{0}: List of known variables which can be processed".format(method_name))
         for known_var in Config_Preprocess1.known_vars:
             print("* {0}".format(known_var))
 
@@ -107,9 +109,9 @@ class Config_Preprocess1(Config_runscript_base):
         self.lon_inds = [ind.strip() for ind in lon_inds_list]
 
         # set destination directory based on base directory which can be retrieved from the template runscript
-        base_dir = Config_Preprocess1.get_var_from_runscript(self.runscript_template, "destination_dir")
+        base_dir = Config_Preprocess1.get_var_from_runscript(os.path.join(self.runscript_dir, self.runscript_template), "destination_dir")
         self.destination_dir = os.path.join(base_dir, "preprocessedData", "era5-Y{0}-{1}M01to12"
-                                            .format(min(years), max(years)))
+                                            .format(min(self.years), max(self.years)))
 
     #
     # -----------------------------------------------------------------------------------
@@ -131,7 +133,7 @@ class Config_Preprocess1(Config_runscript_base):
             if recursive:
                 fexist = any(glob.iglob(os.path.join(indir, "**", "*era5*.nc"), recursive=True))
             else:
-                fexist = any(glob.iglob(os.path.join(indir, "*era5*.nc")))
+                fexist = any(glob.iglob(os.path.join(indir, "*", "*era5*.nc")))
             if fexist:
                 status = True
             else:
