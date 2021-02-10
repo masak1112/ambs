@@ -274,7 +274,7 @@ class Config_runscript_base:
                 attempt += 1
                 if attempt < ntries:
                     print(err)
-                    console_str = "Retry!\n"
+                    console_str = "Retry!"
                 else:
                     raise err
 

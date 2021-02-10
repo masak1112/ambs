@@ -60,7 +60,7 @@ def main():
     keyboard_interaction = config_dummy.keyboard_interaction
 
     # get workflow step by keyboard interaction
-    target_runscript_req = "Please enter the name of the workflow step for which a runscript should be created:\n"
+    target_runscript_req = "Please enter the name of the workflow step for which a runscript should be created:"
     target_runscript_err = ValueError("Workflow step is unknown. Please select one of the known listed above")
 
     def check_target_runscript(runscript_name, silent=False):
