@@ -78,9 +78,9 @@ class Config_Extraction(Config_runscript_base):
             # the built-in 'any'-function has a short-sircuit mechanism, i.e. returns True
             # if the first True element is met
             if recursive:
-                fexist = any(glob.glob(os.path.join(indir, "**", "*era5*.nc"), recursive=True))
+                fexist = any(glob.iglob(os.path.join(indir, "**", "*era5*.nc"), recursive=True))
             else:
-                fexist = any(glob.glob(os.path.join(indir, "*", "*era5*.nc")))
+                fexist = any(glob.iglob(os.path.join(indir, "*", "*era5*.nc")))
 
             if fexist:
                 status = True
