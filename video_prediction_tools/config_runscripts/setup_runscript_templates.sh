@@ -20,6 +20,7 @@ base_data_dir_default=/p/project/deepacf/deeprain/video_prediction_shared_folder
 CURR_DIR_FULL=`pwd`
 CURR_DIR="$(basename "$CURR_DIR_FULL")"
 BASE_DIR="$(dirname "$CURR_DIR_FULL")"
+USER=$USER
 
 ### Some sanity checks ###
 # ensure that the script is executed from the env_setup-subdirectory
@@ -51,14 +52,16 @@ fi
 
 echo "Start setting up templates under nonHPC_scripts/..."
 for f in ${BASE_DIR}/nonHPC_scripts/*template.sh; do
-  echo ${f}
-  sed -i "s|\(.*_dir=\).*|\1${data_dir}|g" ${f}
+  fnew=${f%%.*}_${USER}.sh
+  cp ${f} ${fnew}
+  sed -i "s|\(.*_dir=\).*|\1${data_dir}|g" ${fnew}
 done
 echo "Done!"
 
 echo "Start setting up templates under HPC_scripts/"
 for f in ${BASE_DIR}/HPC_scripts/*template.sh; do
-  echo ${f}
-  sed -i "s|\(.*_dir=\).*|\1${data_dir}|g" ${f}
+  fnew=${f%%.*}_${USER}.sh
+  cp ${f} ${fnew}
+  sed -i "s|\(.*_dir=\).*|\1${data_dir}|g" ${fnew}
 done
 # end
