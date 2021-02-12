@@ -314,7 +314,7 @@ def check_virtualenv(labort=False):
     lvirt = in_virtualenv()
     if not lvirt:
         if labort:
-            raise EnvironmentError("%{0}: config_train.py has to run in an activated virtual environment!"
+            raise EnvironmentError("%{0}: generate_runscript.py has to run in an activated virtual environment!"
                                    .format(method_name))
         else:
             print("%{0}: config_train.py is not running in an activated virtual environment!".format(method_name))
