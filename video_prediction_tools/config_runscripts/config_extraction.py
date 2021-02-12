@@ -36,6 +36,8 @@ class Config_Extraction(Config_runscript_base):
         :return: all attributes of class Data_Extraction are set
         """
 
+        method_name = Config_Extraction.run_extraction.__name__
+
         dataset_req_str = "Enter the path where the original ERA5 netCDF-files are located:"
         dataset_err = FileNotFoundError("Cannot retrieve input data from passed path.")
 
@@ -51,7 +53,10 @@ class Config_Extraction(Config_runscript_base):
         # final check for input data
         path_year = os.path.join(self.source_dir, self.year)
         if not Config_Extraction.check_data_indir(path_year, silent=True, recursive=False):
-            raise FileNotFoundError("Cannot retrieve input data from {0}".format(path_year))
+            raise FileNotFoundError("%{0}: Cannot retrieve input data from {1}".format(method_name, path_year))
+
+        # append source_dir with year
+        self.source_dir = os.path.join(self.source_dir, self.year)
 
         # set destination directory based on base directory which can be retrieved from the template runscript
         base_dir = Config_Extraction.get_var_from_runscript(os.path.join(self.runscript_dir, self.runscript_template),
