@@ -101,7 +101,7 @@ def main():
         md = MetaData(suffix_indir=destination_dir, exp_id=exp_id, data_filename=data_files_list[0], slices=slices,\
                       variables=vars)
 
-        elif md.status == "old":        # meta-data file already exists and is ok
+        if md.status == "old":        # meta-data file already exists and is ok
                                         # check for temp.json in working directory (required by slave nodes)
             tmp_file = os.path.join(current_path, "temp.json")
             if os.path.isfile(tmp_file):
