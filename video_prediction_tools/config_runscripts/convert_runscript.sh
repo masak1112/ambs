@@ -50,6 +50,7 @@ EXE_DIR="$(basename "$BASE_DIR")"
 
 SCR_NAME="convert_runscript.sh"
 
+suffix=".sh"
 ### Some sanity checks ###
 # ensure that the script is executed from the env_setup-subdirectory
 if [[ "${EXE_DIR}" != "config_runscripts"  ]]; then
@@ -58,40 +59,36 @@ if [[ "${EXE_DIR}" != "config_runscripts"  ]]; then
 fi
 # check input arguments
 if [[ "$#" -ne 2 ]]; then
-  echo "%${SCR_NAME}: ERROR: Pass path to workflow runscript (without '_template.sh') as well as name of target file"
-  echo "%${SCR_NAME}: Example: ./convert_runscript.sh ../HPC_scripts/DataExtraction ../HPC_scripts/DataExtraction_test.sh"
+  echo "%${SCR_NAME}: ERROR: Pass path to workflow runscript as well as name of target file"
+  echo "%${SCR_NAME}: Example: ./convert_runscript.sh ../HPC_scripts/DataExtraction_template.sh ../HPC_scripts/DataExtraction_test.sh"
   exit 1
 else
   curr_script=$1
-  curr_script_loc="$(basename "$curr_script")"
   target_script=$2
+  log_str=${target_script%"$suffix"}
+  echo ${target_snippet}
 fi
 
 # check existence of template script
-if ! [[ -f ${curr_script}_template.sh ]]; then
-  echo "%${SCR_NAME}: WARNING: Could not find expected Batch script '${curr_script}_template.sh'."
+if ! [[ -f ${curr_script} ]]; then
+  echo "%${SCR_NAME}: EXIT: Could not find expected Batch script '${curr_script}'."
   echo "%${SCR_NAME}: Thus, no corresponding executable script is created!"
-  if [[ ${curr_script} == *"template"* ||  ${curr_script} == *".sh"* ]]; then
-    echo "%${SCR_NAME}: ERROR: Omit '_template' and/or '.sh'  from Bash script argument."
-    exit 2
-  else
-    exit 0              # still ok, i.e. only a WARNING is raised
-  fi
+  exit 2
 fi
 
 # Check if target script is unique
-echo "%${SCR_NAME}: Convert ${curr_script}_template.sh to executable runscript"
+echo "%${SCR_NAME}: Convert ${curr_script} to executable runscript"
 echo "%${SCR_NAME}: The executable runscript is saved under ${target_script}"
 
 ### Do the work ###
 # create copy of template which is modified subsequently
-cp ${curr_script}_template.sh ${target_script}
+cp ${curr_script} ${target_script}
 # remove template identifiers
 num_lines=`awk '/Template identifier/{ print NR }' ${target_script}`
 line_s=`echo ${num_lines} | cut -d' ' -f 1`
 line_e=`echo ${num_lines} | cut -d' ' -f 2`
 if [[ ${line_s} == "" || ${line_e} == "" ]]; then
-  echo "%${SCR_NAME} ERROR: ${curr_script}_template.sh exists, but does not seem to be a valid template script."
+  echo "%${SCR_NAME} ERROR: ${curr_script} exists, but does not seem to be a valid template script."
   rm ${target_script}     # remove copy again
   exit 3
 else
@@ -99,10 +96,10 @@ else
 fi
 # also adapt name output- and error-files of submitted job with exp_id (if we are on Juwels or HDF-ML)
 if [[ `grep "#SBATCH --output=" ${target_script}` ]]; then
-  sed -i "s|#SBATCH --output=.*|#SBATCH --output=${curr_script_loc}_${exp_id}-out\.%j|g" ${target_script}
+  sed -i "s|#SBATCH --output=.*|#SBATCH --output=${log_str}-out\.%j|g" ${target_script}
 fi
 if [[ `grep "#SBATCH --error=" ${target_script}` ]]; then
-  sed -i "s|#SBATCH --error=.*|#SBATCH --error=${curr_script_loc}_${exp_id}-err\.%j|g" ${target_script}
+  sed -i "s|#SBATCH --error=.*|#SBATCH --error=${log_str}-err\.%j|g" ${target_script}
 fi
 # set correct e-mail address in Batch scripts on Juwels and HDF-ML
 if [[ "${HOST_NAME}" == hdfml* || "${HOST_NAME}" == *juwels* ]]; then
