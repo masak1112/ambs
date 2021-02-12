@@ -52,6 +52,7 @@ fi
 
 echo "Start setting up templates under nonHPC_scripts/..."
 for f in ${BASE_DIR}/nonHPC_scripts/*template.sh; do
+  echo "Setting up ${f}..."
   fnew=${f%%.*}_${USER}.sh
   cp ${f} ${fnew}
   sed -i "s|\(.*_dir=\).*|\1${data_dir}|g" ${fnew}
@@ -60,8 +61,10 @@ echo "Done!"
 
 echo "Start setting up templates under HPC_scripts/"
 for f in ${BASE_DIR}/HPC_scripts/*template.sh; do
+  echo "Setting up ${f}..."
   fnew=${f%%.*}_${USER}.sh
   cp ${f} ${fnew}
   sed -i "s|\(.*_dir=\).*|\1${data_dir}|g" ${fnew}
 done
+echo "Done!"
 # end
