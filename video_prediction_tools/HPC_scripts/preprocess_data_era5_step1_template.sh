@@ -2,15 +2,15 @@
 ## Controlling Batch-job
 #SBATCH --account=deepacf
 #SBATCH --nodes=1
-#SBATCH --ntasks=12
+#SBATCH --ntasks=13
 ##SBATCH --ntasks-per-node=12
 #SBATCH --cpus-per-task=1
 #SBATCH --output=DataPreprocess_era5_step1-out.%j
 #SBATCH --error=DataPreprocess_era5_step1-err.%j
-#SBATCH --time=00:20:00
-#SBATCH --partition=devel
+#SBATCH --time=04:20:00
+#SBATCH --partition=batch
 #SBATCH --mail-type=ALL
-#SBATCH --mail-user=b.gong@fz-juelich.de
+#SBATCH --mail-user=me@somewhere.com
 
 ######### Template identifier (don't remove) #########
 echo "Do not run the template scripts"
@@ -41,9 +41,9 @@ lat_inds=( 74 202 )
 lon_inds=( 550 710 )
 
 # set some paths
-# note, that destination_dir is used during runtime to set a proper experiment directory
-source_dir=/p/project/deepacf/deeprain/video_prediction_shared_folder/
-destination_dir=/p/project/deepacf/deeprain/video_prediction_shared_folder/
+# note, that destination_dir is adjusted during runtime based on the data
+source_dir=/my/path/to/extracted/data/
+destination_dir=/my/path/to/pickle/files
 
 # execute Python-scripts
 for year in "${years[@]}";     do 
