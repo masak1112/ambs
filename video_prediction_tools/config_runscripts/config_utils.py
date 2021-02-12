@@ -33,9 +33,10 @@ class Config_runscript_base:
 
         self.long_name_wrk_step = None
         self.rscrpt_tmpl_prefix = None
-        self.suffix_template = "_template.sh"
         self.runscript_template = None
         self.runscript_target   = None
+        self.user = os.getenv("USER").strip()
+        self.suffix_template = "_template" + self.user + ".sh"
         # general to be expected attributes
         self.list_batch_vars = None
         self.dataset = None
