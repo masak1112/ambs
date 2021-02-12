@@ -36,7 +36,7 @@ class Config_runscript_base:
         self.runscript_template = None
         self.runscript_target   = None
         self.user = os.getenv("USER").strip()
-        self.suffix_template = "_template" + self.user + ".sh"
+        self.suffix_template = "_template_" + self.user + ".sh"
         # general to be expected attributes
         self.list_batch_vars = None
         self.dataset = None
@@ -83,7 +83,7 @@ class Config_runscript_base:
             raise FileNotFoundError("%{0}: Cannot find '{1}' for converting runscript templates to executables."
                                     .format(method_name, Config_runscript_base.runscript_converter))
         # generate runscript...
-        runscript_temp = os.path.join(self.runscript_dir, self.runscript_template).rstrip("_template.sh")
+        runscript_temp = os.path.join(self.runscript_dir, self.runscript_template)
         runscript_tar = os.path.join(self.runscript_dir, self.runscript_target)
         cmd_gen = "{0} {1} {2}".format(Config_runscript_base.runscript_converter, runscript_temp, runscript_tar)
         os.system(cmd_gen)
