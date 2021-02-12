@@ -8,9 +8,9 @@
 #SBATCH --output=data_extraction_era5-out.%j
 #SBATCH --error=data_extraction_era5-err.%j
 #SBATCH --time=04:20:00
-#SBATCH --partition=devel
+#SBATCH --partition=batch
 #SBATCH --mail-type=ALL
-#SBATCH --mail-user=b.gong@fz-juelich.de
+#SBATCH --mail-user=me@somewhere.com
 
 ######### Template identifier (don't remove) #########
 echo "Do not run the template scripts"
@@ -36,8 +36,8 @@ if [ -z ${VIRTUAL_ENV} ]; then
 fi
 
 # Declare path-variables (dest_dir will be set and configured automatically via generate_runscript.py)
-source_dir=/p/project/deepacf/deeprain/video_prediction_shared_folder/
-destination_dir=/p/project/deepacf/deeprain/video_prediction_shared_folder/
+source_dir=/my/path/to/era5
+destination_dir=/my/path/to/extracted/data
 
 # Run data extraction
 srun python ../main_scripts/main_data_extraction.py  --source_dir ${source_dir} --destination_dir ${destination_dir}
