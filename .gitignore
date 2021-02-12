@@ -124,9 +124,8 @@ virt_env*/
 # Ignore (Batch) runscripts
 video_prediction_tools/HPC_scripts/**
 !video_prediction_tools/HPC_scripts/*_template.sh
-video_prediction_tools/Zam347_scripts/**
-!video_prediction_tools/Zam347_scripts/*_template.sh
-<<<<<<< HEAD
+video_prediction_tools/nonHPC_scripts/**
+!video_prediction_tools/nonHPC_scripts/*_template.sh
 
 # Ignore datasplit config files
 video_prediction_tools/data_split/**
