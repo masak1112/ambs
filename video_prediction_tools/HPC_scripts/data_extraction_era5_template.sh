@@ -7,7 +7,7 @@
 #SBATCH --cpus-per-task=1
 #SBATCH --output=data_extraction_era5-out.%j
 #SBATCH --error=data_extraction_era5-err.%j
-#SBATCH --time=00:20:00
+#SBATCH --time=04:20:00
 #SBATCH --partition=devel
 #SBATCH --mail-type=ALL
 #SBATCH --mail-user=b.gong@fz-juelich.de
