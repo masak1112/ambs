@@ -61,7 +61,7 @@ class Config_Extraction(Config_runscript_base):
         # set destination directory based on base directory which can be retrieved from the template runscript
         base_dir = Config_Extraction.get_var_from_runscript(os.path.join(self.runscript_dir, self.runscript_template),
                                                             "destination_dir")
-        self.destination_dir = os.path.join(base_dir, "extracted_data", self.year)
+        self.destination_dir = os.path.join(base_dir, "extractedData", self.year)
 
     #
     # -----------------------------------------------------------------------------------

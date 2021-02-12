@@ -152,7 +152,7 @@ class Config_runscript_base:
                                                                                    "source_dir"), subdir_name)
 
         if not os.path.isdir(base_source_dir):
-            raise NotADirectoryError("%{0}: Cannot find directory '{1}".format(method_name, base_source_dir))
+            raise NotADirectoryError("%{0}: Cannot find directory '{1}'".format(method_name, base_source_dir))
 
         list_dirs = [f.name for f in os.scandir(base_source_dir) if f.is_dir()]
         if not list_dirs:
