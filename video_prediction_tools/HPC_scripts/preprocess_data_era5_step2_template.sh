@@ -33,9 +33,11 @@ if [ -z ${VIRTUAL_ENV} ]; then
 fi
 
 # declare directory-variables which will be modified by config_runscript.py
-base_dir=/my/path/to/base/dir/
+source_dir=/my/path/to/pkl/files/
+destination_dir=/my/path/to/tfrecords/files
+
 sequence_length=20
 sequences_per_file=10
 # run Preprocessing (step 2 where Tf-records are generated)
-srun python ../main_scripts/main_preprocess_data_step2.py -base_dir ${base_dir}  -sequence_length ${sequence_length} \
-            -sequences_per_file ${sequences_per_file}
+srun python ../main_scripts/main_preprocess_data_step2.py -source_dir ${source_dir} -dest_dir ${destination_dir} \
+            -sequence_length ${sequence_length} -sequences_per_file ${sequences_per_file}
