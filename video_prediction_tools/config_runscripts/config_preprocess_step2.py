@@ -95,8 +95,20 @@ class Config_Preprocess2(Config_runscript_base):
                                                                seql_err)
             self.sequence_length = int(seql_str)
 
+            # get desired sequence length
+            nseq_req_str = "Enter desired number of sequences per TFrecord-file (standard: 10):"
+            nseq_err = ValueError("sequences per TFrecord-file must be an integer and larger than 0.")
+
+            nseq_str = Config_Preprocess2.keyboard_interaction(nseq_req_str, Config_Preprocess2.get_nseq,
+                                                               nseq_err)
+            self.sequences_per_file = int(nseq_str)
+            # reset destination_dir
+            self.destination_dir = os.path.join(os.path.dirname(self.destination_dir), "tfrecords_seq_len_" + seql_str)
+
         # list of variables to be written to runscript
-        if self.dataset == "era5": self.list_batch_vars.append("sequence_length")
+        if self.dataset == "era5":
+            self.list_batch_vars.append("sequence_length")
+            self.list_batch_vars.append("sequences_per_file")
     #
     # -----------------------------------------------------------------------------------
     #
@@ -145,6 +157,29 @@ class Config_Preprocess2(Config_runscript_base):
         if seq_length.strip().isnumeric():
             if int(seq_length) >= 2:
                 status = True
+
+        if not status:
+            if not silent: print("Illegal value '{0}' passed".format(seq_length))
+
+        return status
+    #
+    # -----------------------------------------------------------------------------------
+    #
+    @staticmethod
+    def get_nseq(nseq, silent=False):
+        """
+        Check if passed sequences per file are larger than 0
+        :param nseq: sequences per file from keyboard interaction
+        :param silent: flag if print-statement are executed
+        :return: status with True confirming success
+        """
+        status = False
+        if nseq.strip().isnumeric():
+            if int(nseq) >= 1:
+                status = True
+
+        if not status:
+            if not silent: print("Illegal value '{0}' passed".format(nseq))
 
         return status
 #
