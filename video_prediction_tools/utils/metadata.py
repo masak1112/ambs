@@ -391,10 +391,11 @@ class MetaData:
           Checks if all varnames can be found in datafile
         """
 
+        varnames2check = list(set(varnames))
         if not MetaData.issubset(varnames, datafile.variables.keys()):
             for i in range(len(varnames2check)):
-                if not varnames2check[i] in f0.variables.keys():
-                    print("Variable '" + varnames2check[i] + "' not found in datafile '" + data_filenames[0] + "'.")
+                if not varnames2check[i] in datafile.variables.keys():
+                    print("Variable '" + varnames2check[i] + "' not found in datafile.")
                 raise ValueError("Could not find the above mentioned variables.")
         else:
             pass
