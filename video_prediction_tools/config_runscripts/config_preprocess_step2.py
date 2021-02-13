@@ -56,10 +56,10 @@ class Config_Preprocess2(Config_runscript_base):
         source_dir_base = Config_Preprocess2.handle_source_dir(self, "preprocessedData")
 
         if self.dataset == "era5":
-            file_type = "ERA5 pickle-files are"
+            file_type = "ERA5 pickle-files"
         elif self.dataset == "moving_mnist":
-            file_type = "The movingMNIST data file is"
-        source_req_str = "Choose a subdirectory listed above to {0} where the extracted {1} located:"\
+            file_type = "the movingMNIST data file"
+        source_req_str = "Choose a subdirectory listed above to {0} where the extracted {1} can be found:"\
                              .format(source_dir_base, file_type)
         source_err = FileNotFoundError("Cannot retrieve "+file_type+" from passed path.")
 
