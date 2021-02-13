@@ -6,10 +6,10 @@
 #SBATCH --cpus-per-task=1
 #SBATCH --output=DataPreprocess_era5_step2-out.%j
 #SBATCH --error=DataPreprocess_era5_step2-err.%j
-#SBATCH --time=00:20:00
-#SBATCH --partition=devel
+#SBATCH --time=04:00:00
+#SBATCH --partition=batch
 #SBATCH --mail-type=ALL
-#SBATCH --mail-user=b.gong@fz-juelich.de
+#SBATCH --mail-user=me@somewhere.com
 
 ######### Template identifier (don't remove) #########
 echo "Do not run the template scripts"
@@ -33,8 +33,9 @@ if [ -z ${VIRTUAL_ENV} ]; then
 fi
 
 # declare directory-variables which will be modified by config_runscript.py
-base_dir=/p/project/deepacf/deeprain/video_prediction_shared_folder/preprocessedData/
+base_dir=/my/path/to/base/dir/
 sequence_length=20
 sequences_per_file=10
 # run Preprocessing (step 2 where Tf-records are generated)
-srun python ../main_scripts/main_preprocess_data_step2.py -base_dir ${base_dir}  -sequence_length ${sequence_length} -sequences_per_file ${sequences_per_file}
+srun python ../main_scripts/main_preprocess_data_step2.py -base_dir ${base_dir}  -sequence_length ${sequence_length} \
+            -sequences_per_file ${sequences_per_file}
