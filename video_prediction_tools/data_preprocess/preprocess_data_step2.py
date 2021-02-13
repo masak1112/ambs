@@ -19,7 +19,7 @@ from model_modules.video_prediction.datasets import ERA5Dataset
 
 
 class ERA5Pkl2Tfrecords(ERA5Dataset):
-    def __init__(self, input_dir=None,  sequence_length=20, sequences_per_file=128,norm="minmax"):
+    def __init__(self, input_dir=None, dest_dir=None,  sequence_length=20, sequences_per_file=128,norm="minmax"):
         """
         This class is used for converting pkl files to tfrecords
         args:
@@ -31,8 +31,9 @@ class ERA5Pkl2Tfrecords(ERA5Dataset):
                                    default: "minmax")
         """
         self.input_dir = input_dir
-        self.input_dir_pkl = os.path.join(input_dir,"pickle")
-        self.output_dir = os.path.join(input_dir, "tfrecords_seq_len_" + str(sequence_length))
+        # ML: No hidden path-extensions (rather managed in generate_runscript.py)
+        #self.input_dir_pkl = os.path.join(input_dir,"pickle")
+        self.output_dir = dest_dir
         # if the output_dir is not exist, then create it
         os.makedirs(self.output_dir, exist_ok=True)
         # get metadata,includes the var_in, image height, width etc.
@@ -55,12 +56,12 @@ class ERA5Pkl2Tfrecords(ERA5Dataset):
         self.months = []
         self.years_months = []
         #search for pickle names with pattern 'X_{}.pkl'for months
-        self.years =  [ name for name in os.listdir(self.input_dir_pkl) if os.path.isdir(os.path.join(self.input_dir_pkl,name)) ] 
+        self.years =  [ name for name in os.listdir(self.input_dir) if os.path.isdir(os.path.join(self.input_dir,name)) ]
         #search for folder names from pickle folder to get years
         patt = "X_*.pkl"         
         for year in self.years:
-            print("pahtL:",os.path.join(self.input_dir_pkl,year,patt))
-            months_pkl_list = glob.glob(os.path.join(self.input_dir_pkl,year,patt))
+            print("pahtL:",os.path.join(self.input_dir, year, patt))
+            months_pkl_list = glob.glob(os.path.join(self.input_dir, year,patt))
             print ("months_pkl_list",months_pkl_list)
             months_list = [int(m[-6:-4]) for m in months_pkl_list]
             self.months.extend(months_list)
@@ -137,7 +138,7 @@ class ERA5Pkl2Tfrecords(ERA5Dataset):
                 example = tf.train.Example(features=features)
                 writer.write(example.SerializeToString())
 
-    def initia_norm_class(self):
+    def init_norm_class(self):
         """
         Get normalization data class 
         """
@@ -180,7 +181,7 @@ class ERA5Pkl2Tfrecords(ERA5Dataset):
         input_file = os.path.join(self.input_file_year, 'X_{:02d}.pkl'.format(month))
         temp_input_file = os.path.join(self.input_file_year, 'T_{:02d}.pkl'.format(month))
 
-        self.initia_norm_class()
+        self.init_norm_class()
         sequences = []
         t_start_points = []
         sequence_iter = 0
