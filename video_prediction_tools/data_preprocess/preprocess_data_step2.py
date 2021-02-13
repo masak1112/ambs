@@ -72,7 +72,7 @@ class ERA5Pkl2Tfrecords(ERA5Dataset):
         """
         Get the corresponding statistics file
         """
-        self.stats_file = os.path.join(self.input_dir, "statistics.json")
+        self.stats_file = os.path.join(os.path.dirname(self.input_dir), "statistics.json")
         print("Opening json-file: {0}".format(self.stats_file))
         if os.path.isfile(self.stats_file):
             with open(self.stats_file) as js_file:
