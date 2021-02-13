@@ -2,12 +2,13 @@
 Class and functions required for preprocessing ERA5 data (preprocessing substep 2)
 """
 __email__ = "b.gong@fz-juelich.de"
-__author__ = "Bing Gong, Scarlet Stadtler, Michael Langguth"
-__date__ = "2020_11_10"
+__author__ = "Bing Gong"
+__date__ = "2020_12_29"
 
 
 # import modules
 import os
+import glob
 import pickle
 import numpy as np
 import json
@@ -18,35 +19,26 @@ from model_modules.video_prediction.datasets import ERA5Dataset
 
 
 class ERA5Pkl2Tfrecords(ERA5Dataset):
-    def __init__(self, input_dir=None, output_dir=None, datasplit_config=None, hparams_dict_config=None, \
-                 sequences_per_file=128, norm="minmax"):
+    def __init__(self, input_dir=None,  sequence_length=20, sequences_per_file=128,norm="minmax"):
         """
         This class is used for converting pkl files to tfrecords
         args:
             input_dir            : str, the path to the PreprocessData directory which is parent directory of "Pickle"
                                    and "tfrecords" files directiory.
-            outpout_dir          : str, the one upper  level of the path to save the tfrecords files 
-            datasplit_config     : the path pointing to the datasplit_config json file
-            hparams_dict_config  : the path to the dict that contains hparameters,
+            sequence_length      : int, default is 20, the sequen length per sample
             sequences_per_file   : int, how many sequences/samples per tfrecord to be saved
             norm                 : str, normalization methods from Norm_data class ("minmax" or "znorm";
                                    default: "minmax")
         """
         self.input_dir = input_dir
-        # ML: Do not append paths inside the script (invisible even for advanced users)
-        #self.output_dir = os.path.join(output_dir, "tfrecords")
-        self.output_dir = output_dir
+        self.input_dir_pkl = os.path.join(input_dir,"pickle")
+        self.output_dir = os.path.join(input_dir, "tfrecords_seq_len_" + str(sequence_length))
         # if the output_dir is not exist, then create it
         os.makedirs(self.output_dir, exist_ok=True)
         # get metadata,includes the var_in, image height, width etc.
         self.get_metadata()
         # Get the data split informaiton
-        self.datasplit_dict_path = datasplit_config
-        self.data_dict = self.get_datasplit()
-        self.hparams_dict_config = hparams_dict_config      
-        self.hparams_dict = self.get_model_hparams_dict()
-        self.hparams = self.parse_hparams()
-        self.sequence_length = self.hparams.sequence_length
+        self.sequence_length = sequence_length
         if norm == "minmax" or norm == "znorm":
             self.norm = norm
         else:
@@ -60,15 +52,20 @@ class ERA5Pkl2Tfrecords(ERA5Dataset):
         Return : 
                 two elements: each contains 1-dim array with the months set from data_split_config json file
         """
-        self.mode_list = []
-        self.years = []
         self.months = []
-        for mode, value in self.d.items():
-            self.mode_list.append(mode)
-            for year, month in value.items():
-                self.years.append(year)
-                self.months.extend(month)
-        return set(self.years), set(self.months)
+        self.years_months = []
+        #search for pickle names with pattern 'X_{}.pkl'for months
+        self.years =  [ name for name in os.listdir(self.input_dir_pkl) if os.path.isdir(os.path.join(self.input_dir_pkl,name)) ] 
+        #search for folder names from pickle folder to get years
+        patt = "X_*.pkl"         
+        for year in self.years:
+            print("pahtL:",os.path.join(self.input_dir_pkl,year,patt))
+            months_pkl_list = glob.glob(os.path.join(self.input_dir_pkl,year,patt))
+            print ("months_pkl_list",months_pkl_list)
+            months_list = [int(m[-6:-4]) for m in months_pkl_list]
+            self.months.extend(months_list)
+            self.years_months.append(months_list)
+        return self.years, list(set(self.months)),self.years_months
 
     def get_stats_file(self):
         """
