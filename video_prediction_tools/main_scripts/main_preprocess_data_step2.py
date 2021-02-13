@@ -18,6 +18,7 @@ import warnings
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("-input_dir", type=str)
+    parser.add_argument("-dest_dir", type=str)
     parser.add_argument("-sequence_length", type=int, default=20)
     parser.add_argument("-sequences_per_file", type=int, default=20)
     args = parser.parse_args()
@@ -90,6 +91,7 @@ def main():
             if year_rank in real_years_months:
                 # Initilial instance
                 ins2 = ERA5Pkl2Tfrecords(input_dir=args.input_dir,
+                                         dest_dir=args.dest_dir,
                                          sequence_length = args.sequence_length,
                                          sequences_per_file=args.sequences_per_file)
                 # create the tfrecords-files
