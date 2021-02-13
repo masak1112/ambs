@@ -74,9 +74,8 @@ class ERA5Pkl2Tfrecords(ERA5Dataset):
         """
         Get the corresponding statistics file
         """
-        pkl_dir = os.path.join(self.input_dir, "pickle")
-        print("Opening json-file: " + os.path.join(pkl_dir, "statistics.json"))
-        self.stats_file = os.path.join(pkl_dir, "statistics.json")
+        self.stats_file = os.path.join(self.input_dir, "statistics.json")
+        print("Opening json-file: {0}".format(self.stats_file))
         if os.path.isfile(self.stats_file):
             with open(self.stats_file) as js_file:
                 self.stats = json.load(js_file)
@@ -91,7 +90,7 @@ class ERA5Pkl2Tfrecords(ERA5Dataset):
         height    : int, the height of the image
         width     : int, the width of the image
         """
-        metadata_fl = os.path.join(self.input_dir, "metadata.json")
+        metadata_fl = os.path.join(os.path.dirname(self.input_dir.rstrip("/")), "metadata.json")
         if os.path.isfile(metadata_fl):
             self.metadata_fl = metadata_fl
             with open(self.metadata_fl) as f:
@@ -103,7 +102,7 @@ class ERA5Pkl2Tfrecords(ERA5Dataset):
             self.vars_in = [list(var.values())[0] for var in self.variables]
            
         else:
-            raise FileNotFoundError("The metadata_file is not generated properly, " + \
+            raise FileNotFoundError("The metadata file '{0}' was not generated properly, ".format(metadata_fl) + \
                                     "you might need to re-run previous step of the workflow")
 
     @staticmethod
@@ -180,7 +179,7 @@ class ERA5Pkl2Tfrecords(ERA5Dataset):
             month   : int, the target month to save to tfrecord 
         """
         # Define the input_file based on the year and month
-        self.input_file_year = os.path.join(self.input_dir, "pickle", str(year))
+        self.input_file_year = os.path.join(self.input_dir, str(year))
         input_file = os.path.join(self.input_file_year, 'X_{:02d}.pkl'.format(month))
         temp_input_file = os.path.join(self.input_file_year, 'T_{:02d}.pkl'.format(month))
 
