@@ -9,7 +9,8 @@ are trained with ERA5 reanalysis to perform a 10 hour prediction based on the pr
 In addition to the 2m temperature, additional meteorological variables like the mean sealevel pressure
 and the 500 hPa geopotential are fed to the underlying neural networks
 in order to enhance the model's capability to capture the atmospheric state
-and its (expected) evolution over time.
+and its (expected) evolution over time.<br>
+Besides, training on other standard video frame prediction datasets (such as MovingMNIST) can be prerformed.
 
 The project is currently developed by Amirpasha Mozafarri, Michael Langguth,
 Bing Gong and Scarlet Stadtler.
@@ -110,53 +111,35 @@ Besides data extraction and preprocessing step 1 are onyl mandatory when ERA5 da
 The TFrecord-files which are fed to the trained model (next workflow step) are created afterwards.
 This is also the place where other datasets such as the MovingMNIST (link?) can be prepared.  
 Thus, two cases exist at this stage:
-    1. ***ERA 5 data:***
+    * **ERA 5 data**
     ```bash
     [sbatch] ./preprocess_data_era5_step1.sh
     [sbatch] ./preprocess_data_era5_step2.sh
     ```
-   2. ***MovingMNIST data:***
-```bash
-[sbatch] ./preprocess_data_moving_mnist.sh
-```
-3. Training: Training of one of the available models with the preprocessed data. 
+    * **MovingMNIST data**
+    ```bash
+    [sbatch] ./preprocess_data_moving_mnist.sh
+    ```
+3. Training: Training of one of the available models with the preprocessed data. <br>
 Note that the `exp_id` is generated automatically when running `generate_runscript.py`.
-***ERA 5 data:</i></b><br>
-```bash
-[sbatch] ./train_model_era5_<exp_id>.sh
-```
-<b><i>MovingMNIST data:</i></b><br>
-```bash
-[sbatch] ./train_model_moving_mnist_<exp_id>.sh
-```
-4. Postprocess: Create some plots and calculate the evaluation metrics for test dataset.
-```bash
-[sbatch] ./visualize_postprocess_era5_<exp_id>.sh
-```
-
-### Create additional runscripts ###
-In case that you want to perform experiments with varying configuration (e.g. another set of hyperparameters, but still the same input dataset for training), it is convenient to create individual runscripts from the templates. 
-This can be done with the help of `generate_workflow_runscripts.sh`. 
-
-The first argument `<runscript_name>` defines the **relative path** to the template runscript
-which should be converted to an executable one. Note that only the suffix of the 
-template's name must be passed, e.g. `../HPC_scripts/train_era5` in order to create 
-a runscript for the training substep.
-The second argument `<venv_name>` denotes the name of the virtual environment which has to be set up in advance and which should be used by the runscript at hand.
-
-Additional optional arguments can be passed to control the experimental identifier and to set manually the realtive path to the 
-directory where the preprocessed data is stored (used for the training and postprocessing substep). These optional arguments have to follow a naming convention in order to be identified by `generate_workflow_runscripts.sh`.
-The experimental identifer can be passed by adding `-exp_id=<id>`while the path to the preprocessed data requires passing of `-exp_dir=<relative_path_to_dir>`. Note, that the default value `exp1` is used as experimental identifier if the `-exp_id=<id>` is omitted.
-
-``` bash
-./generate_workflow_runscripts.sh <runscript_name> <venv_name> [-exp_id=<id>] [-exp_dir=<relative_dir_to_path>]
-```
-
-*Specific example:*
-``` bash
-
-./generate_workflow_runscripts.sh train_model_era5 venv_juwels -exp_id=exp_test -exp_dir=era5-Y2010toY2222M01to12-160x128-2970N1500W-T2_MSL_gph500
-```
+    * **ERA 5 data**
+    ```bash
+    [sbatch] ./train_model_era5_<exp_id>.sh
+    ```
+    * **MovingMNIST data**
+    ```bash
+    [sbatch] ./train_model_moving_mnist_<exp_id>.sh
+    ```
+4. Postprocess: Create some plots and calculate the evaluation metrics for test dataset. <br>
+Note that the `exp_id` is generated automatically when running `generate_runscript.py`.
+    * **ERA 5 data**
+    ```bash
+    [sbatch] ./visualize_postprocess_era5_<exp_id>.sh
+    ```
+    * **MovingMNIST data**
+    ```bash
+    [sbatch] ./visualize_postprocess_moving_mnist_<exp_id>.sh
+    ```
 
 ### Notes for Juwels Booster ###
 
@@ -166,8 +149,6 @@ To run the training on the Booster, change to the recent Booster related working
 
 ```bash 
 git checkout scarlet_issue#031_booster
-
-
 ```
 
 Currently, there is no system installation of TensorFlow available on Juwels Booster. As an intermediate solution,
