@@ -265,6 +265,7 @@ class Postprocess(TrainModel,ERA5Pkl2Tfrecords):
             gen_images_stochastic = []   #[stochastic_ind,batch_size,seq_len,lat,lon,channels]
             #Loop for stochastics 
             for stochastic_sample_ind in range(self.num_stochastic_samples):
+                print("stochastic_samle_iund:",stochastic_sample_ind)
                 gen_images = self.sess.run(self.video_model.outputs['gen_images'], feed_dict=feed_dict)#return [batchsize,seq_len,lat,lon,channel]
                 assert gen_images.shape[1] == self.sequence_length - 1 #The generate images seq_len should be sequence_len -1, since the last one is not used for comparing with groud truth
                 gen_images_per_batch = []
@@ -299,14 +300,15 @@ class Postprocess(TrainModel,ERA5Pkl2Tfrecords):
                 #calculate the gen_images_per_batch error
                 gen_loss_per_batch =  Postprocess.calculate_metrics_by_batch(self.input_images_denorm_all,gen_images_per_batch,self.future_length,self.context_frames,matric="mse",channel=0)                   
                 gen_loss_stochastic_batch.append(gen_loss_per_batch) # self.gen_images_stochastic[stochastic,future_length]
+                print("gen_images_per_batch shape:",np.array(gen_images_per_batch).shape)
                 gen_images_stochastic.append(gen_images_per_batch)# [stochastic,batch_size, seq_len, lat, lon, channel]
                 
-                 #Switch the 0 and 1 po
+                 #Switch the 0 and 1 psition
                 print("before transpose:",np.array(gen_images_stochastic).shape)
-                gen_images_stochastic = np.transpose(np.array(gen_images_stochastic),(1,0,2,3,4,5)) #[batch_size, stochastic, seq_len, lat, lon, chanel]
-                Postprocess.check_gen_images_stochastic_shape(gen_images_stochastic)         
-                assert len(gen_images_stochastic.shape) == 6
-                assert np.array(gen_images_stochastic).shape[1] == self.num_stochastic_samples
+            gen_images_stochastic = np.transpose(np.array(gen_images_stochastic),(1,0,2,3,4,5)) #[batch_size, stochastic, seq_len, lat, lon, chanel]
+            Postprocess.check_gen_images_stochastic_shape(gen_images_stochastic)         
+            assert len(gen_images_stochastic.shape) == 6
+            assert np.array(gen_images_stochastic).shape[1] == self.num_stochastic_samples
             
             self.stochastic_loss_all_batches.append(gen_loss_stochastic_batch) #[samples/batch_size,stochastic,future_length]
             # save input and stochastic generate images to netcdf file
