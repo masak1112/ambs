@@ -47,7 +47,7 @@ either on a known HPC-system (Juwels, Juwels Booster or HDF-ML) or on a generali
 (e.g. zam347 or your personal computer). 
 The script `create_env.sh` automatically detects on which machine it is executed and loads/installs
 all required Python (binary) modules and packages.
-The virtual environment is set up in the top-level directory (`[...]/video_prediction_tools`)
+The virtual environment is set up in the top-level directory (`[...]/ambs/video_prediction_tools`)
 under a subdirectory which gets the name of the virtual environment.
 
 ```bash
