@@ -239,6 +239,8 @@ class ERA5Pkl2Tfrecords(ERA5Dataset):
         Generate a txt file, with the numbers of sequences for each tfrecords file.
         This is mainly used for calculting the number of samples for each epoch during training epoch
         """
+        # ML 2021-02-14: It's very confusing to call the file sequence_lengths.txt when its content is
+        #                sequences_per_file!
         with open(os.path.join(self.output_dir, 'sequence_lengths.txt'), 'w') as seq_file:
             seq_file.write("%d\n" % self.sequences_per_file)
 
