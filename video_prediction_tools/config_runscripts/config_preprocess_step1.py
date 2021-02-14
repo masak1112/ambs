@@ -128,7 +128,7 @@ class Config_Preprocess1(Config_runscript_base):
         """
         status = False
         if os.path.isdir(indir):
-            # the built-in 'any'-function has a short-sircuit mechanism, i.e. returns True
+            # the built-in 'any'-function has a short-circuit mechanism, i.e. returns True
             # if the first True element is met
             if recursive:
                 fexist = any(glob.iglob(os.path.join(indir, "**", "*era5*.nc"), recursive=True))
