@@ -51,7 +51,7 @@ class Config_Postprocess(Config_runscript_base):
 
         # now, we are also ready to set the correct name of the runscript template and the target
         self.runscript_template = self.rscrpt_tmpl_prefix + self.dataset + self.suffix_template
-        self.runscript_target = self.rscrpt_tmpl_prefix + self.dataset + ".sh"
+        # sel.runscript_target is set below
 
         # get the 'checkpoint-directory', i.e. the directory where the trained model parameters are stored
         # Note that the remaining information (model, results-directory etc.) can be retrieved form it!!!
@@ -70,6 +70,7 @@ class Config_Postprocess(Config_runscript_base):
 
         base_dir, exp_dir_base, exp_dir = "/"+os.path.join(*cp_dir_split[:-4]), cp_dir_split[-3], cp_dir_split[-1]
         self.model = Config_Postprocess.check_model(cp_dir_split[-2])
+        self.runscript_target = self.rscrpt_tmpl_prefix + self.dataset + exp_dir + ".sh"
 
         self.source_dir = Config_Postprocess.check_source(os.path.join(base_dir, "preprocessedData", exp_dir_base))
         self.destination_dir = os.path.join(base_dir, "results", exp_dir_base, self.model, exp_dir)
