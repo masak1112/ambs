@@ -104,11 +104,12 @@ class Config_Train(Config_runscript_base):
         os.makedirs(self.destination_dir)
 
         # Create json-file for data splitting
-        source_datasplit = os.path.join("..", "data_split", "datasplit_template.json")
+        source_datasplit = os.path.join("..", "data_split", self.dataset, "datasplit_template.json")
         dest_datasplit = os.path.join(self.destination_dir, "data_split.json")
         # sanity check (default data_split json-file exists)
         if not os.path.isfile(source_datasplit):
-            raise FileNotFoundError("%{0}: Could not find default data_split json-file '{1}'".format(method_name, source_datasplit))
+            raise FileNotFoundError("%{0}: Could not find default data_split json-file '{1}'".format(method_name,
+                                                                                                     source_datasplit))
         # ...copy over json-file for data splitting...
         os.system("cp "+source_datasplit+" "+dest_datasplit)
         # ...and open vim after some delay
@@ -119,16 +120,18 @@ class Config_Train(Config_runscript_base):
         sp.call("sed -i '/^#/d' {0}".format(dest_datasplit), shell=True)
 
         # Create json-file for hyperparameters
-        source_hparams = os.path.join("..","hparams", self.dataset, self.model, "model_hparams.json")
+        source_hparams = os.path.join("..","hparams", self.dataset, self.model, "model_hparams_template.json")
+        dest_hparams = os.path.join(self.destination_dir, "model_hparams.json")
         # sanity check (default hyperparameter json-file exists)
         if not os.path.isfile(source_hparams):
-            raise FileNotFoundError("%{0}: Could not find default hyperparameter json-file '%{1}'".format(method_name, source_hparams))
+            raise FileNotFoundError("%{0}: Could not find default hyperparameter json-file '%{1}'".format(method_name,
+                                                                                                          source_hparams))
         # ...copy over json-file for hyperparamters...
-        os.system("cp "+source_hparams+" "+self.destination_dir)
+        os.system("cp "+source_hparams+" "+dest_hparams)
         # ...and open vim after some delay
         print("*** Please configure the model hyperparameters:")
         time.sleep(3)
-        cmd_vim = os.environ.get('EDITOR', 'vi') + ' ' + os.path.join(self.destination_dir, "model_hparams.json")
+        cmd_vim = os.environ.get('EDITOR', 'vi') + ' ' + dest_hparams
         sp.call(cmd_vim, shell=True)
     #
     # -----------------------------------------------------------------------------------
