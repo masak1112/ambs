@@ -127,8 +127,3 @@ video_prediction_tools/HPC_scripts/**
 video_prediction_tools/nonHPC_scripts/**
 !video_prediction_tools/nonHPC_scripts/*_template.sh
 
-# Ignore datasplit config files
-video_prediction_tools/data_split/**
-!video_prediction_tools/data_split/datasplit_template.json
-!video_prediction_tools/data_split/cv_test.json 
-!video_predcition_tools/Zam347_scripts/config_train.py
