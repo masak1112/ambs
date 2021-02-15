@@ -67,7 +67,7 @@ class Config_Train(Config_runscript_base):
         # split up directory path in order to retrieve exp_dir used for setting up the destination directory
         exp_dir_split = Config_Train.path_rec_split(self.source_dir)
         index = [idx for idx, s in enumerate(exp_dir_split) if self.dataset in s]
-        if index == []:
+        if not index:
             raise ValueError(
                     "%{0}: tfrecords found under '{1}', but directory does not seem to reflect naming convention.".format(
                     method_name, self.source_dir))
@@ -92,7 +92,8 @@ class Config_Train(Config_runscript_base):
         # now, we are also ready to set the correct name of the runscript template and the target
         self.runscript_target = "{0}{1}_{2}.sh".format(self.rscrpt_tmpl_prefix, self.dataset, self.exp_id)
         
-        base_dir   = Config_Train.get_var_from_runscript(os.path.join(self.runscript_dir, self.runscript_template), "destination_dir")
+        base_dir   = Config_Train.get_var_from_runscript(os.path.join(self.runscript_dir, self.runscript_template),
+                                                         "destination_dir")
         exp_dir_ext= os.path.join(exp_dir, self.model, self.exp_id)
         self.destination_dir = os.path.join(base_dir, "models", exp_dir, self.model, self.exp_id)
         
