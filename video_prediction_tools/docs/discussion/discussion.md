@@ -9,7 +9,7 @@ This is the list of last-mins files for VP group
 - https://docs.google.com/document/d/1mHKey_lcy6-UluVm-nrpOBoNgochOxWnnwZ4XaJ-d2c/edit?usp=sharing
 
 
-## 2021-01-01 -- 2021-02-38 AMBS internal meeting
+## 2021-01-01 -- 2021-02-28 AMBS internal meeting
 
 https://docs.google.com/document/d/1nXRGz0vTrEVj9kTGOj1jeblc-ix_WLdBZsb7r5zu52Q/edit?usp=sharing
 
@@ -25,6 +25,12 @@ https://docs.google.com/document/d/1nXRGz0vTrEVj9kTGOj1jeblc-ix_WLdBZsb7r5zu52Q/
 - EA program Profile (German): ea-application-DeepACF-de_stadtler+michael.docx 
 - EA program Profile (English):ea-application-DeepACF_Bing.docx
 - convLSTM training visu animation: https://fz-juelich.sciebo.de/s/2cSpnnEzPlqZufL
+- EA experiments results update: https://docs.google.com/document/d/1nXRGz0vTrEVj9kTGOj1jeblc-ix_WLdBZsb7r5zu52Q/edit?usp=sharing
+
+
+##  Helmholtz AI consultant
+
+- Parallel training performance updateL: https://docs.google.com/document/d/1nXRGz0vTrEVj9kTGOj1jeblc-ix_WLdBZsb7r5zu52Q/edit?usp=sharing
 
 
 
