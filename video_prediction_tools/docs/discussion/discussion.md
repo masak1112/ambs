@@ -9,7 +9,7 @@ This is the list of last-mins files for VP group
 - https://docs.google.com/document/d/1mHKey_lcy6-UluVm-nrpOBoNgochOxWnnwZ4XaJ-d2c/edit?usp=sharing
 
 
-## 2021-01-01 -- 2021-02-38
+## 2021-01-01 -- 2021-02-38 AMBS internal meeting
 
 https://docs.google.com/document/d/1nXRGz0vTrEVj9kTGOj1jeblc-ix_WLdBZsb7r5zu52Q/edit?usp=sharing
 
