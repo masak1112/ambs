@@ -48,9 +48,14 @@ class Config_Preprocess2(Config_runscript_base):
         self.dataset = Config_Preprocess2.keyboard_interaction(dset_type_req_str, Config_Preprocess2.check_dataset,
                                                                dset_err, ntries=3)
         # now, we are also ready to set the correct name of the runscript template and the target
-        self.runscript_template = self.rscrpt_tmpl_prefix + self.dataset + "_step2"+\
-                                  self.suffix_template
-        self.runscript_target = self.rscrpt_tmpl_prefix + self.dataset + "_step2" + ".sh"
+        if self.dataset == "era5":
+            self.runscript_template = self.rscrpt_tmpl_prefix + self.dataset + "_step2"+\
+                                      self.suffix_template
+            self.runscript_target = self.rscrpt_tmpl_prefix + self.dataset + "_step2" + ".sh"
+        else:
+            self.runscript_template = self.rscrpt_tmpl_prefix + self.dataset + \
+                                      self.suffix_template
+            self.runscript_target = self.rscrpt_tmpl_prefix + self.dataset + ".sh"
 
         # get source dir (relative to base_dir_source!)
         source_dir_base = Config_Preprocess2.handle_source_dir(self, "preprocessedData")
