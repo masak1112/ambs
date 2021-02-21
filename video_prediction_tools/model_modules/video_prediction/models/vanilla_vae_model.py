@@ -48,7 +48,6 @@ class VanillaVAEVideoPredictionModel(object):
         """
         Parse the hparams setting to ovoerride the default ones
         """
-
         parsed_hparams = self.get_default_hparams().override_from_dict(self.hparams_dict or {})
         return parsed_hparams
 
@@ -68,7 +67,7 @@ class VanillaVAEVideoPredictionModel(object):
             context_frames=10,
             sequence_length=20,
             max_epochs = 20,
-            batch_size = 40,
+            batch_size = 4,
             lr = 0.001,
             nz = 16,
             loss_fun = "cross_entropy",
@@ -90,7 +89,7 @@ class VanillaVAEVideoPredictionModel(object):
                 tf.square(self.x[:, self.context_frames:,:,:,0] - self.x_hat[:,self.context_frames:,:,:,0]))
         elif self.loss_fun == "cross_entropy":
             x_flatten = tf.reshape(self.x[:, self.context_frames:,:,:,0],[-1])
-            x_hat_predict_frames_flatten = tf.reshape(self.x_hat[:,:,:,:,0],[-1])
+            x_hat_predict_frames_flatten = tf.reshape(self.x_hat[:,self.context_frames:,:,:,0],[-1])
             bce = tf.keras.losses.BinaryCrossentropy()
             self.recon_loss = bce(x_flatten,x_hat_predict_frames_flatten)
         else:
