@@ -87,10 +87,10 @@ class VanillaVAEVideoPredictionModel(object):
         #This is loss function only for 1 channel (temperature RMSE)
         if self.loss_fun == "rmse":
             self.recon_loss = tf.reduce_mean(
-                tf.square(self.x[:, self.context_frames:,:,:,0] - self.x_hat_predict_frames[:,:,:,:,0]))
+                tf.square(self.x[:, self.context_frames:,:,:,0] - self.x_hat[:,self.context_frames:,:,:,0]))
         elif self.loss_fun == "cross_entropy":
             x_flatten = tf.reshape(self.x[:, self.context_frames:,:,:,0],[-1])
-            x_hat_predict_frames_flatten = tf.reshape(self.x_hat_predict_frames[:,:,:,:,0],[-1])
+            x_hat_predict_frames_flatten = tf.reshape(self.x_hat[:,:,:,:,0],[-1])
             bce = tf.keras.losses.BinaryCrossentropy()
             self.recon_loss = bce(x_flatten,x_hat_predict_frames_flatten)
         else:
@@ -152,5 +152,4 @@ class VanillaVAEVideoPredictionModel(object):
         x_hat = tf.stack(X, axis = 1)
         z_log_sigma_sq_all = tf.stack(z_log_sigma_sq_all, axis = 1)
         z_mu_all = tf.stack(z_mu_all, axis = 1)
-
         return x_hat, z_log_sigma_sq_all, z_mu_all
