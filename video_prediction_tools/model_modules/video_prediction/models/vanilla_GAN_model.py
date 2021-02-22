@@ -193,7 +193,7 @@ class VanillaConvLstmVideoPredictionModel(object):
        real_labels = tf.ones_like(D_real)
        gen_labels = tf.zeros_like(D_fake)
        D_loss_real = tf.reduce_mean(tf.nn.sigmoid_cross_entropy_with_logits(logits=D_real, labels=real_labels))
-       D_loss_fake = tf.reduce_mean(tf.nn.sigmoid_cross_entropy_with_logits(logits=D_fake, labels=get_labels))
+       D_loss_fake = tf.reduce_mean(tf.nn.sigmoid_cross_entropy_with_logits(logits=D_fake, labels=gen_labels))
        self.D_loss = D_loss_real + D_loss_fake
        return self.D_loss
 
@@ -218,7 +218,7 @@ class VanillaConvLstmVideoPredictionModel(object):
        """
        self.disc_vars = [var for var in tf.trainable_variables() if var.name.startswith("disc")]
        self.gen_vars = [var for var in tf.trainable_variables() if var.name.startswith("gen")]
-
+       
  
   
    def define_gan(self,image):
