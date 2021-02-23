@@ -27,5 +27,6 @@ source ../video_prediction_tools/env_setup/modules_train.sh
 #First remove all the files in the test folder
 #rm /p/project/deepacf/deeprain/video_prediction_shared_folder/models/test/* 
 #python -m pytest test_train_model_era5.py
+python -m pytest test_vanilla_vae_model.py
 #python -m pytest test_visualize_postprocess.py
-python -m pytest test_meta_postprocess.py
+#python -m pytest test_meta_postprocess.py

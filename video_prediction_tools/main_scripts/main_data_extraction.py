@@ -2,9 +2,6 @@ __email__ = "b.gong@fz-juelich.de"
 __author__ = "Bing Gong, Amirpasha Mozaffari"
 __date__ = "2020-11-10"
 
-
-
-
 from mpi4py import MPI
 import sys
 import subprocess
@@ -22,7 +19,6 @@ import argparse
 
 def main():
     current_path = os.getcwd()
-
     parser=argparse.ArgumentParser()
     parser.add_argument("--source_dir",type=str,default="//home/a.mozaffari/data_era5/2017/")
     parser.add_argument("--destination_dir",type=str,default="/home/a.mozaffari/data_dest")
