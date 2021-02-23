@@ -19,6 +19,8 @@ from model_modules.video_prediction.utils import tf_utils
 from datetime import datetime
 from pathlib import Path
 from model_modules.video_prediction.layers import layer_def as ld
+from tensorflow.contrib.training import HParams
+
 
 class VanillaVAEVideoPredictionModel(object):
     def __init__(self, mode='train', hparams_dict=None):
@@ -39,7 +41,8 @@ class VanillaVAEVideoPredictionModel(object):
         self.max_epochs = self.hparams.max_epochs
         self.nz = self.hparams.nz
         self.loss_fun = self.hparams.loss_fun
- 
+        self.batch_size = self.hparams.batch_size 
+        self.shuffle_on_val = self.hparams.shuffle_on_val
 
     def get_default_hparams(self):
         return HParams(**self.get_default_hparams_dict())
@@ -71,6 +74,7 @@ class VanillaVAEVideoPredictionModel(object):
             lr = 0.001,
             nz = 16,
             loss_fun = "cross_entropy",
+            weight_recon = 1,
             shuffle_on_val= True,
         )
         return hparams
@@ -122,8 +126,29 @@ class VanillaVAEVideoPredictionModel(object):
 
     @staticmethod
     def vae_arc3(x,l_name=0,nz=16):
+        """
+        VAE for one timestamp of sequence
+        args:
+             x      : input tensor, shape is [batch_size,height, width, channel]
+             l_name :  int, default is 0, the sequence index
+             nz     :  int, default is 16, the latent space 
+        return 
+             x_hat  :  tensor, is the predicted value 
+             z_mu   :  tensor, means values of latent space 
+             z_log_sigma_sq: sensor, the variances of latent space
+             z      :  tensor, the normal distribution with z_mu, z-log_sigma_sq
+
+        """
+        input_shape = x.get_shape().as_list()
+        input_width = input_shape[2]
+        input_height = input_shape[1]
+        print("input_heights:",input_height)
         seq_name = "sq_" + str(l_name) + "_"
-        conv1 = ld.conv_layer(x, 3, 2, 8, seq_name + "encode_1")
+        conv1 = ld.conv_layer(inputs=x, kernel_size=3, stride=2, num_features=8, idx=seq_name + "encode_1")
+        conv1_shape = conv1.get_shape().as_list()
+        print("conv1_shape:",conv1_shape)
+        assert conv1_shape[3] == 8 #Features check
+        assert conv1_shape[1] == int((input_height - 3 + 1)/2) + 1 #[(Input_volumn - kernel_size + padding)/stride] + 1
         conv2 = ld.conv_layer(conv1, 3, 1, 8, seq_name + "encode_2")
         conv3 = ld.conv_layer(conv2, 3, 2, 8, seq_name + "encode_3")
         conv4 = tf.layers.Flatten()(conv3)
@@ -140,6 +165,9 @@ class VanillaVAEVideoPredictionModel(object):
         return x_hat, z_mu, z_log_sigma_sq, z
 
     def vae_arc_all(self):
+        """
+        Build architecture for all the sequences
+        """
         X = []
         z_log_sigma_sq_all = []
         z_mu_all = []

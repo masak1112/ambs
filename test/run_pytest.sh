@@ -21,11 +21,12 @@ fi
 #python -m pytest  test_process_netCDF_v2.py
 source ../video_prediction_tools/env_setup/modules_train.sh
 #Test for process step2
-python -m pytest test_data_preprocess_step2.py
+#python -m pytest test_data_preprocess_step2.py
 #python -m pytest test_era5_data.py
 #Test for training
 #First remove all the files in the test folder
 #rm /p/project/deepacf/deeprain/video_prediction_shared_folder/models/test/* 
 #python -m pytest test_train_model_era5.py
+python -m pytest test_vanilla_vae_model.py
 #python -m pytest test_visualize_postprocess.py
 #python -m pytest test_meta_postprocess.py

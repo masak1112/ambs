@@ -3,6 +3,7 @@ __author__ = "Bing Gong"
 __date__ = "2020-10-22"
 
 from main_scripts.main_train_models import *
+from model_modules.video_prediction import datasets, models
 import pytest
 import numpy as np
 import datetime

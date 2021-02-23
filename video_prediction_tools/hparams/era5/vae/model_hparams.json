@@ -6,7 +6,9 @@
     "max_epochs":2,
     "context_frames":10,
     "sequence_length":20,
-    "weight_recon":1
+    "weight_recon":1,
+    "loss_fun": "rmse",
+    "shuffle_on_val": false
 }
 
 
