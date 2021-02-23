@@ -162,6 +162,11 @@ class VanillaVAEVideoPredictionModel(object):
         conv5 = ld.transpose_conv_layer(z3, 3, 2, 8, seq_name + "decode_5")  
         conv6  = ld.transpose_conv_layer(conv5, 3, 1, 8,seq_name + "decode_6")
         x_hat = ld.transpose_conv_layer(conv6, 3, 2, 3, seq_name + "decode_8")
+        x_hat_shape = x_hat.get_shape().as_list()
+        pred_height = x_hat_shape[1]
+        pred_width = x_hat_shape[2]
+        assert pred_height == input_height
+        assert pred_width == input_width
         return x_hat, z_mu, z_log_sigma_sq, z
 
     def vae_arc_all(self):
@@ -171,12 +176,17 @@ class VanillaVAEVideoPredictionModel(object):
         X = []
         z_log_sigma_sq_all = []
         z_mu_all = []
-        for i in range(20):
+        for i in range(self.sequence_length):
             q, z_mu, z_log_sigma_sq, z = VanillaVAEVideoPredictionModel.vae_arc3(self.x[:, i, :, :, :], l_name=i, nz=self.nz)
             X.append(q)
             z_log_sigma_sq_all.append(z_log_sigma_sq)
             z_mu_all.append(z_mu)
         x_hat = tf.stack(X, axis = 1)
+        x_hat_shape = x_hat.get_shape().as_list()
+        print("x-ha-shape:",x_hat_shape)
         z_log_sigma_sq_all = tf.stack(z_log_sigma_sq_all, axis = 1)
         z_mu_all = tf.stack(z_mu_all, axis = 1)
         return x_hat, z_log_sigma_sq_all, z_mu_all
+
+
+
