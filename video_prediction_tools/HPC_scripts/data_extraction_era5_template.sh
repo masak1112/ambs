@@ -7,7 +7,7 @@
 #SBATCH --cpus-per-task=1
 #SBATCH --output=data_extraction_era5-out.%j
 #SBATCH --error=data_extraction_era5-err.%j
-#SBATCH --time=00:20:00
+#SBATCH --time=04:20:00
 #SBATCH --partition=devel
 #SBATCH --mail-type=ALL
 #SBATCH --mail-user=b.gong@fz-juelich.de
@@ -37,7 +37,7 @@ fi
 
 # Declare path-variables
 source_dir="/p/fastdata/slmet/slmet111/met_data/ecmwf/era5/nc/"
-dest_dir="/p/scratch/deepacf/video_prediction_shared_folder/extractedData/"
+dest_dir="/p/project/deepacf/deeprain/video_prediction_shared_folder/extractedData/"
 
 year="2010"
 
