@@ -43,7 +43,8 @@ class VanillaVAEVideoPredictionModel(object):
         self.loss_fun = self.hparams.loss_fun
         self.batch_size = self.hparams.batch_size 
         self.shuffle_on_val = self.hparams.shuffle_on_val
-
+        self.weight_recon = self.hparams.weight_recon 
+        
     def get_default_hparams(self):
         return HParams(**self.get_default_hparams_dict())
 
@@ -68,7 +69,7 @@ class VanillaVAEVideoPredictionModel(object):
         """
         hparams = dict(
             context_frames=10,
-            sequence_length=20,
+            sequence_length=24,
             max_epochs = 20,
             batch_size = 4,
             lr = 0.001,
@@ -85,12 +86,10 @@ class VanillaVAEVideoPredictionModel(object):
         self.global_step = tf.train.get_or_create_global_step()
         original_global_variables = tf.global_variables()
         self.x_hat, self.z_log_sigma_sq, self.z_mu = self.vae_arc_all()
-        
         #This is the loss function (RMSE):
         #This is loss function only for 1 channel (temperature RMSE)
         if self.loss_fun == "rmse":
-            self.recon_loss = tf.reduce_mean(
-                tf.square(self.x[:, self.context_frames:,:,:,0] - self.x_hat[:,self.context_frames:,:,:,0]))
+            self.recon_loss = tf.reduce_mean(tf.square(self.x[:,self.context_frames:,:,:,0] - self.x_hat[:,self.context_frames:,:,:,0]))
         elif self.loss_fun == "cross_entropy":
             x_flatten = tf.reshape(self.x[:, self.context_frames:,:,:,0],[-1])
             x_hat_predict_frames_flatten = tf.reshape(self.x_hat[:,self.context_frames:,:,:,0],[-1])
@@ -116,7 +115,6 @@ class VanillaVAEVideoPredictionModel(object):
         self.loss_summary = tf.summary.scalar("latent_loss", self.latent_loss)
         self.loss_summary = tf.summary.scalar("total_loss", self.latent_loss)
         self.summary_op = tf.summary.merge_all()
-
         self.outputs = {}
         self.outputs["gen_images"] = self.x_hat
         global_variables = [var for var in tf.global_variables() if var not in original_global_variables]
