@@ -49,8 +49,8 @@ class Postprocess(TrainModel,ERA5Pkl2Tfrecords):
         seed               :seed for control test samples
         """
      
-        self.input_dir = input_dir
-        self.results_dir = self.output_dir = results_dir
+        self.input_dir = os.path.normpath(input_dir)
+        self.results_dir = self.output_dir = os.path.normpath(results_dir) 
         if not os.path.exists(self.results_dir):os.makedirs(self.results_dir)
         self.batch_size = batch_size
         self.gpu_mem_frac = gpu_mem_frac
@@ -265,7 +265,7 @@ class Postprocess(TrainModel,ERA5Pkl2Tfrecords):
             gen_images_stochastic = []   #[stochastic_ind,batch_size,seq_len,lat,lon,channels]
             #Loop for stochastics 
             for stochastic_sample_ind in range(self.num_stochastic_samples):
-                print("stochastic_samle_iund:",stochastic_sample_ind)
+                print("stochastic_sample_ind:",stochastic_sample_ind)
                 gen_images = self.sess.run(self.video_model.outputs['gen_images'], feed_dict=feed_dict)#return [batchsize,seq_len,lat,lon,channel]
                 assert gen_images.shape[1] == self.sequence_length - 1 #The generate images seq_len should be sequence_len -1, since the last one is not used for comparing with groud truth
                 gen_images_per_batch = []
