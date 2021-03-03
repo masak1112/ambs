@@ -23,12 +23,16 @@ def main():
     parser.add_argument("--source_dir",type=str,default="//home/a.mozaffari/data_era5/2017/")
     parser.add_argument("--destination_dir",type=str,default="/home/a.mozaffari/data_dest")
     parser.add_argument("--logs_path",type=str,default=current_path)
+    parser.add_argument("--year",type=str,default="2007")
+    parser.add_argument("--varslist_path",type=str)
     args = parser.parse_args()
     # for the local machine test
     current_path = os.getcwd()
     source_dir = args.source_dir
     destination_dir = args.destination_dir
     logs_path = args.logs_path
+    year = args.year
+    varslist_path = args.varslist_path
 
     os.chdir(current_path)
     # ini. MPI
@@ -195,8 +199,9 @@ def main():
 
                 logger.debug('Worker {worker_rank} is starting the ERA5-preproc. on dir.: {job}'.format(worker_rank=my_rank,job=job))
                 
-                worker_status = process_era5_in_dir(job, src_dir=source_dir, target_dir=destination_dir)
-                
+                era5_case = ERA5DataExtraction(year,job,source_dir,destination_dir,varslist_path)
+                era5_case.process_era5_in_dir()
+
                 logger.debug('worker status is: {worker_status}'.format(worker_status=worker_status))
                 
                 if worker_status == -1:

@@ -11,16 +11,16 @@ import numpy as np
 import json
 import os
 
-
-job_name=1
+year="2007"
+job_name="01"
 src_dir = "/p/fastdata/slmet/slmet111/met_data/ecmwf/era5/grib"
 target_dir= "/p/project/deepacf/deeprain/video_prediction_shared_folder/extractedData"
 varslist_json="/p/home/jusers/gong1/juwels/ambs/video_prediction_tools/data_split/data_extraction_era5.json"
 
 
 @pytest.fixture(scope="module")
-def dataExtraction_case1(job_name=job_name,src_dir=src_dir,target_dir=target_dir,varslist_json=varslist_json):
-    return ERA5DataExtraction(job_name,src_dir,target_dir,varslist_json)
+def dataExtraction_case1(year=year,job_name=job_name,src_dir=src_dir,target_dir=target_dir,varslist_json=varslist_json):
+    return ERA5DataExtraction(year,job_name,src_dir,target_dir,varslist_json)
 
 
 
@@ -50,3 +50,6 @@ def test_prepare_era5_data_one_file(dataExtraction_case1):
     
 
 
+def test_process_era5_in_dir(dataExtraction_case1):
+    dataExtraction_case1.process_era5_in_dir()
+    
