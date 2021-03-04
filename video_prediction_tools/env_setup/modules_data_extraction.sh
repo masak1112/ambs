@@ -22,6 +22,10 @@ if [[ "${HOST_NAME}" == hdfml* ]]; then
  ml ParaStationMPI/5.2.2-1
  ml CDO/1.9.6
  ml mpi4py/3.0.1-Python-3.6.8
+ ml SciPy-Stack/2019a-Python-3.6.8
+ ml scikit/2019a-Python-3.6.8
+ ml netcdf4-python/1.5.0.1-Python-3.6.8
+
 else
  module load Stages/2020
  ml GCC/9.3.0 

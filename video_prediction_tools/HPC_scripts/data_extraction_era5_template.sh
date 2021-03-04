@@ -38,16 +38,20 @@ fi
 # Declare path-variables
 source_dir="/p/fastdata/slmet/slmet111/met_data/ecmwf/era5/grib"
 dest_dir="/p/project/deepacf/deeprain/video_prediction_shared_folder/extractedData/"
-
-year="2007"
 varslist_path="/p/home/jusers/gong1/juwels/ambs/video_prediction_tools/data_split/data_extraction_era5.json"
 
 # Run data extraction
-cd ${dest_dir}
-rm -r ${year}
-srun python ../main_scripts/main_data_extraction.py  --source_dir ${source_dir}/ --destination_dir ${dest_dir} --year ${year} --varslist_path ${varslist_path} 
 
+declare -a years=(
+                 "2015"
+                 "2016"
+                 "2017"
+                  )
 
+# Run data extraction
+for year in "${years[@]}";     do
+        echo "Year $year"
+        srun python ../main_scripts/main_data_extraction.py  --source_dir ${source_dir} --target_dir ${dest_dir} --year ${year} --varslist_path ${varslist_path}
 
-# 2tier pystager 
+done2tier pystager 
 #srun python ../../workflow_parallel_frame_prediction/DataExtraction/main_single_master.py --source_dir /p/fastdata/slmet/slmet111/met_data/ecmwf/era5/nc/${year}/ --destination_dir ${SAVE_DIR}/extractedData/${year}

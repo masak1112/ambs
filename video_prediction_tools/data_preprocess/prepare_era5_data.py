@@ -7,7 +7,7 @@ from netCDF4 import Dataset, date2num
 from shiftgrid import shiftgrid
 import os
 import json
-
+import time
 __email__ = "b.gong@fz-juelich.de"
 __author__ = "Bing Gong, Scarlet Stadtler, Michael Langguth,Yanji"
 __date__ = "unknown"
@@ -70,10 +70,7 @@ class ERA5DataExtraction(object):
             infile = os.path.join(self.src_dir, self.year, month, self.year+month+date+hour+'_sf.grb')
             outfile = os.path.join(self.target_dir, self.year, month, self.year+month+date+hour+'_sfvar.grb')
             outfile_sf = os.path.join(self.target_dir, self.year, month, self.year+month+date+hour+'_'+var+'.nc')
-            os.system('cdo selname,%s %s %s' % (value,infile,outfile))
-            os.system('cdo -f nc copy %s %s' % (outfile,outfile_sf))
-            os.system('rm %s' % outfile)
-        
+            os.system('cdo -f nc copy -selname,%s %s %s' % (value,infile,outfile_sf))
 
         # multi-level variables
         for var, pl_dic in self.varslist_mutil.items():
@@ -81,11 +78,10 @@ class ERA5DataExtraction(object):
                 infile = os.path.join(self.src_dir, self.year, month, self.year+month+date+hour+'_ml.grb')
                 outfile = os.path.join(self.target_dir, self.year, month, self.year+month+date+hour+'_mlvar.grb')
                 outfile_sf = os.path.join(self.target_dir, self.year, month, self.year+month+date+hour+'_'+var + str(pl_value) +'.nc')
-                os.system('cdo -selname,%s -ml2pl,%d %s %s' % (var,pl_value,infile,outfile)) 
-                os.system('cdo -f nc copy %s %s' % (outfile,outfile_sf))
-                os.system('rm %s' % outfile)
+                os.system('cdo -f nc copy -selname,%s -ml2pl,%d %s %s' % (var,pl_value,infile,outfile_sf)) 
         
         # merge both variables
+
         infile = os.path.join(self.target_dir, self.year, month, self.year+month+date+hour+'*.nc')
         outfile = os.path.join(self.target_dir, self.year, month, 'ecmwf_era5_'+self.year[2:]+month+date+hour+'.nc') # change the output file name
         os.system('cdo merge %s %s' % (infile,outfile))
@@ -98,21 +94,17 @@ class ERA5DataExtraction(object):
         """
         Function that extract data at year level
         """
-        months = list(range(1,12))
-        months = ["{:02d}".format(m) for m in months]
         
-        dates = list(range(1,31))
+        dates = list(range(1,32))
         dates = ["{:02d}".format(d) for d in dates]
 
-        hours = list(range(0,23))
+        hours = list(range(0,24))
         hours = ["{:02d}".format(h) for h in hours]
        
         print ("job_name",self.job_name)
-        
-        for m in months:
-            for d in dates:
-                for h in hours:
-                    self.prepare_era5_data_one_file(m,d,h)
+        for d in dates:
+            for h in hours:
+                self.prepare_era5_data_one_file(self.job_name,d,h)
                     # here the defeinition of the failure, success is placed  0=success / -1= fatal-failure / +1 = non-fatal -failure 
         worker_status = 0
         return worker_status
