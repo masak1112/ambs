@@ -13,6 +13,7 @@ def known_models():
         'vae': 'VanillaVAEVideoPredictionModel',
         'convLSTM': 'VanillaConvLstmVideoPredictionModel',
         'mcnet': 'McNetVideoPredictionModel',
+        'gan': "VanillaGANVideoPredictionModel"
     }
 
     return model_mappings

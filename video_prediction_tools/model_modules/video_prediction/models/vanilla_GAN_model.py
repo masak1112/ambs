@@ -2,6 +2,13 @@ __email__ = "b.gong@fz-juelich.de"
 __author__ = "Bing Gong"
 __date__ = "2021=01-05"
 
+
+
+"""
+This code implement take the following as references:
+1) https://stackabuse.com/introduction-to-gans-with-python-and-tensorflow/
+2) cousera GAN courses
+"""
 import collections
 import functools
 import itertools
@@ -21,7 +28,7 @@ from model_modules.video_prediction.layers import layer_def as ld
 from model_modules.video_prediction.layers.BasicConvLSTMCell import BasicConvLSTMCell
 from tensorflow.contrib.training import HParams
 
-class VanillaConvLstmVideoPredictionModel(object):
+class VanillaGANVideoPredictionModel(object):
     def __init__(self, mode='train', hparams_dict=None):
         """
         This is class for building convLSTM architecture by using updated hparameters
@@ -39,7 +46,7 @@ class VanillaConvLstmVideoPredictionModel(object):
         self.predict_frames = self.sequence_length - self.context_frames
         self.max_epochs = self.hparams.max_epochs
         self.loss_fun = self.hparams.loss_fun
-
+        self.batch_size = self.hparams.batch_size
 
     def get_default_hparams(self):
         return HParams(**self.get_default_hparams_dict())
@@ -65,8 +72,8 @@ class VanillaConvLstmVideoPredictionModel(object):
             loss_fun        : the loss function
         """
         hparams = dict(
-            context_frames=10,
-            sequence_length=20,
+            context_frames=12,
+            sequence_length=24,
             max_epochs = 20,
             batch_size = 40,
             lr = 0.001,
@@ -79,20 +86,19 @@ class VanillaConvLstmVideoPredictionModel(object):
     def build_graph(self, x):
         self.is_build_graph = False
         self.x = x["images"]
+        self.width = self.x.shape.as_list()[3]
+        self.height = self.x.shape.as_list()[2]
+        self.channels = self.x.shape.as_list()][4]
+        self.n_samples = self.x.shape.as_list()[0] * self.x.shape.as_list()[1]
+        self.x = self.reshape(self.x, [-1, self.height,self.width,self.channels]) 
         self.global_step = tf.train.get_or_create_global_step()
         original_global_variables = tf.global_variables()
         # Architecture
-        self.gan_network()
+        self.define_gan()
         #This is the loss function (RMSE):
         #This is loss function only for 1 channel (temperature RMSE)
-        D_solver = tf.train.AdamOptimizer().minimize(self.D_loss, var_list=theta_D)
-        G_solver = tf.train.AdamOptimizer().minimize(self.G_loss, var_list=theta_G)
-        self.total_loss = bce(x_flatten,x_hat_predict_frames_flatten)  
-
-        #This is the loss for only all the channels(temperature, geo500, pressure)
-        #self.total_loss = tf.reduce_mean(
-        #    tf.square(self.x[:, self.context_frames:,:,:,:] - self.x_hat_predict_frames[:,:,:,:,:]))            
- 
+        D_solver = tf.train.AdamOptimizer(learning_rate = self.learning_rate).minimize(self.D_loss, var_list=theta_D, global_step = self.global_step)
+        G_solver = tf.train.AdamOptimizer(learning_rate = self.learning_rate).minimize(self.G_loss, var_list=theta_G, global_step = self.global_setp)
         self.train_op = tf.train.AdamOptimizer(
             learning_rate = self.learning_rate).minimize(self.total_loss, global_step = self.global_step)
         self.outputs = {}
@@ -105,13 +111,11 @@ class VanillaConvLstmVideoPredictionModel(object):
         self.is_build_graph = True
         return self.is_build_graph 
 
-    
-
-   def get_noise(self,n_samples,z_dim):
+   def get_noise(self,z_dim):
        """
        Function for creating noise: Given the dimensions (n_samples,z_dim)
        """ 
-       return np.random.uniform(-1., 1., size=[n_samples, z_dim])
+       return tf.random.uniform(minval=-1., maxval=1., shape=[self.n_samples, z_dim])
 
 
    def get_generator_block(self,inputs,output_dim,idx):
@@ -132,12 +136,11 @@ class VanillaConvLstmVideoPredictionModel(object):
        return output_3
 
 
-   def generator(self,noise,im_dim,hidden_dim):
+   def generator(self,noise,hidden_dim):
        """
        Function to build up the generator architecture
        args:
            noise: a noise tensor with dimension (n_samples,z_dim)
-           im_dim: the dimension of the input image
            hidden_dim: the inner dimension
        """
        with tf.variable_scope("generator",reuse=tf.AUTO_REUSE):
@@ -145,7 +148,7 @@ class VanillaConvLstmVideoPredictionModel(object):
            layer2 = self.get_generator_block(layer1,hidden_dim*2,2)
            layer3 = self.get_generator_block(layer2,hidden_dim*4,3)
            layer4 = self.get_generator_block(layer3,hidden_dim*8,4)
-           layer5 = ld.conv_layer(layer4,kernel_size=2,stride=1,num_features=im_dim,idx=5,activate="linear")
+           layer5 = ld.conv_layer(layer4,kernel_size=2,stride=1,num_features=self.channels,idx=5,activate="linear")
            layer6 = tf.nn.sigmoid(layer5,name="6_conv")
        return layer6
 
@@ -188,7 +191,7 @@ class VanillaConvLstmVideoPredictionModel(object):
        """
        noise = self.get_noise(1000,10)
        G_samples = self.generator(noise)
-       D_real = self.discriminator(image)
+       D_real = self.discriminator(self.x)
        D_fake = self.discriminator(G_samples)
        real_labels = tf.ones_like(D_real)
        gen_labels = tf.zeros_like(D_fake)
@@ -216,8 +219,8 @@ class VanillaConvLstmVideoPredictionModel(object):
        """
        Get trainable variables from discriminator and generator
        """
-       self.disc_vars = [var for var in tf.trainable_variables() if var.name.startswith("disc")]
-       self.gen_vars = [var for var in tf.trainable_variables() if var.name.startswith("gen")]
+       self.disc_vars = [var for var in tf.trainable_variables() if var.name.startswith("discriminator")]
+       self.gen_vars = [var for var in tf.trainable_variables() if var.name.startswith("generator")]
        
  
   
@@ -225,11 +228,10 @@ class VanillaConvLstmVideoPredictionModel(object):
        """
        Define gan architectures
        """
-       noise = self.get_noise(1000,10)
+       noise = self.get_noise(10)
        G_samples = self.generator(noise)
        D_real = self.discriminator(image)
        D_fake = self.discriminator(G_samples)
-       discriminator.trainable = False
                   
-
-   
+       self.get_vars()
+      
