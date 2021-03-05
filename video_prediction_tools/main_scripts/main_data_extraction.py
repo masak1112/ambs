@@ -201,7 +201,7 @@ def main():
                 logger.debug('Worker {worker_rank} is starting the ERA5-preproc. on dir.: {job}'.format(worker_rank=my_rank,job=job))
                 
                 era5_case = ERA5DataExtraction(year,job,src_top,target_dir,varslist_path)
-                era5_case.process_era5_in_dir()
+                worker_status = era5_case.process_era5_in_dir()
 
                 logger.debug('worker status is: {worker_status}'.format(worker_status=worker_status))
                 
