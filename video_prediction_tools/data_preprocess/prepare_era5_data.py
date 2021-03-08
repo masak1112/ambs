@@ -71,6 +71,7 @@ class ERA5DataExtraction(object):
             outfile = os.path.join(self.target_dir, self.year, month, self.year+month+date+hour+'_sfvar.grb')
             outfile_sf = os.path.join(self.target_dir, self.year, month, self.year+month+date+hour+'_'+var+'.nc')
             os.system('cdo -f nc copy -selname,%s %s %s' % (value,infile,outfile_sf))
+            os.system('cdo -chname,%s,%s %s %s' % (var,value,outfile_sf,outfile_sf)) 
 
         # multi-level variables
         for var, pl_dic in self.varslist_mutil.items():
@@ -79,9 +80,8 @@ class ERA5DataExtraction(object):
                 outfile = os.path.join(self.target_dir, self.year, month, self.year+month+date+hour+'_mlvar.grb')
                 outfile_sf = os.path.join(self.target_dir, self.year, month, self.year+month+date+hour+'_'+var + str(pl_value) +'.nc')
                 os.system('cdo -f nc copy -selname,%s -ml2pl,%d %s %s' % (var,pl_value,infile,outfile_sf)) 
-        
+                os.system('cdo -chname,%s,%s %s %s' % (var,var+"_"+str(pl_value),outfile_sf,outfile_sf))           
         # merge both variables
-
         infile = os.path.join(self.target_dir, self.year, month, self.year+month+date+hour+'*.nc')
         outfile = os.path.join(self.target_dir, self.year, month, 'ecmwf_era5_'+self.year[2:]+month+date+hour+'.nc') # change the output file name
         os.system('cdo merge %s %s' % (infile,outfile))
