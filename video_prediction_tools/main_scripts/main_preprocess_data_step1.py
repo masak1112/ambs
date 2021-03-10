@@ -42,7 +42,7 @@ def main():
     destination_dir = args.destination_dir
     scr_dir         = args.script_dir
     rsync_status = args.rsync_status
-
+   
     vars1 = args.vars
     lat_s = args.lat_s
     lat_e = args.lat_e
