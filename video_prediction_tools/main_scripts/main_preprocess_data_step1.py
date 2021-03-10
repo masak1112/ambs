@@ -15,7 +15,7 @@ from utils.external_function import directory_scanner
 from utils.external_function import load_distributor
 from data_preprocess.process_netCDF_v2 import *  
 from metadata import MetaData as MetaData
-
+import json
 
 def main():
 
@@ -43,7 +43,7 @@ def main():
     scr_dir         = args.script_dir
     rsync_status = args.rsync_status
 
-    vars = args.vars
+    vars1 = args.vars
     lat_s = args.lat_s
     lat_e = args.lat_e
     lon_s = args.lon_s
@@ -54,7 +54,7 @@ def main():
               "lon_s": lon_s,
               "lon_e": lon_e
               }
-    print("Selected variables", vars)
+    print("Selected variables", vars1)
     print("Selected Slices", slices)
 
     exp_id = args.exp_id
@@ -81,7 +81,6 @@ def main():
         start = time.time()  # start of the MPI
         logging.debug(' === PyStager is started === ')
         print('PyStager is Running .... ')
-
     # ================================== ALL Nodes:  Read-in parameters ====================================== #
 
     # check the existence of teh folders :
@@ -99,9 +98,9 @@ def main():
         data_files_list = glob.glob(source_dir_full+"/**/*.nc", recursive=True)
         if not data_files_list:
             raise IOError("Could not find any data to be processed in '"+source_dir_full+"'")
-        print("variables",vars)        
+        print("variables",vars1)        
         md = MetaData(suffix_indir=destination_dir, exp_id=exp_id, data_filename=data_files_list[0], slices=slices,\
-                      variables=vars)
+                      variables=vars1)
         # modify Batch scripts if metadata has been retrieved for the first time (md.status = "new")
         if md.status == "new":
             md.write_dirs_to_batch_scripts(scr_dir+"/preprocess_data_era5_step2.sh")
@@ -125,12 +124,17 @@ def main():
         
         # expand destination directory by pickle-subfolder and...
         destination_dir = os.path.join(md.expdir, md.expname, "pickle", years)
-
+        
         # ...create directory if necessary
         if not os.path.exists(destination_dir):  # check if the Destination dir. is existing
             logging.critical('The Destination does not exist')
             logging.info('Create new destination dir')
             os.makedirs(destination_dir, exist_ok=True)
+        
+        with open(os.path.join(md.expdir,md.expname,"options.json"),"w") as f:
+            f.write(json.dumps(vars(args),sort_keys=True, indent=4))
+
+
     # ML 2020/04/24 E   
 
     if my_rank == 0:  # node is master:
@@ -205,7 +209,7 @@ def main():
                     # ML 2020/06/09: workaround to get correct destination_dir obtained by the master node
                     destination_dir = MetaData.get_destdir_jsontmp(tmp_dir=current_path)
                     process_data = PreprocessNcToPkl(src_dir=source_dir, target_dir=destination_dir, year=years, \
-                                                     job_name=job, slices=slices, vars=vars)
+                                                     job_name=job, slices=slices, vars=vars1)
                     process_data()
 
                 # Send : the finish of the sync message back to master node
