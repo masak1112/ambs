@@ -99,7 +99,7 @@ def main():
         data_files_list = glob.glob(source_dir_full+"/**/*.nc", recursive=True)
         if not data_files_list:
             raise IOError("Could not find any data to be processed in '"+source_dir_full+"'")
-        
+        print("variables",vars)        
         md = MetaData(suffix_indir=destination_dir, exp_id=exp_id, data_filename=data_files_list[0], slices=slices,\
                       variables=vars)
         # modify Batch scripts if metadata has been retrieved for the first time (md.status = "new")

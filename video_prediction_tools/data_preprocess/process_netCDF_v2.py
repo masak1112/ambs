@@ -104,6 +104,7 @@ class PreprocessNcToPkl(object):
                     times = data_file.variables['time']
                     time = num2date(times[:],units=times.units,calendar=times.calendar)
                     for i in range(self.nvars):
+                        print("data_file,variables keys,",data_file.variables.keys())
                         var1 = data_file.variables[self.vars[i]][0,self.slices["lat_s"]:self.slices["lat_e"], self.slices["lon_s"]:self.slices["lon_e"]]
                         self.stat_obj.acc_stat_loc(i,var1)
                         vars_list.append(var1)
