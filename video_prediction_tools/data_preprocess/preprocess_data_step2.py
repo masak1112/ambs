@@ -200,12 +200,15 @@ class ERA5Pkl2Tfrecords(ERA5Dataset):
             X_end = X_start + self.sequence_length
             seq = X_train[X_start:X_end,:,:,:]
             # recording the start point of the timestamps
-            t_start = T_train[X_start]  
+            t_start = T_train[X_start][0]
+            t_start = datetime.datetime.strptime(str(t_start),"%Y-%m-%d %H:%M:%S") 
+            print("t_start,",t_start)
+            print("type of t_starty",type(t_start))
             seq = list(np.array(seq).reshape((self.sequence_length, self.height, self.width, self.nvars)))
             if not sequences:
                 last_start_sequence_iter = sequence_iter
             sequences.append(seq)
-            t_start_points.append(t_start[0])
+            t_start_points.append(t_start)
             sequence_iter += 1
 
             if len(sequences) == self.sequences_per_file:
