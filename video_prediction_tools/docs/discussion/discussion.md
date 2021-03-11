@@ -11,7 +11,7 @@ This is the list of last-mins files for VP group
 
 ## 2021-01-01 -- 2021-02-28 AMBS internal meeting
 
-https://docs.google.com/document/d/1nXRGz0vTrEVj9kTGOj1jeblc-ix_WLdBZsb7r5zu52Q/edit?usp=sharing
+merge branches discussion https://docs.google.com/document/d/1nXRGz0vTrEVj9kTGOj1jeblc-ix_WLdBZsb7r5zu52Q/edit?usp=sharing
 
 
 ## 2020-11-12 AMBS update with Martin
