@@ -30,7 +30,11 @@ https://docs.google.com/document/d/1nXRGz0vTrEVj9kTGOj1jeblc-ix_WLdBZsb7r5zu52Q/
 
 ##  Helmholtz AI consultant
 
-- Parallel training performance updateL: https://docs.google.com/document/d/1nXRGz0vTrEVj9kTGOj1jeblc-ix_WLdBZsb7r5zu52Q/edit?usp=sharing
+- Parallel training performance update: https://docs.google.com/document/d/1nXRGz0vTrEVj9kTGOj1jeblc-ix_WLdBZsb7r5zu52Q/edit?usp=sharing
+
+
+## 2021-01-20 - 2021-03-31
+- Project plan, working packages, and scientific questions https://docs.google.com/document/d/1sKAHw3zuomvBj59OI-DVwxgO7Y-kwxPQ64BPhuaKWao/edit?usp=sharing
 
 
 
