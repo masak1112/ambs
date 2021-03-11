@@ -39,7 +39,7 @@ class KTHVideoDataset(VarLenFeatureVideoDataset):
         return False
 
     def num_examples_per_epoch(self):
-        with open(os.path.join(self.input_dir, 'sequence_lengths.txt'), 'r') as sequence_lengths_file:
+        with open(os.path.join(self.input_dir, 'number_sequences.txt'), 'r') as sequence_lengths_file:
             sequence_lengths = sequence_lengths_file.readlines()
         sequence_lengths = [int(sequence_length.strip()) for sequence_length in sequence_lengths]
         return np.sum(np.array(sequence_lengths) >= self.hparams.sequence_length)
