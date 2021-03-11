@@ -89,8 +89,7 @@ After prompting
 ```bash
 python generate_runscript.py
 ```
-you will be asked first which workflow runscript shall be generated. The short name for the respective 
- workflow steps are given below. The subsequent keyboard interactions allow then
+you will be asked first which workflow runscript shall be generated. You can chose one of the workflow step name: extract, preprocess1, preprocess2, train, and postprocess The subsequent keyboard interactions allow then
 the user to make individual settings to the workflow step at hand. Note that the runscript creation of later 
 workflow substeps depends on the preceding steps (i.e. by checking the arguments from keyboard interaction).
 Thus, they should be created sequentially instead of all at once at the beginning.
