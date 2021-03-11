@@ -25,7 +25,7 @@ This is the list of last-mins files for VP group
 - EA program Profile (German): ea-application-DeepACF-de_stadtler+michael.docx 
 - EA program Profile (English):ea-application-DeepACF_Bing.docx
 - convLSTM training visu animation: https://fz-juelich.sciebo.de/s/2cSpnnEzPlqZufL
-- EA experiments results update: https://docs.google.com/document/d/1nXRGz0vTrEVj9kTGOj1jeblc-ix_WLdBZsb7r5zu52Q/edit?usp=sharing
+- EA experiments results update: https://docs.google.com/presentation/d/1Y5uEsIAcK22c-6J9uk3UNmC3CxZaVd07qj8O7mORYYM/edit?usp=sharing
 
 
 ##  Helmholtz AI consultant
