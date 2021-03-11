@@ -29,14 +29,14 @@ This is the list of last-mins files for VP group
 
 
 ##  Helmholtz AI consultant
-
+- Voucher discription and objectives :https://docs.google.com/document/d/1QaXD6G4UU1zQTZo4fDfl965CZsupBzrESOO4cEmePa8/edit?usp=sharing
 - Parallel training performance update: https://docs.google.com/presentation/d/1F88bQRfK9pi1VUlZppvJ6z8i7VZIgrU4078xK1Ro2PI/edit?usp=sharing
-
+- Tensorboard and IO memory issue update: https://docs.google.com/presentation/d/1R8LRtjwQN4kHSuKsFCce-wVLXoonba2XaSv6qBN6V90/edit?usp=sharing
 
 ## 2021-01-20 - 2021-03-31
 - Project plan, working packages, and scientific questions https://docs.google.com/document/d/1sKAHw3zuomvBj59OI-DVwxgO7Y-kwxPQ64BPhuaKWao/edit?usp=sharing
 - ERA5 requirement from Olaf : https://docs.google.com/document/d/1IW2GDDFhX941JZGO2__CMTormijdbfnrsNesSNxyZgk/edit?usp=sharing
-
+- Experiments track: https://docs.google.com/spreadsheets/d/1fHfo6upNylrjGyvqZwnmRPg_FkN9UFgbHLS7a8nCc38/edit?usp=sharing
 
 
 
