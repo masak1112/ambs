@@ -30,11 +30,12 @@ This is the list of last-mins files for VP group
 
 ##  Helmholtz AI consultant
 
-- Parallel training performance update: https://docs.google.com/document/d/1nXRGz0vTrEVj9kTGOj1jeblc-ix_WLdBZsb7r5zu52Q/edit?usp=sharing
+- Parallel training performance update: https://docs.google.com/presentation/d/1F88bQRfK9pi1VUlZppvJ6z8i7VZIgrU4078xK1Ro2PI/edit?usp=sharing
 
 
 ## 2021-01-20 - 2021-03-31
 - Project plan, working packages, and scientific questions https://docs.google.com/document/d/1sKAHw3zuomvBj59OI-DVwxgO7Y-kwxPQ64BPhuaKWao/edit?usp=sharing
+- ERA5 requirement from Olaf : https://docs.google.com/document/d/1IW2GDDFhX941JZGO2__CMTormijdbfnrsNesSNxyZgk/edit?usp=sharing
 
 
 
