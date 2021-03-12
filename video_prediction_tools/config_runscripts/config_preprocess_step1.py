@@ -56,7 +56,7 @@ class Config_Preprocess1(Config_runscript_base):
         #self.source_dir = Config_Preprocess1.keyboard_interaction(dataset_req_str, Config_Preprocess1.check_data_indir,
         #                                                          dataset_err, ntries=3, suffix2arg=source_dir_base+"/")
 
-        # get years for preprcessing step 1
+        # get years for preprocessing step 1
         years_req_str = "Enter a comma-separated sequence of years from list above:"
         years_err = ValueError("Cannot get years for preprocessing.")
         years_str = Config_Preprocess1.keyboard_interaction(years_req_str, Config_Preprocess1.check_years,
@@ -109,7 +109,8 @@ class Config_Preprocess1(Config_runscript_base):
         self.lon_inds = [ind.strip() for ind in lon_inds_list]
 
         # set destination directory based on base directory which can be retrieved from the template runscript
-        base_dir = Config_Preprocess1.get_var_from_runscript(os.path.join(self.runscript_dir, self.runscript_template), "destination_dir")
+        base_dir = Config_Preprocess1.get_var_from_runscript(os.path.join(self.runscript_dir, self.runscript_template),
+                                                             "destination_dir")
         self.destination_dir = os.path.join(base_dir, "preprocessedData", "era5-Y{0}-{1}M01to12"
                                             .format(min(self.years), max(self.years)))
 
@@ -167,10 +168,10 @@ class Config_Preprocess1(Config_runscript_base):
             return status
 
         # check if all year-values are ok
-        check_years_val = [int(year) > 1950 for year in years_list]
+        check_years_val = [int(year) > 1970 for year in years_list]
         status = all(check_years_val)
         if not status:
-            if not silent: print("All years must be after year 1950.")
+            if not silent: print("All years must be after year 1970.")
 
         return status
     #
