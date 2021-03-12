@@ -38,13 +38,9 @@ fi
 # Declare path-variables (dest_dir will be set and configured automatically via generate_runscript.py)
 source_dir=/my/path/to/era5
 destination_dir=/my/path/to/extracted/data
-varslist_path="/p/home/jusers/gong1/juwels/ambs/video_prediction_tools/data_split/data_extraction_era5.json"
+varmap_file=/my/path/to/varmapping/file
 
-declare -a years=(
-                 "2015"
-                 "2016"
-                 "2017"
-                  )
+years=( "2015" )
 
 # Run data extraction
 for year in "${years[@]}"; do
