@@ -1,0 +1,27 @@
+# NOTE: Please configure this JSON-files according your needs. Any line starting with # will be removed
+#       when editing is invoked from generate_runscript.py.
+#
+# Explanation: In the following, the mapping of known variable names from the ERA5-data (grib2-files) is defined
+#              The keys of the dictionary 'surface' (for 2D surface varibales) denote the variable names
+#              in the target netCDF-file while the values denote the name of the variable in the ERA5 grib file.
+#              For the dictionary 'mutil' (used for 3D variables), the keys denote both,
+#              the variable name in the target netCDF-file and in the ERA5 grib file.
+#              The value of the 'pl'-key denotes the pressure level (in Pa) onto which the data is interpolated
+#              !!! This file should be only adapted if you are familiar with the ERA5 grib files!!!
+{
+"surface":{
+    "2t": "var167",
+    "tcc": "var164",
+    "msl": "var151",
+    "10u": "var165",
+    "10v": "var166"
+    },
+
+"mutil":{
+    "t" : {
+	    "pl": 85000
+          }
+
+       }
+
+}
