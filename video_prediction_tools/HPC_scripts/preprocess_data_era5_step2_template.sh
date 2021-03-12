@@ -41,3 +41,4 @@ sequences_per_file=10
 # run Preprocessing (step 2 where Tf-records are generated)
 srun python ../main_scripts/main_preprocess_data_step2.py -source_dir ${source_dir} -dest_dir ${destination_dir} \
             -sequence_length ${sequence_length} -sequences_per_file ${sequences_per_file}
+

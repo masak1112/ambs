@@ -23,7 +23,7 @@ jutil env activate -p deepacf
 VIRT_ENV_NAME="my_venv"
 
 # Loading mouldes
-source ../env_setup/modules_preprocess.sh
+source ../env_setup/modules_data_extraction.sh
 # Activate virtual environment if needed (and possible)
 if [ -z ${VIRTUAL_ENV} ]; then
    if [[ -f ../${VIRT_ENV_NAME}/bin/activate ]]; then
@@ -38,11 +38,17 @@ fi
 # Declare path-variables (dest_dir will be set and configured automatically via generate_runscript.py)
 source_dir=/my/path/to/era5
 destination_dir=/my/path/to/extracted/data
+varslist_path="/p/home/jusers/gong1/juwels/ambs/video_prediction_tools/data_split/data_extraction_era5.json"
+
+declare -a years=(
+                 "2015"
+                 "2016"
+                 "2017"
+                  )
 
 # Run data extraction
-srun python ../main_scripts/main_data_extraction.py  --source_dir ${source_dir} --destination_dir ${destination_dir}
-
-
-
-# 2tier pystager 
-#srun python ../../workflow_parallel_frame_prediction/DataExtraction/main_single_master.py --source_dir /p/fastdata/slmet/slmet111/met_data/ecmwf/era5/nc/${year}/ --destination_dir ${SAVE_DIR}/extractedData/${year}
+for year in "${years[@]}"; do
+  echo "Perform ERA5-data extraction for year ${year}"
+  srun python ../main_scripts/main_data_extraction.py  --source_dir ${source_dir} --target_dir ${destination_dir} \
+                                                       --year ${year} --varslist_path ${varslist_path}
+done

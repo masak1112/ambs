@@ -6,158 +6,105 @@ from datetime import datetime
 from netCDF4 import Dataset, date2num
 from shiftgrid import shiftgrid
 import os
-
+import json
+import time
 __email__ = "b.gong@fz-juelich.de"
-__author__ = "Bing Gong, Scarlet Stadtler, Michael Langguth, Severin Hussmann"
+__author__ = "Bing Gong, Scarlet Stadtler, Michael Langguth,Yanji"
 __date__ = "unknown"
 # specify source and target directories
 
-def source_file_name(year, month, day, hour):
-    #src_file = '{:04d}/{:02d}/ecmwf_era5_{:02d}{:02d}{:02d}{:02d}.nc'.format(year, month, year % 100, month, day, hour)
-    src_file = 'ecmwf_era5_{:02d}{:02d}{:02d}{:02d}.nc'.format(year % 100, month, day, hour)
-    return src_file
+
+class ERA5DataExtraction(object):
+
+    def __init__(self,year,job_name,src_dir,target_dir,varslist_json):
+        """
+        Function to extract ERA5 data from slmet 
+        args:
+             year        : str, the target year to be processed "2017"
+             job_name     :int from 1 to 12 correspoding to month
+             scr_dir      :str, upper level of directory at year level
+             target_dir   : str, upper level of directory at year level
+             varslist_json: str, the path to the varibale list that to be extracted from original grib file
+        """
+        self.year = year
+        self.job_name = job_name
+        self.src_dir = src_dir
+        self.target_dir = target_dir
+        self.varslist_json = varslist_json
+        self.get_varslist()
+
+    def get_varslist(self):
+        """
+        Function that read varslist_path json file and get variable list
+        """
+        with open(self.varslist_json) as f:
+            self.varslist = json.load(f)
+        
+        self.varslist_keys = list(self.varslist.keys())
+        if not (self.varslist_keys[0] == "surface" or self.varslist_keys[1] == "mutil" ):
+            raise ValueError("varslist_json "+ self.varslit_json +  "should have two keys : surface and mutil")
+        else:
+            self.varslist_surface = self.varslist["surface"]
+            self.varslist_mutil = self.varslist["mutil"]
+            self.varslist_mutil_vars = self.varslist_mutil.keys()
 
 
-def prepare_era5_data_one_file(src_file,directory_to_process,target_dir, target="test.nc"):
-    try:
-        out_file = target
-        print(src_file, ' --> ', os.path.join(target_dir,out_file))
-        fh = Dataset(os.path.join(directory_to_process, src_file), mode = 'r')
+    def prepare_era5_data_one_file(self,month,date,hour): #extract 2t,tcc,msl,t850,10u,10v
+        """
+        Process one grib file from source directory  (extract variables and interplolate variable)  and save to output_directory
+        args:
+            month       : str, the target month to be processed, e.g."01","02","03" ...,"12"
+            date        : str, the target date to be processed e.g "01","02","03",..."31"
+            hour        : str, the target hour to be processed e.g. "00","01",...,"23"
+            varslist_path: str, the path to variable list json file
+            output_path : str, the path to output directory
+    
+        """ 
+        temp_path = os.path.join(self.target_dir, self.year)
+        os.makedirs(temp_path, exist_ok=True)
+        temp_path = os.path.join(self.target_dir, self.year, month)
+        os.makedirs(temp_path, exist_ok=True)
+        
+        for var,value in self.varslist_surface.items():
+            # surface variables
+            infile = os.path.join(self.src_dir, self.year, month, self.year+month+date+hour+'_sf.grb')
+            outfile = os.path.join(self.target_dir, self.year, month, self.year+month+date+hour+'_sfvar.grb')
+            outfile_sf = os.path.join(self.target_dir, self.year, month, self.year+month+date+hour+'_'+var+'.nc')
+            os.system('cdo -f nc copy -selname,%s %s %s' % (value,infile,outfile_sf))
+            os.system('cdo -chname,%s,%s %s %s' % (var,value,outfile_sf,outfile_sf)) 
 
-        lons = fh.variables['lon'][:]
-        lats = fh.variables['lat'][:]
-
-        # load 2 metre temperature
-        t2 = fh.variables['T2'][0, :, :]
-        t2_shift, lons_shift = shiftgrid(180., t2, lons, start = False)
-
-        # load mean sea level pressure
-        msl = fh.variables['MSL'][0, :, :]
-        msl_shift, lons_shift = shiftgrid(180., msl, lons, start = False)
-
-        # transform geopotential to geopotential at 500hpa
-        gph = fh.variables['GPH'][0, :, :, :]
-        a = fh.variables['a'][:]  # convert netCDF to numpy arrays
-        b = fh.variables['b'][:]  # otherwise cannot iterate over netcdf4 variable
-        ps = fh.variables['ps'][0, :, :]
-        fh.close()
-
-        # obtain dimensions
-        z_len, y_len, x_len = gph.shape
-
-        # z_len = 137
-        # y_len = 601
-        # x_len = 1200
-        # Function to calculate the Pressure in hPa at point x/y at level k
-        # p(k,j,i) = a(k) + b(k)*ps(j,i)
-        def calcP(z, x, y, a=a, b=b, ps=ps):
-            p = (a[z] + b[z] * ps[x, y]) / 100
-            return p
-
-        # pressure3d
-        p3d = np.fromfunction(calcP, (z_len, y_len, x_len), a=a, b=b, ps=ps, dtype = int)
-
-        # level2d
-        yindices, xindices = np.indices((y_len, x_len))
-        # calculate lowest level index where pressure is below 500 hPa
-        # beware of Himalaya, where surface pressure may be below 500 hPa
-        # - that region should actually contain missing values; here we cheat a little
-        l2d = np.argmax((p3d - 500) < 0., axis = 0)
-        l2d[l2d == 0] = 1
-        # next lower level should have pressure above 500 hPa
-        # pressure levels in Gebhard Guenther's netcdf files are from surface to top of atmosphere
-        l2dm1 = l2d - 1
-        # calculate interpolation measure
-        levfrac = (p3d[l2dm1[:], yindices, xindices] - 500.) / (
-                    p3d[l2dm1[:], yindices, xindices] - p3d[l2d[:], yindices, xindices])
-        levfrac[levfrac < 0.] = 0.  # Himalaya correction
-        print("l2d: ", np.min(l2d), np.max(l2d))
-        print("levfrac: ", np.min(levfrac), np.max(levfrac))
-        # gp500below: geopotential height below 500 hPa level (i.e. pressure > 500 hPa)
-        gp500below = gph[l2dm1[:], yindices, xindices]
-        gp500above = gph[l2d[:], yindices, xindices]
-        gp500 = gp500below + levfrac * (gp500above - gp500below)
-        print("gp500below: ", np.min(gp500below), np.max(gp500below))
-        print("gp500above: ", np.min(gp500above), np.max(gp500above))
-
-        # convert values in array from geopotential to geopotential height
-        divider = lambda t: t / 9.8
-        vfunc = np.vectorize(divider)
-        gph500 = vfunc(gp500)
-
-        gph500_shift, lons_shift = shiftgrid(180., gph500, lons, start = False)
-
-        os.chdir(target_dir)
-        test = Dataset(out_file, 'w', format = 'NETCDF4', clobber = True)
-
-        # test.createDimension("channel", 3)
-        latD = test.createDimension('lat', y_len)
-        lonD = test.createDimension('lon', x_len)
-        timeD = test.createDimension('time', None)
-        # for debugging
-        levD = test.createDimension('lev', z_len)
-
-        # print(test.dimensions)
-        t2_new = test.createVariable('T2', float, ('time', 'lat', 'lon'), zlib = True)
-        t2_new.units = 'K'
-        msl_new = test.createVariable('MSL', float, ('time', 'lat', 'lon'), zlib = True)
-        msl_new.units = 'Pa'
-        gph500_new = test.createVariable('gph500', float, ('time', 'lat', 'lon'), zlib = True)
-        gph500_new.units = 'm'
-        lat_new = test.createVariable('lat', float, ('lat',), zlib = True)
-        lat_new.units = 'degrees_north'
-        lon_new = test.createVariable('lon', float, ('lon',), zlib = True)
-        lon_new.units = 'degrees_east'
-        time_new = test.createVariable('time', 'f8', ('time',), zlib = True)
-        #TODO: THIS SHOULD BE CHANGED TO "since 1970-01-01 00:00:00",BECAUSE ERA5 REANALYSIS DATA IS IN PRINCIPLE FROM 1979
-        #WITH "2000-01-01 00:00:00" WE WOULD END UP HANDLING NEGATIVE TIME VALUES
-        time_new.units = "hours since 2000-01-01 00:00:00" 
-        time_new.calendar = "gregorian"
-        p3d_new = test.createVariable('p3d', float, ('lev', 'lat', 'lon'), zlib = True)
-
-        lat_new[:] = lats
-        lon_new[:] = lons_shift
-        year, month, day, hour = extract_time_from_file_name(src_file)
-        dates = np.array([datetime(int(year), int(month), int(day), int(hour), 0, 0)])
-        time_new[:] = date2num(dates, units = time_new.units, calendar = time_new.calendar)
-
-        t2_new[:] = t2_shift.reshape(1, y_len, x_len)
-        msl_new[:] = msl_shift.reshape(1, y_len, x_len)
-        gph500_new[:] = gph500_shift.reshape(1, y_len, x_len)
-        p3d_new[:] = p3d
-        test.source_file = src_file
-        test.title = 'ECMWF ERA5 data sample for Deep Learning'
-        test.author = AUTHOR
-        test.close()
-    except Exception as exc:
-        print (exc)
-        pass
+        # multi-level variables
+        for var, pl_dic in self.varslist_mutil.items():
+            for pl,pl_value in pl_dic.items():
+                infile = os.path.join(self.src_dir, self.year, month, self.year+month+date+hour+'_ml.grb')
+                outfile = os.path.join(self.target_dir, self.year, month, self.year+month+date+hour+'_mlvar.grb')
+                outfile_sf = os.path.join(self.target_dir, self.year, month, self.year+month+date+hour+'_'+var + str(pl_value) +'.nc')
+                os.system('cdo -f nc copy -selname,%s -ml2pl,%d %s %s' % (var,pl_value,infile,outfile_sf)) 
+                os.system('cdo -chname,%s,%s %s %s' % (var,var+"_"+str(pl_value),outfile_sf,outfile_sf))           
+        # merge both variables
+        infile = os.path.join(self.target_dir, self.year, month, self.year+month+date+hour+'*.nc')
+        outfile = os.path.join(self.target_dir, self.year, month, 'ecmwf_era5_'+self.year[2:]+month+date+hour+'.nc') # change the output file name
+        os.system('cdo merge %s %s' % (infile,outfile))
+        os.system('rm %s' % (infile))
 
 
-def extract_time_from_file_name(src_file):
-    year = int("20" + src_file[11:13])
-    month = int(src_file[13:15])
-    day = int(src_file[15:17])
-    hour = int(src_file[17:19])
-    return year, month, day, hour
 
-def process_era5_in_dir(job_name,src_dir,target_dir):
-    print ("job_name",job_name)
-    directory_to_process = os.path.join(src_dir, job_name)
-    print("Going to process file in directory {}".format(directory_to_process))
-    files = os.listdir(directory_to_process)
-    os.chdir(directory_to_process)
-    #create a subdirectory based on months
-    target_dir2 = os.path.join(target_dir,job_name)
-    print("The processed files are going to be saved to directory {}".format(target_dir2))
-    if not os.path.exists(target_dir2): os.makedirs(target_dir2, exist_ok=True)
-    for src_file in files:
-        if src_file.endswith(".nc"):
-            if os.path.exists(os.path.join(target_dir2, src_file)):
-                print(src_file," file has been processed in directory ", target_dir2)
-            else:
-                print ("==========Processing file {} =============== ".format(src_file))
-                prepare_era5_data_one_file(src_file=src_file,directory_to_process=directory_to_process, target=src_file, target_dir=target_dir2)
-    # here the defeinition of the failure, success is placed  0=success / -1= fatal-failure / +1 = non-fatal -failure 
-    worker_status = 0
-    return worker_status
+
+    def process_era5_in_dir(self):
+        """
+        Function that extract data at year level
+        """
+        
+        dates = list(range(1,32))
+        dates = ["{:02d}".format(d) for d in dates]
+
+        hours = list(range(0,24))
+        hours = ["{:02d}".format(h) for h in hours]
+       
+        print ("job_name",self.job_name)
+        for d in dates:
+            for h in hours:
+                self.prepare_era5_data_one_file(self.job_name,d,h)
+                    # here the defeinition of the failure, success is placed  0=success / -1= fatal-failure / +1 = non-fatal -failure 
+        worker_status = 0
+        return worker_status

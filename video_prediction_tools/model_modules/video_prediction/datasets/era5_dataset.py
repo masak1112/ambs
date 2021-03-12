@@ -133,7 +133,7 @@ class ERA5Dataset(object):
         """
         #count how many tfrecords files for train/val/testing
         len_fnames = len(self.filenames)
-        seq_len_file = os.path.join(self.input_dir,"tfrecords", 'sequence_lengths.txt')
+        seq_len_file = os.path.join(self.input_dir,"tfrecords", 'number_sequences.txt')
         with open(seq_len_file, 'r') as sequence_lengths_file:
              sequence_lengths = sequence_lengths_file.readlines()
         sequence_lengths = [int(sequence_length.strip()) for sequence_length in sequence_lengths]
