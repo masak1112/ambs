@@ -244,7 +244,7 @@ class Postprocess(TrainModel,ERA5Pkl2Tfrecords):
         return self.input_results, self.input_images_denorm_all,self.t_starts
 
 
-    def run(self):
+    def run_stochastic(self):
         """
         Run session, save results to netcdf, plot input images, generate images and persistent images
         """
@@ -252,7 +252,7 @@ class Postprocess(TrainModel,ERA5Pkl2Tfrecords):
         self.restore(self.sess, self.checkpoint)
         #Loop for samples
         self.sample_ind = 0
-        self.persistent_loss_all_batches = []  # store the evaluation metric with shape [batch,future_len]
+        self.persistent_loss_all_batches = []  # store the evaluation metric with shape [future_len]
         self.stochastic_loss_all_batches = []  # store the stochastic model metric with shape [stochastic,batch, future_len]
         while self.sample_ind < self.num_samples_per_epoch:
             if self.num_samples_per_epoch < self.sample_ind:
@@ -328,6 +328,77 @@ class Postprocess(TrainModel,ERA5Pkl2Tfrecords):
         assert len(np.array(self.stochastic_loss_all_batches).shape) == 2
         assert np.array(self.stochastic_loss_all_batches).shape[0] == self.num_stochastic_samples
         
+    
+  
+   
+    def run_deterministic(self):
+        """
+        This function run the detereminstic forecasting and calculate the evaluation metric for deterministic model
+        """
+        self.init_session()
+        self.restore(self.sess, self.checkpoint)
+        #Loop for samples
+        self.sample_ind = 0
+        self.persistent_loss_all_batches = []  # store the evaluation metric with shape [future_len]
+        self.gen_loss_all_batches = []  # store the determinstic model metric with shape [future_len]
+        while self.sample_ind < self.num_samples_per_epoch:
+            if self.num_samples_per_epoch < self.sample_ind:
+                break
+            else:
+                self.input_results, self.input_images_denorm_all, self.t_starts = self.run_and_plot_inputs_per_batch() #run the inputs and plot each sequence images
+            feed_dict = {input_ph: self.input_results[name] for name, input_ph in self.inputs.items()}
+
+            gen_images = self.sess.run(self.video_model.outputs['gen_images'], feed_dict=feed_dict)#return [batchsize,seq_len,lat,lon,channel]
+            assert gen_images.shape[1] == self.sequence_length - 1 #The generate images seq_len should be sequence_len -1, since the last one is not used for comparing with groud truth 
+            
+            for i in range(self.batch_size):
+                #get persistent prediction per sample
+                self.get_and_plot_persistent_per_sample(sample_id=i)
+                
+                #get model prediction per sample 
+                gen_images_ = gen_images[i]
+                self.gen_images_denorm = Postprocess.denorm_images_all_channels(self.stat_fl, gen_images_, self.vars_in)
+                self.plot_generate_images(0, 0)
+                
+                #save each sample of persistent, model forecasting and reference to netcdf file
+                self.save_to_netcdf_for_stochastic_generate_images(self.input_images_denorm_all[i], self.persistence_images,
+                                                            np.array(gen_images_denorm),
+                                                            fl_name="vfp_date_{}_sample_ind_{}.nc".format(self.init_date_str,self.sample_ind+i)
+
+                #calculate the evaluation metric for persistent and model forecasting per sample
+                persistent_loss_per_sample = Postprocess.calculate_metrics_by_sample(self.input_images_denorm_all[i],self.persistent_images,self.future_length,self.context_frames,matric="mse",channel=0)
+                self.persistent_loss_all_batches.append(persistent_loss_per_sample)
+
+                gen_loss_per_sample =Postprocess.calculate_metrics_by_sample(self.input_images_denorm_all[i],self.gen_images_denorm,self.future_length,self.context_frames,matric="mse",channel=0)
+                self.gen_loss_all_batches.append(gen_loss_per_sample)
+
+            self.sample_ind += self.batch_size
+        self.persistent_loss_all_batches = np.mean(np.array(self.persistent_loss_all_batches),axis=0)
+        self.gen_loss_all_batches = np.mean(np.array(self.gen_loss_all_batches),axis=0)
+        self.stochastic_loss_all_batches =  np.expand_dims(self.gen_loss_all_batches,axis=0) #[1,future_lenght]
+        
+
+
+    def get_and_plot_persistent_per_sample(self,sample_id):
+        
+        """
+        Function that get persistent predictoin per sample and plot them 
+        """
+        self.ts = Postprocess.generate_seq_timestamps(self.t_starts[sample_id], len_seq=self.sequence_length)
+        self.init_date_str = self.ts[0].strftime("%Y%m%d%H")
+        # get persistence_images
+        self.persistence_images, self.ts_persistence = Postprocess.get_persistence(self.ts,self.input_dir_pkl)
+        assert self.persistence_images.shape[0] == self.sequence_length - 1
+        self.plot_persistence_images()
+
+
+    def run(self):
+        if self.model == "convLSTM" or self.model == "test_model" or self.model == 'mcnet':
+            self.run_deterministic()
+        else:
+            self.run_stochastic()
+    
+    
     def calculate_metrics(self,metric="mse",by=0):
         """ 
         args:
@@ -383,11 +454,20 @@ class Postprocess(TrainModel,ERA5Pkl2Tfrecords):
         assert len(output_per_batch.shape)  == 5
         eval_metrics_by_ts = []
         for ts in range(future_length):
-            loss  =  (np.square(input_per_batch[:,context_frames+ts,:,:,channel] -  output_per_batch[:,context_frames+ts-1,:,:,channel])).mean()
+            if metric == "mse":
+                loss  =  (np.square(input_per_batch[:,context_frames+ts,:,:,channel] -  output_per_batch[:,context_frames+ts-1,:,:,channel])).mean()
             eval_metrics_by_ts.append(loss)
         assert len(eval_metrics_by_ts) == future_length
         return eval_metrics_by_ts
-
+    
+    @staticmethod
+    def calculate_metric_by_sample(input_per_sample,output_per_sample,future_length,context_frames,metric,channel):
+        eval_metrics_by_ts = []
+        for ts in range(future_length):
+            if metric == "mse":
+                loss  =  (np.square(input_per_sample[context_frames+ts,:,:,channel] -  output_per_sample[context_frames+ts-1,:,:,channel])).mean()
+            eval_metrics_by_ts.append(loss)
+        return eval_metrics_by_ts
 
     def save_eval_metric_to_json(self,metric="mse"):
         """
@@ -759,7 +839,7 @@ class Postprocess(TrainModel,ERA5Pkl2Tfrecords):
            
         if len(time_persistence.tolist()) == 0 : raise ("The time_persistent is empty!")    
         if len(var_persistence) ==0 : raise ("The var persistence is empty!")
-        # tolist() is needed for plotting
+        # tolist() is needed for plottingi
         return var_persistence, time_persistence.tolist()
     
     @staticmethod
