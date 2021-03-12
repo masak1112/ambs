@@ -59,7 +59,7 @@ class Config_Extraction(Config_runscript_base):
         # final check data availability for each year
         for year in self.years:
             year_path = os.path.join(self.source_dir, year)
-            status = Config_Extraction.check_data_indir(year_path, silent=True, recursive=False, depth=0)
+            status = Config_Extraction.check_data_indir(year_path, silent=True, recursive=False, depth=1)
             if status:
                 print("%{0}: Data availability checked for year {1}".format(method_name, year))
             else:
