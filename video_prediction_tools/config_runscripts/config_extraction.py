@@ -13,6 +13,7 @@ from config_utils import Config_runscript_base    # import parent class
 class Config_Extraction(Config_runscript_base):
 
     cls_name = "Config_Extraction"#.__name__
+    era5dir_just = "/p/fastdata/slmet/slmet111/met_data/ecmwf/era5/grib"
 
     def __init__(self, venv_name, lhpc):
         super().__init__(venv_name, lhpc)
@@ -41,7 +42,8 @@ class Config_Extraction(Config_runscript_base):
 
         method_name = Config_Extraction.run_extraction.__name__
 
-        dataset_req_str = "Enter the path where the original ERA5 netCDF-files are located:"
+        dataset_req_str = "Enter the path where the original ERA5 grib-files are located (standard on JUST: '{0}'):"\
+                          .format(self.era5dir_just)
         dataset_err = FileNotFoundError("Cannot retrieve input data from passed path.")
 
         self.source_dir = Config_Extraction.keyboard_interaction(dataset_req_str, Config_Extraction.check_data_indir,
