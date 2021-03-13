@@ -294,9 +294,9 @@ def get_base_prefix_compat():
 #
 #--------------------------------------------------------------------------------------------------------
 #
-
-def in_virtualenv():
+def in_virtualenv_old():
     """
+    Deprecated! -> does not work in conjunction with loaded modules
     Checks if a virtual environment is activated
     :return: True if virtual environment is running, else False
     """
@@ -309,13 +309,14 @@ def in_virtualenv():
 #
 #--------------------------------------------------------------------------------------------------------
 #
-def check_virtualenv(labort=False):
-    '''
+def check_virtualenv_old(labort=False):
+    """
+    Deprecated! -> does not work in conjunction with loaded modules
     Checks if current script is running a virtual environment and returns the directory's name
     :param labort: If True, the an Exception is raised. If False, only a Warning is given
     :return: name of virtual environment
-    '''
-    method_name = check_virtualenv.__name__
+    """
+    method_name = check_virtualenv_old.__name__
 
     lvirt = in_virtualenv()
     if not lvirt:
@@ -327,3 +328,39 @@ def check_virtualenv(labort=False):
             return
     else:
         return os.path.basename(sys.prefix)
+#
+#--------------------------------------------------------------------------------------------------------
+#
+def in_virtualenv():
+    """
+    New version! -> relies on "VIRTUAL_ENV" environmental variable which also works in conjunction with loaded modules
+    Checks if a virtual environment is activated
+    :return: True if virtual environment is running, else False
+    """
+    stat = bool(os.environ.get("VIRTUAL_ENV"))
+
+    return stat
+#
+#--------------------------------------------------------------------------------------------------------
+#
+def check_virtualenv(labort=False):
+    """
+    New version! -> relies on "VIRTUAL_ENV" environmental variable which also works in conjunction with loaded modules
+    Checks if current script is running a virtual environment and returns the directory's name
+    :param labort: If True, the an Exception is raised. If False, only a Warning is given
+    :return: name of virtual environment
+    """
+
+    method_name = check_virtualenv.__name__
+
+    lvirt = in_virtualenv()
+
+    if not lvirt:
+        if labort:
+            raise EnvironmentError("%{0}: generate_runscript.py has to run in an activated virtual environment!"
+                                   .format(method_name))
+        else:
+            print("%{0}: config_runscript.py is not running in an activated virtual environment!".format(method_name))
+            return
+    else:
+        return os.path.basename(os.environ.get("VIRTUAL_ENV"))
