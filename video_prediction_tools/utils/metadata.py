@@ -6,9 +6,10 @@ import os
 import sys
 import time
 import numpy as np
+import xarray as xr
 import json
 from netCDF4 import Dataset
-from general_utils import is_integer, add_str_to_path
+from general_utils import is_integer, add_str_to_path, check_str_in_list
 
 
 class MetaData:
@@ -401,3 +402,74 @@ class MetaData:
             pass
 
 # ----------------------------------- end of class MetaData -----------------------------------
+
+class Netcdf_utils:
+    """
+    Class containing some auxiliary functions to check netCDf-files
+    """
+
+    def __init__(self, filename):
+        self.filename = filename
+        Netcdf_utils.check_file(self)
+
+        self.varlist = Netcdf_utils.list_vars(self)
+        self.coords = None
+        self.attributes = None
+
+    def check_file(self):
+        method = Netcdf_utils.check_file.__name__
+
+        assert hasattr(self, "filename") is True, "%{0}: Class instance does not have a filename property."\
+                                                  .format(method)
+
+        if not isinstance(self.filename, str):
+            raise ValueError("%{0}: filename property must be a path-string".format(method))
+
+        if not self.filename.endswith(".nc"):
+            raise ValueError("%{0}: Passed filename must be a netCDF-file".format(method))
+
+        if not os.path.isfile(self.filename):
+            raise FileNotFoundError("%{0}: Could not find passed filename '{1}'".format(method, self.filename))
+
+        return
+
+    def list_vars(self):
+        """
+        Retrieves list all variables of file
+        :return: varlist
+        """
+        method = Netcdf_utils.list_vars.__name__
+
+        try:
+            with xr.open_dataset(self.filename) as dfile:
+                varlist = list(dfile.keys())
+        except:
+            raise IOError("%{0}: Could not open {1}".format(method, self.filename))
+
+        return varlist
+
+    def get_coords(self):
+        """
+        Retrive coordinates from Dataset of netCDF-file
+        :return coords: dictionary of coordinates from netCDf-file
+        """
+        method = Netcdf_utils.get_coords.__name__
+
+        try:
+            with xr.open_dataset(self.filename) as dfile:
+                coords = dfile.coords()
+        except:
+            raise IOError("%{0}: Could not handle coordinates of netCDF-file '{1}'".format(method, self.filename))
+
+        return coords
+
+    def var_in_file(self, varnames, labort=True):
+
+        method = Netcdf_utils.var_in_file.__name__
+
+        stat = check_str_in_list(self.varlist, varnames, labort=False)
+
+        if not stat and labort:
+            raise ValueError("%{0}: Could not find all varnames in netCDF-file".method(method))
+
+        return stat
