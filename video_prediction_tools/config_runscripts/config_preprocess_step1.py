@@ -141,11 +141,10 @@ class Config_Preprocess1(Config_runscript_base):
         fname = next(glob.iglob(os.path.join(self.source_dir, str(year), "*", "*era5*.nc")))
 
         data = Netcdf_utils(fname)
-
-        known_vars = data.varlist
-
         if lglobal:
             global known_vars
+
+        known_vars = data.varlist
 
         return known_vars
 
