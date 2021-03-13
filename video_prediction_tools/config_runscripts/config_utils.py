@@ -300,7 +300,12 @@ def in_virtualenv():
     Checks if a virtual environment is activated
     :return: True if virtual environment is running, else False
     """
-    return get_base_prefix_compat() != sys.prefix
+    stat = True
+    if get_base_prefix_compat() != sys.prefix:
+        print("base prefix: {0} does not match sys prefix {1}".format(get_base_prefix_compat(), sys.prefix)) 
+        stat = False
+
+    return stat
 #
 #--------------------------------------------------------------------------------------------------------
 #
