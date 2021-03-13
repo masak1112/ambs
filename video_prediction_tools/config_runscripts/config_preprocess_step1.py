@@ -95,7 +95,7 @@ class Config_Preprocess1(Config_runscript_base):
         else:
             self.variables = [var.strip() for var in vars_list]
 
-        check_vars_allyears(self)
+        Config_Preprocess1.check_vars_allyears(self)
 
         # get start and end indices in latitude direction
         lat_req_str = "Enter comma-separated indices of start and end index in latitude direction for target domain:"
@@ -240,7 +240,7 @@ class Config_Preprocess1(Config_runscript_base):
         :return: status with True confirming success
         """
         vars_list = vars_str.split(",")
-        check_vars = [var.strip().lower() in varlist for var in vars_list]
+        check_vars = [var.strip().lower() in known_vars for var in vars_list]
         status = all(check_vars)
         if not status:
             inds_bad = [i for i, e in enumerate(check_vars) if e] # np.where(~np.array(check_vars))[0]
