@@ -15,6 +15,8 @@ if sys.version_info[0] < 3:
     raise Exception("This script has to be run with Python 3!")
 sys.path.append(os.path.dirname(sys.path[0]))
 from config_utils import check_virtualenv
+# sanity check (is Python running in a virtual environment)
+_ = check_virtualenv(labort=True)
 
 from config_utils import Config_runscript_base
 from config_extraction import Config_Extraction
@@ -47,7 +49,6 @@ def get_runscript_cls(target_runscript_name, venv_name, lhpc):
 #
 def main():
 
-    # sanity check (is Python running in a virtual environment)
     venv_name = check_virtualenv(labort=True)
 
     # check if we are on a known HPC
