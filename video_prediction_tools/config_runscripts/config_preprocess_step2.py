@@ -49,7 +49,7 @@ class Config_Preprocess2(Config_runscript_base):
                                                                dset_err, ntries=3)
         # now, we are also ready to set the correct name of the runscript template and the target
         if self.dataset == "era5":
-            self.runscript_template = self.rscrpt_tmpl_prefix + self.dataset + "_step2"+\
+            self.runscript_template = self.rscrpt_tmpl_prefix + self.dataset + "_step2" + \
                                       self.suffix_template
             self.runscript_target = self.rscrpt_tmpl_prefix + self.dataset + "_step2" + ".sh"
         else:
@@ -65,7 +65,7 @@ class Config_Preprocess2(Config_runscript_base):
         elif self.dataset == "moving_mnist":
             file_type = "the movingMNIST data file"
         source_req_str = "Choose a subdirectory listed above to {0} where the extracted {1} can be found:"\
-                             .format(source_dir_base, file_type)
+                         .format(source_dir_base, file_type)
         source_err = FileNotFoundError("Cannot retrieve "+file_type+" from passed path.")
 
         self.source_dir = Config_Preprocess2.keyboard_interaction(source_req_str, Config_Preprocess2.check_data_indir,
