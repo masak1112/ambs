@@ -85,6 +85,7 @@ def check_str_in_list(list_in, str2check, labort=True):
             print("* index {0:d}: {1}".format(i, str2check[i]))
         if labort:
             raise ValueError("Could not find all expected strings in list.")
-        stat = False
-
+    else:
+        stat = True
+    
     return stat
