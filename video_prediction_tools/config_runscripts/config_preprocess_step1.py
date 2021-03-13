@@ -6,14 +6,20 @@ __date__ = "2021-01-27"
 
 # import modules
 import os, glob
+try:
+    import xarray as xr
+except:
+    raise ImportError("Loading preprocssing modules in advance is mandotory, " +
+                      "i.e. execute 'source modules_preprocess.sh' in terminal first.")
+
+from metadata import Netcdf_utils
+from general_utils import check_str_in_list
 from config_utils import Config_runscript_base    # import parent class
 
 class Config_Preprocess1(Config_runscript_base):
 
     cls_name = "Config_Preprocess1"#.__name__
 
-    known_vars = ["t2", "msl", "gph500"]         # list of known variables (lower case only!) from ERA5
-                                                 # which can be used for training
     nvars = 3                                    # number of variables required for training
 
     def __init__(self, venv_name, lhpc):
@@ -30,8 +36,8 @@ class Config_Preprocess1(Config_runscript_base):
         self.destination_dir = None
         self.years = None
         self.variables = [None] * self.nvars
-        self.lat_inds = [-1 -1] #[np.nan, np.nan]
-        self.lon_inds = [-1 -1] #[np.nan, np.nan]
+        self.lat_inds = [-1 -1]  # [np.nan, np.nan]
+        self.lon_inds = [-1 -1]  # [np.nan, np.nan]
         # list of variables to be written to runscript
         self.list_batch_vars = ["VIRT_ENV_NAME", "source_dir", "destination_dir", "years", "variables",
                                 "lat_inds", "lon_inds"]
@@ -73,11 +79,12 @@ class Config_Preprocess1(Config_runscript_base):
                 raise FileNotFoundError("%{0}: Cannot retrieve ERA5 netCDF-files from {1}".format(method_name, year_path))
 
         # get variables for later training
+        # retrieve known variables from first year (other years are checked later)
         print("%{0}: List of known variables which can be processed".format(method_name))
-        for known_var in Config_Preprocess1.known_vars:
+        for known_var in Config_Preprocess1.get_known_vars(self, self.years[0]):
             print("* {0}".format(known_var))
 
-        vars_req_str = "Enter either three or one variable names to be processed:"
+        vars_req_str = "Enter either three or one variable name(s) that should be processed:"
         vars_err = ValueError("Cannot get variabes for preprocessing.")
         vars_str = Config_Preprocess1.keyboard_interaction(vars_req_str, Config_Preprocess1.check_variables,
                                                            vars_err, ntries=2)
@@ -87,6 +94,8 @@ class Config_Preprocess1(Config_runscript_base):
             self.variables = vars_list * Config_Preprocess1.nvars
         else:
             self.variables = [var.strip() for var in vars_list]
+
+        check_vars_allyears(self)
 
         # get start and end indices in latitude direction
         lat_req_str = "Enter comma-separated indices of start and end index in latitude direction for target domain:"
@@ -117,6 +126,52 @@ class Config_Preprocess1(Config_runscript_base):
     #
     # -----------------------------------------------------------------------------------
     #
+    def get_known_vars(self, year, lglobal=False):
+        """
+        Retrieves known variables from exemplary netCDF-file which will be processed
+        :param year: year for which data should be read in to retrieve variable list
+        :param lglobal: if True known_vars will become a global variable
+        :return known_vars: list of available variable names
+        """
+        method = Config_Preprocess1.get_known_vars.__name__
+
+        if self.source_dir is None:
+            raise AttributeError("%{0}: source_dir property is still None".format(method))
+
+        fname = next(glob.iglob(os.path.join(self.source_dir, str(year), "*", "*era5*.nc")))
+
+        data = Netcdf_utils(fname)
+
+        known_vars = data.varlist
+
+        if lglobal:
+            global known_vars
+
+        return known_vars
+
+    def check_vars_allyears(self):
+
+        method = Config_Preprocess1.check_vars_allyears.__name__
+
+        if self.source_dir is None:
+            raise AttributeError("%{0}: source_dir property is still None".format(method))
+
+        if self.years is None:
+            raise AttributeError("%{0}: years property is still None".format(method))
+
+        if self.variables is None:
+            raise AttributeError("%{0}: variables property is still None".format(method))
+
+        for year in self.years:
+            fname = next(glob.iglob(os.path.join(self.source_dir, str(year), "*", "*era5*.nc")))
+            data = Netcdf_utils(fname)
+
+            stat = check_str_in_list(data.varlist, self.variables, labort=False)
+
+            if not stat:
+                raise ValueError("%{0}: Could not find all required variables in data for year {1}".format(method,
+                                                                                                           str(year)))
+
     # auxiliary functions for keyboard interaction
     @staticmethod
     def check_data_indir(indir, silent=False, recursive=True):
@@ -186,7 +241,7 @@ class Config_Preprocess1(Config_runscript_base):
         :return: status with True confirming success
         """
         vars_list = vars_str.split(",")
-        check_vars = [var.strip().lower() in Config_Preprocess1.known_vars for var in vars_list]
+        check_vars = [var.strip().lower() in varlist for var in vars_list]
         status = all(check_vars)
         if not status:
             inds_bad = [i for i, e in enumerate(check_vars) if e] # np.where(~np.array(check_vars))[0]
@@ -231,6 +286,13 @@ class Config_Preprocess1(Config_runscript_base):
             if not silent: print("Indices must be numbers.")
 
         return status
+    #
+    # -----------------------------------------------------------------------------------
+    #
+
+
+
+
 #
 # -----------------------------------------------------------------------------------
 #
