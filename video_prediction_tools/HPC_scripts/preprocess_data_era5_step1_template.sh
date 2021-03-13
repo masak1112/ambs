@@ -46,14 +46,13 @@ source_dir=/my/path/to/extracted/data/
 destination_dir=/my/path/to/pickle/files
 
 # execute Python-scripts
-for year in "${years[@]}";     do 
-        echo "Year $year"
-	echo "source_dir ${source_dir}/${year}"
+for year in "${years[@]}"; do
+  echo "start preprocessing data for year ${year}"
 	srun python ../main_scripts/main_preprocess_data_step1.py \
         --source_dir ${source_dir} --destination_dir ${destination_dir} --years ${year} \
        	--vars ${variables[0]} ${variables[1]} ${variables[2]} \
        	--lat_s ${lat_inds[0]} --lat_e ${lat_inds[1]} --lon_s ${lon_inds[0]} --lon_e ${lon_inds[1]}    
-    done
+done
 
 
 #srun python ../../workflow_parallel_frame_prediction/DataPreprocess/mpi_split_data_multi_years.py --destination_dir ${destination_dir} --varnames T2 MSL gph500    
