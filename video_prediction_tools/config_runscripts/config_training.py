@@ -62,7 +62,7 @@ class Config_Train(Config_runscript_base):
         expdir_err = FileNotFoundError("Could not find any tfrecords.")
 
         self.source_dir = Config_Train.keyboard_interaction(expdir_req_str, Config_Train.check_expdir,
-                                                            expdir_err, ntries=3, suffix2arg=source_dir_base+"/")
+                                                            expdir_err, ntries=3, prefix2arg=source_dir_base+"/")
         # expand source_dir by tfrecords-subdirectory
         tf_dirs = Config_Train.list_tf_dirs(self)
         ntf_dirs = len(tf_dirs)
