@@ -33,8 +33,11 @@ class Config_Train(Config_runscript_base):
         # initialize additional runscript-specific attributes to be set via keyboard interaction
         self.model = None
         self.destination_dir = None
+        self.datasplit_dict = None
+        self.model_hparams = None
         # list of variables to be written to runscript
-        self.list_batch_vars = ["VIRT_ENV_NAME", "source_dir", "model", "destination_dir"]
+        self.list_batch_vars = ["VIRT_ENV_NAME", "source_dir", "model", "destination_dir", "datasplit_dict",
+                                "model_hparams"]
         # copy over method for keyboard interaction
         self.run_config = Config_Train.run_training
     #
@@ -93,7 +96,7 @@ class Config_Train(Config_runscript_base):
 
         # get the model to train
         model_req_str = "Enter the name of the model you want to train:"
-        model_err     = ValueError("Please select a model from the ones listed above.")
+        model_err = ValueError("Please select a model from the ones listed above.")
 
         self.model = Config_Train.keyboard_interaction(model_req_str, Config_Train.check_model, model_err, ntries=2)
 
@@ -125,33 +128,33 @@ class Config_Train(Config_runscript_base):
 
         # Create json-file for data splitting
         source_datasplit = os.path.join("..", "data_split", self.dataset, "datasplit_template.json")
-        dest_datasplit = os.path.join(self.destination_dir, "data_split.json")
+        self.datasplit_dict = os.path.join(self.destination_dir, "data_split.json")
         # sanity check (default data_split json-file exists)
         if not os.path.isfile(source_datasplit):
             raise FileNotFoundError("%{0}: Could not find default data_split json-file '{1}'".format(method_name,
                                                                                                      source_datasplit))
         # ...copy over json-file for data splitting...
-        os.system("cp "+source_datasplit+" "+dest_datasplit)
+        os.system("cp "+source_datasplit+" "+self.datasplit_dict)
         # ...and open vim after some delay
         print("*** Please configure the data splitting:")
         time.sleep(3)
         cmd_vim = os.environ.get('EDITOR', 'vi') + ' ' + os.path.join(self.destination_dir,"data_split.json")
         sp.call(cmd_vim, shell=True)
-        sp.call("sed -i '/^#/d' {0}".format(dest_datasplit), shell=True)
+        sp.call("sed -i '/^#/d' {0}".format(self.datasplit_dict), shell=True)
 
         # Create json-file for hyperparameters
         source_hparams = os.path.join("..","hparams", self.dataset, self.model, "model_hparams_template.json")
-        dest_hparams = os.path.join(self.destination_dir, "model_hparams.json")
+        self.model_hparams = os.path.join(self.destination_dir, "model_hparams.json")
         # sanity check (default hyperparameter json-file exists)
         if not os.path.isfile(source_hparams):
-            raise FileNotFoundError("%{0}: Could not find default hyperparameter json-file '%{1}'".format(method_name,
-                                                                                                          source_hparams))
+            raise FileNotFoundError("%{0}: Could not find default hyperparameter json-file '%{1}'"
+                                    .format(method_name, source_hparams))
         # ...copy over json-file for hyperparamters...
-        os.system("cp "+source_hparams+" "+dest_hparams)
+        os.system("cp "+source_hparams+" "+self.model_hparams)
         # ...and open vim after some delay
         print("*** Please configure the model hyperparameters:")
         time.sleep(3)
-        cmd_vim = os.environ.get('EDITOR', 'vi') + ' ' + dest_hparams
+        cmd_vim = os.environ.get('EDITOR', 'vi') + ' ' + self.model_hparams
         sp.call(cmd_vim, shell=True)
     #
     # -----------------------------------------------------------------------------------
