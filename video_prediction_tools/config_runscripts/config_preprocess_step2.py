@@ -69,7 +69,7 @@ class Config_Preprocess2(Config_runscript_base):
         source_err = FileNotFoundError("Cannot retrieve "+file_type+" from passed path.")
 
         self.source_dir = Config_Preprocess2.keyboard_interaction(source_req_str, Config_Preprocess2.check_data_indir,
-                                                                  source_err, ntries=3, suffix2arg=source_dir_base+"/")
+                                                                  source_err, ntries=3, prefix2arg=source_dir_base+"/")
         # Note: At this stage, self.source_dir is a top-level directory.
         # TFrecords are assumed to live in tfrecords-subdirectory,
         # input files are assumed to live in pickle-subdirectory

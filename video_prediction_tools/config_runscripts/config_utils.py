@@ -231,7 +231,7 @@ class Config_runscript_base:
     # -----------------------------------------------------------------------------------
     #
     @staticmethod
-    def keyboard_interaction(console_str, check_input, err, ntries=1, test_arg="xxx", suffix2arg=None):
+    def keyboard_interaction(console_str, check_input, err, ntries=1, test_arg="xxx", prefix2arg=None):
         """
         Function to check if the user has passed a proper input via keyboard interaction
         :param console_str: Request printed to the console
@@ -239,7 +239,7 @@ class Config_runscript_base:
                             Must have two arguments with the latter being an optional bool called silent.
         :param ntries: maximum number of tries (default: 1)
         :param test_arg: test argument to check_input-function (default: "xxx")
-        :param suffix2arg: optional suffix that might be added to string from keyboard-interaction before it enters
+        :param prefix2arg: optional prefix that might be added to string from keyboard-interaction before it enters
                            check_input-function
         :return: The approved input from keyboard interaction
         """
@@ -268,8 +268,8 @@ class Config_runscript_base:
         while attempt < ntries:
             func_print_emph = "%" + check_input.__name__ + ": "
             input_req = input(kb_emph + console_str + kb_emph +"\n")
-            if not suffix2arg is None:
-                input_req = suffix2arg + input_req
+            if not prefix2arg is None:
+                input_req = prefix2arg + input_req
             if check_input(input_req):
                 break
             else:

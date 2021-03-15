@@ -60,7 +60,7 @@ class Config_Preprocess1(Config_runscript_base):
         #dataset_err = FileNotFoundError("Cannot retrieve extracted ERA5 netCDF-files from passed path.")
 
         #self.source_dir = Config_Preprocess1.keyboard_interaction(dataset_req_str, Config_Preprocess1.check_data_indir,
-        #                                                          dataset_err, ntries=3, suffix2arg=source_dir_base+"/")
+        #                                                          dataset_err, ntries=3, prefix2arg=source_dir_base+"/")
 
         # get years for preprocessing step 1
         years_req_str = "Enter a comma-separated sequence of years from list above:"
