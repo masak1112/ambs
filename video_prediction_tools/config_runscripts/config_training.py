@@ -216,7 +216,10 @@ class Config_Train(Config_runscript_base):
         """
         status = False
         if os.path.isdir(exp_dir):
-            status = any(glob.iglob(os.path.join(exp_dir, "*", "sequence*.tfrecords")))
+            if exp_dir.endswith(Config_Train.basename_tfdirs):
+                status = any(glob.iglob(os.path.join(exp_dir, "sequence*.tfrecords")))
+            else:
+                status = any(glob.iglob(os.path.join(exp_dir, "*", "sequence*.tfrecords")))
             if not status and not silent:
                 print("{0} does not contain any tfrecord-files.".format(exp_dir))
         else:
