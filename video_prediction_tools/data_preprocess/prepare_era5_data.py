@@ -1,13 +1,8 @@
 """
 Functions required for extracting ERA5 data.
 """
-import numpy as np
-from datetime import datetime
-from netCDF4 import Dataset, date2num
-from shiftgrid import shiftgrid
 import os
 import json
-import time
 __email__ = "b.gong@fz-juelich.de"
 __author__ = "Bing Gong, Scarlet Stadtler, Michael Langguth,Yanji"
 __date__ = "unknown"
@@ -16,7 +11,7 @@ __date__ = "unknown"
 
 class ERA5DataExtraction(object):
 
-    def __init__(self,year,job_name,src_dir,target_dir,varslist_json):
+    def __init__(self, year, job_name, src_dir, target_dir, varslist_json):
         """
         Function to extract ERA5 data from slmet 
         args:
@@ -41,15 +36,14 @@ class ERA5DataExtraction(object):
             self.varslist = json.load(f)
         
         self.varslist_keys = list(self.varslist.keys())
-        if not (self.varslist_keys[0] == "surface" or self.varslist_keys[1] == "mutil" ):
-            raise ValueError("varslist_json "+ self.varslit_json +  "should have two keys : surface and mutil")
+        if not ("surface" in self.varslist_keys and "multi" in self.varslist_keys):
+            raise ValueError("Thie file '{0}' should have two keys : surface and multi".format(self.varslist_json))
         else:
             self.varslist_surface = self.varslist["surface"]
-            self.varslist_mutil = self.varslist["mutil"]
-            self.varslist_mutil_vars = self.varslist_mutil.keys()
+            self.varslist_multi = self.varslist["multi"]
+            self.varslist_multi_vars = self.varslist_multi.keys()
 
-
-    def prepare_era5_data_one_file(self,month,date,hour): #extract 2t,tcc,msl,t850,10u,10v
+    def prepare_era5_data_one_file(self, month, day, hour):  # extract 2t,tcc,msl,t850,10u,10v
         """
         Process one grib file from source directory  (extract variables and interplolate variable)  and save to output_directory
         args:
@@ -67,24 +61,24 @@ class ERA5DataExtraction(object):
         
         for var,value in self.varslist_surface.items():
             # surface variables
-            infile = os.path.join(self.src_dir, self.year, month, self.year+month+date+hour+'_sf.grb')
-            outfile = os.path.join(self.target_dir, self.year, month, self.year+month+date+hour+'_sfvar.grb')
-            outfile_sf = os.path.join(self.target_dir, self.year, month, self.year+month+date+hour+'_'+var+'.nc')
-            os.system('cdo -f nc copy -selname,%s %s %s' % (value,infile,outfile_sf))
-            os.system('cdo -chname,%s,%s %s %s' % (var,value,outfile_sf,outfile_sf)) 
+            infile = os.path.join(self.src_dir, self.year, month, self.year+month+day+hour+'_sf.grb')
+            outfile_sf = os.path.join(self.target_dir, self.year, month, self.year+month+day+hour+'_'+var+'.nc')
+            os.system('cdo -f nc copy -selname,%s %s %s' % (value, infile, outfile_sf))
+            os.system('cdo -chname,%s,%s %s %s' % (var, value, outfile_sf, outfile_sf))
 
         # multi-level variables
-        for var, pl_dic in self.varslist_mutil.items():
-            for pl,pl_value in pl_dic.items():
-                infile = os.path.join(self.src_dir, self.year, month, self.year+month+date+hour+'_ml.grb')
-                outfile = os.path.join(self.target_dir, self.year, month, self.year+month+date+hour+'_mlvar.grb')
-                outfile_sf = os.path.join(self.target_dir, self.year, month, self.year+month+date+hour+'_'+var + str(pl_value) +'.nc')
+        for var, pl_dic in self.varslist_multi.items():
+            for pl, pl_value in pl_dic.items():
+                infile = os.path.join(self.src_dir, self.year, month, self.year+month+day+hour+'_ml.grb')
+                outfile_sf = os.path.join(self.target_dir, self.year, month, self.year+month+day+hour+'_'+var +
+                                          str(pl_value) + '.nc')
                 os.system('cdo -f nc copy -selname,%s -ml2pl,%d %s %s' % (var,pl_value,infile,outfile_sf)) 
-                os.system('cdo -chname,%s,%s %s %s' % (var,var+"_"+str(pl_value),outfile_sf,outfile_sf))           
+                os.system('cdo -chname,%s,%s %s %s' % (var,var+"_"+str(pl_value), outfile_sf, outfile_sf))
         # merge both variables
-        infile = os.path.join(self.target_dir, self.year, month, self.year+month+date+hour+'*.nc')
-        outfile = os.path.join(self.target_dir, self.year, month, 'ecmwf_era5_'+self.year[2:]+month+date+hour+'.nc') # change the output file name
-        os.system('cdo merge %s %s' % (infile,outfile))
+        infile = os.path.join(self.target_dir, self.year, month, self.year+month+day+hour+'*.nc')
+        # change the output file name
+        outfile = os.path.join(self.target_dir, self.year, month, 'ecmwf_era5_'+self.year[2:]+month+day+hour+'.nc')
+        os.system('cdo merge %s %s' % (infile, outfile))
         os.system('rm %s' % (infile))
 
 
@@ -104,7 +98,7 @@ class ERA5DataExtraction(object):
         print ("job_name",self.job_name)
         for d in dates:
             for h in hours:
-                self.prepare_era5_data_one_file(self.job_name,d,h)
+                self.prepare_era5_data_one_file(self.job_name, d, h)
                     # here the defeinition of the failure, success is placed  0=success / -1= fatal-failure / +1 = non-fatal -failure 
         worker_status = 0
         return worker_status
