@@ -166,14 +166,14 @@ class Config_Train(Config_runscript_base):
         tf_dirs = [dirname for dirname in all_dirs if dirname.startswith("tfrecords_seq_len")]
 
         if not tf_dirs:
-            raise ValueError("%{0}: Could not find properly named tfrecords-directory under '{0}'"
+            raise ValueError("%{0}: Could not find properly named TFrecords-directory under '{0}'"
                              .format(self.source_dir))
         ndirs = len(tf_dirs)
 
         if ndirs == 1:
-            print("Found the following directory for tfrecord-files: '{0}'".format(tf_dirs[0]))
+            print("Found the following directory for TFrecord-files: '{0}'".format(tf_dirs[0]))
         else:
-            print("The following directories for tfrecords-files have been found:")
+            print("The following directories for TFrecords-files have been found:")
             for idir in tf_dirs:
                 print("* {0}".format(idir))
 
