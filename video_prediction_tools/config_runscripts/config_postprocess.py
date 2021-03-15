@@ -28,7 +28,7 @@ class Config_Postprocess(Config_runscript_base):
         # initialize additional runscript-specific attributes to be set via keyboard interaction
         self.model = None
         self.checkpoint_dir = None
-        self.destination_dir = None
+        self.results_dir = None
         # list of variables to be written to runscript
         self.list_batch_vars = ["VIRT_ENV_NAME", "source_dir", "results_dir",
                                 "checkpoint_dir", "model"]
@@ -55,8 +55,7 @@ class Config_Postprocess(Config_runscript_base):
 
         # get the 'checkpoint-directory', i.e. the directory where the trained model parameters are stored
         # Note that the remaining information (model, results-directory etc.) can be retrieved form it!!!
-        trained_dir_req_str = "Enter the absolute (!) path to the model checkpoint directory" + \
-                              " for which postprocessing should be done:"
+        trained_dir_req_str = "Enter the absolute (!) path to trained model for which postprocessing should be done:"
         trained_err = FileNotFoundError("No trained model parameters found.")
 
         self.checkpoint_dir = Config_Postprocess.keyboard_interaction(trained_dir_req_str,
@@ -73,7 +72,7 @@ class Config_Postprocess(Config_runscript_base):
         self.runscript_target = self.rscrpt_tmpl_prefix + self.dataset + exp_dir + ".sh"
 
         self.source_dir = Config_Postprocess.check_source(os.path.join(base_dir, "preprocessedData", exp_dir_base))
-        self.destination_dir = os.path.join(base_dir, "results", exp_dir_base, self.model, exp_dir)
+        self.results_dir = os.path.join(base_dir, "results", exp_dir_base, self.model, exp_dir)
     #
     # -----------------------------------------------------------------------------------
     #
