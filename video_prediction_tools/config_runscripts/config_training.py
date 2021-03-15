@@ -22,6 +22,8 @@ class Config_Train(Config_runscript_base):
     # or a generic template runscript, we need the following manual list
     allowed_datasets = ["era5", "moving_mnist"]  # known_datasets().keys
 
+    basename_tfdirs = "tfrecords_seq_len_"
+
     def __init__(self, venv_name, lhpc):
         super().__init__(venv_name, lhpc)
 
@@ -62,15 +64,31 @@ class Config_Train(Config_runscript_base):
         self.source_dir = Config_Train.keyboard_interaction(expdir_req_str, Config_Train.check_expdir,
                                                             expdir_err, ntries=3, suffix2arg=source_dir_base+"/")
         # expand source_dir by tfrecords-subdirectory
-        self.source_dir = os.path.join(self.source_dir, "tfrecords")
+        tf_dirs = Config_Train.list_tf_dirs(self)
+        ntf_dirs = len(tf_dirs)
+
+        if ntf_dirs == 1:
+            self.source_dir = os.path.join(self.source_dir, tf_dirs[0])
+        else:
+            seq_req_str = "Enter desired sequence length of TFrecord-files to be used for training " + \
+                          "(see suffix from list above)"
+            seq_err = FileNotFoundError("Invalid sequence length passed or no TFrecord-files found")
+
+            # Note, how the check_expdir-method is recycled by simply adding a properly defined suffix to it
+            seq_length = Config_Train.keyboard_interaction(seq_req_str, Config_Train.check_expdir,
+                                                           seq_err, ntries=2,
+                                                           prefix2arg=os.path.join(self.source_dir,
+                                                                                   Config_Train.basename_tfdirs))
+
+            self.source_dir = os.path.join(self.source_dir, Config_Train.basename_tfdirs + str(seq_length))
 
         # split up directory path in order to retrieve exp_dir used for setting up the destination directory
         exp_dir_split = Config_Train.path_rec_split(self.source_dir)
         index = [idx for idx, s in enumerate(exp_dir_split) if self.dataset in s]
         if not index:
             raise ValueError(
-                    "%{0}: tfrecords found under '{1}', but directory does not seem to reflect naming convention.".format(
-                    method_name, self.source_dir))
+                    "%{0}: tfrecords found under '{1}', but directory does not seem to reflect naming convention."
+                    .format(method_name, self.source_dir))
         exp_dir = exp_dir_split[index[0]]
 
         # get the model to train
@@ -87,19 +105,20 @@ class Config_Train(Config_runscript_base):
         timestamp = dt.datetime.now().strftime("%Y%m%dT%H%M%S")
         user_name = os.environ["USER"]
         # ... to construct final destination_dir and exp_dir_ext as well
-        self.exp_id = timestamp +"_"+ user_name +"_"+ self.exp_id  # by convention, exp_id is extended by timestamp and username
+        self.exp_id = timestamp + "_" + user_name + "_" + self.exp_id  # by convention, exp_id is extended by timestamp and username
 
         # now, we are also ready to set the correct name of the runscript template and the target
         self.runscript_target = "{0}{1}_{2}.sh".format(self.rscrpt_tmpl_prefix, self.dataset, self.exp_id)
         
-        base_dir   = Config_Train.get_var_from_runscript(os.path.join(self.runscript_dir, self.runscript_template),
+        base_dir = Config_Train.get_var_from_runscript(os.path.join(self.runscript_dir, self.runscript_template),
                                                          "destination_dir")
-        exp_dir_ext= os.path.join(exp_dir, self.model, self.exp_id)
+        exp_dir_ext = os.path.join(exp_dir, self.model, self.exp_id)
         self.destination_dir = os.path.join(base_dir, "models", exp_dir, self.model, self.exp_id)
         
         # sanity check (target_dir is unique):
         if os.path.isdir(self.destination_dir):
-            raise IsADirectoryError("%{0}: {1} already exists! Make sure that it is unique.".format(method_name, self.destination_dir))
+            raise IsADirectoryError("%{0}: {1} already exists! Make sure that it is unique."
+                                    .format(method_name, self.destination_dir))
 
         # create destination directory...
         os.makedirs(self.destination_dir)
@@ -137,6 +156,30 @@ class Config_Train(Config_runscript_base):
     #
     # -----------------------------------------------------------------------------------
     #
+    def list_tf_dirs(self):
+
+        method = Config_Train.list_tf_dirs.__name__
+        if self.source_dir is None:
+            raise AttributeError("%{0}: source_dir must be non-emoty.".format(method))
+
+        all_dirs = [f.name for f in os.scandir(self.source_dir) if f.is_dir()]
+        tf_dirs = [dirname for dirname in all_dirs if dirname.startswith("tfrecords_seq_len")]
+
+        if not tf_dirs:
+            raise ValueError("%{0}: Could not find properly named tfrecords-directory under '{0}'"
+                             .format(self.source_dir))
+        ndirs = len(tf_dirs)
+
+        if ndirs == 1:
+            print("Found the following directory for tfrecord-files: '{0}'".format(tf_dirs[0]))
+        else:
+            print("The following directories for tfrecords-files have been found:")
+            for idir in tf_dirs:
+                print("* {0}".format(idir))
+
+        return tf_dirs
+
+
     @staticmethod
     # dataset used for training
     def check_dataset(dataset_name, silent=False):
@@ -163,20 +206,16 @@ class Config_Train(Config_runscript_base):
     @staticmethod
     def check_expdir(exp_dir, silent=False):
         """
-        Check if the passed directory path contains TFrecord-files. Note, that the path is extended by tfrecords/
-        (e.g. see <base_dir>/model_modules/video_prediction/datasets/era5_dataset.py)
+        Check if the passed directory path contains at least on subdirectory where TFrecord-files are located.
         :param exp_dir: path from keyboard interaction
         :param silent: flag if print-statement are executed
         :return: status with True confirming success
         """
         status = False
-        real_dir = os.path.join(exp_dir, "tfrecords")
-        if os.path.isdir(real_dir):
-            file_list = glob.glob(os.path.join(real_dir, "sequence*.tfrecords"))
-            if len(file_list) > 0:
-                status = True
-            else:
-                print("{0} does not contain any tfrecord-files.".format(real_dir))
+        if os.path.isdir(exp_dir):
+            status = any(glob.iglob(os.path.join(exp_dir, "*", "sequence*.tfrecords")))
+            if not status and not silent:
+                print("{0} does not contain any tfrecord-files.".format(exp_dir))
         else:
             if not silent: print("Passed directory does not exist!")
         return status
