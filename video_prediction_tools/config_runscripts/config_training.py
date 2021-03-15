@@ -6,6 +6,7 @@ __date__ = "2021-01-29"
 
 # import modules
 import os, glob
+import re
 import time
 import datetime as dt
 import subprocess as sp
@@ -216,7 +217,7 @@ class Config_Train(Config_runscript_base):
         """
         status = False
         if os.path.isdir(exp_dir):
-            if exp_dir.endswith(Config_Train.basename_tfdirs):
+            if re.match(".+{0}".format(Config_Train.basename_tfdirs), exp_dir):
                 status = any(glob.iglob(os.path.join(exp_dir, "sequence*.tfrecords")))
             else:
                 status = any(glob.iglob(os.path.join(exp_dir, "*", "sequence*.tfrecords")))
