@@ -73,7 +73,7 @@ class ERA5DataExtraction(object):
                 infile = os.path.join(self.src_dir, self.year, month, self.year+month+day+hour+'_ml.grb')
                 outfile_sf = os.path.join(self.target_dir, self.year, month, self.year+month+day+hour+'_'+var +
                                           str(pl_value) + '.nc')
-                os.system('cdo -f nc copy -selname,%s -ml2pl,%d %s %s' % (var,pl_value,infile,outfile_sf)) 
+                os.system('cdo -f nc copy -selname,%s -ml2plx,%d %s %s' % (var,pl_value,infile,outfile_sf)) 
                 os.system('cdo -chname,%s,%s %s %s' % (var, var+"_{0:d}".format(int(pl_value/100.)), outfile_sf, outfile_sf))
         # merge both variables
         infile = os.path.join(self.target_dir, self.year, month, self.year+month+day+hour+'*.nc')
