@@ -7,6 +7,7 @@
 #SBATCH --output=DataPreprocess_era5_step2-out.%j
 #SBATCH --error=DataPreprocess_era5_step2-err.%j
 #SBATCH --time=04:00:00
+#SBATCH --gres=gpu:0
 #SBATCH --partition=batch
 #SBATCH --mail-type=ALL
 #SBATCH --mail-user=me@somewhere.com

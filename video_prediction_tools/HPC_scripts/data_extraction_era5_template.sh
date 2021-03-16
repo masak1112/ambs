@@ -9,6 +9,7 @@
 #SBATCH --error=data_extraction_era5-err.%j
 #SBATCH --time=04:20:00
 #SBATCH --partition=batch
+#SBATCH --gres=gpu:0
 #SBATCH --mail-type=ALL
 #SBATCH --mail-user=me@somewhere.com
 
