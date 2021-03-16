@@ -362,14 +362,14 @@ class Postprocess(TrainModel,ERA5Pkl2Tfrecords):
                 
                 #save each sample of persistent, model forecasting and reference to netcdf file
                 self.save_to_netcdf_for_stochastic_generate_images(self.input_images_denorm_all[i], self.persistence_images,
-                                                            np.array(gen_images_denorm),
-                                                            fl_name="vfp_date_{}_sample_ind_{}.nc".format(self.init_date_str,self.sample_ind+i)
+                                                            np.expand_dims(np.array(self.gen_images_denorm),axis=0),
+                                                            fl_name="vfp_date_{}_sample_ind_{}.nc".format(self.init_date_str,self.sample_ind+i))
 
                 #calculate the evaluation metric for persistent and model forecasting per sample
-                persistent_loss_per_sample = Postprocess.calculate_metrics_by_sample(self.input_images_denorm_all[i],self.persistent_images,self.future_length,self.context_frames,matric="mse",channel=0)
+                persistent_loss_per_sample = Postprocess.calculate_metrics_by_sample(self.input_images_denorm_all[i],self.persistence_images,self.future_length,self.context_frames,metric="mse",channel=0)
                 self.persistent_loss_all_batches.append(persistent_loss_per_sample)
 
-                gen_loss_per_sample =Postprocess.calculate_metrics_by_sample(self.input_images_denorm_all[i],self.gen_images_denorm,self.future_length,self.context_frames,matric="mse",channel=0)
+                gen_loss_per_sample =Postprocess.calculate_metrics_by_sample(self.input_images_denorm_all[i],self.gen_images_denorm,self.future_length,self.context_frames,metric="mse",channel=0)
                 self.gen_loss_all_batches.append(gen_loss_per_sample)
 
             self.sample_ind += self.batch_size
@@ -388,6 +388,7 @@ class Postprocess(TrainModel,ERA5Pkl2Tfrecords):
         self.init_date_str = self.ts[0].strftime("%Y%m%d%H")
         # get persistence_images
         self.persistence_images, self.ts_persistence = Postprocess.get_persistence(self.ts,self.input_dir_pkl)
+        print ("self.persistentc_images shape:",self.persistence_images.shape[0])
         assert self.persistence_images.shape[0] == self.sequence_length - 1
         self.plot_persistence_images()
 
@@ -461,7 +462,9 @@ class Postprocess(TrainModel,ERA5Pkl2Tfrecords):
         return eval_metrics_by_ts
     
     @staticmethod
-    def calculate_metric_by_sample(input_per_sample,output_per_sample,future_length,context_frames,metric,channel):
+    def calculate_metrics_by_sample(input_per_sample,output_per_sample,future_length,context_frames,metric,channel):
+        input_per_sample = np.array(input_per_sample)
+        output_per_sample = np.array(output_per_sample)
         eval_metrics_by_ts = []
         for ts in range(future_length):
             if metric == "mse":
@@ -587,8 +590,8 @@ class Postprocess(TrainModel,ERA5Pkl2Tfrecords):
         Save the input images, persistent images and generated stochatsic images to netCDF file
         args:
             input_images_        : list/array, [seq,lat,lon,channel]
-            persistent_images_   : list/array, [seq,lat,lon,channel]
-            gen_images_stochastic: list/array (float), [stochastic_number,seq,lat,lon,channel]
+            persistent_images_   : list/array, [seq-1,lat,lon,channel]
+            gen_images_stochastic: list/array (float), [stochastic_number,seq-1,lat,lon,channel]
             fl_name              : str, the netcdf file name to be saved
         """
         print("inputs fpor netcdf:",input_images_)
@@ -597,7 +600,6 @@ class Postprocess(TrainModel,ERA5Pkl2Tfrecords):
         gen_images_stochastic = np.array(gen_images_stochastic)
 
         assert (len(np.array(input_images_).shape)==len(np.array(gen_images_stochastic).shape))-1
-        persistent_images_ = np.array(persistent_images_)
         assert len(persistent_images_.shape) == 4 #[seq,lat,lon,channel]
         y_len = len(self.lats)
         x_len = len(self.lons)
@@ -677,7 +679,7 @@ class Postprocess(TrainModel,ERA5Pkl2Tfrecords):
             ###subgroup for Pesistent analysis #######
             t2_p = nc_file.createVariable("/analysis/persistent/T2","f4",("time_forecast","lat","lon"), zlib = True)
             t2_p.units = 'K'
-            t2_p[:,:,:] = persistent_images_[self.context_frames:,:,:,0]
+            t2_p[:,:,:] = persistent_images_[self.context_frames-1:,:,:,0]
 
             #msl_p = nc_file.createVariable("/analysis/persistent/MSL","f4",("time_forecast","lat","lon"), zlib = True)
             #msl_p.units = 'Pa'
@@ -840,6 +842,8 @@ class Postprocess(TrainModel,ERA5Pkl2Tfrecords):
         if len(time_persistence.tolist()) == 0 : raise ("The time_persistent is empty!")    
         if len(var_persistence) ==0 : raise ("The var persistence is empty!")
         # tolist() is needed for plottingi
+        var_persistence = var_persistence[1:]
+        time_persistence = time_persistence[1:]
         return var_persistence, time_persistence.tolist()
     
     @staticmethod
