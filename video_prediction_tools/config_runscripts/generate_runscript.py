@@ -84,6 +84,8 @@ def main():
 
     cls_runscript.finalize()
 
+    print("*** Important note: Remember to open newly created directories for other AMBS-users! ***")
+
 if __name__== '__main__':
     main()
 
