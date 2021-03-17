@@ -79,12 +79,12 @@ class Config_Train(Config_runscript_base):
             seq_err = FileNotFoundError("Invalid sequence length passed or no TFrecord-files found")
 
             # Note, how the check_expdir-method is recycled by simply adding a properly defined suffix to it
-            seq_length = Config_Train.keyboard_interaction(seq_req_str, Config_Train.check_expdir,
-                                                           seq_err, ntries=2,
-                                                           prefix2arg=os.path.join(self.source_dir,
-                                                                                   Config_Train.basename_tfdirs))
+            # Note that due to the suffix, the returned value already corresponds to the final path for source_dir
+            self.source_dir = Config_Train.keyboard_interaction(seq_req_str, Config_Train.check_expdir,
+                                                                seq_err, ntries=2,
+                                                                prefix2arg=os.path.join(self.source_dir,
+                                                                                        Config_Train.basename_tfdirs))
 
-            self.source_dir = os.path.join(self.source_dir, Config_Train.basename_tfdirs + str(seq_length))
 
         # split up directory path in order to retrieve exp_dir used for setting up the destination directory
         exp_dir_split = Config_Train.path_rec_split(self.source_dir)
