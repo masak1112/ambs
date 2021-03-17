@@ -11,7 +11,7 @@ HOST_NAME=`hostname`
 
 echo "Start loading modules on ${HOST_NAME}..."
 echo "modules_train.sh is subject to: "
-echo "* preprocess_data_era5_step2_<exp_id>.sh"
+echo "* preprocess_data_era5_step2.sh"
 echo "* train_model_era5_[booster_]<exp_id>.sh"
 
 module use $OTHERSTAGES
