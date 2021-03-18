@@ -72,7 +72,7 @@ class Config_Postprocess(Config_runscript_base):
         dir_base = Config_Postprocess.keyboard_interaction(model_req_str, Config_Postprocess.check_model, model_err,
                                                            prefix2arg=dir_base+"/", ntries=2)
         # List the subdirectories...
-        dir_base = Config_Postprocess.get_subdir_list(dir_base)
+        _ = Config_Postprocess.get_subdir_list(dir_base)
         # ... and obtain the checkpoint directory
         trained_dir_req_str = "Choose a trained model from the experiment list above:"
         trained_err = FileNotFoundError("No trained model parameters found.")
@@ -151,7 +151,9 @@ class Config_Postprocess(Config_runscript_base):
         status = False
 
         if not os.path.isdir(model_path):
-            if not silent: print("The directory {0} does not exist".format(model_path))
+            if not silent:
+                print("The directory {0} does not exist".format(model_path))
+                _ = Config_Postprocess.get_subdir_list(model_path)
             return status
 
         model_in = os.path.basename(model_path)
