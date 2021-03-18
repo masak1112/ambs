@@ -61,7 +61,7 @@ class Config_Postprocess(Config_runscript_base):
         expbase_req_str = "Choose an experiment from the list above:"
         expbase_err = NotADirectoryError("Could not find passed directory.")
 
-        dir_base = Config_Postprocess.keyboard_interaction(expbase_req_str, Config_Postprocess.check_dir, expbase_err,
+        dir_base = Config_Postprocess.keyboard_interaction(expbase_req_str, expbase_err, Config_Postprocess.check_dir,
                                                            prefix2arg=dir_base+"/", ntries=2)
         # Choose the model
         model_req_str = "Enter the name of the trained model:"
