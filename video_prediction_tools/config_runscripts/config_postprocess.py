@@ -60,6 +60,7 @@ class Config_Postprocess(Config_runscript_base):
         dir_base = Config_Postprocess.handle_source_dir(self, "models")
         expbase_req_str = "Choose an experiment from the list above:"
         expbase_err = NotADirectoryError("Could not find passed directory.")
+        print(type(Config_Postprocess.check_dir))
 
         dir_base = Config_Postprocess.keyboard_interaction(expbase_req_str, Config_Postprocess.check_dir, expbase_err,
                                                            prefix2arg=dir_base+"/", ntries=2)
