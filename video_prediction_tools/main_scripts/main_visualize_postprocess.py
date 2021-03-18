@@ -363,7 +363,7 @@ class Postprocess(TrainModel,ERA5Pkl2Tfrecords):
                 #save each sample of persistent, model forecasting and reference to netcdf file
                 self.save_to_netcdf_for_stochastic_generate_images(self.input_images_denorm_all[i], self.persistence_images,
                                                             np.expand_dims(np.array(self.gen_images_denorm),axis=0),
-                                                            fl_name="vfp_date_{}_sample_ind_{}.nc".format(self.init_date_str,self.sample_ind+i))
+                                                            fl_name="vfp_date_{}_sample_ind_{}.nc".format(self.ts_persistence[self.context_frames-1:self.context_frames][0].strftime("%Y%m%d%H"),self.sample_ind+i))
 
                 #calculate the evaluation metric for persistent and model forecasting per sample
                 persistent_loss_per_sample = Postprocess.calculate_metrics_by_sample(self.input_images_denorm_all[i],self.persistence_images,self.future_length,self.context_frames,metric="mse",channel=0)
@@ -572,8 +572,8 @@ class Postprocess(TrainModel,ERA5Pkl2Tfrecords):
         Plot the persistence images
         """
        # I am not sure about the number of frames given with context_frames and context_frames +
-        Postprocess.plot_seq_imgs(imgs=self.persistence_images[self.context_frames:,:,:,0],lats=self.lats,lons=self.lons,
-                                  ts=self.ts_persistence[self.context_frames:], label="Persistence Forecast" + self.model,output_png_dir=self.results_dir) 
+        Postprocess.plot_seq_imgs(imgs=self.persistence_images[self.context_frames-1:,:,:,0],lats=self.lats,lons=self.lons,
+                                  ts=self.ts_persistence[self.context_frames-1:], label="Persistence Forecast" + self.model,output_png_dir=self.results_dir) 
 
     def plot_generate_images(self,stochastic_sample_ind,stochastic_plot_id=0):
         """
@@ -581,7 +581,7 @@ class Postprocess(TrainModel,ERA5Pkl2Tfrecords):
         """
         if stochastic_sample_ind == stochastic_plot_id: 
             Postprocess.plot_seq_imgs(imgs=self.gen_images_denorm[self.context_frames-1:,:,:,0],lats=self.lats,lons=self.lons,
-                                      ts=self.ts[self.context_frames:],label="Forecast by Model " + self.model,output_png_dir=self.results_dir) 
+                                      ts=self.ts_persistence[self.context_frames-1:],label="Forecast by Model " + self.model,output_png_dir=self.results_dir) 
         else:
             pass
 
