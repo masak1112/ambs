@@ -135,7 +135,12 @@ class Config_runscript_base:
     # -----------------------------------------------------------------------------------
     #
     def handle_source_dir(self, subdir_name):
-
+        """
+        Retrieves the value of the variable 'source_dir' from the runscript template, appends it by subdir_name and
+        returns a list of its subdiretories
+        :param subdir_name: name of the subdirectory to be attached
+        :return: the resulting path
+        """
         method_name = Config_runscript_base.handle_source_dir.__name__ + " of Class " + Config_runscript_base.cls_name
 
         err = None
@@ -154,6 +159,7 @@ class Config_runscript_base:
         if not os.path.isdir(base_source_dir):
             raise NotADirectoryError("%{0}: Cannot find directory '{1}'".format(method_name, base_source_dir))
 
+        list_dirs = get_subdir_list(base_source_dir)
         list_dirs = [f.name for f in os.scandir(base_source_dir) if f.is_dir()]
         if not list_dirs:
             raise ValueError("%{0}: Cannot find any subdirectory in {1}".format(method_name, base_source_dir))
@@ -201,10 +207,10 @@ class Config_runscript_base:
             stat = True
 
         return stat
-    @staticmethod
     #
     # --------------------------------------------------------------------------------------------------------
     #
+    @staticmethod
     def get_var_from_runscript(runscript_file, script_variable):
         '''
         Search for the declaration of variable in a Shell script and returns its value.
@@ -227,6 +233,32 @@ class Config_runscript_base:
             raise Exception("Could not find declaration of '" + script_variable + "' in '" + runscript_file + "'.")
 
         return var_value
+    #
+    # -----------------------------------------------------------------------------------
+    #
+    @staticmethod
+    def get_subdir_list(base_dir, lprint=True):
+        """
+        Retrieves list of subdirectories form base_dir and prints it if desired
+        :param base_dir: the base directory which is scanned froo subdiretories
+        :param lprint: flag if list should be printed
+        :return dirlist: list of subdirectories
+        """
+        method_name = Config_runscript_base.get_subdir_list.__name__
+
+        if not os.path.isdir(base_dir):
+            raise NotADirectoryError("%{0}: Passed directory {1} does not exist.".format(method_name, base_dir))
+
+        dirlist = [f.name for f in os.scandir(base_dir) if f.is_dir()]
+        if not dirlist:
+            raise ValueError("%{0}: Cannot find any subdirectory in {1}".format(method_name, base_dir))
+
+        if lprint:
+            print("%{0}: The following subdiretories are found under {1}".format(method_name, base_dir))
+            for subdir in dirlist:
+                print("* {0}".format(subdir))
+
+        return dirlist
     #
     # -----------------------------------------------------------------------------------
     #
