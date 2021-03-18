@@ -70,6 +70,7 @@ class Config_Postprocess(Config_runscript_base):
 
         dir_base = Config_Postprocess.keyboard_interaction(model_req_str, Config_Postprocess.check_model, model_err,
                                                            prefix2arg=dir_base+"/", ntries=2)
+        self.model = os.path.basename(dir_base)
         # List the subdirectories...
         _ = Config_Postprocess.get_subdir_list(dir_base)
         # ... and obtain the checkpoint directory
@@ -86,7 +87,6 @@ class Config_Postprocess(Config_runscript_base):
         cp_dir_split = list(filter(None, cp_dir_split))                       # get rid of empty list elements
 
         base_dir, exp_dir_base, exp_dir = "/"+os.path.join(*cp_dir_split[:-4]), cp_dir_split[-3], cp_dir_split[-1]
-        self.model = Config_Postprocess.check_model(cp_dir_split[-2])
         self.runscript_target = self.rscrpt_tmpl_prefix + self.dataset + exp_dir + ".sh"
 
         # get the sequence length from the model hyperparameters
@@ -224,7 +224,7 @@ class Config_Postprocess(Config_runscript_base):
         :param seq_length: sequence_length of TFrecord-files in source_dir_in
         :return: returns source_dir_in when check is passed successfully
         """
-        real_dir = os.path.join(source_dir_in, "tfrecords_{0}".format(seq_length))
+        real_dir = os.path.join(source_dir_in, "tfrecords_seq_len_{0}".format(seq_length))
         if os.path.isdir(real_dir):
             file_list = glob.glob(os.path.join(real_dir, "sequence*.tfrecords"))
             if len(file_list) > 0:
