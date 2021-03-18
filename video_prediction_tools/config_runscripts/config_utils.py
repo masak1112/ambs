@@ -160,13 +160,6 @@ class Config_runscript_base:
             raise NotADirectoryError("%{0}: Cannot find directory '{1}'".format(method_name, base_source_dir))
 
         list_dirs = Config_runscript_base.get_subdir_list(base_source_dir)
-        list_dirs = [f.name for f in os.scandir(base_source_dir) if f.is_dir()]
-        if not list_dirs:
-            raise ValueError("%{0}: Cannot find any subdirectory in {1}".format(method_name, base_source_dir))
-
-        print("%{0}: The following subdiretories are found under {1}".format(method_name, base_source_dir))
-        for subdir in list_dirs:
-            print("* {0}".format(subdir))
 
         return base_source_dir
     #
