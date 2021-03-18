@@ -339,8 +339,7 @@ class Postprocess(TrainModel,ERA5Pkl2Tfrecords):
         self.restore(self.sess, self.checkpoint)
         #Loop for samples
         self.sample_ind = 0
-        self.persistent_loss_all_batches = []  # store the evaluation metric with shape [future_len]
-        self.gen_loss_all_batches = []  # store the determinstic model metric with shape [future_len]
+        Postprocess.init_eval_metrics_list()
         while self.sample_ind < self.num_samples_per_epoch:
             if self.num_samples_per_epoch < self.sample_ind:
                 break
@@ -366,18 +365,56 @@ class Postprocess(TrainModel,ERA5Pkl2Tfrecords):
                                                             fl_name="vfp_date_{}_sample_ind_{}.nc".format(self.ts_persistence[self.context_frames-1:self.context_frames][0].strftime("%Y%m%d%H"),self.sample_ind+i))
 
                 #calculate the evaluation metric for persistent and model forecasting per sample
-                persistent_loss_per_sample = Postprocess.calculate_metrics_by_sample(self.input_images_denorm_all[i],self.persistence_images,self.future_length,self.context_frames,metric="mse",channel=0)
-                self.persistent_loss_all_batches.append(persistent_loss_per_sample)
-
-                gen_loss_per_sample =Postprocess.calculate_metrics_by_sample(self.input_images_denorm_all[i],self.gen_images_denorm,self.future_length,self.context_frames,metric="mse",channel=0)
-                self.gen_loss_all_batches.append(gen_loss_per_sample)
-
+                Postprocess.calculate_persistence_eval_metrics(i)
+                Postprocess.calcualte_generate_eval_metrics(i)
+ 
             self.sample_ind += self.batch_size
-        self.persistent_loss_all_batches = np.mean(np.array(self.persistent_loss_all_batches),axis=0)
-        self.gen_loss_all_batches = np.mean(np.array(self.gen_loss_all_batches),axis=0)
-        self.stochastic_loss_all_batches =  np.expand_dims(self.gen_loss_all_batches,axis=0) #[1,future_lenght]
         
+        Postprocess.average_eval_metrics_for_all_batches()        
+        Postprocess.turn_deter_to_stochastic() 
 
+
+    def init_eval_metrics_list(self):
+        """
+        Initilizat all the metrics list to store the evaluation results
+        """
+        self.persistent_loss_all_batches = []  # store the evaluation metric with shape [future_len]
+        self.gen_loss_all_batches = []  # store the determinstic model metric with shape [future_len]
+        self.persistent_loss_all_batches_psnr = []
+        self.gen_loss_all_batches_psnr = []
+
+
+    def calculate_persistence_eval_metrics(self,i):
+        #calculate the evaluation metric for persistent and model forecasting per sample
+        persistent_loss_per_sample = Postprocess.calculate_metrics_by_sample(self.input_images_denorm_all[i],self.persistence_images,self.future_length,self.context_frames,metric="mse",channel=0)
+        self.persistent_loss_all_batches.append(persistent_loss_per_sample)
+        persistent_loss_per_sample_psnr = Postprocess.calculate_metrics_by_sample(self.input_images_denorm_all[i],self.persistence_images,self.future_length,self.context_frames,metric="psnr",channel=0)
+        self.persistent_loss_all_batches_psnr.append(persistent_loss_per_sample_psnr)
+
+
+    def calculate_generate_eval_metrics(self,i):
+        """
+        Calculate evaluation metrics for generate models
+        """
+        gen_loss_per_sample =Postprocess.calculate_metrics_by_sample(self.input_images_denorm_all[i],self.gen_images_denorm,self.future_length,self.context_frames,metric="mse",channel=0)
+        self.gen_loss_all_batches.append(gen_loss_per_sample)
+        gen_loss_per_sample_psnr=Postprocess.calculate_metrics_by_sample(self.input_images_denorm_all[i],self.gen_images_denorm,self.future_length,self.context_frames,metric="psnr",channel=0)
+        self.gen_loss_all_batches_psnr.append(gen_loss_per_sample_psnr)
+
+    def average_eval_metrics_for_all_batches(self):
+        """
+        average evaluation metrics for all the samples
+        """
+        self.persistent_loss_all_batches = np.mean(np.array(self.persistent_loss_all_batches),axis=0)
+        self.persistent_loss_all_batches_psnr = np.mean(np.array(self.persistent_loss_all_batches_psnr),axis=0)
+       
+        self.gen_loss_all_batches = np.mean(np.array(self.gen_loss_all_batches),axis=0)
+        self.gen_loss_all_batches_psnr = np.mean(np.array(self.gen_loss_all_batches_psnr),axis=0)
+
+
+    def turn_deter_to_stochastic(self):
+        self.stochastic_loss_all_batches =  np.expand_dims(self.gen_loss_all_batches,axis=0) #[1,future_lenght]
+        self.stochastic_loss_all_batches_psnr = np.expand_dims(self.gen_loss_all_batches_psnr,axis=0) #[1,future_lenght]
 
     def get_and_plot_persistent_per_sample(self,sample_id):
         
@@ -485,8 +522,6 @@ class Postprocess(TrainModel,ERA5Pkl2Tfrecords):
         with open (os.path.join(self.results_dir,metric),"w") as fjs:
             json.dump(self.eval_metrics,fjs)
 
-
-  
 
     @staticmethod
     def check_gen_images_stochastic_shape(gen_images_stochastic):
