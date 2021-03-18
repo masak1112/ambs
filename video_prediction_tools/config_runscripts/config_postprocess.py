@@ -61,6 +61,7 @@ class Config_Postprocess(Config_runscript_base):
         expbase_req_str = "Choose an experiment from the list above:"
         expbase_err = NotADirectoryError("Could not find passed directory.")
         print(type(Config_Postprocess.check_dir))
+        print(dir_base)
 
         dir_base = Config_Postprocess.keyboard_interaction(expbase_req_str, Config_Postprocess.check_dir, expbase_err,
                                                            prefix2arg=dir_base+"/", ntries=2)
@@ -68,7 +69,7 @@ class Config_Postprocess(Config_runscript_base):
         model_req_str = "Enter the name of the trained model:"
         model_err = NotADirectoryError("No directory for trained model exists.")
 
-        dir_base = Config_Postprocess.keyboard_interaction(model_req_str, model_err, Config_Postprocess.check_model,
+        dir_base = Config_Postprocess.keyboard_interaction(model_req_str, Config_Postprocess.check_model, model_err,
                                                            prefix2arg=dir_base+"/", ntries=2)
         # List the subdirectories...
         dir_base = Config_Postprocess.get_subdir_list(dir_base)
