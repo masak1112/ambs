@@ -60,8 +60,6 @@ class Config_Postprocess(Config_runscript_base):
         dir_base = Config_Postprocess.handle_source_dir(self, "models")
         expbase_req_str = "Choose an experiment from the list above:"
         expbase_err = NotADirectoryError("Could not find passed directory.")
-        print(type(Config_Postprocess.check_dir))
-        print(dir_base)
 
         dir_base = Config_Postprocess.keyboard_interaction(expbase_req_str, Config_Postprocess.check_dir, expbase_err,
                                                            prefix2arg=dir_base+"/", ntries=2)
@@ -79,7 +77,7 @@ class Config_Postprocess(Config_runscript_base):
 
         self.checkpoint_dir = Config_Postprocess.keyboard_interaction(trained_dir_req_str,
                                                                       Config_Postprocess.check_traindir,
-                                                                      trained_err, ntries=3, prefix2arg=dir_base)
+                                                                      trained_err, ntries=3, prefix2arg=dir_base+"/")
 
         # get the relevant information from checkpoint_dir in order to construct source_dir and results_dir
         # (following naming convention)
@@ -153,7 +151,10 @@ class Config_Postprocess(Config_runscript_base):
         if not os.path.isdir(model_path):
             if not silent:
                 print("The directory {0} does not exist".format(model_path))
-                _ = Config_Postprocess.get_subdir_list(model_path)
+                try:
+                    _ = Config_Postprocess.get_subdir_list(os.path.dirname(model_path))
+                except: 
+                    print("The base directory does not exist as well!")
             return status
 
         model_in = os.path.basename(model_path)
@@ -188,7 +189,7 @@ class Config_Postprocess(Config_runscript_base):
                 if not silent:
                     print("{0} does not contain any model parameter files (model-*.meta).".format(checkpoint_dir))
         else:
-            if not silent: print("Passed directory does not exist!")
+            if not silent: print("Passed directory '{0}' does not exist!".format(checkpoint_dir))
         return status
     #
     # -----------------------------------------------------------------------------------
