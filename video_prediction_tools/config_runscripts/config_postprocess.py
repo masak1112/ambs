@@ -50,17 +50,34 @@ class Config_Postprocess(Config_runscript_base):
                                                               dset_err, ntries=2)
 
         # now, we are also ready to set the correct name of the runscript template and the target
+        # self.runscript_target is set below
         self.runscript_template = self.rscrpt_tmpl_prefix + self.dataset + self.suffix_template
-        # sel.runscript_target is set below
 
         # get the 'checkpoint-directory', i.e. the directory where the trained model parameters are stored
         # Note that the remaining information (model, results-directory etc.) can be retrieved form it!!!
-        trained_dir_req_str = "Enter the absolute (!) path to trained model for which postprocessing should be done:"
+
+        # First chosse the basic experiment directory
+        dir_base = Config_Postprocess.handle_source_dir(self, "models")
+        expbase_req_str = "Choose an experiment from the list above:"
+        expbase_err = NotADirectoryError("Could not find passed directory.")
+
+        dir_base = Config_Postprocess.keyboard_interaction(expbase_req_str, Config_Postprocess.check_dir, expbase_err,
+                                                           prefix2arg=dir_base)
+        # Choose the model
+        model_req_str = "Enter the name of the trained model:"
+        model_err = NotADirectoryError("No directory for trained model exists.")
+
+        dir_base = Config_Postprocess.keyboard_interaction(model_req_str, model_err, Config_Postprocess.check_model,
+                                                           prefix2arg=dir_base)
+        # List the subdirectories...
+        dir_base = Config_Postprocess.get_subdir_list(dir_base)
+        # ... and obtain the checkpoint directory
+        trained_dir_req_str = "Choose a trained model from the experiment list above:"
         trained_err = FileNotFoundError("No trained model parameters found.")
 
         self.checkpoint_dir = Config_Postprocess.keyboard_interaction(trained_dir_req_str,
                                                                       Config_Postprocess.check_traindir,
-                                                                      trained_err, ntries=3)
+                                                                      trained_err, ntries=3, prefix2arg=dir_base)
 
         # get the relevant information from checkpoint_dir in order to construct source_dir and results_dir
         # (following naming convention)
@@ -71,7 +88,11 @@ class Config_Postprocess(Config_runscript_base):
         self.model = Config_Postprocess.check_model(cp_dir_split[-2])
         self.runscript_target = self.rscrpt_tmpl_prefix + self.dataset + exp_dir + ".sh"
 
-        self.source_dir = Config_Postprocess.check_source(os.path.join(base_dir, "preprocessedData", exp_dir_base))
+        # get the sequence length from the model hyperparameters
+        seq_length = Config_Postprocess.get_seq_length(self.checkpoint_dir)
+
+        self.source_dir = Config_Postprocess.check_source(os.path.join(base_dir, "preprocessedData", exp_dir_base),
+                                                          seq_length)
         self.results_dir = os.path.join(base_dir, "results", exp_dir_base, self.model, exp_dir)
     #
     # -----------------------------------------------------------------------------------
@@ -100,6 +121,53 @@ class Config_Postprocess(Config_runscript_base):
     # -----------------------------------------------------------------------------------
     #
     @staticmethod
+    def check_dir(dir_in, silent=False):
+        """
+        Simply checks if directory exists
+        :param dir_in: path to directory
+        :param silent: flag if print-statement are executed
+        :return: status with True confirming success
+        """
+        if not os.path.isdir(dir_in):
+            if not silent: print("{0} is not a directory".format(dir_in))
+            status = False
+        else:
+            status = True
+
+        return status
+    #
+    # -----------------------------------------------------------------------------------
+    #
+    @staticmethod
+    def check_model(model_path, silent=False):
+        """
+        Checks if passed path points to a model directory, i.e. the basename must be named as a known model
+        :param model_path: the path to check
+        :param silent: flag if print-statement are executed
+        :return: status with True confirming success
+        """
+        status = False
+
+        if not os.path.isdir(model_path):
+            if not silent: print("The directory {0} does not exist".format(model_path))
+            return status
+
+        model_in = os.path.basename(model_path)
+        if not model_in in Config_Postprocess.list_models:
+            if not silent:
+                print("**** Known models ****")
+                for model in Config_Postprocess.list_models:
+                    print(model)
+                print("{0} is an unknown model (see list of known models above).".format(model_in))
+        else:
+            status = True
+
+        return status
+
+    #
+    # -----------------------------------------------------------------------------------
+    #
+    @staticmethod
     def check_traindir(checkpoint_dir, silent=False):
         """
         Check if the passed directory path contains the model parameters stored in model-XXXX.meta
@@ -113,28 +181,11 @@ class Config_Postprocess(Config_runscript_base):
             if len(file_list) > 0:
                 status = True
             else:
-                print("{0} does not contain any model parameter files (model-*.meta).".format(checkpoint_dir))
+                if not silent:
+                    print("{0} does not contain any model parameter files (model-*.meta).".format(checkpoint_dir))
         else:
             if not silent: print("Passed directory does not exist!")
         return status
-    #
-    # -----------------------------------------------------------------------------------
-    #
-    @staticmethod
-    def check_model(model_in):
-        """
-        Checks if passed model name is known and can be handled
-        :param model_in: name of model to be checked
-        :return: returns model_in when check is passed successfully
-        """
-        if not model_in in Config_Postprocess.list_models:
-            print("**** Known models ****")
-            for model in Config_Postprocess.list_models: print(model)
-            raise ValueError("{0} is an unknown model (see list of known models above).".format(model_in))
-        else:
-            pass
-
-        return model_in
     #
     # -----------------------------------------------------------------------------------
     #
