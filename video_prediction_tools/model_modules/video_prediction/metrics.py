@@ -33,4 +33,9 @@ def mse_imgs(image1,image2):
 #     distance = lpips_tf.lpips(input0, input1)
 #     return -distance
 
+def ssim_images(image1,image2):
+    """
 
+    Numpy impelmeentation for ssim https://cvnote.ddlee.cc/2019/09/12/psnr-ssim-python
+    """
+    pass    
