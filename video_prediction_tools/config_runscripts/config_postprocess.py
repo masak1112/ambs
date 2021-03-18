@@ -62,13 +62,13 @@ class Config_Postprocess(Config_runscript_base):
         expbase_err = NotADirectoryError("Could not find passed directory.")
 
         dir_base = Config_Postprocess.keyboard_interaction(expbase_req_str, Config_Postprocess.check_dir, expbase_err,
-                                                           prefix2arg=dir_base)
+                                                           prefix2arg=dir_base+"/", ntries=2)
         # Choose the model
         model_req_str = "Enter the name of the trained model:"
         model_err = NotADirectoryError("No directory for trained model exists.")
 
         dir_base = Config_Postprocess.keyboard_interaction(model_req_str, model_err, Config_Postprocess.check_model,
-                                                           prefix2arg=dir_base)
+                                                           prefix2arg=dir_base+"/", ntries=2)
         # List the subdirectories...
         dir_base = Config_Postprocess.get_subdir_list(dir_base)
         # ... and obtain the checkpoint directory
