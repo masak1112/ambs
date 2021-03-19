@@ -19,7 +19,7 @@ exit 99
 ######### Template identifier (don't remove) #########
 
 # Name of virtual environment 
-VIRT_ENV_NAME="vp"
+VIRT_ENV_NAME="my_venv"
 
 # Loading mouldes
 source ../env_setup/modules_train.sh
@@ -43,12 +43,14 @@ destination_dir=/p/project/deepacf/deeprain/video_prediction_shared_folder/model
 model=convLSTM
 datasplit_dict=../data_split/cv_test.json
 model_hparams=${destination_dir}/model_hparams.json
+dataset=era5
 
 #If you train savp, Please uncomment the following CUDA configuration
 #CUDA_VISIBLE_DEVICES=1
 
 # run training
-srun python ../main_scripts/main_train_models.py --input_dir  ${source_dir} --datasplit_dict ${datasplit_dict} --dataset era5  --model ${model} --model_hparams_dict ${model_hparams} --output_dir ${destination_dir}
+srun python ../main_scripts/main_train_models.py --input_dir  ${source_dir} --datasplit_dict ${datasplit_dict} \
+ --dataset ${dataset}  --model ${model} --model_hparams_dict ${model_hparams} --output_dir ${destination_dir}
 
 
 

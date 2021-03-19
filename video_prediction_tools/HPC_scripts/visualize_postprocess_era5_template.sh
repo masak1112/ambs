@@ -19,7 +19,7 @@ exit 99
 ######### Template identifier (don't remove) #########
 
 # Name of virtual environment 
-VIRT_ENV_NAME="vp"
+VIRT_ENV_NAME="my_venv"
 
 # Loading modules
 source ../env_setup/modules_postprocess.sh
@@ -35,16 +35,16 @@ if [ -z ${VIRTUAL_ENV} ]; then
 fi
 
 # declare directory-variables which will be modified by config_runscript.py
-source_dir=/p/project/deepacf/deeprain/video_prediction_shared_folder/preprocessedData/
-checkpoint_dir=/p/project/deepacf/deeprain/video_prediction_shared_folder/models/
-results_dir=/p/project/deepacf/deeprain/video_prediction_shared_folder/results/
+# Note: source_dir is only needed for retrieving the base-directory
+source_dir=/my/source/dir/
+checkpoint_dir=/my/trained/model/dir
+results_dir=/my/results/dir
 
 # name of model
 model=convLSTM
 
 # run postprocessing/generation of model results including evaluation metrics
-srun python -u ../main_scripts/main_visualize_postprocess.py \
---input_dir ${source_dir}  --checkpoint  ${checkpoint_dir} \
---mode test --results_dir ${results_dir}  \
---batch_size 2 --num_samples 20 --num_stochastic_samples 2  \
-  > generate_era5-out.out
+srun python -u ../main_scripts/main_visualize_postprocess.py --checkpoint  ${checkpoint_dir} --mode test  \
+                                                             --results_dir ${results_dir} --batch_size 2 \
+                                                             --num_samples 20 --num_stochastic_samples 2  \
+                                                               > generate_era5-out.out

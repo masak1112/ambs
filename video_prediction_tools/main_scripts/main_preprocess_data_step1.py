@@ -17,13 +17,13 @@ from data_preprocess.process_netCDF_v2 import *
 from metadata import MetaData as MetaData
 import json
 
+
 def main():
 
     parser = argparse.ArgumentParser()
     parser.add_argument("--source_dir", type=str, default="/p/scratch/deepacf/bing/extractedData/")
-    parser.add_argument("--destination_dir", type=str,\
+    parser.add_argument("--destination_dir", type=str,
                         default="/p/scratch/deepacf/bing/processData_size_64_64_3_3t_norm")
-    parser.add_argument("--script_dir", "-scr_dir", dest="script_dir", type=str)
     parser.add_argument("--years", "-y", dest="years")
     parser.add_argument("--rsync_status", type=int, default=1)
     parser.add_argument("--vars", nargs="+", default=["T2", "T2", "T2"])  #"MSL","gph500"
@@ -31,16 +31,15 @@ def main():
     parser.add_argument("--lat_e", type=int, default=170)
     parser.add_argument("--lon_s", type=int, default=598)
     parser.add_argument("--lon_e", type=int, default=662)
-    parser.add_argument("--experimental_id", "-exp_id", dest="exp_id", type=str, default="exp1",\
+    parser.add_argument("--experimental_id", "-exp_id", dest="exp_id", type=str, default="dummy",
                         help="Experimental identifier helping to distinguish between different experiments.")
     args = parser.parse_args()
 
     current_path = os.getcwd()
-    years        = args.years
-    source_dir   = args.source_dir
+    years = args.years
+    source_dir = args.source_dir
     source_dir_full = os.path.join(source_dir, str(years))+"/"
     destination_dir = args.destination_dir
-    scr_dir         = args.script_dir
     rsync_status = args.rsync_status
    
     vars1 = args.vars
@@ -98,16 +97,11 @@ def main():
         data_files_list = glob.glob(source_dir_full+"/**/*.nc", recursive=True)
         if not data_files_list:
             raise IOError("Could not find any data to be processed in '"+source_dir_full+"'")
-        print("variables",vars1)        
-        md = MetaData(suffix_indir=destination_dir, exp_id=exp_id, data_filename=data_files_list[0], slices=slices,\
+        print("variables", vars1)
+        md = MetaData(suffix_indir=destination_dir, exp_id=exp_id, data_filename=data_files_list[0], slices=slices,
                       variables=vars1)
-        # modify Batch scripts if metadata has been retrieved for the first time (md.status = "new")
-        if md.status == "new":
-            md.write_dirs_to_batch_scripts(scr_dir+"/preprocess_data_era5_step2.sh")
-            #md.write_dirs_to_batch_scripts(scr_dir + "/train_model_era5.sh")
-            #md.write_dirs_to_batch_scripts(scr_dir+"/visualize_postprocess_era5.sh")
 
-        elif md.status == "old":        # meta-data file already exists and is ok
+        if md.status == "old":          # meta-data file already exists and is ok
                                         # check for temp.json in working directory (required by slave nodes)
             tmp_file = os.path.join(current_path, "temp.json")
             if os.path.isfile(tmp_file):
@@ -116,7 +110,7 @@ def main():
                                 " for safety reasons."
                 logging.info(mess_tmp_file)
 
-        # ML 2019/06/08: Dirty workaround as long as data-splitting is done with a seperate Python-script
+        # ML 2020/06/08: Dirty workaround as long as data-splitting is done with a seperate Python-script
         #                called from the same parent Shell-/Batch-script
         #                -> work with temproary json-file in working directory
         # create or update temp.json, respectively
@@ -131,9 +125,8 @@ def main():
             logging.info('Create new destination dir')
             os.makedirs(destination_dir, exist_ok=True)
         
-        with open(os.path.join(md.expdir,md.expname,"options.json"),"w") as f:
-            f.write(json.dumps(vars(args),sort_keys=True, indent=4))
-
+        with open(os.path.join(md.expdir, md.expname, "options.json"), "w") as f:
+            f.write(json.dumps(vars(args), sort_keys=True, indent=4))
 
     # ML 2020/04/24 E   
 
@@ -154,7 +147,7 @@ def main():
 
         print(" # ==============  Load Distrbution  : start  ==================# ")
         
-        ret_load_balancer = load_distributor(dir_detail_list, sub_dir_list, total_size_source, total_num_files,\
+        ret_load_balancer = load_distributor(dir_detail_list, sub_dir_list, total_size_source, total_num_files,
                                              total_num_dir, p)
         transfer_dict = ret_load_balancer
 
@@ -208,7 +201,7 @@ def main():
                 if rsync_status == 1:
                     # ML 2020/06/09: workaround to get correct destination_dir obtained by the master node
                     destination_dir = MetaData.get_destdir_jsontmp(tmp_dir=current_path)
-                    process_data = PreprocessNcToPkl(src_dir=source_dir, target_dir=destination_dir, year=years, \
+                    process_data = PreprocessNcToPkl(src_dir=source_dir, target_dir=destination_dir, year=years,
                                                      job_name=job, slices=slices, vars=vars1)
                     process_data()
 
