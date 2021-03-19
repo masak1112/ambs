@@ -14,6 +14,7 @@ import numpy as np
 import json
 import tensorflow as tf
 from normalization import Norm_data
+from metadata import MetaData
 import datetime
 from model_modules.video_prediction.datasets import ERA5Dataset
 
@@ -37,7 +38,8 @@ class ERA5Pkl2Tfrecords(ERA5Dataset):
         # if the output_dir is not exist, then create it
         os.makedirs(self.output_dir, exist_ok=True)
         # get metadata,includes the var_in, image height, width etc.
-        self.get_metadata()
+        self.metadata_fl = os.path.join(os.path.dirname(self.input_dir.rstrip("/")), "metadata.json")
+        self.get_metadata(MetaData(json_file=self.metdata_fl))
         # Get the data split informaiton
         self.sequence_length = sequence_length
         if norm == "minmax" or norm == "znorm":
@@ -80,7 +82,7 @@ class ERA5Pkl2Tfrecords(ERA5Dataset):
         else:
             raise FileNotFoundError("Statistic file does not exist")
 
-    def get_metadata(self):
+    def get_metadata(self, md_instance):
         """
         This function gets the meta data that has been generated in data_process_step1. Here, we aim to extract
         the height and width information from it
@@ -88,20 +90,20 @@ class ERA5Pkl2Tfrecords(ERA5Dataset):
         height    : int, the height of the image
         width     : int, the width of the image
         """
-        metadata_fl = os.path.join(os.path.dirname(self.input_dir.rstrip("/")), "metadata.json")
-        if os.path.isfile(metadata_fl):
-            self.metadata_fl = metadata_fl
-            with open(self.metadata_fl) as f:
-                self.metadata = json.load(f)
-            self.frame_size = self.metadata["frame_size"]
-            self.height = self.frame_size["ny"]
-            self.width = self.frame_size["nx"]
-            self.variables = self.metadata["variables"]
+        if not isinstance(md_instance, MetaData):
+            raise ValueError("md_instance-argument must be a MetaData class instance")
+
+        if not hasattr(self, "metadata_fl"):
+            raise ValueError("MetaData class instance passed, but attribute metadata_fl is still missing.")
+
+        try:
+            self.frame_size = md_instance["frame_size"]
+            self.height, self.width = md_instance["ny"], md_instance["nx"]
+            self.variables = md_instance["variables"]
             self.vars_in = [list(var.values())[0] for var in self.variables]
-           
-        else:
-            raise FileNotFoundError("The metadata file '{0}' was not generated properly, ".format(metadata_fl) +
-                                    "you might need to re-run previous step of the workflow")
+        except:
+            raise IOError("Could not retrieve all required information from metadata-file '{0}'"
+                          .format(self.metadata_fl))
 
     @staticmethod
     def save_tf_record(output_fname, sequences, t_start_points):
