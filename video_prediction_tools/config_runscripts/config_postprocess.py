@@ -85,7 +85,7 @@ class Config_Postprocess(Config_runscript_base):
         cp_dir_split = list(filter(None, cp_dir_split))                       # get rid of empty list elements
 
         base_dir, exp_dir_base, exp_dir = "/"+os.path.join(*cp_dir_split[:-4]), cp_dir_split[-3], cp_dir_split[-1]
-        self.runscript_target = self.rscrpt_tmpl_prefix + self.dataset + exp_dir + ".sh"
+        self.runscript_target = self.rscrpt_tmpl_prefix + self.dataset + "_" + exp_dir + ".sh"
 
         # finally, set results_dir
         self.results_dir = os.path.join(base_dir, "results", exp_dir_base, self.model, exp_dir)
