@@ -46,7 +46,7 @@ class Config_Postprocess(Config_runscript_base):
         dset_err = ValueError("Please select a dataset from the ones listed above.")
 
         self.dataset = Config_Postprocess.keyboard_interaction(dset_type_req_str, Config_Postprocess.check_dataset,
-                                                              dset_err, ntries=2)
+                                                               dset_err, ntries=2)
 
         # now, we are also ready to set the correct name of the runscript template and the target
         # self.runscript_target is set below
