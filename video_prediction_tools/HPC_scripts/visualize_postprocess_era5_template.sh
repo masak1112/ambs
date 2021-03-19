@@ -35,6 +35,7 @@ if [ -z ${VIRTUAL_ENV} ]; then
 fi
 
 # declare directory-variables which will be modified by config_runscript.py
+# Note: source_dir is only needed for retrieving the base-directory
 source_dir=/my/source/dir/
 checkpoint_dir=/my/trained/model/dir
 results_dir=/my/results/dir
