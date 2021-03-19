@@ -184,13 +184,11 @@ class Postprocess(TrainModel):
         md_instance = MetaData(json_file=metadata_fl)
 
         try:
-            self.frame_size = md_instance["frame_size"]
-            self.height, self.width = md_instance["ny"], md_instance["nx"]
-            self.variables = md_instance["variables"]
-            self.vars_in = [list(var.values())[0] for var in self.variables]
+            self.height, self.width = md_instance.ny, md_instance.nx
+            self.vars_in = md_instance.variables
 
-            self.lats = md_instance["lat"]
-            self.lons = md_instance["lon"]
+            self.lats = md_instance.lat
+            self.lons = md_instance.lon
         except:
             raise IOError("%{0}: Could not retrieve all required information from metadata-file '{1}'"
                           .format(method_name, metadata_fl))
@@ -200,7 +198,7 @@ class Postprocess(TrainModel):
         setup the test dataset instance
         """
         VideoDataset = datasets.get_dataset_class(self.dataset)
-        self.test_dataset = VideoDataset(input_dir=self.input_dir,mode=self.mode,datasplit_config=self.datasplit_dict)
+        self.test_dataset = VideoDataset(input_dir=self.input_dir_tfr, mode=self.mode, datasplit_config=self.datasplit_dict)
         
     def setup_num_samples_per_epoch(self):
         """
