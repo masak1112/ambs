@@ -39,7 +39,7 @@ class ERA5Pkl2Tfrecords(ERA5Dataset):
         os.makedirs(self.output_dir, exist_ok=True)
         # get metadata,includes the var_in, image height, width etc.
         self.metadata_fl = os.path.join(os.path.dirname(self.input_dir.rstrip("/")), "metadata.json")
-        self.get_metadata(MetaData(json_file=self.metdata_fl))
+        self.get_metadata(MetaData(json_file=self.metadata_fl))
         # Get the data split informaiton
         self.sequence_length = sequence_length
         if norm == "minmax" or norm == "znorm":
@@ -97,10 +97,8 @@ class ERA5Pkl2Tfrecords(ERA5Dataset):
             raise ValueError("MetaData class instance passed, but attribute metadata_fl is still missing.")
 
         try:
-            self.frame_size = md_instance["frame_size"]
-            self.height, self.width = md_instance["ny"], md_instance["nx"]
-            self.variables = md_instance["variables"]
-            self.vars_in = [list(var.values())[0] for var in self.variables]
+            self.height, self.width = md_instance.ny, md_instance.nx
+            self.vars_in = md_instance.variables
         except:
             raise IOError("Could not retrieve all required information from metadata-file '{0}'"
                           .format(self.metadata_fl))
