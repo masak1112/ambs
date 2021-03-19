@@ -28,13 +28,12 @@ import shutil
 from model_modules.video_prediction import datasets, models
 
 
-class Postprocess(TrainModel,ERA5Pkl2Tfrecords):
-    def __init__(self, input_dir=None, results_dir=None, checkpoint=None, mode="test",
+class Postprocess(TrainModel):
+    def __init__(self, results_dir=None, checkpoint=None, mode="test",
                       batch_size=None, num_samples=None, num_stochastic_samples=1, stochastic_plot_id=0,
                       gpu_mem_frac=None, seed=None,args=None):
         """
         The function for inference, generate results and images
-        input_dir     :str, The root directory of tfrecords
         results_dir   :str, The output directory to save results
         checkpoint    :str, The directory point to the checkpoints
         mode          :str, Default is test, could be "train","val", and "test"
@@ -48,70 +47,147 @@ class Postprocess(TrainModel,ERA5Pkl2Tfrecords):
         gpu_mem_frac       :int, GPU memory fraction to be used
         seed               :seed for control test samples
         """
-     
-        self.input_dir = os.path.normpath(input_dir)
+
+        # initialize input directories (to be retrieved by load_jsons)
+        self.input_dir = None
+        self.input_dir_tfr = None
+        self.input_dir_pkl = None
+        # set further attributes from parsed arguments
         self.results_dir = self.output_dir = os.path.normpath(results_dir) 
-        if not os.path.exists(self.results_dir):os.makedirs(self.results_dir)
+        if not os.path.exists(self.results_dir):
+            os.makedirs(self.results_dir)
         self.batch_size = batch_size
         self.gpu_mem_frac = gpu_mem_frac
         self.seed = seed
         self.num_samples = num_samples
         self.num_stochastic_samples = num_stochastic_samples
         self.stochastic_plot_id = stochastic_plot_id
-        self.input_dir_tfrecords = os.path.join(self.input_dir, "tfrecords")
-        self.input_dir_pkl = os.path.join(self.input_dir, "pickle")
         self.args = args 
         self.checkpoint = checkpoint
         self.mode = mode
-        if self.num_samples < self.batch_size: raise ValueError("The number of samples should be at least as large as the batch size. Currently, number of samples: {} batch size: {}".format(self.num_samples, self.batch_size))
-        if checkpoint is None: raise ("The directory point to checkpoint is empty, must be provided for postprocess step")     
-    
+        if self.num_samples < self.batch_size:
+            raise ValueError("The number of samples should be at least as large as the batch size. " +
+                             "Currently, number of samples: {} batch size: {}"
+                             .format(self.num_samples, self.batch_size))
+        if checkpoint is None:
+            raise ValueError("The directory point to checkpoint is empty, must be provided for postprocess step")
 
     def __call__(self):
         self.set_seed()
-        self.get_metadata()
-        self.copy_data_model_json()
         self.save_args_to_option_json()
+        self.copy_data_model_json()
         self.load_jsons()
+        self.get_metadata()
         self.setup_test_dataset()
         self.setup_model()
         self.get_data_params()
         self.setup_num_samples_per_epoch()
-        self.get_coordinates()
         self.get_stat_file()
         self.make_test_dataset_iterator() 
         self.check_stochastic_samples_ind_based_on_model()
         self.setup_graph()
         self.setup_gpu_config()
+
+    def load_jsons(self):
+        """
+        Set attributes pointing to JSON-files which track essential information and load also some information
+        to store it to attributes of the class instance
+        """
+        method_name = Postprocess.load_jsons.__name__
+
+        if not os.path.isdir(self.results_dir):
+            raise NotADirectoryError("%{0}: The results directory '{1}' does not exist.".format(method_name,
+                                                                                                self.results_dir))
+        self.datasplit_dict = os.path.join(self.results_dir, "data_dict.json")
+        self.model_hparams_dict = os.path.join(self.results_dir, "model_hparams.json")
+        checkpoint_opt_dict = os.path.join(self.results_dir, "options_checkpoints.json")
+
+        # sanity checks on the JSON-files
+        if not os.path.isfile(self.datasplit_dict):
+            raise FileNotFoundError("%{0}: The file data_dict.json is missing in {1}".format(method_name,
+                                                                                             self.results_dir))
+
+        if not os.path.isfile(self.model_hparams_dict):
+            raise FileNotFoundError("%{0}: The file model_hparams.json is missing in {1}".format(method_name,
+                                                                                                 self.results_dir))
+
+        if not os.path.isfile(checkpoint_opt_dict):
+            raise FileNotFoundError("%{0}: The file options_checkpoints.json is missing in {1}"
+                                    .format(method_name, self.results_dir))
+        # retrieve some data from options_checkpoints.json
+        try:
+            with open(checkpoint_opt_dict) as f:
+                self.options_checkpoint = json.loads(f.read())
+                self.dataset = self.options_checkpoint["dataset"]
+                self.model = self.options_checkpoint["model"]
+                self.input_dir_tfr = self.options_checkpoint["input_dir"]
+                self.input_dir = os.path.dirname(self.input_dir_tfr)
+                self.input_dir_pkl = os.path.join(self.input_dir, "pickle")
+        except:
+            raise IOError("%{0}: Could not retrieve all information from options_checkpoints.json".format(method_name))
+
+        self.model_hparams_dict_load = self.get_model_hparams_dict()
        
-                
+    def get_metadata(self):
+
+        method_name = Postprocess.get_metadata.__name__
+
+        # some sanity checks
+        if not hasattr(self, "input_dir"):
+            raise AttributeError("%{0}: input_dir-attribute is still missing".format(method_name))
+
+        if self.input_dir is None:
+            raise AttributeError("%{0}: input_dir-attribute is still None".format(method_name))
+
+        metadata_fl = os.path.join(self.input_dir, "metadata.json")
+
+        if not os.path.isfile(metadata_fl):
+            raise FileNotFoundError("%{0}: Could not find metadata JSON-file under '{1}'".format(method_name,
+                                                                                                 self.input_dir))
+
+        md_instance = MetaData(json_file=metadata_fl)
+
+        try:
+            self.frame_size = md_instance["frame_size"]
+            self.height, self.width = md_instance["ny"], md_instance["nx"]
+            self.variables = md_instance["variables"]
+            self.vars_in = [list(var.values())[0] for var in self.variables]
+
+            self.lats = md_instance["lat"]
+            self.lons = md_instance["lon"]
+        except:
+            raise IOError("%{0}: Could not retrieve all required information from metadata-file '{1}'"
+                          .format(method_name, metadata_fl))
+
+
     def copy_data_model_json(self):
         """
-        Copy the datasplit_conf.json model.json files from checkpoints directory to results_dir
+        Copy the data_split.json, model.json files from checkpoints directory to results_dir
         """
         if os.path.isfile(os.path.join(self.checkpoint,"options.json")):
-            shutil.copy(os.path.join(self.checkpoint,"options.json"),
-                        os.path.join(self.results_dir,"options_checkpoints.json"))
+            shutil.copy(os.path.join(self.checkpoint, "options.json"),
+                        os.path.join(self.results_dir, "options_checkpoints.json"))
         else:
             raise FileNotFoundError("the file {} does not exist".format(os.path.join(self.checkpoint,"options.json")))
         if os.path.isfile(os.path.join(self.checkpoint,"dataset_hparams.json")):
-            shutil.copy(os.path.join(self.checkpoint,"dataset_hparams.json"),
-                        os.path.join(self.results_dir,"dataset_hparams.json"))
+            shutil.copy(os.path.join(self.checkpoint, "dataset_hparams.json"),
+                        os.path.join(self.results_dir, "dataset_hparams.json"))
         else:
-            raise FileNotFoundError("the file {} does not exist".format(os.path.join(self.checkpoint,"dataset_hparams.json"))) 
+            raise FileNotFoundError("the file {} does not exist".format(os.path.join(self.checkpoint,
+                                                                                     "dataset_hparams.json")))
 
-        if os.path.isfile(os.path.join(self.checkpoint,"model_hparams.json")):
-            shutil.copy(os.path.join(self.checkpoint,"model_hparams.json"),
-                        os.path.join(self.results_dir,"model_hparams.json"))
+        if os.path.isfile(os.path.join(self.checkpoint, "model_hparams.json")):
+            shutil.copy(os.path.join(self.checkpoint, "model_hparams.json"),
+                        os.path.join(self.results_dir, "model_hparams.json"))
         else:
             raise FileNotFoundError("the file {} does not exist".format(os.path.join(self.checkpoint,
                                                                                      "model_hparams.json")))
 
-        if os.path.isfile(os.path.join(self.checkpoint,"data_dict.json")):
-            shutil.copy(os.path.join(self.checkpoint,"data_dict.json"), os.path.join(self.results_dir,"data_dict.json"))
+        if os.path.isfile(os.path.join(self.checkpoint, "data_dict.json")):
+            shutil.copy(os.path.join(self.checkpoint, "data_dict.json"), os.path.join(self.results_dir,
+                                                                                      "data_dict.json"))
         else:
             raise FileNotFoundError("the file {} does not exist".format(os.path.join(self.checkpoint,"data_dict.json")))
-
 
     def save_args_to_option_json(self):
         """
@@ -120,20 +196,6 @@ class Postprocess(TrainModel,ERA5Pkl2Tfrecords):
     
         with open(os.path.join(self.results_dir, "options.json"), "w") as f:
             f.write(json.dumps(vars(self.args), sort_keys=True, indent=4))
-
-
-    def load_jsons(self):
-        """
-        Copy all the jsons files that contains the data and model configurations 
-        from the results directory for furthur usage
-        """
-        self.datasplit_dict = os.path.join(self.results_dir,"data_dict.json")
-        self.model_hparams_dict = os.path.join(self.results_dir,"model_hparams.json")
-        with open(os.path.join(self.results_dir, "options_checkpoints.json")) as f:
-            self.options_checkpoint = json.loads(f.read())
-            self.dataset = self.options_checkpoint["dataset"]
-            self.model = self.options_checkpoint["model"]    
-        self.model_hparams_dict_load = self.get_model_hparams_dict()    
 
     def setup_test_dataset(self):
         """
@@ -162,21 +224,7 @@ class Postprocess(TrainModel,ERA5Pkl2Tfrecords):
         """
         self.context_frames = self.model_hparams_dict_load["context_frames"]
         self.sequence_length = self.model_hparams_dict_load["sequence_length"]
-        self.future_length = self.sequence_length - self.context_frames 
-
-    def get_coordinates(self):
-        """
-        Retrieves the latitudes and longitudes from the metadata json file.
-        """
-        metadata_fname = os.path.join(self.input_dir,"metadata.json")
-        md = MetaData(json_file=metadata_fname)
-        md.get_metadata_from_file(metadata_fname)
-        try:
-            self.lats = md.lat
-            self.lons = md.lon
-            return md.lat, md.lon
-        except:
-            raise ValueError("Error when handling latitude and longitude in: '"+metadata_fname+"'")
+        self.future_length = self.sequence_length - self.context_frames
 
     def get_stat_file(self):
         """
