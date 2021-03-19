@@ -35,8 +35,9 @@ if [ -z ${VIRTUAL_ENV} ]; then
 fi
 
 # declare directory-variables which will be modified by config_runscript.py
-checkpoint_dir=/p/project/deepacf/deeprain/video_prediction_shared_folder/models/
-results_dir=/p/project/deepacf/deeprain/video_prediction_shared_folder/results/
+source_dir=/my/source/dir/
+checkpoint_dir=/my/trained/model/dir
+results_dir=/my/results/dir
 
 # name of model
 model=convLSTM
