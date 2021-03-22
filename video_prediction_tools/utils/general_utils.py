@@ -59,6 +59,34 @@ def is_integer(n):
     else:
         return float(n).is_integer()
 
+
+def isw(value, interval):
+    """
+    Checks if value lies within given interval
+    :param value: The value to be checked
+    :param interval: The interval defined by lower and upper bound
+    :return status: True if value lies in interval
+    """
+
+    method = isw.__name__
+
+    if np.shape(interval)[0] != 2:
+        raise ValueError("%{0}: interval must contain two values.".format(method))
+
+    if interval[1] <= interval[0]:
+        raise ValueError("%{0}: Second value of interval must be larger than first value.".format(method))
+
+    try:
+        if interval[0] <= value <= interval[1]:
+            status = True
+        else:
+            status = False
+    except Exception as err:
+        raise ValueError("%{0}: Could not handle passed value".format(method))
+
+    return status
+
+
 def check_str_in_list(list_in, str2check, labort=True):
     """
     Checks if all strings are found in list
