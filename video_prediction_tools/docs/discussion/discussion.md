@@ -38,5 +38,8 @@ This is the list of last-mins files for VP group
 - ERA5 requirement from Olaf : https://docs.google.com/document/d/1IW2GDDFhX941JZGO2__CMTormijdbfnrsNesSNxyZgk/edit?usp=sharing
 - Experiments track: https://docs.google.com/spreadsheets/d/1fHfo6upNylrjGyvqZwnmRPg_FkN9UFgbHLS7a8nCc38/edit?usp=sharing
 
-
+# AMBS manuscript
+1. GMD1 paper - 2m temperature by deep learning https://ifftex.fz-juelich.de/1137516136yywsrnjmqgqp
+2. GMB2 paper - workflow paper https://ifftex.fz-juelich.de/8281829766nmyhfmkkqntt
+3. ECCV 2019 paper :  https://ifftex.fz-juelich.de/9254475755brrnmgcbvvds
 
