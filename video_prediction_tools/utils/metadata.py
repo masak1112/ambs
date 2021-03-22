@@ -496,19 +496,24 @@ class Geo_domain:
                     raise ValueError("%{0}: element '{1}' of -nyw is not an integer.".format(method, str(ni)))
                 if not ni > 1:
                     raise ValueError("%{0}: elements of -nyw must be larger than 1.".format(method))
+            # change sign for negatively oriented geographical axis
+            if self.dx < 0:
+                nyx[0] = -np.abs(nyx[0])
+            if self.dy < 0.:
+                nyx[1] = -np.abs(nyx[1])
 
         # check if south-west corner is inside data domain
-        if not isw(sw_c[0], self.lat):
-            min_lat, max_lat = np.amin(self.lat), np.amax(self.lat)
+        lat_intv = [np.amin(self.lat), np.amax(self.lat)]
+        lon_intv = [np.amin(self.lon), np.amax(self.lon)]
+        if not isw(sw_c[0], lat_intv):
             raise ValueError("%{0}: The meridional coordinate of the SW-corner at {1:5.2f}N".format(method, sw_c[0]) +
                              "is not part of the data domain (latitude range between {0:5.2f}N and {1:5.2f}N)."
-                             .format(min_lat, max_lat))
+                             .format(*lat_intv))
 
-        if not isw(sw_c[1], self.lon):
-            min_lon, max_lon = np.amin(self.lon), np.amax(self.lon)
+        if not isw(sw_c[1], lon_intv):
             raise ValueError("%{0}: The zonal coordinate of the SW-corner at {1:5.2f}E".format(method, sw_c[1]) +
                              "is not part of the data domain (longitude range between {0:5.2f}E and {1:5.2f}E)."
-                             .format(min_lon, max_lon))
+                             .format(*lon_intv))
 
         sw_c = [self.lat.sel(lat=sw_c[0], method='nearest'), self.lon.sel(lon=sw_c[1], method='nearest')]
         sw_c_ind = [np.where(self.lat == sw_c[0].values)[0][0], np.where(self.lon == sw_c[1].values)[0][0]]
@@ -516,11 +521,24 @@ class Geo_domain:
         ne_c_ind = np.asarray(sw_c_ind) + nyx
 
         # check index range
-        if not isw(ne_c_ind[0], self.lat):
-            raise
+        if not isw(ne_c_ind[0], np.arange(self.nlat)):
+            raise ValueError("%{0}: Desired domain exceeds spatial data coverage in meridional direction."
+                             .format(method))
+        else:
+            lat_slices = [np.minimum(sw_c_ind[0], ne_c_ind[0]), np.maximum(sw_c_ind[0], ne_c_ind[0])]
 
+        if not isw(ne_c_ind[1], np.arange(self.nlon)):
+            if not self.lcyclic:
+                raise ValueError("%{0}: Desired domain exceeds spatial data coverage in zonal direction."
+                                 .format(method))
+            else:
+                # readjust indices and switch order to trigger correct slicing in get_data_reg-method
+                ne_c_ind[1] = np.abs(ne_c_ind - self.non)
+                lon_slices = [np.maximum(sw_c_ind[1], ne_c_ind[1]), np.minimum(sw_c_ind[1], ne_c_ind[1])]
+        else:
+            lon_slices = [np.minimum(sw_c_ind[1], ne_c_ind[1]), np.maximum(sw_c_ind[1], ne_c_ind[1])]
 
-
+        return lat_slices, lon_slices
 
     def get_data_reg(self, filename, variables):
 
