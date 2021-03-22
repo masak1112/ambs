@@ -29,10 +29,9 @@ def main():
     parser.add_argument("--years", "-y", dest="years", help="Year of data to be processed.")
     parser.add_argument("--rsync_status", type=int, default=1)
     parser.add_argument("--vars", nargs="+", default=["2t", "2t", "2t"], help="Variables to be processed.")
-    parser.add_argument("--lat_s", type=int, default=106)
-    parser.add_argument("--lat_e", type=int, default=170)
-    parser.add_argument("--lon_s", type=int, default=598)
-    parser.add_argument("--lon_e", type=int, default=662)
+    parser.add_argument("--sw_corner", "-swc", dest="sw_corner", help="Defines south-west corner of target domain " +
+                        "(lat, lon)=(-90..90, 0..360)")
+    parser.add_argument("--nyx", "-nyx", dest="nyx", help="Number of grid points in zonal and meridional direction.")
     parser.add_argument("--experimental_id", "-exp_id", dest="exp_id", type=str, default="dummy",
                         help="Experimental identifier helping to distinguish between different experiments.")
     args = parser.parse_args()
@@ -45,15 +44,11 @@ def main():
     rsync_status = args.rsync_status
    
     vars1 = args.vars
-    lat_s = args.lat_s
-    lat_e = args.lat_e
-    lon_s = args.lon_s
-    lon_e = args.lon_e
-
-    slices = {"lat_s": lat_s,
-              "lat_e": lat_e,
-              "lon_s": lon_s,
-              "lon_e": lon_e
+    _ = check_target_coords(args.sw_corner, args.nyx)
+    slices = {"lon_sw": args.sw_corner[1],
+              "lat_sw": args.sw_corner[0],
+              "nx": args.nyx[1],
+              "ny": args.nyx[0]
               }
     print("Selected variables", vars1)
     print("Selected Slices", slices)
