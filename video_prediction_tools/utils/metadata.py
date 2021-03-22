@@ -9,7 +9,7 @@ import numpy as np
 import xarray as xr
 import json
 from netCDF4 import Dataset
-from general_utils import is_integer, add_str_to_path, check_str_in_list
+from general_utils import is_integer, add_str_to_path, check_str_in_list, isw
 
 
 class MetaData:
@@ -401,6 +401,142 @@ class MetaData:
             pass
 
 # ----------------------------------- end of class MetaData -----------------------------------
+
+class Geo_domain:
+    """
+    Class in order to define target domains onto geographically, gridded data (e.g. ERA5-data on a regular lat-/lon-grid
+    """
+    known_lon_ranges = ["-180..180", "0..360"]
+
+    def __init__(self, sw_corner, nyx, filename):
+
+        method = Geo_domain.__init__.__name__ + " of Class " + Geo_domain.__name__
+
+        if not os.path.isfile(filename):
+            raise ValueError("%{0}: Data file '{1}' does not exist.".format(method, filename))
+
+        self.base_file = filename
+        self.handle_geocoords(self, filename)
+        self.get_dom_indices(self, filename, sw_corner, nyx)
+
+
+
+    @staticmethod
+    def check_nyx_arg(nyw):
+
+        method = Geo_domain.check_nyx_arg.__name__ + " of Class " + Geo_domain.__name__
+
+        if not np.shape(nyw)[0] == 2:
+            raise ValueError("%{0}: -nyw must a list containing two integers.")
+
+        for ni in nyw:
+            if not isinstance(ni, int):
+                raise ValueError("%{0}: element '{1}' of -nyw is not an integer.".format(method, str(ni)))
+            if not ni > 1:
+                raise ValueError("%{0}: elements of -nyw must be larger than 1.".format(method))
+
+        return (*nyw,)
+
+    def check_sw_arg(self, sw_c):
+
+        method = Geo_domain.check_sw_arg.__name__ + " of Class " + Geo_domain.__name__
+
+        if not np.shape(sw_c)[0] == 2:
+            raise ValueError("%{0}: --sw_corner/-sw_c must a list containing two floats.")
+
+        if self.lon_range == "0..360":
+            stat = isw(sw_c[1], [0.,360.])
+        elif self.lon_range == "-180..180":
+            stat = isw(sw_c[1], [-180., 180.])
+        else:
+            raise ValueError("%{0}: Unknown lon_range-identifier.".format(method))
+
+        if not stat:
+            raise ValueError("%{0}: Zonal coordinate of south-west corner ('{1:5.2f}')".format(method, sw_c[1]) +
+                             " does not lie within expected range {0}".format(self.lon_range))
+
+        if not isw(sw_c[0], [-90., 90]):
+            raise ValueError("%{0}: Meridional coordinate of south-west corner ('{1:5.2f}')".format(method, sw_c[0]) +
+                             " does not lie within expected range -90..90")
+
+        return (*sw_c,)
+
+
+    def handle_geocoords(self, filename):
+
+        method = Geo_domain.handle_geocoords.__name__ + " of Class " + Geo_domain.__name__
+
+        try:
+            with xr.open_dataset(filename) as dfile:
+                coords = dfile.coords
+                self.lat, self.lon = coords["lat"], coords["lon"]
+                self.nlat, self.nlon = np.shape(self.lat)[0], np.shape(self.lon)[0]
+                self.dy, self.dx = (self.lat[1]- self.lat[0]).values, (self.lat[1]- self.lat[0]).values
+                self.lcyclic = (self.nlon == np.around(360./self.dx))
+
+        except Exception as err:
+            print("%{0}: Could not retrieve geographical coordinates from datafile '{1}'".format(method, filename))
+            raise err
+
+    def get_dom_indices(self, sw_c, nyx):
+
+        method = Geo_domain.get_dom_indices.__name__ + " of Class " + Geo_domain.__name__
+
+        # sainty check on the method-arguments
+        if np.shape(sw_c)[0] != 2:
+            raise ValueError("%{0}: The south-west corner of the domain must be given as a coordinate pair (lat,lon)."
+                             .format(method))
+
+        if np.shape(nyx)[0] != 2:
+            raise ValueError("%{0}: The number of indices of the target domain must be a (ny,nx)-pair of integers."
+                             .format(method))
+        else:
+            for ni in nyx:
+                if not isinstance(ni, int):
+                    raise ValueError("%{0}: element '{1}' of -nyw is not an integer.".format(method, str(ni)))
+                if not ni > 1:
+                    raise ValueError("%{0}: elements of -nyw must be larger than 1.".format(method))
+
+        # check if south-west corner is inside data domain
+        if not isw(sw_c[0], self.lat):
+            min_lat, max_lat = np.amin(self.lat), np.amax(self.lat)
+            raise ValueError("%{0}: The meridional coordinate of the SW-corner at {1:5.2f}N".format(method, sw_c[0]) +
+                             "is not part of the data domain (latitude range between {0:5.2f}N and {1:5.2f}N)."
+                             .format(min_lat, max_lat))
+
+        if not isw(sw_c[1], self.lon):
+            min_lon, max_lon = np.amin(self.lon), np.amax(self.lon)
+            raise ValueError("%{0}: The zonal coordinate of the SW-corner at {1:5.2f}E".format(method, sw_c[1]) +
+                             "is not part of the data domain (longitude range between {0:5.2f}E and {1:5.2f}E)."
+                             .format(min_lon, max_lon))
+
+        sw_c = [self.lat.sel(lat=sw_c[0], method='nearest'), self.lon.sel(lon=sw_c[1], method='nearest')]
+        sw_c_ind = [np.where(self.lat == sw_c[0].values)[0][0], np.where(self.lon == sw_c[1].values)[0][0]]
+
+        ne_c_ind = np.asarray(sw_c_ind) + nyx
+
+        # check index range
+        if not isw(ne_c_ind[0], self.lat):
+            raise
+
+
+
+
+    def get_data_reg(self, filename, variables):
+
+        method = Geo_domain.get_data_reg.__name__ + " of Class " + Geo_domain.__name__
+
+        if not os.path.isfile(filename):
+            raise FileNotFoundError("%{0}: Could not find datafile '{1}'".format(method, filename))
+
+        try:
+            with xr.open_dataset(filename) as dfile:
+
+
+
+
+
+
 
 
 class Netcdf_utils:
