@@ -402,83 +402,126 @@ class MetaData:
 
 # ----------------------------------- end of class MetaData -----------------------------------
 
-class Geo_domain:
+
+class Netcdf_utils:
+    """
+    Class containing some auxiliary functions to check netCDf-files
+    """
+
+    def __init__(self, filename):
+        self.filename = filename
+        Netcdf_utils.check_file(self)
+
+        self.varlist = Netcdf_utils.list_vars(self)
+        self.coords = Netcdf_utils.get_coords(self)
+        self.attributes = None
+
+    def check_file(self):
+        method = Netcdf_utils.check_file.__name__
+
+        assert hasattr(self, "filename") is True, "%{0}: Class instance does not have a filename property."\
+                                                  .format(method)
+
+        if not isinstance(self.filename, str):
+            raise ValueError("%{0}: filename property must be a path-string".format(method))
+
+        if not self.filename.endswith(".nc"):
+            raise ValueError("%{0}: Passed filename must be a netCDF-file".format(method))
+
+        if not os.path.isfile(self.filename):
+            raise FileNotFoundError("%{0}: Could not find passed filename '{1}'".format(method, self.filename))
+
+        return
+
+    def get_coords(self):
+        """
+        Retrive coordinates from Dataset of netCDF-file
+        :return coords: dictionary of coordinates from netCDf-file
+        """
+        method = Netcdf_utils.get_coords.__name__
+
+        try:
+            with xr.open_dataset(self.filename) as dfile:
+                coords = dfile.coords()
+        except:
+            raise IOError("%{0}: Could not handle coordinates of netCDF-file '{1}'".format(method, self.filename))
+
+        return coords
+
+    def list_vars(self):
+        """
+        Retrieves list all variables of file
+        :return: varlist
+        """
+        method = Netcdf_utils.list_vars.__name__
+
+        try:
+            with xr.open_dataset(self.filename) as dfile:
+                varlist = list(dfile.keys())
+        except:
+            raise IOError("%{0}: Could not open {1}".format(method, self.filename))
+
+        return varlist
+
+    def var_in_file(self, varnames, labort=True):
+
+        method = Netcdf_utils.var_in_file.__name__
+
+        stat = check_str_in_list(self.varlist, varnames, labort=False)
+
+        if not stat and labort:
+            raise ValueError("%{0}: Could not find all varnames in netCDF-file".method(method))
+
+        return stat
+
+
+class Geo_domain(Netcdf_utils):
     """
     Class in order to define target domains onto geographically, gridded data (e.g. ERA5-data on a regular lat-/lon-grid
     """
-    known_lon_ranges = ["-180..180", "0..360"]
 
     def __init__(self, sw_corner, nyx, filename):
 
         method = Geo_domain.__init__.__name__ + " of Class " + Geo_domain.__name__
+        # inherit from Netcdf_utils
+        super().__init__(filename)
 
-        if not os.path.isfile(filename):
-            raise ValueError("%{0}: Data file '{1}' does not exist.".format(method, filename))
+        coords = self.get_coords()
 
         self.base_file = filename
-        self.handle_geocoords(self, filename)
-        self.get_dom_indices(self, filename, sw_corner, nyx)
+        self.handle_geocoords(self, coords)
+        self.lat_slices, self.lon_slices = self.get_dom_indices(self, sw_corner, nyx)
 
-
-
-    @staticmethod
-    def check_nyx_arg(nyw):
-
-        method = Geo_domain.check_nyx_arg.__name__ + " of Class " + Geo_domain.__name__
-
-        if not np.shape(nyw)[0] == 2:
-            raise ValueError("%{0}: -nyw must a list containing two integers.")
-
-        for ni in nyw:
-            if not isinstance(ni, int):
-                raise ValueError("%{0}: element '{1}' of -nyw is not an integer.".format(method, str(ni)))
-            if not ni > 1:
-                raise ValueError("%{0}: elements of -nyw must be larger than 1.".format(method))
-
-        return (*nyw,)
-
-    def check_sw_arg(self, sw_c):
-
-        method = Geo_domain.check_sw_arg.__name__ + " of Class " + Geo_domain.__name__
-
-        if not np.shape(sw_c)[0] == 2:
-            raise ValueError("%{0}: --sw_corner/-sw_c must a list containing two floats.")
-
-        if self.lon_range == "0..360":
-            stat = isw(sw_c[1], [0.,360.])
-        elif self.lon_range == "-180..180":
-            stat = isw(sw_c[1], [-180., 180.])
-        else:
-            raise ValueError("%{0}: Unknown lon_range-identifier.".format(method))
-
-        if not stat:
-            raise ValueError("%{0}: Zonal coordinate of south-west corner ('{1:5.2f}')".format(method, sw_c[1]) +
-                             " does not lie within expected range {0}".format(self.lon_range))
-
-        if not isw(sw_c[0], [-90., 90]):
-            raise ValueError("%{0}: Meridional coordinate of south-west corner ('{1:5.2f}')".format(method, sw_c[0]) +
-                             " does not lie within expected range -90..90")
-
-        return (*sw_c,)
-
-
-    def handle_geocoords(self, filename):
+    def handle_geocoords(self, coords):
+        """
+        Retrieve geographical coordinates named lat and lon from coords-dictionary and sets some key attributes
+        :param coords: dictionary of coordinates (from opened netCDF-file with xarray)
+        :return: class instance with the following attributes:
+                 * lat, lon : latitude and longitude values
+                 * nlat, nlon: number of grid points in meridional and zonal direction
+                 * dy, dx : grid spacing in meridional and zonal direction
+                 * lcyclic: flag if data is cyclic in zonal direction
+        """
 
         method = Geo_domain.handle_geocoords.__name__ + " of Class " + Geo_domain.__name__
 
         try:
-            with xr.open_dataset(filename) as dfile:
-                coords = dfile.coords
-                self.lat, self.lon = coords["lat"], coords["lon"]
-                self.nlat, self.nlon = np.shape(self.lat)[0], np.shape(self.lon)[0]
-                self.dy, self.dx = (self.lat[1]- self.lat[0]).values, (self.lat[1]- self.lat[0]).values
-                self.lcyclic = (self.nlon == np.around(360./self.dx))
+            self.lat, self.lon = coords["lat"], coords["lon"]
+            self.nlat, self.nlon = np.shape(self.lat)[0], np.shape(self.lon)[0]
+            self.dy, self.dx = (self.lat[1]- self.lat[0]).values, (self.lat[1]- self.lat[0]).values
+            self.lcyclic = (self.nlon == np.around(360./self.dx))
 
         except Exception as err:
-            print("%{0}: Could not retrieve geographical coordinates from datafile '{1}'".format(method, filename))
+            print("%{0}: Could not retrieve geographical coordinates from datafile '{1}'".format(method, self.filename))
             raise err
 
     def get_dom_indices(self, sw_c, nyx):
+        """
+        Get indices to perform spatial slicing on data.
+        :param sw_c: (lat,lon)-coordinate pair for south-west corner of target domain
+        :param nyx: number of grid points of target domain in meridional and zonal direction
+        :return: tuple of indices in latitude and longitude direction, i.e. [lat_s, lat_e], [lon_s, lon_e]
+        """
 
         method = Geo_domain.get_dom_indices.__name__ + " of Class " + Geo_domain.__name__
 
@@ -497,10 +540,12 @@ class Geo_domain:
                 if not ni > 1:
                     raise ValueError("%{0}: elements of -nyw must be larger than 1.".format(method))
             # change sign for negatively oriented geographical axis
-            if self.dx < 0:
-                nyx[0] = -np.abs(nyx[0])
             if self.dy < 0.:
+                nyx[0] = -np.abs(nyx[0])
+                sw_c[0] += self.dy
+            if self.dx < 0:
                 nyx[1] = -np.abs(nyx[1])
+                sw_c[1] += self.dx
 
         # check if south-west corner is inside data domain
         lat_intv = [np.amin(self.lat), np.amax(self.lat)]
@@ -521,19 +566,21 @@ class Geo_domain:
         ne_c_ind = np.asarray(sw_c_ind) + nyx
 
         # check index range
-        if not isw(ne_c_ind[0], np.arange(self.nlat)):
+        if not isw(ne_c_ind[0], [0, self.nlat-1]):
             raise ValueError("%{0}: Desired domain exceeds spatial data coverage in meridional direction."
                              .format(method))
         else:
             lat_slices = [np.minimum(sw_c_ind[0], ne_c_ind[0]), np.maximum(sw_c_ind[0], ne_c_ind[0])]
 
-        if not isw(ne_c_ind[1], np.arange(self.nlon)):
+        if not isw(ne_c_ind[1], [0, self.nlon-1]):
             if not self.lcyclic:
+                print("%{0}: Requested end index: {1:d}, Maximum end index: {2:d}".format(method, ne_c_ind[1],
+                                                                                          self.nlon - 1))
                 raise ValueError("%{0}: Desired domain exceeds spatial data coverage in zonal direction."
                                  .format(method))
             else:
                 # readjust indices and switch order to trigger correct slicing in get_data_reg-method
-                ne_c_ind[1] = np.abs(ne_c_ind - self.non)
+                ne_c_ind[1] = np.abs(ne_c_ind[1] - self.nlon)
                 lon_slices = [np.maximum(sw_c_ind[1], ne_c_ind[1]), np.minimum(sw_c_ind[1], ne_c_ind[1])]
         else:
             lon_slices = [np.minimum(sw_c_ind[1], ne_c_ind[1]), np.maximum(sw_c_ind[1], ne_c_ind[1])]
@@ -541,89 +588,60 @@ class Geo_domain:
         return lat_slices, lon_slices
 
     def get_data_reg(self, filename, variables):
+        """
+        Performs slicing on data from datafile and cuts dataset to variables of interest
+        :param filename: the netCDF-file to handle
+        :param variables: list of variables to retrieve
+        :return: sliced dataset with variables of interest
+        """
 
         method = Geo_domain.get_data_reg.__name__ + " of Class " + Geo_domain.__name__
 
         if not os.path.isfile(filename):
             raise FileNotFoundError("%{0}: Could not find datafile '{1}'".format(method, filename))
 
+        lat_slices, lon_slices = self.lat_slices, self.lon_slices
+        lcross_zonal = lon_slices[0] > lon_slices[1]
+
         try:
             with xr.open_dataset(filename) as dfile:
+                if not lcross_zonal:
+                    data_sub = dfile.isel(lat=slice(lat_slices[0], lat_slices[1]),
+                                          lon=slice(lon_slices[0], lon_slices[1]))
+                else:
+                    data_sub = self.handle_data_cross(dfile)
+        except Exception as err:
+            print("%{0}: Could not slice data from file '{1}'".format(method, filename))
+            raise err
 
-
-
-
-
-
-
-
-class Netcdf_utils:
-    """
-    Class containing some auxiliary functions to check netCDf-files
-    """
-
-    def __init__(self, filename):
-        self.filename = filename
-        Netcdf_utils.check_file(self)
-
-        self.varlist = Netcdf_utils.list_vars(self)
-        self.coords = None
-        self.attributes = None
-
-    def check_file(self):
-        method = Netcdf_utils.check_file.__name__
-
-        assert hasattr(self, "filename") is True, "%{0}: Class instance does not have a filename property."\
-                                                  .format(method)
-
-        if not isinstance(self.filename, str):
-            raise ValueError("%{0}: filename property must be a path-string".format(method))
-
-        if not self.filename.endswith(".nc"):
-            raise ValueError("%{0}: Passed filename must be a netCDF-file".format(method))
-
-        if not os.path.isfile(self.filename):
-            raise FileNotFoundError("%{0}: Could not find passed filename '{1}'".format(method, self.filename))
-
-        return
-
-    def list_vars(self):
-        """
-        Retrieves list all variables of file
-        :return: varlist
-        """
-        method = Netcdf_utils.list_vars.__name__
+        _ = self.var_in_file(variables)
 
         try:
-            with xr.open_dataset(self.filename) as dfile:
-                varlist = list(dfile.keys())
-        except:
-            raise IOError("%{0}: Could not open {1}".format(method, self.filename))
+            data_sub = data_sub[variables]
+        except Exception as err:
+            print("%{0}: Could not retrieve all of the following variables from '{1}': {2}".format(method, filename,
+                                                                                                   ",".join(variables)))
+            raise err
 
-        return varlist
+        return data_sub
 
-    def get_coords(self):
+
+    def handle_data_cross(self, data):
         """
-        Retrive coordinates from Dataset of netCDF-file
-        :return coords: dictionary of coordinates from netCDf-file
+        Handles data on target domain that crosses the cyclic boundary in zonal direction
+        :param data: the data-object
+        :return: the sliced dataset which has been merged to handle the cyclic boundary
         """
-        method = Netcdf_utils.get_coords.__name__
 
+        method = Geo_domain.get_data_reg.__name__ + " of Class " + Geo_domain.__name__
+
+        lat_slices, lon_slices = self.lat_slices, self.lon_slices
         try:
-            with xr.open_dataset(self.filename) as dfile:
-                coords = dfile.coords()
-        except:
-            raise IOError("%{0}: Could not handle coordinates of netCDF-file '{1}'".format(method, self.filename))
+            data_sub1 = data.isel(lat=slice(lat_slices[0], lat_slices[1]), lon=slice(lon_slices[0], self.nlon))
+            data_sub = data_sub1.merge(data.isel(lat=slice(lat_slices[0], lat_slices[1]),
+                                                 lon=slice(0, lon_slices[1])))
+        except Exception as err:
+            print("%{0}: Something went wrong when slicing data across cyclic lateral boundary.".format(method))
+            raise err
 
-        return coords
-
-    def var_in_file(self, varnames, labort=True):
-
-        method = Netcdf_utils.var_in_file.__name__
-
-        stat = check_str_in_list(self.varlist, varnames, labort=False)
-
-        if not stat and labort:
-            raise ValueError("%{0}: Could not find all varnames in netCDF-file".method(method))
-
-        return stat
+        return data_sub
