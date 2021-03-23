@@ -10,15 +10,15 @@ __author__ = "Michael Langguth, Bing Gong, Scarlet Stadtler"
 import sys, os
 import fnmatch
 import pickle
-from netCDF4 import num2date
 import numpy as np
 import xarray as xr
+import datetime as dt
 from metadata import Geo_subdomain
 from statistics import Calc_data_stat
 
 class PreprocessNcToPkl(object):
 
-    def __init__(self, src_dir, target_dir, job_id, year, target_dom, variables=("2t", "msl", "t_850")):
+    def __init__(self, src_dir, target_dir, year, job_id, target_dom, variables=("2t", "msl", "t_850")):
         """
         Function to process data from netCDF file to pickle file
         args:
@@ -29,6 +29,8 @@ class PreprocessNcToPkl(object):
             target_dom : class instance of Geo_subdomain which defines target domain
             vars       : variables to be processed
         """
+        # directory_to_process is month-based directory
+        self.directory_to_process=os.path.join(src_dir,str(year), str(job_id))
         # sanity checks
         if int(job_id) > 12 or int(job_id) < 1 or not isinstance(job_id, str):
             raise ValueError("job_name should be int type between 1 to 12")
@@ -38,8 +40,6 @@ class PreprocessNcToPkl(object):
 
         if not isinstance(target_dom, Geo_subdomain):
             raise ValueError("target_dom must be a Geo_subdomain-instance.")
-        # directory_to_process is month-based directory
-        self.directory_to_process=os.path.join(src_dir,str(year), str(job_id))
 
         self.target_dir = os.path.join(target_dir, "pickle", str(year))      # preprocessed data to pickle-subdirectory
         if not os.path.exists(self.target_dir):
@@ -146,12 +146,15 @@ class PreprocessNcToPkl(object):
         # saity check
         if self.data is None:
             raise AttributeError("%{0}: Class instance does not contain any data".format(method))
-
+        
+        # construct pickle filenames
         tar_fdata = os.path.join(self.target_dir, "X_{0}.pkl".format(self.job_id))
         tar_ftimes = os.path.join(self.target_dir, "T_{0}.pkl".format(self.job_id))
+        
         # write data to pickle-file
+        data = self.data
         try:
-            data_arr = np.squeeze(self.data.values)
+            data_arr = np.squeeze(data.values)
             with open(tar_fdata, "wb") as pkl_file:
                 pickle.dump(data_arr, pkl_file)
         except Exception as err:
@@ -160,10 +163,10 @@ class PreprocessNcToPkl(object):
             # print("%{0}: The related error is: {1}".format(method, str(err)))
             raise err                      # would better catched by Pystager
 
-        # write times to pickle-file
+        # write times to pickle-file incl. conversion to datetime-object
         try:
-            time = self.data["coords"]["time"]
-            time = num2date(time.values, units=time.units, calendar=time.calendar)
+            time = data.coords["time"]
+            time = dt.datetime.strptime(np.datetime_as_string(time, "m")[0], "%Y-%m-%dT%H:%M")
             with open(tar_ftimes, "wb") as tpkl_file:
                 pickle.dump(time, tpkl_file)
         except Exception as err:
