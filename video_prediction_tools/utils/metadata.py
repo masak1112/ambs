@@ -552,6 +552,12 @@ class Geo_subdomain(Netcdf_utils):
         else:
             lon_slices = [np.minimum(sw_c_ind[1], ne_c_ind[1]), np.maximum(sw_c_ind[1], ne_c_ind[1])]
 
+        # readjust sw_c in case that axis are negatively oriented
+        if self.dy < 0.:
+            sw_c[0] -= self.dy
+        if self.dx < 0:
+            sw_c[1] -= self.dx
+        
         sw_c = [coord.values for coord in sw_c]
 
         return lat_slices, lon_slices, sw_c
