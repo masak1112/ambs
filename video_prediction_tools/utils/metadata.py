@@ -17,7 +17,7 @@ class MetaData:
      Class for handling, storing and retrieving meta-data
     """
 
-    def __init__(self, json_file=None, suffix_indir=None, exp_id=None, data_filename=None, slices=None, variables=None):
+    def __init__(self, json_file=None, suffix_indir=None, exp_id=None, data_filename=None, tar_dom=None, variables=None):
         """
         Initailizes MetaData instance by reading a corresponding json-file or by handling arguments of the
         Preprocessing step (i.e. exemplary input file, slices defining region of interest, input variables)
@@ -25,7 +25,7 @@ class MetaData:
         :param suffix_indir: suffix of directory where processed data is stored for running the models
         :param exp_id: experiment identifier
         :param data_filename: name of netCDF-file serving as base for metadata retrieval
-        :param slices: indices defining the region of interest
+        :param tar_dom: class instance for defining target domain
         :param variables: predictor variables
         """
 
@@ -56,10 +56,10 @@ class MetaData:
                 if not isinstance(data_filename, str):
                     raise TypeError(method_name + ": 'data_filename'-argument must be a string.")
 
-            if not slices:
+            if not tar_dom:
                 raise TypeError(method_name + ": 'slices'-argument is required if 'json_file' is not passed.")
             else:
-                if not isinstance(slices, dict):
+                if not isinstance(tar_dom, Geo_subdomain):
                     raise TypeError(method_name + ": 'slices'-argument must be a dictionary.")
 
             if not variables:
@@ -68,11 +68,11 @@ class MetaData:
                 if not isinstance(variables, list):
                     raise TypeError(method_name + ": 'variables'-argument must be a list.")
 
-            MetaData.get_and_set_metadata_from_file(self, suffix_indir, exp_id, data_filename, slices, variables)
+            MetaData.get_and_set_metadata_from_file(self, suffix_indir, exp_id, data_filename, tar_dom, variables)
 
             MetaData.write_metadata_to_file(self)
 
-    def get_and_set_metadata_from_file(self, suffix_indir, exp_id, datafile_name, slices, variables):
+    def get_and_set_metadata_from_file(self, suffix_indir, exp_id, datafile_name, tar_dom, variables):
         """
         Retrieves several meta data from an ERA5 netCDF-file and sets corresponding class instance attributes.
         Besides, the name of the experiment directory is constructed following the naming convention (see below)
@@ -85,7 +85,7 @@ class MetaData:
         :param suffix_indir: Path to directory where the preprocessed data will be stored
         :param exp_id: Experimental identifier
         :param datafile_name: ERA 5 reanalysis netCDF file
-        :param slices: indices of lat- and lon-coordinates defining the region of interest
+        :param tar_dom: class instance for defining target domain
         :param variables: meteorological variables to be processed during preprocessing
         :return: A class instance with the following attributes set:
                  * varnames       : name of variables to be processed
@@ -108,33 +108,26 @@ class MetaData:
         flag_coords = ["N", "E"]
 
         print("Retrieve metadata based on file: '" + datafile_name + "'")
-        try:
-            datafile = Dataset(datafile_name, 'r')
-        except:
-            print(method_name + ": Error when handling data file: '" + datafile_name + "'.")
-            exit()
+        aux_data = tar_dom.get_data_dom(datafile_name)
+        aux_coords = aux_data.coords
 
-        # Check if all requested variables can be obtained from datafile
-        MetaData.check_datafile(datafile, variables)
-        self.varnames = variables
-
-        self.nx, self.ny = np.abs(slices['lon_e'] - slices['lon_s']), np.abs(slices['lat_e'] - slices['lat_s'])
-        sw_c = [float(datafile.variables['lat'][slices['lat_e'] - 1]), float(datafile.variables['lon'][slices[
-            'lon_s']])]  # meridional axis lat is oriented from north to south (i.e. monotonically decreasing)
+        self.lat, self.lon = aux_coords["lat"].values, aux_coords["lon"].values
+        self.nx, self.ny = np.shape(self.lon)[0], np.shape(self.lat)[0]
+        sw_c = tar_dom.sw_c.values
+        # switch to [-180..180]-range for convenince before setting attribute
+        if sw_c[1] > 180.:
+            sw_c[1] -= 360.
         self.sw_c = sw_c
-        self.lat = datafile.variables['lat'][slices['lat_s']:slices['lat_e']]
-        self.lon = datafile.variables['lon'][slices['lon_s']:slices['lon_e']]
-
-        # Now start constructing expdir-string
-        # switch sign and coordinate-flags to avoid negative values appearing in expdir-name
+        # switch coordinate-flage for longitudes to avoid negative values appearing in expdir-name
         if sw_c[0] < 0.:
             sw_c[0] = np.abs(sw_c[0])
             flag_coords[0] = "S"
-        if sw_c[1] < 0.:
+        if sw_c[1] < 0:
             sw_c[1] = np.abs(sw_c[1])
             flag_coords[1] = "W"
         nvar = len(variables)
 
+        # Now start constructing expdir-string
         # splitting has to be done in order to retrieve the expname-suffix (and the year if required)
         path_parts = os.path.split(suffix_indir.rstrip("/"))
 
@@ -368,38 +361,6 @@ class MetaData:
             raise FileNotFoundError("%{0}: '{1}' does not exist after waiting for {2:5.2f} sec."
                                     .format(method_name, file_tmp, waittime))
 
-    @staticmethod
-    def issubset(a, b):
-        """
-        Checks if all elements of a exist in b or vice versa (depends on the length of the corresponding lists/sets)
-        :param a: list 1
-        :param b: list 2
-        :return: True or False
-        """
-
-        if len(a) > len(b):
-            return set(b).issubset(set(a))
-        elif len(b) >= len(a):
-            return set(a).issubset(set(b))
-
-    @staticmethod
-    def check_datafile(datafile, varnames):
-        """
-        Checks if all variables whose names are given in varnames can be found in data-object (read in from a netCDF)
-        :param datafile: data-object
-        :param varnames: names of variables to be expected in data-object
-        :return: Raises a ValueError if any variable cannot be found
-        """
-
-        varnames2check = list(set(varnames))
-        if not MetaData.issubset(varnames, datafile.variables.keys()):
-            for i in range(len(varnames2check)):
-                if not varnames2check[i] in datafile.variables.keys():
-                    print("Variable '" + varnames2check[i] + "' not found in datafile.")
-                raise ValueError("Could not find the above mentioned variables.")
-        else:
-            pass
-
 # ----------------------------------- end of class MetaData -----------------------------------
 
 
@@ -408,13 +369,15 @@ class Netcdf_utils:
     Class containing some auxiliary functions to check netCDf-files
     """
 
-    def __init__(self, filename):
+    def __init__(self, filename, lhold_data=False):
         self.filename = filename
-        Netcdf_utils.check_file(self)
+        self.data = self.check_file()
 
         self.varlist = Netcdf_utils.list_vars(self)
         self.coords = Netcdf_utils.get_coords(self)
         self.attributes = None
+        if not lhold_data:
+            self.data = None
 
     def check_file(self):
         method = Netcdf_utils.check_file.__name__
@@ -431,7 +394,13 @@ class Netcdf_utils:
         if not os.path.isfile(self.filename):
             raise FileNotFoundError("%{0}: Could not find passed filename '{1}'".format(method, self.filename))
 
-        return
+        try:
+            with xr.open_dataset(self.filename) as dfile:
+                data = dfile
+        except Exception:
+            raise IOError("%{0}: Error while reading data from netCDF-file {1}".format(method, self.filename))
+
+        return data
 
     def get_coords(self):
         """
@@ -441,12 +410,9 @@ class Netcdf_utils:
         method = Netcdf_utils.get_coords.__name__
 
         try:
-            with xr.open_dataset(self.filename) as dfile:
-                coords = dfile.coords
-        except:
+            return self.data.coords
+        except Exception:
             raise IOError("%{0}: Could not handle coordinates of netCDF-file '{1}'".format(method, self.filename))
-
-        return coords
 
     def list_vars(self):
         """
@@ -456,9 +422,8 @@ class Netcdf_utils:
         method = Netcdf_utils.list_vars.__name__
 
         try:
-            with xr.open_dataset(self.filename) as dfile:
-                varlist = list(dfile.keys())
-        except:
+            varlist = list(self.data.keys())
+        except Exception:
             raise IOError("%{0}: Could not open {1}".format(method, self.filename))
 
         return varlist
@@ -474,21 +439,22 @@ class Netcdf_utils:
 
         return stat
 
+# ----------------------------------- end of class NetCDF_utils -----------------------------------
 
-class Geo_domain(Netcdf_utils):
+class Geo_subdomain(Netcdf_utils):
     """
     Class in order to define target domains onto geographically, gridded data (e.g. ERA5-data on a regular lat-/lon-grid
     """
 
     def __init__(self, sw_corner, nyx, filename):
 
-        method = Geo_domain.__init__.__name__ + " of Class " + Geo_domain.__name__
+        method = Geo_subdomain.__init__.__name__ + " of Class " + Geo_subdomain.__name__
         # inherit from Netcdf_utils
         super().__init__(filename)
 
         self.base_file = filename
         self.handle_geocoords()
-        self.lat_slices, self.lon_slices = self.get_dom_indices(sw_corner, nyx)
+        self.lat_slices, self.lon_slices, self.sw_c = self.get_dom_indices(sw_corner, nyx)
 
     def handle_geocoords(self):
         """
@@ -500,7 +466,7 @@ class Geo_domain(Netcdf_utils):
                  * lcyclic: flag if data is cyclic in zonal direction
         """
 
-        method = Geo_domain.handle_geocoords.__name__ + " of Class " + Geo_domain.__name__
+        method = Geo_subdomain.handle_geocoords.__name__ + " of Class " + Geo_subdomain.__name__
 
         coords = self.coords
         try:
@@ -518,10 +484,12 @@ class Geo_domain(Netcdf_utils):
         Get indices to perform spatial slicing on data.
         :param sw_c: (lat,lon)-coordinate pair for south-west corner of target domain
         :param nyx: number of grid points of target domain in meridional and zonal direction
-        :return: tuple of indices in latitude and longitude direction, i.e. [lat_s, lat_e], [lon_s, lon_e]
+        :return lon_slices: tuple of indices in longitude direction, i.e. [lon_s, lon_e]
+        :return lat_slices: tuple of indices in latitude direction, i.e. [lat_s, lat_e]
+        :return sw_c: (lat,lon)-coordinate pair of true south-west corner of target domain
         """
 
-        method = Geo_domain.get_dom_indices.__name__ + " of Class " + Geo_domain.__name__
+        method = Geo_subdomain.get_dom_indices.__name__ + " of Class " + Geo_subdomain.__name__
 
         # sainty check on the method-arguments
         if np.shape(sw_c)[0] != 2:
@@ -577,15 +545,15 @@ class Geo_domain(Netcdf_utils):
                 raise ValueError("%{0}: Desired domain exceeds spatial data coverage in zonal direction."
                                  .format(method))
             else:
-                # readjust indices and switch order to trigger correct slicing in get_data_reg-method
+                # readjust indices and switch order to trigger correct slicing in get_data_dom-method
                 ne_c_ind[1] = np.abs(ne_c_ind[1] - self.nlon)
                 lon_slices = [np.maximum(sw_c_ind[1], ne_c_ind[1]), np.minimum(sw_c_ind[1], ne_c_ind[1])]
         else:
             lon_slices = [np.minimum(sw_c_ind[1], ne_c_ind[1]), np.maximum(sw_c_ind[1], ne_c_ind[1])]
 
-        return lat_slices, lon_slices
+        return lat_slices, lon_slices, sw_c
 
-    def get_data_reg(self, filename, variables):
+    def get_data_dom(self, filename, variables):
         """
         Performs slicing on data from datafile and cuts dataset to variables of interest
         :param filename: the netCDF-file to handle
@@ -593,7 +561,7 @@ class Geo_domain(Netcdf_utils):
         :return: sliced dataset with variables of interest
         """
 
-        method = Geo_domain.get_data_reg.__name__ + " of Class " + Geo_domain.__name__
+        method = Geo_subdomain.get_data_dom.__name__ + " of Class " + Geo_subdomain.__name__
 
         if not os.path.isfile(filename):
             raise FileNotFoundError("%{0}: Could not find datafile '{1}'".format(method, filename))
@@ -623,7 +591,6 @@ class Geo_domain(Netcdf_utils):
 
         return data_sub
 
-
     def handle_data_cross(self, data):
         """
         Handles data on target domain that crosses the cyclic boundary in zonal direction
@@ -631,7 +598,7 @@ class Geo_domain(Netcdf_utils):
         :return: the sliced dataset which has been merged to handle the cyclic boundary
         """
 
-        method = Geo_domain.get_data_reg.__name__ + " of Class " + Geo_domain.__name__
+        method = Geo_subdomain.get_data_cross.__name__ + " of Class " + Geo_subdomain.__name__
 
         lat_slices, lon_slices = self.lat_slices, self.lon_slices
         try:
