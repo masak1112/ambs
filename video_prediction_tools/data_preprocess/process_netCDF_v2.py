@@ -13,7 +13,7 @@ import pickle
 from netCDF4 import num2date
 import numpy as np
 import xarray as xr
-from metadata import Geo_domain
+from metadata import Geo_subdomain
 from statistics import Calc_data_stat
 
 class PreprocessNcToPkl(object):
@@ -26,7 +26,7 @@ class PreprocessNcToPkl(object):
             target_dir : base-directory where data is stored (files are stored under [target_dir]/pickle/[year]/)
             job_id     : job_id with range "01"-"12" (organized by PyStager) job_name also corresponds to the month
             year       : year of data to be processed
-            target_dom : class instance of Geo_domain which defines target domain
+            target_dom : class instance of Geo_subdomain which defines target domain
             vars       : variables to be processed
         """
         # sanity checks
@@ -36,8 +36,8 @@ class PreprocessNcToPkl(object):
         if not os.path.exists(self.directory_to_process):
             raise NotADirectoryError("The directory_to_process '"+self.directory_to_process+"' does not exist")
 
-        if not isinstance(target_dom, Geo_domain):
-            raise ValueError("target_dom must be a Geo_domain-instance.")
+        if not isinstance(target_dom, Geo_subdomain):
+            raise ValueError("target_dom must be a Geo_subdomain-instance.")
         # directory_to_process is month-based directory
         self.directory_to_process=os.path.join(src_dir,str(year), str(job_id))
 
@@ -121,7 +121,7 @@ class PreprocessNcToPkl(object):
         for j, nc_fname in enumerate(self.imageList):
             nc_fname_full = os.path.join(self.directory_to_process, nc_fname)
             try:
-                data_curr = tar_dom.get_data_reg(nc_fname_full, self.vars)
+                data_curr = tar_dom.get_data_dom(nc_fname_full, self.vars)
                 if j == 0:
                     data_all = data_curr.copy(deep=True)
                 else:
