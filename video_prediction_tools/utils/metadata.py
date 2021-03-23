@@ -108,12 +108,12 @@ class MetaData:
         flag_coords = ["N", "E"]
 
         print("Retrieve metadata based on file: '" + datafile_name + "'")
-        aux_data = tar_dom.get_data_dom(datafile_name)
+        aux_data = tar_dom.get_data_dom(datafile_name, variables)
         aux_coords = aux_data.coords
 
         self.lat, self.lon = aux_coords["lat"].values, aux_coords["lon"].values
         self.nx, self.ny = np.shape(self.lon)[0], np.shape(self.lat)[0]
-        sw_c = tar_dom.sw_c.values
+        sw_c = tar_dom.sw_c
         # switch to [-180..180]-range for convenince before setting attribute
         if sw_c[1] > 180.:
             sw_c[1] -= 360.
@@ -125,6 +125,7 @@ class MetaData:
         if sw_c[1] < 0:
             sw_c[1] = np.abs(sw_c[1])
             flag_coords[1] = "W"
+        self.varnames = variables
         nvar = len(variables)
 
         # Now start constructing expdir-string
@@ -550,6 +551,8 @@ class Geo_subdomain(Netcdf_utils):
                 lon_slices = [np.maximum(sw_c_ind[1], ne_c_ind[1]), np.minimum(sw_c_ind[1], ne_c_ind[1])]
         else:
             lon_slices = [np.minimum(sw_c_ind[1], ne_c_ind[1]), np.maximum(sw_c_ind[1], ne_c_ind[1])]
+
+        sw_c = [coord.values for coord in sw_c]
 
         return lat_slices, lon_slices, sw_c
 
