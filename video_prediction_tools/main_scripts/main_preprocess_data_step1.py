@@ -14,7 +14,7 @@ import argparse
 from utils.external_function import directory_scanner
 from utils.external_function import load_distributor
 from data_preprocess.process_netCDF_v2 import *  
-from metadata import MetaData as MetaData
+from metadata import MetaData, Geo_subdomain
 import json
 
 
@@ -44,14 +44,9 @@ def main():
     rsync_status = args.rsync_status
    
     vars1 = args.vars
-    _ = check_target_coords(args.sw_corner, args.nyx)
-    slices = {"lon_sw": args.sw_corner[1],
-              "lat_sw": args.sw_corner[0],
-              "nx": args.nyx[1],
-              "ny": args.nyx[0]
-              }
+    sw_c = args.sw_corner
+    nyx = args.nyx
     print("Selected variables", vars1)
-    print("Selected Slices", slices)
 
     exp_id = args.exp_id
 
@@ -90,12 +85,16 @@ def main():
         
     # Expand destination_dir-variable by searching for netCDF-files in source_dir
     # and processing the file from the first list element to obtain all relevant (meta-)data.
+    data_files_list = glob.iglob(source_dir_full+"/**/*.nc", recursive=True)
+    try:
+        data_file = next(data_files_list)
+    except StopIteration:
+        raise FileNotFoundError("Could not find any data to be processed in '{0}'".format(source_dir_full))
+
+    tar_dom = Geo_subdomain(sw_c, nyx, data_file)
+
     if my_rank == 0:
-        data_files_list = glob.glob(source_dir_full+"/**/*.nc", recursive=True)
-        if not data_files_list:
-            raise FileNotFoundError("Could not find any data to be processed in '{0}'".format(source_dir_full))
-        print("variables", vars1)
-        md = MetaData(suffix_indir=destination_dir, exp_id=exp_id, data_filename=data_files_list[0], slices=slices,
+        md = MetaData(suffix_indir=destination_dir, exp_id=exp_id, data_filename=data_file, tar_dom=tar_dom,
                       variables=vars1)
 
         if md.status == "old":          # meta-data file already exists and is ok
@@ -124,8 +123,6 @@ def main():
         
         with open(os.path.join(md.expdir, md.expname, "options.json"), "w") as f:
             f.write(json.dumps(vars(args), sort_keys=True, indent=4))
-
-    # ML 2020/04/24 E   
 
     if my_rank == 0:  # node is master:
         # ==================================== Master : Directory scanner ================================= #
@@ -198,8 +195,7 @@ def main():
                 if rsync_status == 1:
                     # ML 2020/06/09: workaround to get correct destination_dir obtained by the master node
                     destination_dir = MetaData.get_destdir_jsontmp(tmp_dir=current_path)
-                    process_data = PreprocessNcToPkl(src_dir=source_dir, target_dir=destination_dir, year=years,
-                                                     job_name=job, slices=slices, vars=vars1)
+                    process_data = PreprocessNcToPkl(source_dir, destination_dir, years, job, tar_dom, vars1)
                     process_data()
 
                 # Send : the finish of the sync message back to master node
