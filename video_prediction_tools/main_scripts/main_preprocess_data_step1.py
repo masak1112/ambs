@@ -21,12 +21,14 @@ import json
 def main():
 
     parser = argparse.ArgumentParser()
-    parser.add_argument("--source_dir", type=str, default="/p/scratch/deepacf/bing/extractedData/")
-    parser.add_argument("--destination_dir", type=str,
-                        default="/p/scratch/deepacf/bing/processData_size_64_64_3_3t_norm")
-    parser.add_argument("--years", "-y", dest="years")
+    parser.add_argument("--source_dir", "-src_dir", dest="source_dir", type=str,
+                        help="Directory where input netCDF-files are located.")
+    parser.add_argument("--destination_dir", "-dest_dir", dest="destination_dir", type=str,
+                        help="Destination directory where pickle-files be saved. Note that the complete path is auto-" 
+                             "completed during runtime.")
+    parser.add_argument("--years", "-y", dest="years", help="Year of data to be processed.")
     parser.add_argument("--rsync_status", type=int, default=1)
-    parser.add_argument("--vars", nargs="+", default=["T2", "T2", "T2"])  #"MSL","gph500"
+    parser.add_argument("--vars", nargs="+", default=["2t", "2t", "2t"], help="Variables to be processed.")
     parser.add_argument("--lat_s", type=int, default=106)
     parser.add_argument("--lat_e", type=int, default=170)
     parser.add_argument("--lon_s", type=int, default=598)
@@ -96,7 +98,7 @@ def main():
     if my_rank == 0:
         data_files_list = glob.glob(source_dir_full+"/**/*.nc", recursive=True)
         if not data_files_list:
-            raise IOError("Could not find any data to be processed in '"+source_dir_full+"'")
+            raise FileNotFoundError("Could not find any data to be processed in '{0}'".format(source_dir_full))
         print("variables", vars1)
         md = MetaData(suffix_indir=destination_dir, exp_id=exp_id, data_filename=data_files_list[0], slices=slices,
                       variables=vars1)
