@@ -442,7 +442,7 @@ class Netcdf_utils:
 
         try:
             with xr.open_dataset(self.filename) as dfile:
-                coords = dfile.coords()
+                coords = dfile.coords
         except:
             raise IOError("%{0}: Could not handle coordinates of netCDF-file '{1}'".format(method, self.filename))
 
@@ -486,16 +486,13 @@ class Geo_domain(Netcdf_utils):
         # inherit from Netcdf_utils
         super().__init__(filename)
 
-        coords = self.get_coords()
-
         self.base_file = filename
-        self.handle_geocoords(self, coords)
-        self.lat_slices, self.lon_slices = self.get_dom_indices(self, sw_corner, nyx)
+        self.handle_geocoords()
+        self.lat_slices, self.lon_slices = self.get_dom_indices(sw_corner, nyx)
 
-    def handle_geocoords(self, coords):
+    def handle_geocoords(self):
         """
         Retrieve geographical coordinates named lat and lon from coords-dictionary and sets some key attributes
-        :param coords: dictionary of coordinates (from opened netCDF-file with xarray)
         :return: class instance with the following attributes:
                  * lat, lon : latitude and longitude values
                  * nlat, nlon: number of grid points in meridional and zonal direction
@@ -505,10 +502,11 @@ class Geo_domain(Netcdf_utils):
 
         method = Geo_domain.handle_geocoords.__name__ + " of Class " + Geo_domain.__name__
 
+        coords = self.coords
         try:
             self.lat, self.lon = coords["lat"], coords["lon"]
             self.nlat, self.nlon = np.shape(self.lat)[0], np.shape(self.lon)[0]
-            self.dy, self.dx = (self.lat[1]- self.lat[0]).values, (self.lat[1]- self.lat[0]).values
+            self.dy, self.dx = (self.lat[1]- self.lat[0]).values, (self.lon[1]- self.lon[0]).values
             self.lcyclic = (self.nlon == np.around(360./self.dx))
 
         except Exception as err:
@@ -548,16 +546,16 @@ class Geo_domain(Netcdf_utils):
                 sw_c[1] += self.dx
 
         # check if south-west corner is inside data domain
-        lat_intv = [np.amin(self.lat), np.amax(self.lat)]
-        lon_intv = [np.amin(self.lon), np.amax(self.lon)]
+        lat_intv = [np.amin(self.lat.values), np.amax(self.lat.values)]
+        lon_intv = [np.amin(self.lon.values), np.amax(self.lon.values)]
         if not isw(sw_c[0], lat_intv):
             raise ValueError("%{0}: The meridional coordinate of the SW-corner at {1:5.2f}N".format(method, sw_c[0]) +
-                             "is not part of the data domain (latitude range between {0:5.2f}N and {1:5.2f}N)."
+                             " is not part of the data domain (latitude range between {0:5.2f}N and {1:5.2f}N)."
                              .format(*lat_intv))
 
         if not isw(sw_c[1], lon_intv):
             raise ValueError("%{0}: The zonal coordinate of the SW-corner at {1:5.2f}E".format(method, sw_c[1]) +
-                             "is not part of the data domain (longitude range between {0:5.2f}E and {1:5.2f}E)."
+                             " is not part of the data domain (longitude range between {0:5.2f}E and {1:5.2f}E)."
                              .format(*lon_intv))
 
         sw_c = [self.lat.sel(lat=sw_c[0], method='nearest'), self.lon.sel(lon=sw_c[1], method='nearest')]
