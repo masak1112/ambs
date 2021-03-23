@@ -415,8 +415,8 @@ class TrainModel(object):
         """ 
    
         iterations = list(range(len(train_losses)))
-        if len(train_losses) != len(val_losses) or len(train_losses) != step +1 : 
-            raise ValueError("The length of training losses must be equal to the length of val losses and  step +1 !")  
+        if len(train_losses) != len(val_losses): 
+            raise ValueError("The length of training losses must be equal to the length of val losses!")  
         plt.plot(iterations, train_losses, 'g', label='Training loss')
         plt.plot(iterations, val_losses, 'b', label='validation loss')
         plt.title('Training and Validation loss')
