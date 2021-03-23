@@ -29,9 +29,9 @@ def main():
     parser.add_argument("--years", "-y", dest="years", help="Year of data to be processed.")
     parser.add_argument("--rsync_status", type=int, default=1)
     parser.add_argument("--vars", nargs="+", default=["2t", "2t", "2t"], help="Variables to be processed.")
-    parser.add_argument("--sw_corner", "-swc", dest="sw_corner", help="Defines south-west corner of target domain " +
+    parser.add_argument("--sw_corner", "-swc", dest="sw_corner", nargs="+", help="Defines south-west corner of target domain " +
                         "(lat, lon)=(-90..90, 0..360)")
-    parser.add_argument("--nyx", "-nyx", dest="nyx", help="Number of grid points in zonal and meridional direction.")
+    parser.add_argument("--nyx", "-nyx", dest="nyx", nargs="+", help="Number of grid points in zonal and meridional direction.")
     parser.add_argument("--experimental_id", "-exp_id", dest="exp_id", type=str, default="dummy",
                         help="Experimental identifier helping to distinguish between different experiments.")
     args = parser.parse_args()
@@ -44,8 +44,8 @@ def main():
     rsync_status = args.rsync_status
    
     vars1 = args.vars
-    sw_c = args.sw_corner
-    nyx = args.nyx
+    sw_c = [float(f) for f in args.sw_corner]
+    nyx = [int(i) for i in args.nyx]
     print("Selected variables", vars1)
 
     exp_id = args.exp_id
