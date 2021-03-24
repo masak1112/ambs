@@ -14,12 +14,13 @@ import numpy as np
 import json
 import tensorflow as tf
 from normalization import Norm_data
+from metadata import MetaData
 import datetime
 from model_modules.video_prediction.datasets import ERA5Dataset
 
 
 class ERA5Pkl2Tfrecords(ERA5Dataset):
-    def __init__(self, input_dir=None,  sequence_length=20, sequences_per_file=128,norm="minmax"):
+    def __init__(self, input_dir=None, dest_dir=None,  sequence_length=20, sequences_per_file=128, norm="minmax"):
         """
         This class is used for converting pkl files to tfrecords
         args:
@@ -31,12 +32,14 @@ class ERA5Pkl2Tfrecords(ERA5Dataset):
                                    default: "minmax")
         """
         self.input_dir = input_dir
-        self.input_dir_pkl = os.path.join(input_dir,"pickle")
-        self.output_dir = os.path.join(input_dir, "tfrecords_seq_len_" + str(sequence_length))
+        # ML: No hidden path-extensions (rather managed in generate_runscript.py)
+        # self.input_dir_pkl = os.path.join(input_dir,"pickle")
+        self.output_dir = dest_dir
         # if the output_dir is not exist, then create it
         os.makedirs(self.output_dir, exist_ok=True)
         # get metadata,includes the var_in, image height, width etc.
-        self.get_metadata()
+        self.metadata_fl = os.path.join(os.path.dirname(self.input_dir.rstrip("/")), "metadata.json")
+        self.get_metadata(MetaData(json_file=self.metadata_fl))
         # Get the data split informaiton
         self.sequence_length = sequence_length
         if norm == "minmax" or norm == "znorm":
@@ -54,33 +57,32 @@ class ERA5Pkl2Tfrecords(ERA5Dataset):
         """
         self.months = []
         self.years_months = []
-        #search for pickle names with pattern 'X_{}.pkl'for months
-        self.years =  [ name for name in os.listdir(self.input_dir_pkl) if os.path.isdir(os.path.join(self.input_dir_pkl,name)) ] 
-        #search for folder names from pickle folder to get years
+        # search for pickle names with pattern 'X_{}.pkl'for months
+        self.years = [name for name in os.listdir(self.input_dir) if os.path.isdir(os.path.join(self.input_dir, name))]
+        # search for folder names from pickle folder to get years
         patt = "X_*.pkl"         
         for year in self.years:
-            print("pahtL:",os.path.join(self.input_dir_pkl,year,patt))
-            months_pkl_list = glob.glob(os.path.join(self.input_dir_pkl,year,patt))
-            print ("months_pkl_list",months_pkl_list)
+            print("pahtL:", os.path.join(self.input_dir, year, patt))
+            months_pkl_list = glob.glob(os.path.join(self.input_dir, year, patt))
+            print("months_pkl_list", months_pkl_list)
             months_list = [int(m[-6:-4]) for m in months_pkl_list]
             self.months.extend(months_list)
             self.years_months.append(months_list)
-        return self.years, list(set(self.months)),self.years_months
+        return self.years, list(set(self.months)), self.years_months
 
     def get_stats_file(self):
         """
         Get the corresponding statistics file
         """
-        pkl_dir = os.path.join(self.input_dir, "pickle")
-        print("Opening json-file: " + os.path.join(pkl_dir, "statistics.json"))
-        self.stats_file = os.path.join(pkl_dir, "statistics.json")
+        self.stats_file = os.path.join(os.path.dirname(self.input_dir), "statistics.json")
+        print("Opening json-file: {0}".format(self.stats_file))
         if os.path.isfile(self.stats_file):
             with open(self.stats_file) as js_file:
                 self.stats = json.load(js_file)
         else:
-            raise ("statistic file does not exist")
+            raise FileNotFoundError("Statistic file does not exist")
 
-    def get_metadata(self):
+    def get_metadata(self, md_instance):
         """
         This function gets the meta data that has been generated in data_process_step1. Here, we aim to extract
         the height and width information from it
@@ -88,20 +90,18 @@ class ERA5Pkl2Tfrecords(ERA5Dataset):
         height    : int, the height of the image
         width     : int, the width of the image
         """
-        metadata_fl = os.path.join(self.input_dir, "metadata.json")
-        if os.path.isfile(metadata_fl):
-            self.metadata_fl = metadata_fl
-            with open(self.metadata_fl) as f:
-                self.metadata = json.load(f)
-            self.frame_size = self.metadata["frame_size"]
-            self.height = self.frame_size["ny"]
-            self.width = self.frame_size["nx"]
-            self.variables = self.metadata["variables"]
-            self.vars_in = [list(var.values())[0] for var in self.variables]
-           
-        else:
-            raise FileNotFoundError("The metadata_file is not generated properly, " + \
-                                    "you might need to re-run previous step of the workflow")
+        if not isinstance(md_instance, MetaData):
+            raise ValueError("md_instance-argument must be a MetaData class instance")
+
+        if not hasattr(self, "metadata_fl"):
+            raise ValueError("MetaData class instance passed, but attribute metadata_fl is still missing.")
+
+        try:
+            self.height, self.width = md_instance.ny, md_instance.nx
+            self.vars_in = md_instance.variables
+        except:
+            raise IOError("Could not retrieve all required information from metadata-file '{0}'"
+                          .format(self.metadata_fl))
 
     @staticmethod
     def save_tf_record(output_fname, sequences, t_start_points):
@@ -138,7 +138,7 @@ class ERA5Pkl2Tfrecords(ERA5Dataset):
                 example = tf.train.Example(features=features)
                 writer.write(example.SerializeToString())
 
-    def initia_norm_class(self):
+    def init_norm_class(self):
         """
         Get normalization data class 
         """
@@ -165,10 +165,9 @@ class ERA5Pkl2Tfrecords(ERA5Dataset):
         sequences = np.array(sequences)
         # normalization
         for i in range(self.nvars):
-            sequences[:,:,:,:,i] = self.norm_cls.norm_var(sequences[:,:,:,:,i], self.vars_in[i], self.norm)
+            sequences[..., i] = self.norm_cls.norm_var(sequences[..., i], self.vars_in[i], self.norm)
         return sequences
 
-    
     def read_pkl_and_save_tfrecords(self, year, month):
         """
         Read pickle files based on month, to process and save to tfrecords,
@@ -177,11 +176,11 @@ class ERA5Pkl2Tfrecords(ERA5Dataset):
             month   : int, the target month to save to tfrecord 
         """
         # Define the input_file based on the year and month
-        self.input_file_year = os.path.join(self.input_dir, "pickle", str(year))
+        self.input_file_year = os.path.join(self.input_dir, str(year))
         input_file = os.path.join(self.input_file_year, 'X_{:02d}.pkl'.format(month))
         temp_input_file = os.path.join(self.input_file_year, 'T_{:02d}.pkl'.format(month))
 
-        self.initia_norm_class()
+        self.init_norm_class()
         sequences = []
         t_start_points = []
         sequence_iter = 0
@@ -198,12 +197,12 @@ class ERA5Pkl2Tfrecords(ERA5Dataset):
         X_possible_starts = [i for i in range(len(X_train) - self.sequence_length)]
         for X_start in X_possible_starts:
             X_end = X_start + self.sequence_length
-            seq = X_train[X_start:X_end,:,:,:]
+            seq = X_train[X_start:X_end, ...]
             # recording the start point of the timestamps
             t_start = T_train[X_start][0]
-            t_start = datetime.datetime.strptime(str(t_start),"%Y-%m-%d %H:%M:%S") 
-            print("t_start,",t_start)
-            print("type of t_starty",type(t_start))
+            t_start = datetime.datetime.strptime(str(t_start), "%Y-%m-%d %H:%M:%S")
+            print("t_start,", t_start)
+            print("type of t_starty", type(t_start))
             seq = list(np.array(seq).reshape((self.sequence_length, self.height, self.width, self.nvars)))
             if not sequences:
                 last_start_sequence_iter = sequence_iter
@@ -214,7 +213,7 @@ class ERA5Pkl2Tfrecords(ERA5Dataset):
             if len(sequences) == self.sequences_per_file:
                 # normalize variables in the sequences
                 sequences = ERA5Pkl2Tfrecords.normalize_vars_per_seq(self, sequences)
-                output_fname = 'sequence_Y_{}_M_{}_{}_to_{}.tfrecords'.format(year, month, last_start_sequence_iter, \
+                output_fname = 'sequence_Y_{}_M_{}_{}_to_{}.tfrecords'.format(year, month, last_start_sequence_iter,
                                                                               sequence_iter - 1)
                 output_fname = os.path.join(self.output_dir, output_fname)
                 # write to tfrecord
@@ -242,6 +241,7 @@ class ERA5Pkl2Tfrecords(ERA5Dataset):
         Generate a txt file, with the numbers of sequences for each tfrecords file.
         This is mainly used for calculting the number of samples for each epoch during training epoch
         """
+
         with open(os.path.join(self.output_dir, 'number_sequences.txt'), 'w') as seq_file:
             seq_file.write("%d\n" % self.sequences_per_file)
 

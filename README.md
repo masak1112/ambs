@@ -1,9 +1,19 @@
 # AMBS
 
-**A**tmopsheric **M**achine learning **B**enchmarking **S**ystem (AMBS) aims to provide state-of-the-art video prediction methods applied to the meteorological domain.
-In the scope of the current application, the hourly evolution of the 2m temperature over a used-defined region is the target application. Different Deep Learning video prediction architectures such as convLSTM, MCnet or SAVP are trained with ERA5 reanalysis to perform a 10 hour prediction based on the previous 10 hours. In addition to the 2m temperature, additional meteorological variables like the mean sealevel pressure and the 500 hPa geopotential are fed to the underlying neural networks in order to enhance the model's capability to capture the atmospheric state and its (expected) evolution over time.
+**A**tmopsheric **M**achine learning **B**enchmarking **S**ystem (AMBS)
+ aims to provide state-of-the-art video prediction methods applied to the meteorological domain.
+In the scope of the current application, the hourly evolution of the 2m temperature
+over a used-defined region is the target application.
+Different Deep Learning video prediction architectures such as convLSTM, MCnet or SAVP
+are trained with ERA5 reanalysis to perform a 10 hour prediction based on the previous 10 hours.
+In addition to the 2m temperature, additional meteorological variables like the mean sealevel pressure
+and the 500 hPa geopotential are fed to the underlying neural networks
+in order to enhance the model's capability to capture the atmospheric state
+and its (expected) evolution over time.<br>
+Besides, training on other standard video frame prediction datasets (such as MovingMNIST) can be prerformed.
 
-The project is currently developed by Amirpasha Mozafarri, Michael Langguth, Bing Gong, and Scarlet Stadtler.
+The project is currently developed by Amirpasha Mozafarri, Michael Langguth,
+Bing Gong and Scarlet Stadtler.
 
 
 ### Prerequisites
@@ -11,84 +21,124 @@ The project is currently developed by Amirpasha Mozafarri, Michael Langguth, Bin
 - Python 3
 - CPU or NVIDIA GPU + CUDA CuDNN
 - MPI
-- Tensorflow 1.13.1 or CUDA-enabled NVIDIA TensorFlow 1.15 converted to singularity container (on Juwels Booster)
+- Tensorflow 1.13.1 or CUDA-enabled NVIDIA TensorFlow 1.15 within a singularity container (on Juwels Booster)
 
 ### Installation 
 
-- Clone this repo:
+Clone this repo by typing the following command in your personal target dirctory:
 ```bash 
 git clone https://gitlab.version.fz-juelich.de/toar/ambs.git
 ```
+This will create a directory called `ambs` under which this README-file and 
+two subdirectories are placed. The subdirectory `[...]/ambs/test/` contains unittest-scripts for
+the workflow and is therefore of minor relevance for non-developers.
+The subdirectory `[...]/ambs/video_prediction_tools` contains everything which is needed in the workflow and is
+therefore called the top-level directory in the following.
 
-### Set-up env on Jülich's HPC systems and zam347
+Thus, change into this subdirectory after cloning:
+```bash 
+cd ambs/video_preditcion_tools/
+```
 
-The following commands will setup a user-specific virtual environment
-either on Juwels, HDF-ML (HPC clusters) or on zam347 for you.
+### Set-up environment on Jülich's HPC systems or other computing systems
+
+The following commands will setup a customized virtual environment
+either on a known HPC-system (Juwels, Juwels Booster or HDF-ML) or on a generalized computing system 
+(e.g. zam347 or your personal computer). 
 The script `create_env.sh` automatically detects on which machine it is executed and loads/installs
 all required Python (binary) modules and packages.
-The virtual environment is set up under the subfolder `video_prediction_savp/<env_name>`.
-Besides, user-specific runscripts for each step of the workflow are created.
-If no experimental identifier is passed as a second (optional) argument (`exp1` denotes the default identifer.)  `train_era5_exp1.sh` among other runscripts are set up which enables the user to run sequentially through all workflow steps (see below). 
+The virtual environment is set up in the top-level directory (`[...]/ambs/video_prediction_tools`)
+under a subdirectory which gets the name of the virtual environment.
 
 ```bash
-cd video_prediction_tools/env_setup
-source create_env.sh <env_name> [<exp_id>]
+cd env_setup
+source create_env.sh <env_name> 
 ```
 
 ### Run the workflow
 
-Depending on the machine you are working on, change either to 
-`video_prediction_tools/HPC_scripts` (on Juwels and HDF-ML) or to 
-`video_prediction_tools/Zam347_scripts`.
-There, the respective runscripts for all steps of the workflow are located
-whose order is the following. Note that `[sbatch]` only has to precede on one of the HPC systems.
+Depending on the computing system you are working on, the workflow steps will be invoked
+by dedicated runscripts either from the directory `HPC_scripts/` (on known HPC-systems, see above) or from
+the directory `nonHPC_scripts/` (else).<br>
+Each runscript can be set up conveniently with the help of the Python-script `generate_runscript.py`.
+Its usage as well the workflow runscripts are described subsequently.
 
+#### Preparation 
 
-1. Data Extraction: Retrieve ERA5 reanalysis data for one year. For multiple year, execute the runscript sequentially.  
+Change to the directory `config_runscripts` where the above mentioned runscript-generator script can be found.
 ```bash
-[sbatch] ./data_extraction_era5_<exp_id>.sh
+cd config_runscripts
 ```
+Before customized workflow runscripts can be set up properly, the templates have to be adjusted with the help of 
+the script `setup_runscript_templates.sh`. This script creates a bundle of user-defined templates under 
+`HPC_scripts/` and `nonHPC_scripts/` from which the target base directory can be retrieved. 
+This is the directory where the preprocessed data, the trained model and the postprocessing products will be saved
+and thus, it should be placed on a dic with sufficient memory capacity. The path to this place is passed as an 
+argument to the setup-script.
+```bash 
+source setup_runscript_templates.sh <base_target_dir>
+```     
+If called without script arguments, the default directory on the Jülich Storage Cluster (JUST) is set up,
+that is `/p/project/deepacf/deeprain/video_prediction_shared_folder/`.
 
-2. Data Preprocessing: Crop all data (multiple years possible) to the region of interest, perform normalization and create tf-record files. Note, that the first preprocessing step involves an automatic determination of the experimental directory where the input data for training, the model and the output data will be stored. 
-The direcory paths in the subsequent workflow steps are also automatically adapted. 
+#### Create specific runscripts
+
+Specific runscripts for each workfow substep (see below) are generated conventiently by keyboard interaction.
+The respective Python-script thereby has to be executed in an activated virtual environment (see above)!
+After prompting 
 ```bash
-[sbatch] ./preprocess_data_step1_<exp_id>.sh
-[sbatch] ./preprocess_data_step2_<exp_id>.sh
+python generate_runscript.py
 ```
+you will be asked first which workflow runscript shall be generated. You can chose one of the workflow step name: extract, preprocess1, preprocess2, train, and postprocess The subsequent keyboard interactions allow then
+the user to make individual settings to the workflow step at hand. Note that the runscript creation of later 
+workflow substeps depends on the preceding steps (i.e. by checking the arguments from keyboard interaction).
+Thus, they should be created sequentially instead of all at once at the beginning.
 
-3. Training: Training of one of the available models (see bewlow) with the preprocessed data. 
+#### Running the workflow substeps 
+Having created the runscript by keyboard interaction, the workflow substeps can be run sequentially.
+Depending on the machine you are working on, change either to `HPC_scripts/` (on Juwels, Juwels Booster or HDF-ML) or to 
+`nonHPC347_scripts/`.
+There, the respective runscripts for all steps of the workflow are located 
+whose order is as follows. Note that `[sbatch]` only has to precede on one of the HPC systems.
+Besides data extraction and preprocessing step 1 are onyl mandatory when ERA5 data is subject to the application.
+
+1. Data Extraction: Retrieve ERA5 reanalysis data for one year. For multiple years, execute the runscript sequentially.    
 ```bash
-[sbatch] ./train_model_era5_<exp_id>.sh
+[sbatch] ./data_extraction_era5.sh
 ```
-
-4. Postprocess: Create some plots and calculate evaluation metrics for test dataset.
-```bash
-[sbatch] ./visualize_postprocess_era5_<exp_id>.sh
-```
-
-### Create additional runscripts ###
-In case that you want to perform experiments with varying configuration (e.g. another set of hyperparameters, but still the same input dataset for training), it is convenient to create individual runscripts from the templates. 
-This can be done with the help of `generate_workflow_runscripts.sh`. 
-
-The first argument `<runscript_name>` defines the **relative path** to the template runscript
-which should be converted to an executable one. Note that only the suffix of the 
-template's name must be passed, e.g. `../HPC_scripts/train_era5` in order to create 
-a runscript for the training substep.
-The second argument `<venv_name>` denotes the name of the virtual environment which has to be set up in advance and which should be used by the runscript at hand.
-
-Additional optional arguments can be passed to control the experimental identifier and to set manually the realtive path to the 
-directory where the preprocessed data is stored (used for the training and postprocessing substep). These optional arguments have to follow a naming convention in order to be identified by `generate_workflow_runscripts.sh`.
-The experimental identifer can be passed by adding `-exp_id=<id>`while the path to the preprocessed data requires passing of `-exp_dir=<relative_path_to_dir>`. Note, that the default value `exp1` is used as experimental identifier if the `-exp_id=<id>` is omitted.
-
-``` bash
-./generate_workflow_runscripts.sh <runscript_name> <venv_name> [-exp_id=<id>] [-exp_dir=<relative_dir_to_path>]
-```
-
-*Specific example:*
-``` bash
-
-./generate_workflow_runscripts.sh train_model_era5 venv_juwels -exp_id=exp_test -exp_dir=era5-Y2010toY2222M01to12-160x128-2970N1500W-T2_MSL_gph500
-```
+2. Data Preprocessing: Crop the ERA 5-data (multiple years possible) to the region of interest (preprocesing step 1),
+The TFrecord-files which are fed to the trained model (next workflow step) are created afterwards.
+This is also the place where other datasets such as the MovingMNIST (link?) can be prepared.  
+Thus, two cases exist at this stage:
+    * **ERA 5 data**
+    ```bash
+    [sbatch] ./preprocess_data_era5_step1.sh
+    [sbatch] ./preprocess_data_era5_step2.sh
+    ```
+    * **MovingMNIST data**
+    ```bash
+    [sbatch] ./preprocess_data_moving_mnist.sh
+    ```
+3. Training: Training of one of the available models with the preprocessed data. <br>
+Note that the `exp_id` is generated automatically when running `generate_runscript.py`.
+    * **ERA 5 data**
+    ```bash
+    [sbatch] ./train_model_era5_<exp_id>.sh
+    ```
+    * **MovingMNIST data**
+    ```bash
+    [sbatch] ./train_model_moving_mnist_<exp_id>.sh
+    ```
+4. Postprocess: Create some plots and calculate the evaluation metrics for test dataset. <br>
+Note that the `exp_id` is generated automatically when running `generate_runscript.py`.
+    * **ERA 5 data**
+    ```bash
+    [sbatch] ./visualize_postprocess_era5_<exp_id>.sh
+    ```
+    * **MovingMNIST data**
+    ```bash
+    [sbatch] ./visualize_postprocess_moving_mnist_<exp_id>.sh
+    ```
 
 ### Notes for Juwels Booster ###
 
@@ -98,8 +148,6 @@ To run the training on the Booster, change to the recent Booster related working
 
 ```bash 
 git checkout scarlet_issue#031_booster
-
-
 ```
 
 Currently, there is no system installation of TensorFlow available on Juwels Booster. As an intermediate solution,

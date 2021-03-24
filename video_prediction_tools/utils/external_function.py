@@ -19,15 +19,13 @@ def directory_scanner(source_path):
     total_size_source = 0
     total_num_files = 0
     list_directories = []
- 
+
     list_directories = os.listdir(source_path)
     print(list_directories)
     print(int(len(list_directories)))
  
     for d in list_directories:
-        print(d)
-        path = source_path + d
-        print(path)
+        path = os.path.join(source_path, d)
         if os.path.isdir(path):
             sub_dir_list.append(d)
             sub_dir_list.sort()

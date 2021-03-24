@@ -58,3 +58,34 @@ def is_integer(n):
         return False
     else:
         return float(n).is_integer()
+
+def check_str_in_list(list_in, str2check, labort=True):
+    """
+    Checks if all strings are found in list
+    :param list_in: input list
+    :param str2check: string or list of strings to be checked if they are part of list_in
+    :return: True if existence of all strings was confirmed
+    """
+
+    stat = False
+    if isinstance(str2check, str):
+        str2check = [str2check]
+    elif isinstance(str2check, list):
+        assert np.all([isinstance(str1, str) for str1 in str2check]) == True, \
+            "Not all elements of str2check are strings"
+    else:
+        raise ValueError("str2check argument must be either a string or a list of strings")
+
+    stat_element = [True if str1 in list_in else False for str1 in str2check]
+
+    if not np.all(stat_element):
+        print("The following elements are not part of the input list:")
+        inds_miss = np.where(stat_element)[0]
+        for i in inds_miss:
+            print("* index {0:d}: {1}".format(i, str2check[i]))
+        if labort:
+            raise ValueError("Could not find all expected strings in list.")
+    else:
+        stat = True
+    
+    return stat

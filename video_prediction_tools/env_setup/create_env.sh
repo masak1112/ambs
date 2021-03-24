@@ -23,18 +23,6 @@ if [[ ! -n "$1" ]]; then
   return
 fi
 
-if [[ -n "$2" ]]; then
-  exp_id=$2
-else
-  exp_id=""
-fi
-
-# list of (Batch) scripts used for the steps in the workflow
-# !!! Expects that a template named [script_name]_template.sh exists                   !!!
-# !!! Only create runscripts for data extraction and preprocessing step 1.             !!!
-# !!! For the rest, make use of config_runscript.sh                                    !!!
-workflow_scripts=(data_extraction_era5 preprocess_data_era5_step1)
-
 HOST_NAME=`hostname`
 ENV_NAME=$1
 ENV_SETUP_DIR=`pwd`
@@ -48,15 +36,12 @@ if [[ "${HOST_NAME}" == jwlogin2[1-4]* ]]; then
   echo "******************************************** NOTE ********************************************"
   echo "                Make use of dedicated Horovod-related working branches only!!!                "
   echo "******************************************** NOTE ********************************************"
-  workflow_scripts=()
   # another sanity check for Juwels Booster -> ensure running singularity
   if [[ -z "${SINGULARITY_NAME}" ]]; then
     echo "ERROR: create_env.sh must be executed in a running singularity on Juwels Booster."
     echo "Thus, execute 'singularity shell [my_docker_image]' first!"
     return
   fi
-else
-  workflow_scripts=(data_extraction_era5 preprocess_data_era5_step1 preprocess_data_era5_step2 train_model_era5 visualize_postprocess_era5 preprocess_data_moving_mnist train_model_moving_mnist visualize_postprocess_moving_mnist)
 fi
 
 # further sanity checks:
@@ -89,7 +74,8 @@ if [[ "${HOST_NAME}" == hdfml* || "${HOST_NAME}" == *juwels* ]]; then
     # load modules and check for their availability
     echo "***** Checking modules required during the workflow... *****"
     source ${ENV_SETUP_DIR}/modules_preprocess.sh purge
-    source ${ENV_SETUP_DIR}/modules_train.sh
+    source ${ENV_SETUP_DIR}/modules_train.sh purge
+    source ${ENV_SETUP_DIR}/modules_postprocess.sh
   fi
 else 
   # unset PYTHONPATH on every other machine that is not a known HPC-system	
@@ -97,7 +83,7 @@ else
 fi
 
 if [[ "$ENV_EXIST" == 0 ]]; then
-  # Activate virtual environmen and install additional Python packages.
+  # Activate virtual environment and install additional Python packages.
   echo "Configuring and activating virtual environment on ${HOST_NAME}"
     
   python3 -m venv $ENV_DIR
@@ -152,33 +138,19 @@ if [[ "$ENV_EXIST" == 0 ]]; then
        echo "export PYTONPATH=/usr/locali/lib/python3.6/dist-packages:\$PYTHONPATH" >> ${activate_virt_env}
      fi
   fi
+  info_str="Virtual environment ${ENV_DIR} has been set up successfully."
 elif [[ "$ENV_EXIST" == 1 ]]; then
-  echo "ERROR: Virtual environment ${ENV_NAME} already exists, please choose another name or delete the existing one."
-  return
-fi
-# Finish by creating runscripts
- # After checking and setting up the virt env, create user-specific runscripts for all steps of the workflow
-if [[ "${HOST_NAME}" == *hdfml* || "${HOST_NAME}" == *juwels* ]]; then
-  script_dir=../HPC_scripts
-else
-  script_dir=../Zam347_scripts
+  # activating virtual env is suifficient
+  source ${ENV_DIR}/bin/activate
+  info_str="Virtual environment ${ENV_DIR} has been activated successfully."
 fi
 
-echo "***** Creating Batch-scripts for data extraction and prepropcessing step 1... *****"
-for wf_script in "${workflow_scripts[@]}"; do
-  curr_script=${script_dir}/${wf_script}
-  if [[ -z "${exp_id}" ]]; then
-    ./generate_workflow_runscripts.sh ${curr_script} ${ENV_NAME}
-  else
-    ./generate_workflow_runscripts.sh ${curr_script}  ${ENV_NAME} -exp_id=${exp_id}
-  fi
-done
 echo "******************************************** NOTE ********************************************"
-echo "Runscripts for the remaining workflow steps can be generated with config_runscript.py!        "
+echo ${info_str}
+echo "Make use of config_runscript.py to generate customized runscripts of the workflow steps."
+echo "******************************************** NOTE ********************************************"
 
-# finally deactivate virtual environment and clean up loaded modules (if we are not on Juwels)
-deactivate
+# finally clean up loaded modules (if we are not on Juwels)
 if [[ "${HOST_NAME}" == *hdfml* || "${HOST_NAME}" == *juwels* ]] && [[ "${HOST_NAME}" != jwlogin2[1-4]* ]]; then
   module --force purge
 fi
-
