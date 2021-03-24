@@ -339,7 +339,7 @@ class Postprocess(TrainModel,ERA5Pkl2Tfrecords):
         self.restore(self.sess, self.checkpoint)
         #Loop for samples
         self.sample_ind = 0
-        Postprocess.init_eval_metrics_list()
+        self.init_eval_metrics_list()
         while self.sample_ind < self.num_samples_per_epoch:
             if self.num_samples_per_epoch < self.sample_ind:
                 break
@@ -365,13 +365,13 @@ class Postprocess(TrainModel,ERA5Pkl2Tfrecords):
                                                             fl_name="vfp_date_{}_sample_ind_{}.nc".format(self.ts_persistence[self.context_frames-1:self.context_frames][0].strftime("%Y%m%d%H"), self.sample_ind+i))
 
                 #calculate the evaluation metric for persistent and model forecasting per sample
-                Postprocess.calculate_persistence_eval_metrics(i)
-                Postprocess.calcualte_generate_eval_metrics(i)
+                self.calculate_persistence_eval_metrics(i)
+                self.calculate_generate_eval_metrics(i)
  
             self.sample_ind += self.batch_size
         
-        Postprocess.average_eval_metrics_for_all_batches()        
-        Postprocess.turn_deter_to_stochastic() 
+        self.average_eval_metrics_for_all_batches()        
+        self.turn_deter_to_stochastic() 
 
 
     def init_eval_metrics_list(self):
@@ -505,7 +505,7 @@ class Postprocess(TrainModel,ERA5Pkl2Tfrecords):
             if metric == "mse":
                 loss = (np.square(input_per_sample[context_frames+ts, :, :, channel] -  output_per_sample[context_frames+ts-1, :, :, channel])).mean()
             elif metric == "psnr":
-                metrics.psnr_imgs(input_per_sample[context_frames+ts, :, :, channel], output_per_sample[context_frames+ts-1, :, :, channel])
+                loss = metrics.psnr_imgs(input_per_sample[context_frames+ts, :, :, channel], output_per_sample[context_frames+ts-1, :, :, channel])
             else:
                 raise ValueError("We currently only support metric 'mse' and  'psnr' as evaluation metric for detereminstic forecasting")
             eval_metrics_by_ts.append(loss)
@@ -534,8 +534,8 @@ class Postprocess(TrainModel,ERA5Pkl2Tfrecords):
         """
         Save all the evaluation metrics to the json file
         """
-        Postprocess.save_one_eval_metric_to_json(metric="mse")
-        Postprocess.save_one_eval_metric_to_json(metric="psnr")
+        self.save_one_eval_metric_to_json(metric="mse")
+        self.save_one_eval_metric_to_json(metric="psnr")
 
 
     @staticmethod
