@@ -607,7 +607,7 @@ class Geo_subdomain(Netcdf_utils):
         :return: the sliced dataset which has been merged to handle the cyclic boundary
         """
 
-        method = Geo_subdomain.get_data_cross.__name__ + " of Class " + Geo_subdomain.__name__
+        method = Geo_subdomain.handle_data_cross.__name__ + " of Class " + Geo_subdomain.__name__
 
         lat_slices, lon_slices = self.lat_slices, self.lon_slices
         try:
