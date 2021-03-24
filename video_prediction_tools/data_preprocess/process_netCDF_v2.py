@@ -153,6 +153,12 @@ class PreprocessNcToPkl(object):
         
         # write data to pickle-file
         data = self.data
+        tar_dom = self.tar_dom
+        # roll data if domain crosses zero-meridian (to get spatially coherent data-arrays)
+        if tar_dom.lon_slices[0] > tar_dom.lon_slices[1]:
+            nroll_lon = tar_dom.nlon - tar_dom.lon_slices[0]
+            data = data.roll(lon=nroll_lon, roll_coords=True)
+
         try:
             data_arr = np.squeeze(data.values)
             with open(tar_fdata, "wb") as pkl_file:
