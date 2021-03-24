@@ -226,7 +226,7 @@ class Postprocess(TrainModel):
         """
         Load the statistics from statistic file from the input directory
         """
-        self.stat_fl = os.path.join(self.input_dir, "pickle/statistics.json")
+        self.stat_fl = os.path.join(self.input_dir, "statistics.json")
 
     def make_test_dataset_iterator(self):
         """
@@ -417,9 +417,10 @@ class Postprocess(TrainModel):
                 self.plot_generate_images(0, 0)
                 
                 #save each sample of persistent, model forecasting and reference to netcdf file
+                self.ts = Postprocess.generate_seq_timestamps(self.t_starts[i], len_seq=self.sequence_length)
                 self.save_to_netcdf_for_stochastic_generate_images(self.input_images_denorm_all[i], self.persistence_images,
                                                             np.expand_dims(np.array(self.gen_images_denorm), axis=0),
-                                                            fl_name="vfp_date_{}_sample_ind_{}.nc".format(self.ts_persistence[self.context_frames-1:self.context_frames][0].strftime("%Y%m%d%H"), self.sample_ind+i))
+                                                            fl_name="vfp_date_{}_sample_ind_{}.nc".format(self.ts[self.context_frames-1:self.context_frames][0].strftime("%Y%m%d%H"), self.sample_ind+i))
 
                 #calculate the evaluation metric for persistent and model forecasting per sample
                 self.calculate_persistence_eval_metrics(i)
