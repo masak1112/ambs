@@ -200,10 +200,7 @@ class PreprocessNcToPkl(object):
         data_arr = np.full(dshape, np.nan)
         # ... and populate the data in it
         for ivar, var in enumerate(self.vars):
-            data_arr[...,ivar] = data[var].values
-
-        # Remove redundant dimensions
-        data_arr = np.squeeze(data_arr)
+            data_arr[..., ivar] = np.squeeze(data[var].values)
 
         return data_arr
 
