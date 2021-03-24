@@ -46,6 +46,13 @@ class Postprocess(TrainModel):
         stochastic_plot_id :int, the index for stochastically generated images to plot
         gpu_mem_frac       :int, GPU memory fraction to be used
         seed               :seed for control test samples
+        
+        Side notes : other important varialbes in the class:
+        self.ts               : list, contains the sequence_length timestamps
+        self.gen_images_      :  the length of generate images by model is sequence_length - 1
+        self.persistent_image : the length of persistent images is sequence_length - 1
+        self.input_images     : the length of inputs images is sequence length
+
         """
 
         # initialize input directories (to be retrieved by load_jsons)
@@ -408,6 +415,7 @@ class Postprocess(TrainModel):
             assert gen_images.shape[1] == self.sequence_length - 1 #The generate images seq_len should be sequence_len -1, since the last one is not used for comparing with groud truth 
             
             for i in range(self.batch_size):
+                self.ts = Postprocess.generate_seq_timestamps(self.t_starts[i], len_seq=self.sequence_length)
                 #get persistent prediction per sample
                 self.get_and_plot_persistent_per_sample(sample_id=i)
                 
@@ -417,10 +425,9 @@ class Postprocess(TrainModel):
                 self.plot_generate_images(0, 0)
                 
                 #save each sample of persistent, model forecasting and reference to netcdf file
-                self.ts = Postprocess.generate_seq_timestamps(self.t_starts[i], len_seq=self.sequence_length)
                 self.save_to_netcdf_for_stochastic_generate_images(self.input_images_denorm_all[i], self.persistence_images,
                                                             np.expand_dims(np.array(self.gen_images_denorm), axis=0),
-                                                            fl_name="vfp_date_{}_sample_ind_{}.nc".format(self.ts[self.context_frames-1:self.context_frames][0].strftime("%Y%m%d%H"), self.sample_ind+i))
+                                                            fl_name="vfp_date_{}_sample_ind_{}.nc".format(self.ts[self.context_frames:self.context_frames+1][0].strftime("%Y%m%d%H"), self.sample_ind+i))
 
                 #calculate the evaluation metric for persistent and model forecasting per sample
                 self.calculate_persistence_eval_metrics(i)
@@ -477,7 +484,6 @@ class Postprocess(TrainModel):
         """
         Function that get persistent predictoin per sample and plot them 
         """
-        self.ts = Postprocess.generate_seq_timestamps(self.t_starts[sample_id], len_seq=self.sequence_length)
         self.init_date_str = self.ts[0].strftime("%Y%m%d%H")
         # get persistence_images
         self.persistence_images, self.ts_persistence = Postprocess.get_persistence(self.ts, self.input_dir_pkl)
@@ -585,7 +591,7 @@ class Postprocess(TrainModel):
             raise ValueError(
                 "We currently only support metric 'mse' and  'psnr' as evaluation metric for detereminstic forecasting")
         for ts in range(self.future_length):
-            self.eval_metrics["persistent_ts_"+str(ts)] =  [self.persistent_loss_all_batches[ts]]
+            self.eval_metrics["persistent_ts_"+str(ts)] =  [str(self.persistent_loss_all_batches[ts])]
             #for stochastic_sample_ind in range(self.num_stochastic_samples): 
             self.eval_metrics["model_ts_"+str(ts)] = [str(i) for i in stochastic_loss_all_batches[:, ts]]
         with open (os.path.join(self.results_dir, metric), "w") as fjs:
@@ -685,7 +691,7 @@ class Postprocess(TrainModel):
         """
        # I am not sure about the number of frames given with context_frames and context_frames +
         Postprocess.plot_seq_imgs(imgs=self.persistence_images[self.context_frames-1:,:,:,0], lats=self.lats, lons=self.lons,
-                                  ts=self.ts_persistence[self.context_frames-1:], label="Persistence Forecast" + self.model,output_png_dir=self.results_dir) 
+                                  ts=self.ts[self.context_frames:], label="Persistence Forecast" + self.model,output_png_dir=self.results_dir) 
 
     def plot_generate_images(self,stochastic_sample_ind,stochastic_plot_id=0):
         """
@@ -693,7 +699,7 @@ class Postprocess(TrainModel):
         """
         if stochastic_sample_ind == stochastic_plot_id: 
             Postprocess.plot_seq_imgs(imgs=self.gen_images_denorm[self.context_frames-1:,:,:,0], lats=self.lats, lons=self.lons,
-                                      ts=self.ts_persistence[self.context_frames-1:], label="Forecast by Model " + self.model, output_png_dir=self.results_dir)
+                                      ts=self.ts[self.context_frames:], label="Forecast by Model " + self.model, output_png_dir=self.results_dir)
         else:
             pass
 
