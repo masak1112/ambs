@@ -48,7 +48,7 @@ class PreprocessNcToPkl(object):
         self.tar_dom = target_dom
         # target file name needs to be saved
         self.target_file = os.path.join(self.target_dir, 'X_' + str(self.job_id) + '.pkl')
-        self.vars = variables
+        self.vars = list(variables)
         self.nvars = len(variables)
         # attributes to set during call of class instance
         self.imageList = None
@@ -152,15 +152,8 @@ class PreprocessNcToPkl(object):
         tar_ftimes = os.path.join(self.target_dir, "T_{0}.pkl".format(self.job_id))
         
         # write data to pickle-file
-        data = self.data
-        tar_dom = self.tar_dom
-        # roll data if domain crosses zero-meridian (to get spatially coherent data-arrays)
-        if tar_dom.lon_slices[0] > tar_dom.lon_slices[1]:
-            nroll_lon = tar_dom.nlon - tar_dom.lon_slices[0]
-            data = data.roll(lon=nroll_lon, roll_coords=True)
-
+        data_arr = self.convert_ds_to_np()
         try:
-            data_arr = np.squeeze(data.values)
             with open(tar_fdata, "wb") as pkl_file:
                 pickle.dump(data_arr, pkl_file)
         except Exception as err:
@@ -171,7 +164,7 @@ class PreprocessNcToPkl(object):
 
         # write times to pickle-file incl. conversion to datetime-object
         try:
-            time = data.coords["time"]
+            time = self.data.coords["time"]
             time = dt.datetime.strptime(np.datetime_as_string(time, "m")[0], "%Y-%m-%dT%H:%M")
             with open(tar_ftimes, "wb") as tpkl_file:
                 pickle.dump(time, tpkl_file)
@@ -182,6 +175,38 @@ class PreprocessNcToPkl(object):
             raise err                      # would better catched by Pystager
 
     # ------------------------------------------------------------------------------------------------------------------
+
+    def convert_ds_to_np(self):
+        """
+        Converts given dataset to numpy-array that is ready to be pickled
+        :return data_arr: The numpy-array which can be pickled
+        """
+        method = "{0} of class {1}".format(PreprocessNcToPkl.convert_ds_to_np.__name__,
+                                           PreprocessNcToPkl.__name__)
+
+        if self.data is None:
+            raise AttributeError("%{0}: Class instance still does not contain any data.".format(method))
+
+        # write some attributes to local variables for conveninece
+        data = self.data
+        tar_dom = self.tar_dom
+        # roll data if domain crosses zero-meridian (to get spatially coherent data-arrays)
+        if tar_dom.lon_slices[0] > tar_dom.lon_slices[1]:
+            nroll_lon = tar_dom.nlon - tar_dom.lon_slices[0]
+            data = data.roll(lon=nroll_lon, roll_coords=True)
+
+        # init resulting numpy-array...
+        dshape = list(np.shape(data[self.vars[0]])) + [self.nvars]
+        data_arr = np.full(dshape, np.nan)
+        # ... and populate the data in it
+        for ivar, var in enumerate(self.vars):
+            data_arr[...,ivar] = data[var].values
+
+        # Remove redundant dimensions
+        data_arr = np.squeeze(data_arr)
+
+        return data_arr
+
 
     def save_stat_info(self):
         """
