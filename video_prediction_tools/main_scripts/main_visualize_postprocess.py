@@ -589,13 +589,15 @@ class Postprocess(TrainModel):
         self.eval_metrics = {}
         if metric == "mse" :
             stochastic_loss_all_batches = self.stochastic_loss_all_batches #mse loss
+            persistent_loss_all_batches =  self.persistent_loss_all_batches
         elif metric == "psnr" :
             stochastic_loss_all_batches = self.stochastic_loss_all_batches_psnr #psnr_loss
+            persistent_loss_all_batches =  self.persistent_loss_all_batches_psnr
         else:
             raise ValueError(
                 "We currently only support metric 'mse' and  'psnr' as evaluation metric for detereminstic forecasting")
         for ts in range(self.future_length):
-            self.eval_metrics["persistent_ts_"+str(ts)] =  [str(self.persistent_loss_all_batches[ts])]
+            self.eval_metrics["persistent_ts_"+str(ts)] = [str(persistent_loss_all_batches[ts])]
             #for stochastic_sample_ind in range(self.num_stochastic_samples): 
             self.eval_metrics["model_ts_"+str(ts)] = [str(i) for i in stochastic_loss_all_batches[:, ts]]
         with open (os.path.join(self.results_dir, metric), "w") as fjs:
