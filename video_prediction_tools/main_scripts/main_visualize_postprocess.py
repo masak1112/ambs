@@ -31,7 +31,7 @@ from model_modules.video_prediction import datasets, models, metrics
 class Postprocess(TrainModel):
     def __init__(self, results_dir=None, checkpoint=None, mode="test",
                       batch_size=None, num_samples=None, num_stochastic_samples=1, stochastic_plot_id=0,
-                      gpu_mem_frac=None, seed=None,args=None):
+                      gpu_mem_frac=None, seed=None,args=None, run_mode="deterministic"):
         """
         The function for inference, generate results and images
         results_dir   :str, The output directory to save results
@@ -46,7 +46,8 @@ class Postprocess(TrainModel):
         stochastic_plot_id :int, the index for stochastically generated images to plot
         gpu_mem_frac       :int, GPU memory fraction to be used
         seed               :seed for control test samples
-        
+        run_mode           :str, if "deterministic" then the model running for deterministic forecasting,  other string values, it will go for stochastic forecasting
+
         Side notes : other important varialbes in the class:
         self.ts               : list, contains the sequence_length timestamps
         self.gen_images_      :  the length of generate images by model is sequence_length - 1
@@ -71,6 +72,7 @@ class Postprocess(TrainModel):
         self.stochastic_plot_id = stochastic_plot_id
         self.args = args 
         self.checkpoint = checkpoint
+        self.run_mode = run_mode
         self.mode = mode
         if self.num_samples < self.batch_size:
             raise ValueError("The number of samples should be at least as large as the batch size. " +
@@ -495,6 +497,8 @@ class Postprocess(TrainModel):
     def run(self):
         if self.model == "convLSTM" or self.model == "test_model" or self.model == 'mcnet':
             self.run_deterministic()
+        elif self.run_mode == "deterministic":
+            self.run_deterministic()
         else:
             self.run_stochastic()
     
@@ -682,7 +686,7 @@ class Postprocess(TrainModel):
         if not len(t_start) == 10:
             raise ValueError ("The timestamp gived should following the pattern '%Y%m%d%H' : 2017121209")
         s_datetime = datetime.datetime.strptime(t_start, '%Y%m%d%H')
-        seq_ts = [s_datetime + datetime.timedelta(hours = i+1) for i in range(len_seq)]
+        seq_ts = [s_datetime + datetime.timedelta(hours = i) for i in range(len_seq)]
         return seq_ts
 
     def plot_persistence_images(self):
@@ -849,7 +853,7 @@ class Postprocess(TrainModel):
             ax1 = plt.subplot(gs[i])
             plt.imshow(imgs[i] ,cmap='jet', vmin=270, vmax=300)
             #plt.imshow(imgs[i] ,cmap='jet')
-            ax1.title.set_text("t=" + t.strftime("%Y%m%d%H"))
+            if i == 0 : ax1.title.set_text("t=" + t.strftime("%Y%m%d%H"))
             plt.setp([ax1], xticks=[], xticklabels=[], yticks=[], yticklabels=[])
             if i == 0:
                 plt.setp([ax1], xticks=list(np.linspace(0, len(lons), 5)), xticklabels=xlables,
