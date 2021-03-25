@@ -8,6 +8,7 @@ __date__ = "2021=01-05"
 This code implement take the following as references:
 1) https://stackabuse.com/introduction-to-gans-with-python-and-tensorflow/
 2) cousera GAN courses
+3) https://github.com/hwalsuklee/tensorflow-generative-model-collections/blob/master/GAN.py
 """
 import collections
 import functools
@@ -47,6 +48,7 @@ class VanillaGANVideoPredictionModel(object):
         self.max_epochs = self.hparams.max_epochs
         self.loss_fun = self.hparams.loss_fun
         self.batch_size = self.hparams.batch_size
+        self.z_dim = self.hparams.z_dim #dim of noise-vector
 
     def get_default_hparams(self):
         return HParams(**self.get_default_hparams_dict())
@@ -79,6 +81,7 @@ class VanillaGANVideoPredictionModel(object):
             lr = 0.001,
             loss_fun = "cross_entropy",
             shuffle_on_val= True,
+            z_dim = 32,
          )
         return hparams
 
@@ -97,10 +100,14 @@ class VanillaGANVideoPredictionModel(object):
         self.define_gan()
         #This is the loss function (RMSE):
         #This is loss function only for 1 channel (temperature RMSE)
-        D_solver = tf.train.AdamOptimizer(learning_rate = self.learning_rate).minimize(self.D_loss, var_list=theta_D, global_step = self.global_step)
-        G_solver = tf.train.AdamOptimizer(learning_rate = self.learning_rate).minimize(self.G_loss, var_list=theta_G, global_step = self.global_setp)
-        self.train_op = tf.train.AdamOptimizer(
-            learning_rate = self.learning_rate).minimize(self.total_loss, global_step = self.global_step)
+        if self.mode == "train":
+            self.D_solver = tf.train.AdamOptimizer(learning_rate = self.learning_rate).minimize(self.D_loss, var_list=theta_D)
+            with tf.control_dependencies([self.D_solver]):
+                self.G_solver = tf.train.AdamOptimizer(learning_rate = self.learning_rate).minimize(self.G_loss, var_list=theta_G)
+            with tf.control_dependencies([self.G_solver]):
+                self.train_op = tf.assign_add(self.global_step,1)
+        else:
+           self.train_op = None  
         self.outputs = {}
         self.outputs["gen_images"] = self.x_hat
         # Summary op
@@ -111,12 +118,12 @@ class VanillaGANVideoPredictionModel(object):
         self.is_build_graph = True
         return self.is_build_graph 
 
-   def get_noise(self,z_dim):
+   def get_noise(self):
        """
        Function for creating noise: Given the dimensions (n_samples,z_dim)
        """ 
-       return tf.random.uniform(minval=-1., maxval=1., shape=[self.n_samples, z_dim])
-
+       self.noise = tf.random.uniform(minval=-1., maxval=1., shape=[self.n_samples, self.height, self.width, self.channels])
+       return self.noise
 
    def get_generator_block(self,inputs,output_dim,idx):
        
@@ -136,20 +143,21 @@ class VanillaGANVideoPredictionModel(object):
        return output_3
 
 
-   def generator(self,noise,hidden_dim):
+   def generator(self,hidden_dim):
        """
        Function to build up the generator architecture
        args:
-           noise: a noise tensor with dimension (n_samples,z_dim)
+           noise: a noise tensor with dimension (n_samples,height,width,channel)
            hidden_dim: the inner dimension
        """
        with tf.variable_scope("generator",reuse=tf.AUTO_REUSE):
-           layer1 = self.get_generator_block(noise,hidden_dim,1)
+           layer1 = self.get_generator_block(self.noise,hidden_dim,1)
            layer2 = self.get_generator_block(layer1,hidden_dim*2,2)
            layer3 = self.get_generator_block(layer2,hidden_dim*4,3)
            layer4 = self.get_generator_block(layer3,hidden_dim*8,4)
            layer5 = ld.conv_layer(layer4,kernel_size=2,stride=1,num_features=self.channels,idx=5,activate="linear")
            layer6 = tf.nn.sigmoid(layer5,name="6_conv")
+       print("layer6",layer6)
        return layer6
 
 
@@ -189,27 +197,22 @@ class VanillaGANVideoPredictionModel(object):
        """
        Return the loss of discriminator given inputs
        """
-       noise = self.get_noise(1000,10)
-       G_samples = self.generator(noise)
-       D_real = self.discriminator(self.x)
-       D_fake = self.discriminator(G_samples)
-       real_labels = tf.ones_like(D_real)
-       gen_labels = tf.zeros_like(D_fake)
-       D_loss_real = tf.reduce_mean(tf.nn.sigmoid_cross_entropy_with_logits(logits=D_real, labels=real_labels))
-       D_loss_fake = tf.reduce_mean(tf.nn.sigmoid_cross_entropy_with_logits(logits=D_fake, labels=gen_labels))
+          
+       real_labels = tf.ones_like(self.D_real)
+       gen_labels = tf.zeros_like(self.D_fake)
+       D_loss_real = tf.reduce_mean(tf.nn.sigmoid_cross_entropy_with_logits(logits=self.D_real, labels=real_labels))
+       D_loss_fake = tf.reduce_mean(tf.nn.sigmoid_cross_entropy_with_logits(logits=self.D_fake, labels=gen_labels))
        self.D_loss = D_loss_real + D_loss_fake
        return self.D_loss
 
 
-   def get_gen_loss(self,num_images,z_dim):
+   def get_gen_loss(self):
        """
        Param:
 	    num_images: the number of images the generator should produce, which is also the lenght of the real image
             z_dim     : the dimension of the noise vector, a scalar
        Return the loss of generator given inputs
        """
-       noises = self.get_noise(num_images,z_dim)
-       gen_images = self.generator(noise,im_dim,hidden_dim)
        disc_gen_images = self.disrciminator(gen_images,hidden_dim)
        real_labels = tf.ones_like(gen_images)
        self.gen_loss = tf.reduce_mean(tf.nn.sigmoid_cross_entropy_with_logits(logits=disc_gen_images, labels=real_labels))
@@ -228,10 +231,11 @@ class VanillaGANVideoPredictionModel(object):
        """
        Define gan architectures
        """
-       noise = self.get_noise(10)
-       G_samples = self.generator(noise)
-       D_real = self.discriminator(image)
-       D_fake = self.discriminator(G_samples)
-                  
+       self.noise = self.get_noise()
+       self.gen_images = self.generator(hidden_dim=8)
+       self.D_real = self.discriminator(self.x,hidden_dim=8)
+       self.D_fake = self.discriminator(self.gen_images,hidden_dim=8)
+       self.get_gen_loss()
+       self.get_disc_loss()
        self.get_vars()
       
