@@ -14,14 +14,18 @@ import numpy as np
 import shutil
 import glob
 from netCDF4 import Dataset
-from video_prediction.metrics import *
+from  model_modules.video_prediction.metrics import *
+import xarray as xr
+
 
 class MetaPostprocess(object):
     def __init__(self, analysis_config=None, analysis_dir=None, stochastic_ind=0, forecast_type="deterministic"):
         """
         This class is used for calculating the evaluation metric, analyize the models' results and make comparsion
         args:
-            forecast_type :str, "deterministic" or "stochastic"
+            analysis_config    :str, the path pointing to the aanalysis_configuration json file
+            analysis_dir       :str, the path to save the analysis results
+            forecast_type      :str, "deterministic" or "stochastic"
         """
 
         self.analysis_config = analysis_config
@@ -33,23 +37,28 @@ class MetaPostprocess(object):
         self.copy_analysis_config_to_analysis_dir()
         self.load_analysis_config()
         self.load_results_dir_parameters()
-        #self.load_prediction_and_persistent_real()
         self.calculate_evaluation_metrics()
         self.save_metrics_all_dir_to_json()
         self.make_comparsion()
 
 
     def create_analysis_dir(self):
+        """
+        Function to create the analysis directory if it does not exist
+        """
         if not os.path.exists(self.analysis_dir):os.makedirs(self.analysis_dir)
 
     def copy_analysis_config(self):
+        """
+        Copy the analysis configuration json to the analysis directory
+        """
         shutil.copy(self.analysis_config, os.path.join(self.analysis_dir,"analysis_config.json"))
         self.analysis_config = os.path.join(self.analysis_dir,"analysis_config.json")
 
 
     def load_analysis_config(self):
         """
-        Get the analysis json configuration file
+        Read the configuration values from the analysis configuration json file
         """
         with open(self.analysis_config) as f:
             self.f = json.load(f)
@@ -60,7 +69,15 @@ class MetaPostprocess(object):
     @staticmethod
     def load_prediction_and_real_from_one_dir(results_dir,var="T2",stochastic_ind=0):
         """
-        Load the reference and prediction from one results directory
+        Load the reference and prediction from nc file based on the select var
+        args:
+            var           : string, the target variable be retrieved from nc file
+            stochastic    : int   , the stochastic index 
+        return:
+            real_all      : list of list, all the reference values from all th nc files in the result directory
+            persistent_all: list of list, the persistent values from all the nc files in the result directory
+            forecast_all  : list of list, the forecasting values from all the nc files in the result directory
+            time_forecast : list of list, the forecasting timestamps from all the nc files in the results directory
         """
         fl_names = glob.glob(os.path.join(results_dir,"*.nc"))
         real_all = []
@@ -70,91 +87,104 @@ class MetaPostprocess(object):
             real,persistent, forecast,time_forecast = MetaPostprocess.read_values_by_var_from_nc(fl_nc,var,stochastic_ind)
             real_all.append(real)
             persistent_all.append(persistent)
-            forecast_all.append(forecast)
+            forecast_all.append(forecast) 
         return real_all,persistent_all,forecast_all, time_forecast
 
 
     @staticmethod
     def read_values_by_var_from_nc(fl_nc,var="T2",stochastic_ind=0):
-        if not var in ["T2","MSL","GPH500"]: raise ValueError ("var name is not correct, should be 'T2','MSL',or 'GPH500'")
+        """
+        Function that read the referneces, persistent and forecasting values from one .nc file 
+        args:
+            fc_nc : str, the nc file full path
+            var   : str, the target variable
+            stochastic_ind: str, the stochastic index
+        Return:
+            real          : one dimension list, the reference values
+            persistent    : one dimension list, the persistent values
+            forecast      : one dimension list, the forecast values
+            time_forecast : one dimension list, the timestamps
+        """
+        #if not var in ["T2","MSL","GPH500"]: raise ValueError ("var name is not correct, should be 'T2','MSL',or 'GPH500'")
         with Dataset(fl_nc, mode = 'r') as fl:
            #load var prediction, real and persistent values
            real = fl["/analysis/reference/"].variables[var][:]
            persistent = fl["/analysis/persistent/"].variables[var][:]
-           forecast = fl["/forecast/"+var+"/stochastic"].variables[str(stochastic_ind)][:]
+           forecast = fl["/forecasts/"+var+"/stochastic"].variables[str(stochastic_ind)][:]
            time_forecast = fl.variables["time_forecast"][:]
         return real, persistent, forecast, time_forecast   
 
 
     @staticmethod
-    def calculate_metric_one_img(real, persistent,forecast,metric="mse"):
+    def calculate_metric_one_img(real,forecast,metric="mse"):
+         """
+         Function that calculate the evaluation metric for one image
+         args:
+              real       : one dimension list contains the reference values for one image/sample
+              forecast   : one dimension list contains the forecasting values for one image/sample
+              metric     : str, the evaluation metric
+        """
+
         if metric == "mse":
          #compare real and persistent
-            eval_persistent = mse_imgs(real,persistent)
             eval_forecast = mse_imgs(real, forecast)
         elif metric == "psnr":
-            eval_persistent = psnr_imgs(real,forecast)
             eval_forecast = psnr_imgs(real,forecast)   
-        return eval_persistent, eval_forecast
+        return  eval_forecast
+    
+    @staticmethod
+    def calculate_metric_one_dir(results_dir,var,metric="mse",forecast_type="persistent",stochastic_ind=0):
+        """
+        Function that calculate the evaluation metric for one directory
+        args:
+             results_dir    : the results_dir contains the results with nc files
+             var            : the target variable want to get
+             stochastic_ind : the stochastic index would like to obtain values
+             forecast_type  : str, either "forecast" or "persistent"
+        Return: 
+              eval_forecast_all : list of list that contains the evaluation values [num_samples,forecast_timestampes]
+        """
+        real_all, persistent_all, forecast_all, self.time_forecast = MetaPostprocess.load_prediction_and_real_from_one_dir(results_dir=results_dir, var=var, stochastic_ind=stochastic_ind)
+        eval_forecast_all = []
+        #loop for real data
+        for idx in range(len(real_all)):
+            eval_forecast_per_sample_over_ts = []
+            #loop the forecast time
+            for time in range(len(real_all[idx])):
+                #loop for each sample and each timestamp
+                eval_forecast = MetaPostprocess.calculate_metric_one_img(real_all[idx][time],forecast_all[idx][time], metric=metric)
+                eval_forecast_per_sample_over_ts.append(eval_forecast)
+            eval_forecast_all.append(list(eval_forecast_per_sample_over_ts))
+        return eval_forecast_all
     
     @staticmethod
     def reshape_eval_to_one_dim(values):
         return np.array(values).flatten()
 
-    def calculate_metrics_all_dirs(self):
+    def calculate_metric_all_dirs(self, forecast_type="persistent", metric="mse"):
         """
-        Calculate the all the metrics for persistent and forecast results
-        eval_all is dictionary,
-        eval_all = {
-                     <results_dir>: 
-                                   {
-                                     "persistent":
-                                                 {
-                                                 <metric_name1> : eval_values,
-                                                 <metric_name2> : eval_values
-                                                 } 
-                                   
-                                     "forecast" :
-                                                {
-                                                 <metric_name1> : eval_values,
-                                                 <metric_name2> : eval_values                                                
-                                                }
-                                   
-                                   }
-                    }
-
-        """
-        self.eval_all = {}
-        for results_dir in self.results_dirs:
-            self.eval_all.update({results_dir: {"persistent":None}})
-            self.eval_all.update({results_dir: {"forecast":None}})
-            real_all, persistent_all, forecast_all, self.time_forecast = MetaPostprocess.load_prediction_and_real_from_one_dir(results_dir,var="T2",stochastic_ind=self.stochastic_ind)
-            for metric in self.metrics:
-                self.eval_persistent_all = []
-                self.eval_forecast_all = []
-                #loop for real data
-                for idx in range(len(real_all)):
-                    eval_persistent_per_sample_over_ts = []
-                    eval_forecast_per_sample_over_ts = []
-                    
-                    #loop the forecast time
-                    for time in range(len(self.time_forecast)):
-                        #loop for each sample and each timestamp
-                        self.eval_persistent, self.eval_forecast = MetaPostprocess.calculate_metric_one_img(real_all[idx][time],persistent_all[idx][time],forecast_all[idx][time], metric=metric)
-                        eval_persistent_per_sample_over_ts.append(self.eval_persistent)
-                        eval_forecast_per_sample_over_ts.append(self.eval_forecast)
-                    
-                    self.eval_persistent_all.append(list(eval_persistent_per_sample_over_ts))
-                    self.eval_forecast_all.append(list(eval_forecast_per_sample_over_ts))
-                    #the shape of self.eval_persistent_all is [samples,time_forecast]
-                self.eval_all[results_dir]["persistent"] = {metric: list(self.eval_persistent_all)}           
-                self.eval_all[results_dir]["forecast"] = {metric: list(self.eval_forecast_all)}   
+        Return the evaluation metrics for persistent and forecasing model over forecasting timestampls
         
-    def save_metrics_all_dir_to_json(self):
-        with open("metrics_results.json","w") as f:
-            json.dump(self.eval_all,f)
+        return:
+               eval_forecast : list, the evaluation metric values for persistent  with respect to the dimenisons [results_dir,samples,timestampe]
+               forecast_type : str, either "forecast" or "persistent"
 
-         
+        """
+        if forecast_type not in ["persistent","forecast"]: raise ValueError("forecast type should be either 'persistent' or 'forecast'")
+        eval_forecast_all_dirs = []
+        for results_dir in self.results_dirs:
+            eval_forecast_all = MetaPostprocess.calculate_metric_one_dir(results_dir,var,metric="mse",forecast_type="persistent",stochastic_ind=0)
+            eval_forecast_all_dirs.append(eval_forecast_all)
+
+        times = list(range(len(self.time_forecast)))
+        samples = list(range(len(real_all)))
+        print("shape of list",np.array(eval_forecast_all_dirs).shape)
+        evals_forecast = xr.DataArray(eval_forecast_all_dirs, coords=[self.results_dirs, samples , times], dims=["results_dirs", "samples","time_forecast"])
+        return evals_forecast
+
+
+
+
     def load_results_dir_parameters(self,compare_by="model"):
         self.compare_by_values = []
         for results_dir in self.results_dirs:
@@ -163,58 +193,24 @@ class MetaPostprocess(object):
                 print("self.options:",self.options)
                 #if self.compare_by == "model":
                 self.compare_by_values.append(self.options[compare_by])
-  
-    
-    def calculate_mean_vars_forecast(self):
-        """
-        Calculate the mean varations of persistent and forecast evalaution metrics
-        """
-        is_first_persistent = False
-        for results_dir in self.results_dirs:
-            evals = self.eval_all[results_dir]
-            eval_persistent = evals["persistent"]
-            eval_forecast = evals["forecast"]
-            self.results_dict = {} 
-            for metric in self.metrics:
-                err_stat = []
-                for time in range(len(self.time_forecast)):
-                    forecast_values_all = list(eval_forecast[metric])[:][time]
-                    persistent_values_all = list(eval_persistent[metric])[:][time]
-                    forecast_mean = np.mean(np.array(forecast_values_all),axis=0)
-                    persistent_mean = np.mean(np.array(persistent_values_all),axis=0)
-                    forecast_vars = np.var(np.array(forecast_values_all),axis=0)
-                    persistent_vars = np.var(np.array(persistent_values_all),axis=0)
-                    #[time,mean,vars]
-                    self.results_dict[results_dir] = {"persistent":[persistent_mean, persistent_vars]} 
-                    self.results_dict[results_dir].update({"forecast":[forecast_mean,forecast_vars]})
-               
 
+    
     def plot_results(self,one_persistent=True):
         """
         Plot the mean and vars for the user-defined metrics
         """
-        
-        self.load_results_dir_parameters()
-        is_first_persistent=True
-        mean_all_persistent = []
-        vars_all_persistent = []
-        mean_all_model = []
-        vars_all_model = []
-        for results_dir in self.results_dirs:
-            mean_all_model.append(self.results_dict[results_dir]["forecast"][0])
-            vars_all_model.append(self.results_dict[results_dir]["forecast"][1]) 
-        
-        if one_persistent==True:
-            mean_all_model.append(self.results_dict[results_dir]["persistent"][0])
-            vars_all_model.append(self.results_dict[results_dir]["persistent"][1])
-            self.compare_by_values.append("persistent")
-        
-        
+        self.load_results_dir_parameters(compare_by="model")
+        evals_forecast = self.calculate_metric_all_dirs(is_persistent=False,metric="mse")
+        t = evals_forecast["time_forecast"]
+        mean_forecast = evals_forecast.groupby("time_forecast").mean(dim="samples").values
+        var_forecast = evals_forecast.groupby("time_forecast").var(dim="samples").values
+        print("mean_foreast",mean_forecast)
         x = np.array(self.compare_by_values)
-        y = np.array(mean_all_model)
-        e = np.array(vars_all_model)
-
-        plt.errorbar(x,y,e,linestyle="None",marker='^')
+        y = np.array(mean_forecast)
+        e = np.array(var_forecast)
+       
+       # plt.errorbar(t,y[0],e[0],label="convlstm")
+        plt.errorbar(t,y[0],e[0],label="savp")
         plt.show()
         plt.savefig(os.path.join(self.analysis_dir,self.metrics[0]+".png"))
         plt.close()

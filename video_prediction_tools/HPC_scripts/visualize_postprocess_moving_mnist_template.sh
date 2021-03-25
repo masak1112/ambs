@@ -19,10 +19,10 @@ exit 99
 ######### Template identifier (don't remove) #########
 
 # Name of virtual environment 
-VIRT_ENV_NAME="vp"
+VIRT_ENV_NAME="my_venv"
 
-# Loading mouldes
-source ../env_setup/modules_train.sh
+# Loading modules
+source ../env_setup/modules_postprocess.sh
 # Activate virtual environment if needed (and possible)
 if [ -z ${VIRTUAL_ENV} ]; then
    if [[ -f ../${VIRT_ENV_NAME}/bin/activate ]]; then
@@ -34,7 +34,7 @@ if [ -z ${VIRTUAL_ENV} ]; then
    fi
 fi
 
-# declare directory-variables which will be modified appropriately during Preprocessing (invoked by mpi_split_data_multi_years.py)
+# declare directory-variables which will be modified by config_runscript.py
 source_dir=/p/project/deepacf/deeprain/video_prediction_shared_folder/preprocessedData/moving_mnist
 checkpoint_dir=/p/project/deepacf/deeprain/video_prediction_shared_folder/models/moving_mnist
 results_dir=/p/project/deepacf/deeprain/video_prediction_shared_folder/results/moving_mnist
@@ -46,4 +46,3 @@ srun python -u ../scripts/generate_movingmnist.py \
 --input_dir ${source_dir}/ --dataset_hparams sequence_length=20 --checkpoint  ${checkpoint_dir}/${model} \
 --mode test --model ${model} --results_dir ${results_dir}/${model} --batch_size 2 --dataset era5   > generate_era5-out.out
 
-#srun  python scripts/train.py --input_dir data/era5 --dataset era5  --model savp --model_hparams_dict hparams/kth/ours_savp/model_hparams.json --output_dir logs/era5/ours_savp
