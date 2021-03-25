@@ -330,6 +330,7 @@ class TrainModel(object):
        if self.video_model.__class__.__name__ == "VanillaConvLstmVideoPredictionModel": self.fetches_for_train_convLSTM()
        if self.video_model.__class__.__name__ == "SAVPVideoPredictionModel": self.fetches_for_train_savp()
        if self.video_model.__class__.__name__ == "VanillaVAEVideoPredictionModel": self.fetches_for_train_vae()
+       if self.video_model.__class__.__name__ == "VanillaGANVideoPredictionModel":self.fetches_for_train_gan()
        return self.fetches     
     
     def fetches_for_train_convLSTM(self):
@@ -367,6 +368,9 @@ class TrainModel(object):
         """
         self.fetches["latent_loss"] = self.video_model.latent_loss
         self.fetches["recon_loss"] = self.video_model.recon_loss
+        self.fetches["total_loss"] = self.video_model.total_loss
+
+    def fetches_for_train_gan(self):
         self.fetches["total_loss"] = self.video_model.total_loss
 
     def create_fetches_for_val(self):
