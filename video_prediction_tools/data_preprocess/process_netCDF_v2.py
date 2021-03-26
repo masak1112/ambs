@@ -13,7 +13,7 @@ import pickle
 import numpy as np
 import xarray as xr
 import datetime as dt
-from metadata import Geo_subdomain
+from netcdf_datahandling import GeoSubdomain
 from statistics import Calc_data_stat
 
 class PreprocessNcToPkl(object):
@@ -26,7 +26,7 @@ class PreprocessNcToPkl(object):
             target_dir : base-directory where data is stored (files are stored under [target_dir]/pickle/[year]/)
             job_id     : job_id with range "01"-"12" (organized by PyStager) job_name also corresponds to the month
             year       : year of data to be processed
-            target_dom : class instance of Geo_subdomain which defines target domain
+            target_dom : class instance of GeoSubdomain which defines target domain
             vars       : variables to be processed
         """
         # directory_to_process is month-based directory
@@ -38,8 +38,8 @@ class PreprocessNcToPkl(object):
         if not os.path.exists(self.directory_to_process):
             raise NotADirectoryError("The directory_to_process '"+self.directory_to_process+"' does not exist")
 
-        if not isinstance(target_dom, Geo_subdomain):
-            raise ValueError("target_dom must be a Geo_subdomain-instance.")
+        if not isinstance(target_dom, GeoSubdomain):
+            raise ValueError("target_dom must be a {0}-instance.".format(GeoSubdomain.__name__))
 
         self.target_dir = os.path.join(target_dir, "pickle", str(year))      # preprocessed data to pickle-subdirectory
         if not os.path.exists(self.target_dir):
