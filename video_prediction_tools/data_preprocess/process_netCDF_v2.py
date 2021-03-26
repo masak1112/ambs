@@ -34,7 +34,7 @@ class PreprocessNcToPkl(object):
             raise NotADirectoryError("The directory_to_process '"+self.directory_to_process+"' does not exist")
         self.target_dir = os.path.join(target_dir, "pickle", str(year))      # preprocessed data to pickle-subdirectory
         if not os.path.exists(self.target_dir):
-            os.mkdir(self.target_dir)
+            os.makedirs(self.target_dir,exist_ok=True)
         self.job_name = job_name
         self.slices = slices
         # target file name needs to be saved
