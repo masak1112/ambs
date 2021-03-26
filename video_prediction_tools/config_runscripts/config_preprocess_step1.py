@@ -10,9 +10,9 @@ try:
     import xarray as xr
 except:
     raise ImportError("Loading preprocssing modules in advance is mandotory, " +
-                      "i.e. execute 'source modules_preprocess.sh' in terminal first.")
+                      "i.e. execute 'source modules_preprocess.sh' from env_setup-directory in terminal first.")
 
-from metadata import Netcdf_utils
+from netcdf_datahandling import NetcdfUtils
 from general_utils import check_str_in_list
 from config_utils import Config_runscript_base    # import parent class
 
@@ -140,7 +140,7 @@ class Config_Preprocess1(Config_runscript_base):
 
         fname = next(glob.iglob(os.path.join(self.source_dir, str(year), "*", "*era5*.nc")))
 
-        data = Netcdf_utils(fname)
+        data = NetcdfUtils(fname)
         if lglobal:
             global known_vars
 
@@ -163,7 +163,7 @@ class Config_Preprocess1(Config_runscript_base):
 
         for year in self.years:
             fname = next(glob.iglob(os.path.join(self.source_dir, str(year), "*", "*era5*.nc")))
-            data = Netcdf_utils(fname)
+            data = NetcdfUtils(fname)
 
             stat = check_str_in_list(data.varlist, self.variables, labort=False)
 

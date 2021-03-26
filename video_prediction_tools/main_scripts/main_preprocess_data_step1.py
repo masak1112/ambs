@@ -14,7 +14,8 @@ import argparse
 from utils.external_function import directory_scanner
 from utils.external_function import load_distributor
 from data_preprocess.process_netCDF_v2 import *  
-from metadata import MetaData, Geo_subdomain
+from metadata import MetaData\
+from netcdf_datahandling import GeoSubdomain
 import json
 
 
@@ -91,7 +92,7 @@ def main():
     except StopIteration:
         raise FileNotFoundError("Could not find any data to be processed in '{0}'".format(source_dir_full))
 
-    tar_dom = Geo_subdomain(sw_c, nyx, data_file)
+    tar_dom = GeoSubdomain(sw_c, nyx, data_file)
 
     if my_rank == 0:
         md = MetaData(suffix_indir=destination_dir, exp_id=exp_id, data_filename=data_file, tar_dom=tar_dom,
