@@ -1,5 +1,5 @@
 #!#bin/bash
-export PYTHONPATH=/p/project/deepacf/deeprain/gong1/${USER}/video_prediction_tools:$PYTHONPATH
+
 # Name of virtual environment 
 #VIRT_ENV_NAME="vp_new_structure"
 VIRT_ENV_NAME="juwels_env"
@@ -15,15 +15,13 @@ if [ -z ${VIRTUAL_ENV} ]; then
 fi
 
 
-source ../video_prediction_tools/env_setup/modules_data_extraction.sh
-source ../video_prediction_tools/env_setup/modules_preprocess.sh
-source ../video_prediction_tools/env_setup/modules_postprocess.sh
+## if you do test on data extraction and data preprocess you need to source the modules_preprocess.sh
+#source ../video_prediction_tools/env_setup/modules_preprocess.sh
 ##Test data extraction
-
-#ml Stages/2019a  GCC/8.3.0  ParaStationMPI/5.2.2-1 CDO/1.9.6
 #python -m pytest  test_prepare_era5_data.py 
 ##Test for preprocess_step1
 #python -m pytest  test_process_netCDF_v2.py
+
 source ../video_prediction_tools/env_setup/modules_train.sh
 #Test for process step2
 #python -m pytest test_data_preprocess_step2.py
