@@ -102,7 +102,7 @@ class Config_Preprocess1(Config_runscript_base):
                                                       swc_err, ntries=2)
 
         swc_list = swc_str.split(",")
-        self.sw_corner = [float(geo_coord.strip()) for geo_coord in swc_list]
+        self.sw_corner = [geo_coord.strip() for geo_coord in swc_list]
 
         # get size of target domain in number of grid points
         nyx_req_str = "Enter comma-separated number of grid points of target doamin in meridional and zonal direction"
@@ -112,7 +112,7 @@ class Config_Preprocess1(Config_runscript_base):
                                                           nyx_err, ntries=2)
 
         nyx_list = nyx_str.split(",")
-        self.nyx = [int(nyx_val.strip()) for nyx_val in nyx_list]
+        self.nyx = [nyx_val.strip() for nyx_val in nyx_list]
 
         # set destination directory based on base directory which can be retrieved from the template runscript
         base_dir = Config_Preprocess1.get_var_from_runscript(os.path.join(self.runscript_dir, self.runscript_template),
@@ -178,6 +178,8 @@ class Config_Preprocess1(Config_runscript_base):
         :param recursive: flag if recursive search should be performed
         :return: status with True confirming success
         """
+        method = Config_Preprocess1.check_data_indir.__name__
+
         status = False
         if os.path.isdir(indir):
             # the built-in 'any'-function has a short-circuit mechanism, i.e. returns True
@@ -189,9 +191,9 @@ class Config_Preprocess1(Config_runscript_base):
             if fexist:
                 status = True
             else:
-                if not silent: print("{0} does not contain any ERA5 netCDF-files.".format(indir))
+                if not silent: print("%{0}: {1} does not contain any ERA5 netCDF-files.".format(method, indir))
         else:
-            if not silent: print("Could not find data directory '{0}'.".format(indir))
+            if not silent: print("%{0}: Could not find data directory '{0}'.".format(method, indir))
 
         return status
     #
@@ -205,6 +207,7 @@ class Config_Preprocess1(Config_runscript_base):
         :param silent: flag if print-statement are executed
         :return: status with True confirming success
         """
+        method = Config_Preprocess1.check_years.__name__
 
         years_list = years_str.split(",")
         # check if all elements of list are numeric elements
@@ -213,7 +216,7 @@ class Config_Preprocess1(Config_runscript_base):
         if not status:
             inds_bad = [i for i, e in enumerate(check_years) if e] #np.where(~np.array(check_years))[0]
             if not silent:
-                print("The following comma-separated elements could not be interpreted as valid years:")
+                print("%{0}: The following comma-separated elements could not be interpreted as valid years:".format(method))
                 for ind in inds_bad:
                     print(years_list[ind])
             return status
@@ -222,7 +225,7 @@ class Config_Preprocess1(Config_runscript_base):
         check_years_val = [int(year) > 1970 for year in years_list]
         status = all(check_years_val)
         if not status:
-            if not silent: print("All years must be after year 1970.")
+            if not silent: print("%{0}: All years must be after year 1970.".format(method))
 
         return status
     #
@@ -236,19 +239,21 @@ class Config_Preprocess1(Config_runscript_base):
         :param silent: flag if print-statement are executed
         :return: status with True confirming success
         """
+        method = Config_Preprocess1.check_variables.__name__
+
         vars_list = vars_str.split(",")
         check_vars = [var.strip().lower() in known_vars for var in vars_list]
         status = all(check_vars)
         if not status:
             inds_bad = [i for i, e in enumerate(check_vars) if e] # np.where(~np.array(check_vars))[0]
             if not silent:
-                print("The following comma-separated elements are unknown variables:")
+                print("%{0}: The following comma-separated elements are unknown variables:".format(method_name))
                 for ind in inds_bad:
                     print(vars_list[ind])
             return status
 
         if not (len(check_vars) == Config_Preprocess1.nvars or len(check_vars) == 1):
-            if not silent: print("Unexpected number of variables passed.")
+            if not silent: print("%{0}: Unexpected number of variables passed.".method(method))
             status = False
 
         return status
@@ -263,26 +268,28 @@ class Config_Preprocess1(Config_runscript_base):
         :param silent: flag if print-statement are executed
         :return: status with True confirming success
         """
+        method = Config_Preprocess1.check_swc.__name__
+
         status = False
         swc_list = swc_str.split(",")
         if not len(swc_list) == 2:
-            if not silent: print("Invalid coordinate pair was passed.")
+            if not silent: print("%{0}: Invalid coordinate pair was passed.".format(method))
             return status
 
         swc_list = [geo_coord.strip() for geo_coord in swc_list]
-        if swc_list[0].isnumeric() and swc_list[1].isnumeric():
+        if Config_Preprocess1.isfloat(swc_list[0]) and Config_Preprocess1.isfloat(swc_list[1]):
             s_brd, w_brd = float(swc_list[0]), float(swc_list[1])
-            check_swc = [-90. <= s_brd <= 90., 0. <= w_brd <= 360.]
+            check_swc = [-90. <= s_brd <= 90., 0. <= w_brd <= 359.7]
             if all(check_swc):
                 status = True
             else:
                 if not silent:
                     if not check_swc[0]:
-                        print("Latitude coordinate must be within -90. and 90.")
+                        print("%{0}: Latitude coordinate must be within -90. and 90.".format(method))
                     if not check_swc[1]:
-                        print("Longitude coordinate must be within 0. and 360.")
+                        print("%{0}: Longitude coordinate must be within 0. and 360.".format(method))
         else:
-            if not silent: print("Coordinates must be numbers.")
+            if not silent: print("%{0}: Coordinates must be numbers.".format(method))
 
         return status
 
@@ -295,10 +302,12 @@ class Config_Preprocess1(Config_runscript_base):
         :param silent: flag if print-statement are executed
         :return: status with True confirming success
         """
+        method = Config_Preprocess1.check_nyx.__name__
+ 
         status = False
         nyx_list = nyx_str.split(",")
         if not len(nyx_list) == 2:
-            if not silent: print("Invalid number pair was passed.")
+            if not silent: print("%{0}: Invalid number pair was passed.".format(method))
             return status
 
         nyx_list = [nyx_val.strip() for nyx_val in nyx_list]
@@ -312,13 +321,26 @@ class Config_Preprocess1(Config_runscript_base):
             else:
                 if not silent:
                     if not check_nyx[0]:
-                        print("Number of grid points in meridional direction must be smaller than {0:d}".format(ny_max))
+                        print("%{0}: Number of grid points in meridional direction must be smaller than {1:d}".format(method, ny_max))
                     if not check_nyx[1]:
-                        print("Number of grid points in zonal direction must be smaller than {0:d}".format(nx_max))
+                        print("%{0}: Number of grid points in zonal direction must be smaller than {1:d}".format(method, nx_max))
         else:
-            if not silent: print("Number of grid points must be integers.")
+            if not silent: print("%{0}: Number of grid points must be integers.".format(method))
 
         return status
+
+    @staticmethod
+    def isfloat(str_in):
+        """
+        Checks if given string can be converted to float.
+        :param str_in: input string to be tested
+        :return: True if string can be converted to float, False else
+        """
+        try:
+            float(str_in)
+            return True
+        except ValueError:
+            return False
 
 #
 # -----------------------------------------------------------------------------------
