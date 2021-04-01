@@ -36,16 +36,17 @@ class Config_Preprocess1(Config_runscript_base):
         self.destination_dir = None
         self.years = None
         self.variables = [None] * self.nvars
-        self.lat_inds = [-1 -1]  # [np.nan, np.nan]
-        self.lon_inds = [-1 -1]  # [np.nan, np.nan]
+        self.sw_corner = [-999., -999.]  # [np.nan, np.nan]
+        self.nyx = [-999., -999.]  # [np.nan, np.nan]
         # list of variables to be written to runscript
         self.list_batch_vars = ["VIRT_ENV_NAME", "source_dir", "destination_dir", "years", "variables",
-                                "lat_inds", "lon_inds"]
+                                "sw_corner", "nyx"]
         # copy over method for keyboard interaction
         self.run_config = Config_Preprocess1.run_preprocess1
     #
     # -----------------------------------------------------------------------------------
     #
+
     def run_preprocess1(self):
         """
         Runs the keyboard interaction for Preprocessing step 1
@@ -55,12 +56,6 @@ class Config_Preprocess1(Config_runscript_base):
 
         # get source_dir (no user interaction needed when directory tree is fixed)
         self.source_dir = Config_Preprocess1.handle_source_dir(self, "extractedData")
-
-        #dataset_req_str = "Choose a subdirectory listed above where the extracted ERA5 files are located:\n"
-        #dataset_err = FileNotFoundError("Cannot retrieve extracted ERA5 netCDF-files from passed path.")
-
-        #self.source_dir = Config_Preprocess1.keyboard_interaction(dataset_req_str, Config_Preprocess1.check_data_indir,
-        #                                                          dataset_err, ntries=3, prefix2arg=source_dir_base+"/")
 
         # get years for preprocessing step 1
         years_req_str = "Enter a comma-separated sequence of years from list above:"
@@ -76,7 +71,8 @@ class Config_Preprocess1(Config_runscript_base):
             if status:
                 print("%{0}: Data availability checked for year {1}".format(method_name, year))
             else:
-                raise FileNotFoundError("%{0}: Cannot retrieve ERA5 netCDF-files from {1}".format(method_name, year_path))
+                raise FileNotFoundError("%{0}: Cannot retrieve ERA5 netCDF-files from {1}".format(method_name,
+                                                                                                  year_path))
 
         # get variables for later training
         # retrieve known variables from first year (other years are checked later)
@@ -98,24 +94,25 @@ class Config_Preprocess1(Config_runscript_base):
         Config_Preprocess1.check_vars_allyears(self)
 
         # get start and end indices in latitude direction
-        lat_req_str = "Enter comma-separated indices of start and end index in latitude direction for target domain:"
-        lat_err = ValueError("Cannot retrieve proper pair of latitude indices.")
+        swc_req_str = "Enter comma separated pair of latitude [-90..90] and longitude [0..360] defining the southern" +\
+                      " and western edge of the target domain (e.g. '50.91, 6.36' which corresponds to 50.91°N, 6.36°E)"
+        swc_err = ValueError("Inproper coordinate pair entered. Consider value range of latitude and longitude!")
 
-        lat_inds_str = Config_Preprocess1.keyboard_interaction(lat_req_str, Config_Preprocess1.check_latlon_inds,
-                                                               lat_err, ntries=2)
+        swc_str = Config_Preprocess1.keyboard_interaction(swc_req_str, Config_Preprocess1.check_swc,
+                                                      swc_err, ntries=2)
 
-        lat_inds_list = lat_inds_str.split(",")
-        self.lat_inds = [ind.strip() for ind in lat_inds_list]
+        swc_list = swc_str.split(",")
+        self.sw_corner = [float(geo_coord.strip()) for geo_coord in swc_list]
 
-        # get start and end indices in longitude direction
-        lon_req_str = lat_req_str.replace("latitude", "longitude")
-        lon_err = ValueError("Cannot retrieve proper pair of longitude indices.")
+        # get size of target domain in number of grid points
+        nyx_req_str = "Enter comma-separated number of grid points of target doamin in meridional and zonal direction"
+        nyx_err = ValueError("Invalid number of gridpoints chosen")
 
-        lon_inds_str = Config_Preprocess1.keyboard_interaction(lon_req_str, Config_Preprocess1.check_latlon_inds,
-                                                               lon_err, ntries=2)
+        nyx_str = Config_Preprocess1.keyboard_interaction(nyx_req_str, Config_Preprocess1.check_nyx,
+                                                          nyx_err, ntries=2)
 
-        lon_inds_list = lon_inds_str.split(",")
-        self.lon_inds = [ind.strip() for ind in lon_inds_list]
+        nyx_list = nyx_str.split(",")
+        self.nyx = [int(nyx_val.strip()) for nyx_val in nyx_list]
 
         # set destination directory based on base directory which can be retrieved from the template runscript
         base_dir = Config_Preprocess1.get_var_from_runscript(os.path.join(self.runscript_dir, self.runscript_template),
@@ -259,38 +256,69 @@ class Config_Preprocess1(Config_runscript_base):
     # -----------------------------------------------------------------------------------
     #
     @staticmethod
-    def check_latlon_inds(inds_str, silent=False):
+    def check_swc(swc_str, silent=False):
         """
-        Check if comma-separated string of indices is non-negative and passed in increasing order.
-        Exactly, two indices must be passed!
-        :param inds_str: Comma-separated string of indices
+        Check if comma-separated input string constitutes a valid coordinate pair for the ERA5 dataset
+        :param swc_str: Comma-separated string of coordinates (lat,lon)
         :param silent: flag if print-statement are executed
         :return: status with True confirming success
         """
-
         status = False
-        inds_list = inds_str.split(",")
-        if not len(inds_list) == 2:
-            if not silent: print("Invalid number of indices identified.")
+        swc_list = swc_str.split(",")
+        if not len(swc_list) == 2:
+            if not silent: print("Invalid coordinate pair was passed.")
             return status
 
-        inds_list = [ind.strip() for ind in inds_list]
-        if inds_list[0].isnumeric() and inds_list[1].isnumeric():
-            ind1, ind2 = int(inds_list[0]), int(inds_list[1])
-            if ind1 >= ind2 or ind1 < 0 or ind2 <= 0:
-                if not silent: print("Indices must be non-negative and passed in increasing order.")
-            else:
+        swc_list = [geo_coord.strip() for geo_coord in swc_list]
+        if swc_list[0].isnumeric() and swc_list[1].isnumeric():
+            s_brd, w_brd = float(swc_list[0]), float(swc_list[1])
+            check_swc = [-90. <= s_brd <= 90., 0. <= w_brd <= 360.]
+            if all(check_swc):
                 status = True
+            else:
+                if not silent:
+                    if not check_swc[0]:
+                        print("Latitude coordinate must be within -90. and 90.")
+                    if not check_swc[1]:
+                        print("Longitude coordinate must be within 0. and 360.")
         else:
-            if not silent: print("Indices must be numbers.")
+            if not silent: print("Coordinates must be numbers.")
 
         return status
-    #
-    # -----------------------------------------------------------------------------------
-    #
 
+    @staticmethod
+    def check_nyx(nyx_str, silent=False):
+        """
+        Check if comma-separated input string is a valid number of grid points for size of target domain
+        :param nyx_str: Comma-separated string of number of gridpoints in meridional and zonal direction
+                        of target domain (ny, nx)
+        :param silent: flag if print-statement are executed
+        :return: status with True confirming success
+        """
+        status = False
+        nyx_list = nyx_str.split(",")
+        if not len(nyx_list) == 2:
+            if not silent: print("Invalid number pair was passed.")
+            return status
 
+        nyx_list = [nyx_val.strip() for nyx_val in nyx_list]
+        if nyx_list[0].isnumeric() and nyx_list[1].isnumeric():
+            ny, nx = int(nyx_list[0]), float(nyx_list[1])
+            # Note: The value of 0.3 corresponds to the grid spacing of the used ERA5-data set
+            ny_max, nx_max = int(180/0.3 - 1), int(360/0.3 - 1)
+            check_nyx = [0 <= ny <= ny_max, 0 <= nx <= nx_max]
+            if all(check_nyx):
+                status = True
+            else:
+                if not silent:
+                    if not check_nyx[0]:
+                        print("Number of grid points in meridional direction must be smaller than {0:d}".format(ny_max))
+                    if not check_nyx[1]:
+                        print("Number of grid points in zonal direction must be smaller than {0:d}".format(nx_max))
+        else:
+            if not silent: print("Number of grid points must be integers.")
 
+        return status
 
 #
 # -----------------------------------------------------------------------------------
