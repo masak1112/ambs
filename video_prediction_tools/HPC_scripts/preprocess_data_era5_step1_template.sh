@@ -38,8 +38,8 @@ source ../env_setup/modules_preprocess.sh
 # select years and variables for dataset and define target domain 
 years=( "2015" )
 variables=( "t2" "t2" "t2" )
-lat_inds=( 74 202 )
-lon_inds=( 550 710 )
+sw_corner=( -999.9 -999.9)
+nyx=( -999 -999 )
 
 # set some paths
 # note, that destination_dir is adjusted during runtime based on the data
@@ -50,9 +50,9 @@ destination_dir=/my/path/to/pickle/files
 for year in "${years[@]}"; do
   echo "start preprocessing data for year ${year}"
 	srun python ../main_scripts/main_preprocess_data_step1.py \
-        --source_dir ${source_dir} --destination_dir ${destination_dir} --years ${year} \
-       	--vars ${variables[0]} ${variables[1]} ${variables[2]} \
-       	--lat_s ${lat_inds[0]} --lat_e ${lat_inds[1]} --lon_s ${lon_inds[0]} --lon_e ${lon_inds[1]}    
+        --source_dir ${source_dir} --destination_dir ${destination_dir} --years "${year}" \
+       	--vars "${variables[0]}" "${variables[1]}" "${variables[2]}" \
+       	--sw_corner "${sw_corner[0]}" "${sw_corner[1]}" --nyx "${nyx[0]}" "${nyx[1]}"
 done
 
 
