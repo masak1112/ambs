@@ -119,6 +119,7 @@ class VanillaGANVideoPredictionModel(object):
         self.saveable_variables = [self.global_step] + global_variables
         self.is_build_graph = True
         return self.is_build_graph 
+    
     def get_noise(self):
         """
         Function for creating noise: Given the dimensions (n_samples,z_dim)

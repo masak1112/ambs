@@ -13,7 +13,7 @@ from .mcnet_model import McNetVideoPredictionModel
 from .test_model import TestModelVideoPredictionModel
 from model_modules.model_architectures import known_models
 from .vanilla_GAN_model import  VanillaGANVideoPredictionModel
-
+from .convLSTM_GAN_model import ConvLstmGANVideoPredictionModel
 def get_model_class(model):
     model_mappings = known_models()
     model_class = model_mappings.get(model, model)
