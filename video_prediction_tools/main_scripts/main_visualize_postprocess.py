@@ -835,7 +835,7 @@ class Postprocess(TrainModel):
 
         # populate data in netCDF-file (take care for the mode!)
         ds_input.create_netcdf(nc_fname, group="analysis/inputs", encoding=encode_nc)
-        ds_persistence.create_netcdf(nc_fname, group="analysis/reference", encoding=encode_nc)
+        ds_persistence.create_netcdf(nc_fname, mode="a", group="analysis/reference", encoding=encode_nc)
         ds_forecast.create_netcdf(nc_fname, mode="a", group="forecasts", encoding=encode_nc)
 
         print("%{0}: Data-file {1} was created successfully".format(method, nc_fname))
@@ -847,7 +847,7 @@ class Postprocess(TrainModel):
         """
         Plot the seq images
         """
-        assert len(np.array(imgs).shape) == 3, "img dims should be four: (seq_len,lat,lon)"
+        assert len(np.array(imgs).shape) == 3, "img dims should be 3: (seq_len,lat,lon)"
         assert np.array(imgs).shape[0] == len(ts), "The len of timestamps should be equal the image seq_len"
         fig = plt.figure(figsize=(18, 6))
         gs = gridspec.GridSpec(1, len(ts))
