@@ -463,7 +463,7 @@ class Postprocess(TrainModel):
                                         .format(ts[self.context_frames].strftime("%Y%m%d%H"), sample_ind + i))
                 print("%{0}: Save sequence data to nectCDF-file '{1}'".format(method, nc_fname))
                 self.save_sequences_to_netcdf(input_images_denorm_all[i], persistence_images,
-                                              np.expand_dims(np.array(gen_images_denorm), axis=0), nc_fname)
+                                              np.expand_dims(np.array(gen_images_denorm), axis=0), ts, nc_fname)
 
                 prst_mse_all.append(Postprocess.calculate_sample_metrics(input_images_denorm_all[i],
                                                                          persistence_images, self.future_length,
@@ -729,13 +729,14 @@ class Postprocess(TrainModel):
         seq_ts = [s_datetime + datetime.timedelta(hours=i) for i in range(len_seq)]
         return seq_ts
 
-    def save_sequences_to_netcdf(self, input_seq, persistence_seq, predicted_seq, nc_fname):
+    def save_sequences_to_netcdf(self, input_seq, persistence_seq, predicted_seq, ts, nc_fname):
         """
         Save the input images, persistent images and generated stochatsic images to netCDF file.
         Note that the seq-dimension must comprise the whole sequence length
         :param input_seq: sequence of input images [seq, lat, lon, channel]
         :param persistence_seq: sequence of images from persistence forecast [seq, lat, lon, channel]
         :param predicted_seq: sequence of forecasted images [stochastic_index ,seq, lat, lon, channel]
+        :param ts: timestamp array of current sequence
         :param nc_fname: name of netCDF-file to be created
         :return None:
         """
@@ -753,7 +754,7 @@ class Postprocess(TrainModel):
 
         # further dimensions
         nlat, nlon = len(self.lats), len(self.lons)
-        ntimes = len(self.ts)
+        ntimes = len(ts)
         nvars = len(self.vars_in)
 
         # sanity checks
@@ -785,7 +786,7 @@ class Postprocess(TrainModel):
                                     for i in np.arange(nvars)])
 
             ds_input = xr.Dataset(data_dict_input,
-                                  coords={"time_input": self.ts[self.context_frames:],
+                                  coords={"time_input": ts[self.context_frames:],
                                           "lat": self.lats, "lon": self.lons},
                                   attrs=attr_dict)
         except Exception as err:
@@ -798,7 +799,7 @@ class Postprocess(TrainModel):
                                    for i in np.arange(nvars)])
 
             ds_forecast = xr.Dataset(data_dict_fcst,
-                                     coords={"time_forecast": self.ts[self.context_frames:],
+                                     coords={"time_forecast": ts[self.context_frames:],
                                              "lat": self.lats, "lon": self.lons},
                                      attrs=attr_dict)
         except Exception as err:
@@ -811,7 +812,7 @@ class Postprocess(TrainModel):
                                   for i in np.arange(nvars)])
 
             ds_persistence = xr.Dataset(data_dict_per,
-                                        coords={"time_forecast": self.ts[self.context_frames:],
+                                        coords={"time_forecast": ts[self.context_frames:],
                                                 "lat": self.lats, "lon": self.lons},
                                         attrs=attr_dict)
         except Exception as err:
