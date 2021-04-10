@@ -66,8 +66,10 @@ class Postprocess(TrainModel):
         self.input_dir_pkl = None
         # initialize simple evalualtion metrics for model and persistence forecasts
         # (calculated when executing run-method)
-        self.prst_metric_mse_all, self.prst_metric_psnr_all = None, None
-        self.fcst_metric_mse_all, self.fcst_metric_psnr_all = None, None
+        self.prst_mse_avg_batches, self.prst_psnr_avg_batches = None, None
+        self.fcst_mse_avg_batches, self.fcst_psnr_avg_batches = None, None
+        self.prst_mse_avg_period, self.prst_psnr_avg_period = None, None
+        self.fcst_mse_avg_period, self.fcst_psnr_avg_period = None, None
         # initialze list tracking initialization time of generated forecasts
         self.ts_fcst_ini = []
         # set further attributes from parsed arguments
@@ -519,28 +521,35 @@ class Postprocess(TrainModel):
                                                               self.context_frames, metric="psnr", channel=0)
         return mse_sample, psnr_sample
 
-    def average_eval_metrics_for_all_batches(self, prst_mse_all, prst_psnr_all, fcst_mse_all, fcst_psnr_all):
+    def average_eval_metrics(self, prst_mse_all, prst_psnr_all, fcst_mse_all, fcst_psnr_all):
         """
-        Average evaluation metrics for all the samples.
-        For all variables, the first dimension (axis=0) must be the training examples of the mini-batch
+        Calculate averages of evalualtion metrics over
+          a) all batches to obatin the averaged metric over the prediction period
+          b) the forecast period to obtain the averaged metric for all forecasts
         :param prst_mse_all: MSE of all persistence forecasts
         :param prst_psnr_all: PSNR of all persistence forecasts
         :param fcst_mse_all: MSE of all model forecasts
         :param fcst_psnr_all: PSNR of all model forecasts
         """
-        self.prst_metric_mse_all = np.mean(np.array(prst_mse_all), axis=0)
-        self.prst_metric_psnr_all = np.mean(np.array(prst_psnr_all), axis=0)
+        self.prst_mse_avg_batches = np.mean(np.array(prst_mse_all), axis=0)
+        self.prst_psnr_avg_batches = np.mean(np.array(prst_psnr_all), axis=0)
 
-        self.fcst_metric_mse_all = np.mean(np.array(fcst_mse_all), axis=0)
-        self.fcst_metric_psnr_all = np.mean(np.array(fcst_psnr_all), axis=0)
+        self.fcst_mse_avg_batches = np.mean(np.array(fcst_mse_all), axis=0)
+        self.fcst_psnr_avg_batches = np.mean(np.array(fcst_psnr_all), axis=0)
+
+        self.prst_mse_avg_period = np.mean(np.array(prst_mse_all), axis=1)
+        self.prst_psnr_avg_period = np.mean(np.array(prst_psnr_all), axis=1)
+
+        self.fcst_mse_avg_period = np.mean(np.array(fcst_mse_all), axis=1)
+        self.fcst_psnr_avg_period = np.mean(np.array(fcst_psnr_all), axis=1)
 
     def add_ensemble_dim(self):
         """
         Expands dimensions of loss-arrays by dummy ensemble-dimension (used for deterministic forecasts only)
         :return:
         """
-        self.stochastic_loss_all_batches = np.expand_dims(self.fcst_metric_mse_all, axis=0)  # [1,future_lenght]
-        self.stochastic_loss_all_batches_psnr = np.expand_dims(self.fcst_metric_psnr_all, axis=0)  # [1,future_lenght]
+        self.stochastic_loss_all_batches = np.expand_dims(self.fcst_mse_avg_batches, axis=0)  # [1,future_lenght]
+        self.stochastic_loss_all_batches_psnr = np.expand_dims(self.fcst_psnr_avg_batches, axis=0)  # [1,future_lenght]
 
     def get_persistence_forecast_per_sample(self, t_seq):
         """
@@ -627,10 +636,10 @@ class Postprocess(TrainModel):
         self.eval_metrics = {}
         if metric == "mse":
             fcst_metric_all = self.stochastic_loss_all_batches  # mse loss
-            prst_metric_all = self.prst_metric_mse_all
+            prst_metric_all = self.prst_mse_avg_batches
         elif metric == "psnr":
             fcst_metric_all = self.stochastic_loss_all_batches_psnr  # mse loss
-            prst_metric_all = self.prst_metric_psnr_all
+            prst_metric_all = self.prst_psnr_avg_batches
         else:
             raise ValueError(
                 "We currently only support metric 'mse' and  'psnr' as evaluation metric for detereminstic forecasting")
@@ -1011,6 +1020,9 @@ class Postprocess(TrainModel):
         metric_data, quantiles_val = self.get_quantiles(quantiles, metric)
         quantiles_inds = self.get_matching_indices(metric_data, quantiles_val)
 
+        print(metric_data)
+        print(quantiles_inds)
+
         for i, ifcst in enumerate(quantiles_inds):
             date_curr = self.ts_fcst_ini[ifcst]
             nc_fname = os.path.join(self.results_dir, "vfp_date_{0}_sample_ind_{1:d}.nc"
@@ -1045,17 +1057,17 @@ class Postprocess(TrainModel):
         method = Postprocess.get_quantiles.__name__
 
         if metric == "mse":
-            print(self.fcst_metric_mse_all)
-            if self.fcst_metric_mse_all is None:
-                raise ValueError("%{0}: fcst_metric_mse_all-attribute storing forecast MSE is still uninitialized."
+            print(self.fcst_mse_avg_batches)
+            if self.fcst_mse_avg_period is None:
+                raise ValueError("%{0}: fcst_mse_avg_period-attribute storing forecast MSE is still uninitialized."
                                  .format(method))
-            data = np.array(self.fcst_metric_mse_all)
+            data = np.array(self.fcst_mse_avg_period)
 
         elif metric == "psnr":
-            if self.fcst_metric_psnr_all is None:
+            if self.fcst_psnr_avg_period is None:
                 raise ValueError("%{0}: fcst_metric_psnr_all-attribute storing forecast PSNR is still uninitialized."
                                  .format(method))
-            data = np.array(self.fcst_metric_psnr_all)
+            data = np.array(self.fcst_psnr_avg_period)
         else:
             raise ValueError("%{0}: Metric {1} is unknown.".format(method, metric))
 
