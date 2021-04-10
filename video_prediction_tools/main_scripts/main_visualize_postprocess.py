@@ -626,10 +626,10 @@ class Postprocess(TrainModel):
         """
         self.eval_metrics = {}
         if metric == "mse":
-            fcst_metric_all = self.fcst_metric_mse_all  # mse loss
+            fcst_metric_all = self.stochastic_loss_all_batches  # mse loss
             prst_metric_all = self.prst_metric_mse_all
         elif metric == "psnr":
-            fcst_metric_all = self.fcst_metric_psnr_all  # psnr_loss
+            fcst_metric_all = self.stochastic_loss_all_batches_psnr  # mse loss
             prst_metric_all = self.prst_metric_psnr_all
         else:
             raise ValueError(
@@ -990,8 +990,8 @@ class Postprocess(TrainModel):
 
         quantiles = np.arange(0., 1.01, .1)
 
-        metric_data, quantiles_val = Postprocess.get_quantiles(quantiles, metric)
-        quantiles_inds = Postprocess.get_matching_indices(metric_data, quantiles_val)
+        metric_data, quantiles_val = self.get_quantiles(quantiles, metric)
+        quantiles_inds = self.get_matching_indices(metric_data, quantiles_val)
 
         for i in quantiles_inds:
             date_curr = self.ts_fcst_ini[i]
@@ -1024,9 +1024,10 @@ class Postprocess(TrainModel):
         :return quantiles_vals: the requested quantile values
         """
 
-        method = Postprocess.get_quantile_inds.__name__
+        method = Postprocess.get_quantiles.__name__
 
         if metric == "mse":
+            print(self.fcst_metric_mse_all)
             if self.fcst_metric_mse_all is None:
                 raise ValueError("%{0}: fcst_metric_mse_all-attribute storing forecast MSE is still uninitialized."
                                  .format(method))
