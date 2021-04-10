@@ -740,7 +740,7 @@ class Postprocess(TrainModel):
         :param nc_fname: name of netCDF-file to be created
         :return None:
         """
-        method = Postprocess.__name__
+        method = Postprocess.save_sequences_to_netcdf.__name__
 
         # preparation: convert to NumPy-arrays and perform sanity checks
         input_seq, persistence_seq = np.asarray(input_seq), np.asarray(persistence_seq)
