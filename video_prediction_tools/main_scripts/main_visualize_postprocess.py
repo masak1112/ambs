@@ -1011,10 +1011,10 @@ class Postprocess(TrainModel):
         metric_data, quantiles_val = self.get_quantiles(quantiles, metric)
         quantiles_inds = self.get_matching_indices(metric_data, quantiles_val)
 
-        for i in quantiles_inds:
-            date_curr = self.ts_fcst_ini[i]
+        for i, ifcst in enumerate(quantiles_inds):
+            date_curr = self.ts_fcst_ini[ifcst]
             nc_fname = os.path.join(self.results_dir, "vfp_date_{0}_sample_ind_{1:d}.nc"
-                                    .format(date_curr.strftime("%Y%m%d%H"), i))
+                                    .format(date_curr.strftime("%Y%m%d%H"), ifcst))
             if not os.path.isfile(nc_fname):
                 raise FileNotFoundError("%{0}: Could not find requested file '{1}'".format(method, nc_fname))
             else:
@@ -1105,7 +1105,7 @@ class Postprocess(TrainModel):
         date0 = dates_fcst[0] - (dates_fcst[1] - dates_fcst[0])
         date0_str = date0.strftime("%Y-%m-%d %H:%M UTC")
 
-        fhhs = (dates_fcst - date0) / pd.Timedelta('1 hour')
+        fhhs = ((dates_fcst - date0) / pd.Timedelta('1 hour')).values
 
         # check data to be plotted since programme is not generic so far
         if np.shape(dates_fcst)[0] != 12:
@@ -1124,7 +1124,7 @@ class Postprocess(TrainModel):
         axes = axes.flatten()
 
         # create all subplots
-        for t, fhh in fhhs:
+        for t, fhh in enumerate(fhhs):
             m = Basemap(projection='cyl', llcrnrlat=np.min(lat), urcrnrlat=np.max(lat),
                         llcrnrlon=np.min(lon), urcrnrlon=np.max(lon), resolution='l', ax=axes[t])
             m.drawcoastlines()
