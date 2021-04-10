@@ -740,7 +740,7 @@ class Postprocess(TrainModel):
         :param nc_fname: name of netCDF-file to be created
         :return None:
         """
-        method = Postprocess.__name__
+        method = Postprocess.save_sequences_to_netcdf.__name__
 
         # preparation: convert to NumPy-arrays and perform sanity checks
         input_seq, persistence_seq = np.asarray(input_seq), np.asarray(persistence_seq)
@@ -750,7 +750,7 @@ class Postprocess(TrainModel):
         pred_seq_shape = np.shape(predicted_seq)
         # sequence length of the prediction (2nd dimension) is smaller by one compared to input sequence
         pred_seq_shape_test = np.asarray(pred_seq_shape)
-        pred_seq_shape_test[1] -= 1
+        pred_seq_shape_test[1] += 1
 
         # further dimensions
         nlat, nlon = len(self.lats), len(self.lons)
@@ -758,12 +758,12 @@ class Postprocess(TrainModel):
         nvars = len(self.vars_in)
 
         # sanity checks
-        assert in_seq_shape == per_seq_shape, "%{0}: Input sequence and persistence sequence must have the same shape." \
+        assert in_seq_shape[1:] == per_seq_shape[1:], "%{0}: Input sequence and persistence sequence must have the same shape." \
             .format(method)
         assert len(in_seq_shape) == 4, "%{0}: Number of dimensions of input and persistence sequence must be 4." \
             .format(method)
-        assert in_seq_shape == tuple(pred_seq_shape_test), "%{0}: Dimension of input sequence does ".format(method) + \
-                                                           "not match dimension of predicted sequence"
+        assert in_seq_shape == tuple(pred_seq_shape_test[1:]), "%{0}: Dimension of input sequence does ".format(method) + \
+                                                               "not match dimension of predicted sequence"
 
         assert ntimes == in_seq_shape[0], "%{0}: Unexpected sequence length of input data ({1:d} vs. {2:d})" \
             .format(method, ntimes, in_seq_shape[0])
@@ -795,7 +795,7 @@ class Postprocess(TrainModel):
 
         try:
             data_dict_fcst = dict([("{0}_fcst".format(self.vars_in[i]), (["time_forecast", "lat", "lon"],
-                                   predicted_seq[0, self.context_frames - 1:, :, :, i]))
+                                   predicted_seq[0, self.context_frames-1:, :, :, i]))
                                    for i in np.arange(nvars)])
 
             ds_forecast = xr.Dataset(data_dict_fcst,
@@ -808,7 +808,7 @@ class Postprocess(TrainModel):
 
         try:
             data_dict_per = dict([("{0}_prst".format(self.vars_in[i]), (["time_forecast", "lat", "lon"],
-                                  persistence_seq[self.context_frames:, :, :, i]))
+                                  persistence_seq[self.context_frames-1:, :, :, i]))
                                   for i in np.arange(nvars)])
 
             ds_persistence = xr.Dataset(data_dict_per,
@@ -822,9 +822,11 @@ class Postprocess(TrainModel):
         encode_nc = {key: {"zlib": True, "complevel": 5} for key in list(ds_input.keys())}
 
         # populate data in netCDF-file (take care for the mode!)
-        ds_input.create_netcdf(nc_fname, encoding=encode_nc)
-        ds_persistence.create_netcdf(nc_fname, mode="a", encoding=encode_nc)
-        ds_forecast.create_netcdf(nc_fname, mode="a", encoding=encode_nc)
+        ds_input.to_netcdf(nc_fname, encoding=encode_nc)
+        encode_nc = {key: {"zlib": True, "complevel": 5} for key in list(ds_persistence.keys())}
+        ds_persistence.to_netcdf(nc_fname, mode="a", encoding=encode_nc)
+        encode_nc = {key: {"zlib": True, "complevel": 5} for key in list(ds_forecast.keys())}
+        ds_forecast.to_netcdf(nc_fname, mode="a", encoding=encode_nc)
 
         print("%{0}: Data-file {1} was created successfully".format(method, nc_fname))
 
