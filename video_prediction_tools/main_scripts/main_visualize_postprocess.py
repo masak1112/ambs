@@ -781,8 +781,8 @@ class Postprocess(TrainModel):
                      "creation_date": datetime.datetime.now().strftime("%Y-%m-%d %H:%M UTC")}
 
         try:
-            data_dict_input = dict([(self.vars_in[i], (["time_input", "lat", "lon"],
-                                                       input_seq[:self.context_frames, :, :, 0]))
+            data_dict_input = dict([("{0}_input".format(self.vars_in[i]), (["time_input", "lat", "lon"],
+                                    input_seq[:self.context_frames, :, :, i]))
                                     for i in np.arange(nvars)])
 
             ds_input = xr.Dataset(data_dict_input,
@@ -794,8 +794,8 @@ class Postprocess(TrainModel):
             raise err
 
         try:
-            data_dict_fcst = dict([(self.vars_in[i], (["time_forecast", "lat", "lon"],
-                                                      predicted_seq[0, self.context_frames - 1:, :, :, i]))
+            data_dict_fcst = dict([("{0}_fcst".format(self.vars_in[i]), (["time_forecast", "lat", "lon"],
+                                   predicted_seq[0, self.context_frames - 1:, :, :, i]))
                                    for i in np.arange(nvars)])
 
             ds_forecast = xr.Dataset(data_dict_fcst,
@@ -807,8 +807,8 @@ class Postprocess(TrainModel):
             raise err
 
         try:
-            data_dict_per = dict([(self.vars_in[i], (["time_forecast", "lat", "lon"],
-                                                     persistence_seq[self.context_frames:, :, :, i]))
+            data_dict_per = dict([("{0}_prst".format(self.vars_in[i]), (["time_forecast", "lat", "lon"],
+                                  persistence_seq[self.context_frames:, :, :, i]))
                                   for i in np.arange(nvars)])
 
             ds_persistence = xr.Dataset(data_dict_per,
@@ -822,9 +822,9 @@ class Postprocess(TrainModel):
         encode_nc = {key: {"zlib": True, "complevel": 5} for key in list(ds_input.keys())}
 
         # populate data in netCDF-file (take care for the mode!)
-        ds_input.create_netcdf(nc_fname, group="analysis/inputs", encoding=encode_nc)
-        ds_persistence.create_netcdf(nc_fname, mode="a", group="analysis/reference", encoding=encode_nc)
-        ds_forecast.create_netcdf(nc_fname, mode="a", group="forecasts", encoding=encode_nc)
+        ds_input.create_netcdf(nc_fname, encoding=encode_nc)
+        ds_persistence.create_netcdf(nc_fname, mode="a", encoding=encode_nc)
+        ds_forecast.create_netcdf(nc_fname, mode="a", encoding=encode_nc)
 
         print("%{0}: Data-file {1} was created successfully".format(method, nc_fname))
 
@@ -911,12 +911,6 @@ class Postprocess(TrainModel):
                 var_pickle_second = Postprocess.load_pickle_for_persistence(input_dir_pkl, year_origin, 1, 'X')
                 var_pickle_first = Postprocess.load_pickle_for_persistence(input_dir_pkl, year_start, 12, 'X')
 
-                # print('Scarlet, Original', ts_persistence)
-                # print('From Pickle', time_pickle_first[ind_first_m:ind_first_m+len(t_persistence_first_m)],
-                # time_pickle_second[ind_second_m:ind_second_m+len(t_persistence_second_m)])
-                # print(' Scarlet before', time_pickle_first[ind_first_m:ind_first_m+len(t_persistence_first_m)].shape,
-                # time_pickle_second[ind_second_m:ind_second_m+len(t_persistence_second_m)].shape)
-
             # Retrieve starting index
             ind_first_m = list(time_pickle_first).index(np.array(t_persistence_first_m[0]))
             print("time_pickle_second:", time_pickle_second)
@@ -981,18 +975,21 @@ class Postprocess(TrainModel):
         plt.savefig(os.path.join(self.results_dir, "evaluation.png"))
 
     def plot_example_forecasts(self, metric="mse", var_ind=0):
+        """
+        Plots example forecasts. The forecasts are chosen from the complete pool of the test dataset and are chosen
+        according to the accuracy in terms of the chosen metric. In add ition, to the best and worst forecast,
+        every decil of the chosen metric is retrieved to cover the whole bandwith of forecasts.
+        :param metric: The metric which is used for measuring accuracy
+        :param var_ind: The index of the forecasted variable to plot (correspondong to self.vars_in)
+        :return: 11 forecast plots are created
+        """
+
         method = Postprocess.plot_example_forecasts.__name__
 
         quantiles = np.arange(0., 1.01, .1)
 
-        metric_data, quantiles_val = Postprocess.get_quantile_inds(quantiles, metric)
+        metric_data, quantiles_val = Postprocess.get_quantiles(quantiles, metric)
         quantiles_inds = Postprocess.get_matching_indices(metric_data, quantiles_val)
-
-        try:
-            dates2plt = self.ts_fcst_ini[quantiles_inds]
-        except Exception as err:
-            print("%{0}: Error when retrieving dates for which plots should be created based on deciles of {1}"
-                  .format(method, metric))
 
         for i in quantiles_inds:
             date_curr = self.ts_fcst_ini[i]
@@ -1008,22 +1005,22 @@ class Postprocess(TrainModel):
                     data_ref = dfile["{0}_ref".format(varname)]
 
                 data_diff = data_fcst - data_ref
-                # handle coordinates and forecast times
-                lat, lon = coords["lat"], coords["lon"]
-                nlat, nlon = np.shape(lat)[0], np.shape(lon)[0]
-                # get forecast times
-                dates_fcst = pd.to_datetime(coords["time_forecast"].data)
-                date0 = dates_fcst[0] - (dates_fcst[1] - dates_fcst[0])
-                date0_str = date0.strftime("%Y-%m-%d %H:%M UTC")
-
-                fhh = (dates_fcst - date0) / pd.Timedelta('1 hour')
+                dates_fcst = pd.to_datetime(data_ref.coords["time_forecast"].data)
                 # name of plot
-                plt_fname_base = os.path.join(self.output_dir, "forecast_{0}_{1}"
-                                              .format(varname, dates_fcst[0].strftime("%Y%m%dT%H00")))
+                plt_fname_base = os.path.join(self.output_dir, "forecast_{0}_{1}_{2}_{3:d}percentile.png"
+                                              .format(varname, dates_fcst[0].strftime("%Y%m%dT%H00"), metric,
+                                                      int(quantiles[i]*100.)))
 
                 self.create_plot(data_fcst, data_diff, varname, plt_fname_base)
 
-    def get_quantile_inds(self, quantiles, metric):
+    def get_quantiles(self, quantiles, metric="mse"):
+        """
+        Get the quantiles for the metric of interest.
+        :param quantiles: The quantiles for which the index should be obtained
+        :param metric: the metric of interest ("mse" and "psnr" are currently available)
+        :return data: the array holding the metric of interst
+        :return quantiles_vals: the requested quantile values
+        """
 
         method = Postprocess.get_quantile_inds.__name__
 
