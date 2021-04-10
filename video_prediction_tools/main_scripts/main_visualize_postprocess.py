@@ -293,7 +293,6 @@ class Postprocess(TrainModel):
 
         input_results = self.sess.run(self.inputs)
         input_images = input_results["images"]
-        print("t_starts_results:", self.t_starts_results)
         t_starts = input_results["T_start"]
         # get one seq and the corresponding start time poin
         # self.t_starts = input_results["T_start"]
