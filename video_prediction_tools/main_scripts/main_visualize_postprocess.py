@@ -181,7 +181,7 @@ class Postprocess(TrainModel):
                 self.dataset = self.options_checkpoint["dataset"]
                 self.model = self.options_checkpoint["model"]
                 self.input_dir_tfr = self.options_checkpoint["input_dir"]
-                self.input_dir = os.path.dirname(self.input_dir_tfr)
+                self.input_dir = os.path.dirname(self.input_dir_tfr.rstrip("/"))
                 self.input_dir_pkl = os.path.join(self.input_dir, "pickle")
         except:
             raise IOError("%{0}: Could not retrieve all information from options_checkpoints.json".format(method_name))
@@ -229,10 +229,12 @@ class Postprocess(TrainModel):
         For generating images, the user can define the examples used, and will be taken as num_examples_per_epoch
         For testing we only use exactly one epoch, but to be consistent with the training, we keep the name '_per_epoch'
         """
+        method = Postprocess.setup_num_samples_per_epoch.__name__
+
         if self.num_samples:
             if self.num_samples > self.test_dataset.num_examples_per_epoch():
-                raise ValueError('num_samples cannot be larger than the dataset')
-            self.num_samples_per_epoch = self.num_samples
+                print("%{0}: Passed number of sample larger than dataset. Complete dataset will be evaluated.".format(method))
+            self.num_samples_per_epoch = np.minimum(self.num_samples, self.test_dataset.num_examples_per_epoch)
         else:
             self.num_samples_per_epoch = self.test_dataset.num_examples_per_epoch()
         return self.num_samples_per_epoch
