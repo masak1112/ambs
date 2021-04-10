@@ -482,7 +482,7 @@ class Postprocess(TrainModel):
                 # end of batch-loop
             sample_ind += self.batch_size
             # end of while-loop for samples
-        self.average_eval_metrics_for_all_batches(prst_mse_all, prst_psnr_all, fcst_mse_all, fcst_psnr_all)
+        self.average_eval_metrics(prst_mse_all, prst_psnr_all, fcst_mse_all, fcst_psnr_all)
         self.add_ensemble_dim()
 
     def calculate_persistence_eval_metrics(self, i):
