@@ -794,6 +794,19 @@ class Postprocess(TrainModel):
             raise err
 
         try:
+            data_dict_ref = dict([("{0}_ref".format(self.vars_in[i]), (["time_forecast", "lat", "lon"],
+                                 input_seq[self.context_frames:, :, :, i]))
+                                 for i in np.arange(nvars)])
+
+            ds_ref = xr.Dataset(data_dict_ref,
+                                coords={"time_forecast": ts[self.context_frames:],
+                                        "lat": self.lats, "lon": self.lons},
+                                attrs=attr_dict)
+        except Exception as err:
+            print("%{0}: Something went wrong when creating dataset for reference data.".format(method))
+            raise err
+
+        try:
             data_dict_fcst = dict([("{0}_fcst".format(self.vars_in[i]), (["time_forecast", "lat", "lon"],
                                    predicted_seq[0, self.context_frames-1:, :, :, i]))
                                    for i in np.arange(nvars)])
@@ -823,8 +836,13 @@ class Postprocess(TrainModel):
 
         # populate data in netCDF-file (take care for the mode!)
         ds_input.to_netcdf(nc_fname, encoding=encode_nc)
+
+        encode_nc = {key: {"zlib": True, "complevel": 5} for key in list(ds_ref.keys())}
+        ds_ref.to_netcdf(nc_fname, mode="a", encoding=encode_nc)
+
         encode_nc = {key: {"zlib": True, "complevel": 5} for key in list(ds_persistence.keys())}
         ds_persistence.to_netcdf(nc_fname, mode="a", encoding=encode_nc)
+
         encode_nc = {key: {"zlib": True, "complevel": 5} for key in list(ds_forecast.keys())}
         ds_forecast.to_netcdf(nc_fname, mode="a", encoding=encode_nc)
 
