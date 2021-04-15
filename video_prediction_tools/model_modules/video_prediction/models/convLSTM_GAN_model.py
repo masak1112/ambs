@@ -1,15 +1,7 @@
 __email__ = "b.gong@fz-juelich.de"
-__author__ = "Bing Gong"
-__date__ = "2021=01-05"
+__author__ = "Bing Gong,Yanji"
+__date__ = "2021-04-13"
 
-
-
-"""
-This code implement take the following as references:
-1) https://stackabuse.com/introduction-to-gans-with-python-and-tensorflow/
-2) cousera GAN courses
-3) https://github.com/hwalsuklee/tensorflow-generative-model-collections/blob/master/GAN.py
-"""
 import collections
 import functools
 import itertools
