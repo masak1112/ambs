@@ -297,7 +297,7 @@ class TrainModel(object):
                 val_losses.append(self.val_results["total_loss"])
                 self.write_to_summary()
                 self.print_results(step,self.results)
-                self.saver.save(sess, os.path.join(self.output_dir, "model"), global_step=step)
+                if step % 50 ==0 : self.saver.save(sess, os.path.join(self.output_dir, "model"), global_step=step)
                 timeit_end = time.time()
                 time_per_iteration.append(timeit_end - timeit_start)
                 print("time needed for this step", timeit_end - timeit_start, ' s')
@@ -331,6 +331,7 @@ class TrainModel(object):
        if self.video_model.__class__.__name__ == "SAVPVideoPredictionModel": self.fetches_for_train_savp()
        if self.video_model.__class__.__name__ == "VanillaVAEVideoPredictionModel": self.fetches_for_train_vae()
        if self.video_model.__class__.__name__ == "VanillaGANVideoPredictionModel":self.fetches_for_train_gan()
+       if self.video_model.__class__.__name__ == "ConvLstmGANVideoPredictionModel":self.fetches_for_train_convLSTM()
        return self.fetches     
     
     def fetches_for_train_convLSTM(self):

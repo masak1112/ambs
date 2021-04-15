@@ -21,6 +21,8 @@ from model_modules.video_prediction.layers import layer_def as ld
 from model_modules.video_prediction.layers.BasicConvLSTMCell import BasicConvLSTMCell
 from tensorflow.contrib.training import HParams
 
+
+
 class VanillaConvLstmVideoPredictionModel(object):
     def __init__(self, mode='train', hparams_dict=None):
         """
