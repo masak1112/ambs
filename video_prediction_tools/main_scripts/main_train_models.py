@@ -419,6 +419,8 @@ class TrainModel(object):
             raise ValueError("The length of training losses must be equal to the length of val losses!")  
         plt.plot(iterations, train_losses, 'g', label='Training loss')
         plt.plot(iterations, val_losses, 'b', label='validation loss')
+        plt.ylim(10**-5, 10**2)
+        plt.yscale("log")
         plt.title('Training and Validation loss')
         plt.xlabel('Iterations')
         plt.ylabel('Loss')
