@@ -440,8 +440,14 @@ class Postprocess(TrainModel):
 
         # init sample index for looping and acculmulators for evaulation metrics
         sample_ind = 0
-        fcst_mse_all, fcst_psnr_all = [], []
-        prst_mse_all, prst_psnr_all = [], []
+        nsamples = self.num_samples_per_epoch * self.batch_size
+        eval_metric_dict = dict([("{0}_{1}".format(*(eval_met, fcst_prod)), (["ens_mem", "init_time", "lead_time"],
+                                  np.full((1, nsamples, self.future_length), np.nan)))
+                                 for eval_met in self.eval_metrics for fcst_prod in self.fcst_products])
+
+        eval_metric_ds = xr.Dataset(eval_metric_dict, coords={"ens_mem": np.arange(1),
+                                                              "init_time": np.arange(nsamples),  # just a placeholder
+                                                              "lead_time": np.arange(self.future_length)})
 
         while sample_ind < self.num_samples_per_epoch:
             # get normalized and denormalized input data
