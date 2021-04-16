@@ -13,7 +13,7 @@ def psnr(a, b):
 def ssim(a, b):
     return tf.image.ssim(a, b, 1.0)
 
-#20201122 add by bing
+
 def psnr_imgs(img1, img2):
     mse = np.mean((img1 - img2) ** 2)
     if mse == 0: return 100
@@ -33,4 +33,9 @@ def mse_imgs(image1,image2):
 #     distance = lpips_tf.lpips(input0, input1)
 #     return -distance
 
+def ssim_images(image1,image2):
+    """
 
+    Numpy impelmeentation for ssim https://cvnote.ddlee.cc/2019/09/12/psnr-ssim-python
+    """
+    pass    
