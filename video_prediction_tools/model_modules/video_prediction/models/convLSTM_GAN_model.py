@@ -75,7 +75,7 @@ class ConvLstmGANVideoPredictionModel(object):
             lr = 0.001,
             loss_fun = "cross_entropy",
             shuffle_on_val= True,
-            recon_weight=0.4,
+            recon_weight=0.99,
           
          )
         return hparams
@@ -113,6 +113,8 @@ class ConvLstmGANVideoPredictionModel(object):
         tf.summary.scalar("total_loss", self.total_loss)
         tf.summary.scalar("D_loss", self.D_loss)
         tf.summary.scalar("G_loss", self.G_loss)
+        tf.summary.scalar("D_loss_fake", self.D_loss_fake) 
+        tf.summary.scalar("D_loss_real", self.D_loss_real)
         tf.summary.scalar("recon_loss",self.recon_loss)
         self.summary_op = tf.summary.merge_all()
         global_variables = [var for var in tf.global_variables() if var not in original_global_variables]
@@ -156,8 +158,8 @@ class ConvLstmGANVideoPredictionModel(object):
           
         real_labels = tf.ones_like(self.D_real)
         gen_labels = tf.zeros_like(self.D_fake)
-        D_loss_real = tf.reduce_mean(tf.nn.sigmoid_cross_entropy_with_logits(logits=self.D_real, labels=real_labels))
-        D_loss_fake = tf.reduce_mean(tf.nn.sigmoid_cross_entropy_with_logits(logits=self.D_fake, labels=gen_labels))
+        self.D_loss_real = tf.reduce_mean(tf.nn.sigmoid_cross_entropy_with_logits(logits=self.D_real, labels=real_labels))
+        self.D_loss_fake = tf.reduce_mean(tf.nn.sigmoid_cross_entropy_with_logits(logits=self.D_fake, labels=gen_labels))
         self.D_loss = D_loss_real + D_loss_fake
         return self.D_loss
 
