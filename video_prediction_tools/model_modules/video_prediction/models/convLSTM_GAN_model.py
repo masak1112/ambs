@@ -160,7 +160,7 @@ class ConvLstmGANVideoPredictionModel(object):
         gen_labels = tf.zeros_like(self.D_fake)
         self.D_loss_real = tf.reduce_mean(tf.nn.sigmoid_cross_entropy_with_logits(logits=self.D_real, labels=real_labels))
         self.D_loss_fake = tf.reduce_mean(tf.nn.sigmoid_cross_entropy_with_logits(logits=self.D_fake, labels=gen_labels))
-        self.D_loss = D_loss_real + D_loss_fake
+        self.D_loss = self.D_loss_real + self.D_loss_fake
         return self.D_loss
 
 
