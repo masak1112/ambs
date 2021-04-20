@@ -27,6 +27,7 @@ ml cuDNN/7.5.1.10-CUDA-10.1.105
 ml SciPy-Stack/2019a-Python-3.6.8
 ml scikit/2019a-Python-3.6.8
 ml netcdf4-python/1.5.0.1-Python-3.6.8
+ml basemap/1.2.0-Python-3.6.8
 
 # clean up if triggered via script argument
 if [[ $1 == purge ]]; then
