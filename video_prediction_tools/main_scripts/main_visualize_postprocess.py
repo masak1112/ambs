@@ -452,6 +452,8 @@ class Postprocess(TrainModel):
             gen_images = self.sess.run(self.video_model.outputs['gen_images'], feed_dict=feed_dict)
             # The forecasted sequence length is smaller since the last one is not used for comparison with groud truth
             # ML: Isn't it the first?
+            print('gen_images.shape: ',gen_images.shape)
+            print('squence_length-1: ',self.sequence_length - 1)
             assert gen_images.shape[1] == self.sequence_length - 1, \
                 "%{0}: Sequence length of prediction must be smaller by one than total sequence length.".format(method)
 
