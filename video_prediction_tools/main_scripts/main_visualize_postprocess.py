@@ -15,9 +15,8 @@ import tensorflow as tf
 import warnings
 import pickle
 from random import seed
-import datetime
+import datetime as dt
 import json
-from netCDF4 import Dataset, date2num
 import matplotlib
 
 matplotlib.use('Agg')
@@ -66,10 +65,8 @@ class Postprocess(TrainModel):
         self.input_dir_pkl = None
         # initialize simple evalualtion metrics for model and persistence forecasts
         # (calculated when executing run-method)
-        self.prst_mse_avg_batches, self.prst_psnr_avg_batches = None, None
-        self.fcst_mse_avg_batches, self.fcst_psnr_avg_batches = None, None
-        self.prst_mse_avg_period, self.prst_psnr_avg_period = None, None
-        self.fcst_mse_avg_period, self.fcst_psnr_avg_period = None, None
+        self.eval_metrics = ["mse", "psnr"]
+        self.fcst_products = ["pfcst", "mfcst"]
         # initialze list tracking initialization time of generated forecasts
         self.ts_fcst_ini = []
         # set further attributes from parsed arguments
@@ -441,7 +438,11 @@ class Postprocess(TrainModel):
         # init sample index for looping and acculmulators for evaulation metrics
         sample_ind = 0
         nsamples = self.num_samples_per_epoch * self.batch_size
-        eval_metric_dict = dict([("{0}_{1}".format(*(eval_met, fcst_prod)), (["ens_mem", "init_time", "lead_time"],
+        # initialize datasets
+
+
+
+        eval_metric_dict = dict([("{0}_{1}".format(*(fcst_prod, eval_met)), (["ens_mem", "init_time", "lead_time"],
                                   np.full((1, nsamples, self.future_length), np.nan)))
                                  for eval_met in self.eval_metrics for fcst_prod in self.fcst_products])
 
@@ -456,6 +457,9 @@ class Postprocess(TrainModel):
             feed_dict = {input_ph: input_results[name] for name, input_ph in self.inputs.items()}
             # returned array has the shape [batchsize, seq_len, lat, lon, channel]
             gen_images = self.sess.run(self.video_model.outputs['gen_images'], feed_dict=feed_dict)
+
+
+
             # The forecasted sequence length is smaller since the last one is not used for comparison with groud truth
             # ML: Isn't it the first?
             assert gen_images.shape[1] == self.sequence_length - 1, \
@@ -475,18 +479,16 @@ class Postprocess(TrainModel):
                 self.save_sequences_to_netcdf(input_images_denorm_all[i], persistence_images,
                                               np.expand_dims(np.array(gen_images_denorm), axis=0), ts, nc_fname)
 
-                prst_mse_all.append(Postprocess.calculate_sample_metrics(input_images_denorm_all[i],
-                                                                         persistence_images, self.future_length,
-                                                                         self.context_frames, metric="mse", channel=0))
-                prst_psnr_all.append(Postprocess.calculate_sample_metrics(input_images_denorm_all[i],
-                                                                          persistence_images, self.future_length,
-                                                                          self.context_frames, metric="psnr", channel=0))
-                fcst_mse_all.append(Postprocess.calculate_sample_metrics(input_images_denorm_all[i],
-                                                                         gen_images_denorm, self.future_length,
-                                                                         self.context_frames, metric="mse", channel=0))
-                fcst_psnr_all.append(Postprocess.calculate_sample_metrics(input_images_denorm_all[i],
-                                                                          gen_images_denorm, self.future_length,
-                                                                          self.context_frames, metric="psnr", channel=0))
+                for metric in self.eval_metrics:
+                    metric_f1, metric_f2 = "{0}_{1}".format(self.fcst_products[0], metric),\
+                                           "{0}_{1}".format(self.fcst_products[1], metric)
+                    eval_metric_ds[metric_f1] = Postprocess.calc_metric(input_images_denorm_all[i],
+                                                                        persistence_images, self.future_length,
+                                                                        self.context_frames, metric=metric, channel=0)
+                    eval_metric_ds[metric_f2] = Postprocess.calc_metric(input_images_denorm_all[i],
+                                                                        gen_images_denorm, self.future_length,
+                                                                        self.context_frames, metric=metric, channel=0)
+                    # end of metric-loop
                 # end of batch-loop
             sample_ind += self.batch_size
             # end of while-loop for samples
@@ -637,6 +639,13 @@ class Postprocess(TrainModel):
             eval_metrics_by_ts.append(loss)
         return eval_metrics_by_ts
 
+    @staticmethod
+    def calc_metric(in_seq, out_seq, context_ind, metric, channel=0):
+
+        method = Postprocess.calc_metric.__name__
+
+        in_seq, out_seq = np.array(in_seq)
+
     def save_one_eval_metric_to_json(self, metric="mse"):
         """
         save list to pickle file in results directory
@@ -716,35 +725,112 @@ class Postprocess(TrainModel):
         input_images_denorm = np.stack(input_images_all_channles_denorm, axis=-1)
         return input_images_denorm
 
-    @staticmethod
-    def get_one_seq_from_batch(input_images, i):
+    def get_init_time(self, t_starts):
         """
-        Get one sequence images from batch images
+        Retrieves initial dates of forecast sequences from start time of whole inpt sequence
+        :param t_starts: list of start times of input sequence
+        :return: list of initial dates of forecast as numpy.datetime64 instances
         """
-        assert (len(np.array(input_images).shape) == 5)
-        input_images_ = input_images[i, :, :, :, :]
-        return input_images_
 
-    @staticmethod
-    def generate_seq_timestamps(t_start, len_seq=20):
+        method = Postprocess.get_init_time.__name__
 
-        """
-        Given the start timestampe and generate the len_seq hourly sequence timestamps
+        if not isinstance(t_starts, list):
+            raise ValueError("%{0}: Inputted t_starts must be a list of date-strings with format %Y%m%d%H"
+                             .format(method))
+        for i, t_start in enumerate(t_starts):
+            try:
+                seq_ts = pd.date_range(dt.datetime.strptime(str(t_start), "%Y%m%d%H"), periods=self.context_frames,
+                                       freq="h")
+            except Exception as err:
+                print("%{0}: Could not convert {1} to datetime object. Ensure that the date-string format is 'Y%m%d%H'".
+                      format(method, str(t_start)))
+            if i == 0:
+                ts_all = np.expand_dims(seq_ts)
+            else:
+                ts_all = np.vstack((ts_all, seq_ts))
 
-        args:
-            t_start   :int, str, array, the defined start timestamps
-            len_seq   :int, the sequence length for generating hourly timestamps
+        init_times = ts_all[:, -1]
+
+        return init_times
+
+
+    def create_dataset(self, input_seq, fcst_seq, ts_ini):
         """
-        if isinstance(t_start, int): t_start = str(t_start)
-        if isinstance(t_start, np.ndarray):
-            warnings.warn("You give array of timestamps, we only use the first timestamp as start datetime " +
-                          "to generate sequence timestamps")
-            t_start = str(t_start[0])
-        if not len(t_start) == 10:
-            raise ValueError("The timestamp gived should following the pattern '%Y%m%d%H' : 2017121209")
-        s_datetime = datetime.datetime.strptime(t_start, '%Y%m%d%H')
-        seq_ts = [s_datetime + datetime.timedelta(hours=i) for i in range(len_seq)]
-        return seq_ts
+        Put input and forecast sequences into a xarray dataset. The latter also involves the persistence forecast
+        which is just initialized, but unpopulated at this stage.
+        The input data sequence is split into (effective) input sequence used for the forecast and into reference part.
+        :param input_seq: sequence of input images [batch ,seq, lat, lon, channel]
+        :param fcst_seq: sequence of forecast images [batch ,seq-1, lat, lon, channel]
+        :param ts_ini: initial time of forecast (=last time step of effective input sequence)
+        :return data_ds: above mentioned data in a nicely formatted dataset
+        """
+
+        method = Postprocess.create_dataset.__name__
+
+        # auxiliary variables for temporal dimensions
+        nhours = len(ts_ini)
+        seq_hours = np.arange(nhours) - (self.context_frames-1)
+        # some sanity checks
+        assert np.shape(ts_ini) == self.batch_size,\
+            "%{0}: Inconsistent number of sequence start times ({1:d}) and batch size ({2:d})"\
+            .format(method, np.shape(ts_ini)[0], self.batch_size)
+        assert nhours == self.sequence_length,\
+            "%{0}: Inconsistent number of number of hours ({1:d}) and sequence length ({2:d})"\
+            .format(method, nhours, self.sequence_length)
+
+        # turn input and forecast sequences to Data Arrays to ease indexing
+        try:
+            input_seq = xr.DataArray(input_seq, coords={"init_time": ts_ini, "fcst_hour": seq_hours,
+                                                        "lat": self.lats, "lon": self.lons, "varname": self.vars_in},
+                                     dims=["init_time", "fcst_hour", "lat", "lon", "varname"])
+        except Exception as err:
+            print("%{0}: Could not create Data Array for input sequence.".format(method))
+            raise err
+
+        try:
+            fcst_seq = xr.DataArray(fcst_seq, coords={"init_time": ts_ini, "fcst_hour": seq_hours[1::],
+                                                      "lat": self.lats, "lon": self.lons, "varname": self.vars_in},
+                                    dims=["init_time", "fcst_hour", "lat", "lon", "varname"])
+        except Exception as err:
+            print("%{0}: Could not create Data Array for forecast sequence.".format(method))
+            raise err
+
+        # Now create the dataset where the input sequence is splitted into input that served for creating the
+        # forecast and into the the reference sequences (which can be compared to the forecast)
+        # as where the persistence forecast is containing NaNs (must be generated later)
+        data_in_dict = dict([("{0}_in".format(var), input_seq.isel(fcst_hour=slice(None, self.context_frames),
+                                                                   varnames=ivar)\
+                                                    .rename({"fcst_hour":"in_hour"}))
+                             for ivar, var in enumerate(self.vars_in)])
+
+        # get shape of forecast data (one variable) -> required to initialize persistence forecast data
+        shape_fcst = np.shape(fcst_seq.isel(fcst_hour=slice(self.context_frames-1, None), varnames=0)
+                                      .reset_coords(names="varnames", drop=True))
+        data_ref_dict = dict([("{0}_ref".format(var), input_seq.isel(fcst_hour=slice(self.context_frames, None),
+                                                                     varnames=ivar)
+                                                                .reset_coords(names="varnames", drop=True))
+                              for ivar, var in enumerate(self.vars_in)])
+
+        data_mfcst_dict = dict([("{0}_mfcst".format(var), fcst_seq.isel(fcst_hour=slice(self.context_frames-1, None),
+                                                                        varnames=ivar)
+                                                                  .reset_coords(names="varnames", drop=True))
+                                for ivar, var in enumerate(self.vars_in)])
+
+        # fill persistence forecast variables with dummy data (to be populated later)
+        data_pfcst_dict = dict([("{0}_pfcst".format(var), np.full(shape_fcst, np.nan))
+                                for ivar, var in enumerate(self.vars_in)])
+
+        # create the dataset
+        data_ds = xr.Dataset({**data_in_dict, **data_ref_dict, **data_mfcst_dict, **data_pfcst_dict})
+
+        return data_ds
+
+
+
+
+
+
+
 
     def save_sequences_to_netcdf(self, input_seq, persistence_seq, predicted_seq, ts, nc_fname):
         """
@@ -795,7 +881,7 @@ class Postprocess(TrainModel):
         attr_dict = {"title": "Input, persistence and forecast data created by model stored under {0}"
             .format(self.checkpoint),
                      "author": "AMBS team",
-                     "creation_date": datetime.datetime.now().strftime("%Y-%m-%d %H:%M UTC")}
+                     "creation_date": dt.datetime.now().strftime("%Y-%m-%d %H:%M UTC")}
 
         try:
             data_dict_input = dict([("{0}_input".format(self.vars_in[i]), (["time_input", "lat", "lon"],
@@ -887,7 +973,7 @@ class Postprocess(TrainModel):
         ts_persistence = []
         year_origin = ts[0].year
         for t in range(len(ts)):  # Scarlet: this certainly can be made nicer with list comprehension
-            ts_temp = ts[t] - datetime.timedelta(days=1)
+            ts_temp = ts[t] - dt.timedelta(days=1)
             ts_persistence.append(ts_temp)
         t_persistence_start = ts_persistence[0]
         t_persistence_end = ts_persistence[-1]
