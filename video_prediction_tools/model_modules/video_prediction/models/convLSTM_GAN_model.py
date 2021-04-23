@@ -95,6 +95,7 @@ class ConvLstmGANVideoPredictionModel(object):
         #This is loss function only for 1 channel (temperature RMSE)
         #generator los
         self.total_loss = (1-self.recon_weight) * self.G_loss + self.recon_weight*self.recon_loss
+        self.D_loss =  (1-self.recon_weight) * self.D_loss
         if self.mode == "train":
             print("Training distriminator")
             self.D_solver = tf.train.AdamOptimizer(learning_rate = self.learning_rate).minimize(self.D_loss, var_list=self.disc_vars)
@@ -148,7 +149,7 @@ class ConvLstmGANVideoPredictionModel(object):
         """
         with tf.variable_scope("discriminator",reuse=tf.AUTO_REUSE):
             layer_disc = self.convLSTM_network(image)
-            layer_disc = layer_disc[:,self.context_frames-1:,:,:,:]
+            layer_disc = layer_disc[:,self.context_frames-1:,:,:, 0:1]
         return layer_disc
 
 
@@ -172,7 +173,7 @@ class ConvLstmGANVideoPredictionModel(object):
             z_dim     : the dimension of the noise vector, a scalar
         Return the loss of generator given inputs
         """
-        real_labels = tf.ones_like(self.gen_images[:,self.context_frames-1:,:,:,:])
+        real_labels = tf.ones_like(self.gen_images[:,self.context_frames-1:,:,:,0:1])
         self.G_loss = tf.reduce_mean(tf.nn.sigmoid_cross_entropy_with_logits(logits=self.D_fake, labels=real_labels))
         return self.G_loss         
    
@@ -180,9 +181,11 @@ class ConvLstmGANVideoPredictionModel(object):
         """
         Get trainable variables from discriminator and generator
         """
+        print("trinable_varialbes", len(tf.trainable_variables()))
         self.disc_vars = [var for var in tf.trainable_variables() if var.name.startswith("discriminator")]
         self.gen_vars = [var for var in tf.trainable_variables() if var.name.startswith("generator")]
-       
+        print("self.disc_vars",self.disc_vars)
+        print("self.gen_vars",self.gen_vars)
  
   
     def define_gan(self):
@@ -244,6 +247,5 @@ class ConvLstmGANVideoPredictionModel(object):
         self.x_hat= tf.transpose(x_hat, [1, 0, 2, 3, 4])  # change first dim with sec dim
         return self.x_hat
      
-
-
+   
    
