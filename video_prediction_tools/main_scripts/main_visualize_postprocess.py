@@ -64,6 +64,7 @@ class Postprocess(TrainModel):
         self.input_dir_tfr = None
         self.input_dir_pkl = None
         # initialize simple evalualtion metrics for model and persistence forecasts
+        self.norm_cls = None
         # (calculated when executing run-method)
         self.eval_metrics = ["mse", "psnr"]
         self.fcst_products = ["pfcst", "mfcst"]
@@ -688,41 +689,48 @@ class Postprocess(TrainModel):
             raise ValueError("Passed gen_images_stochastic  is not of the right shape")
         return gen_images_stochastic
 
-    @staticmethod
-    def denorm_images(stat_fl, input_images_, channel, var):
+    def denorm_images_all_channels(self, stat_fl, input_images, norm_method="minmax"):
         """
-        denormaize one channel of images for particular var
-        args:
-            stat_fl       : str, the path of the statistical json file
-            input_images_ : list/array [seq, lat,lon,channel], the input images are  denormalized
-            channel       : the channel of images going to be denormalized
-            var           : the variable name of the channel,
+        Denormalize data of all image channels
+        :param stat_fl: path to statistics json-file
+        :param input_images: list/array [batch, seq, lat, lon, channel] of input images
+        :param norm_method: normalization-method (default: 'minmax')
+        :return: denormalized image data
+        """
 
-        """
-        norm_cls = Norm_data(var)
-        norm = 'minmax'  # TODO: can be replaced by loading option.json from previous step, if this information is saved there.
-        with open(stat_fl) as js_file:
-            norm_cls.check_and_set_norm(json.load(js_file), norm)
-        input_images_denorm = norm_cls.denorm_var(input_images_[:, :, :, channel], var, norm)
+        input_images = np.array(input_images)
+
+        input_images_all_channles_denorm = [Postprocess.denorm_images(stat_fl, input_images, c,
+                                                                      norm_method=norm_method)
+                                            for c in np.arange(len(self.vars_in))]
+
+        input_images_denorm = np.stack(input_images_all_channles_denorm, axis=-1)
         return input_images_denorm
 
-    @staticmethod
-    def denorm_images_all_channels(stat_fl, input_images_, vars_in):
+    def denorm_images(self, stat_fl, input_images, channel, norm_method="minmax"):
         """
-        Denormalized all the channles of images
-        args:
-            stat_fl       : str, the path of the statistical json file
-            input_images_ : list/array [seq, lat,lon,channel], the input images are  denormalized
-            vars_in       : list of str, the variable names of all the channels
+        Denormalize one channel of images
+        :param stat_fl: path tp statistics json-file
+        :param input_images: list/array [batch, seq, lat, lon, channel]
+        :param channel: the channel of interest
+        :param norm_method: normalization method (default: minmx-normalization)
+        :return: denormalized image data
         """
+        method = Postprocess.denorm_images.__name__
 
-        input_images_all_channles_denorm = []
-        input_images_ = np.array(input_images_)
-
-        for c in range(len(vars_in)):
-            input_images_all_channles_denorm.append(Postprocess.denorm_images(stat_fl, input_images_,
-                                                                              channel=c, var=vars_in[c]))
-        input_images_denorm = np.stack(input_images_all_channles_denorm, axis=-1)
+        if not self.norm_cls:
+            norm_cls = Norm_data(self.vars_in)
+            try:
+                with open(stat_fl) as js_file:
+                    norm_cls.check_and_set(json.load(js_file), norm_method)
+                self.norm_cls = norm_cls
+            except Exception as err:
+                print("%{0}: Could not handle statistics json-file '{1}'...".format(method, stat_fl))
+                raise err
+        else:
+            norm_cls = self.norm_cls
+        varname = self.vars_in[channel]
+        input_images_denorm = norm_cls.denorm_var(input_images[..., channel], varname, norm_method)
         return input_images_denorm
 
     def get_init_time(self, t_starts):
@@ -752,7 +760,6 @@ class Postprocess(TrainModel):
         init_times = ts_all[:, -1]
 
         return init_times
-
 
     def create_dataset(self, input_seq, fcst_seq, ts_ini):
         """
