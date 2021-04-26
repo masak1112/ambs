@@ -65,10 +65,11 @@ class Postprocess(TrainModel):
         self.input_dir_pkl = None
         # forecast products and evaluation metrics to be handled in postprocessing
         self.eval_metrics = ["mse", "psnr"]
-        self.fcst_products = ["pfcst", "mfcst"]
+        self.fcst_products = {"persistence": "pfcst", "model": "mfcst"}
         # dataset to track evaluation metrics
         self.eval_metrics_ds = None
         # other attributes
+        self.stat_fl = None
         self.norm_cls = None            # placeholder for normalization instance
         self.channel = 0                # index of channel/input variable to evaluate
         # set further attributes from parsed arguments
@@ -176,14 +177,19 @@ class Postprocess(TrainModel):
         # retrieve some data from options_checkpoints.json
         try:
             with open(checkpoint_opt_dict) as f:
-                self.options_checkpoint = json.loads(f.read())
-                self.dataset = self.options_checkpoint["dataset"]
-                self.model = self.options_checkpoint["model"]
-                self.input_dir_tfr = self.options_checkpoint["input_dir"]
+                options_checkpoint = json.loads(f.read())
+                self.dataset = options_checkpoint["dataset"]
+                self.model = options_checkpoint["model"]
+                self.input_dir_tfr = options_checkpoint["input_dir"]
                 self.input_dir = os.path.dirname(self.input_dir_tfr.rstrip("/"))
                 self.input_dir_pkl = os.path.join(self.input_dir, "pickle")
-        except:
-            raise IOError("%{0}: Could not retrieve all information from options_checkpoints.json".format(method_name))
+                # update self.fcst_products
+                if "model" in self.fcst_products.keys():
+                    self.fcst_products[self.model] = self.fcst_products.pop("model")
+        except Exception as err:
+            print("%{0}: Something went wrong when reading the checkpoint-file '{1}'".format(method_name,
+                                                                                             checkpoint_opt_dict))
+            raise err
 
         self.model_hparams_dict_load = self.get_model_hparams_dict()
 
@@ -201,19 +207,21 @@ class Postprocess(TrainModel):
             raise FileNotFoundError("%{0}: Could not find metadata JSON-file under '{1}'".format(method_name,
                                                                                                  self.input_dir))
 
-        md_instance = MetaData(json_file=metadata_fl)
-
         try:
-            self.height, self.width = md_instance.ny, md_instance.nx
-            self.vars_in = md_instance.variables
+            md_instance = MetaData(json_file=metadata_fl)
+        except Exception as err:
+            print("%{0}: Something went wrong when getting metadata from file '{1}'".format(method_name, metadata_fl))
+            raise err
 
-            self.lats = xr.DataArray(md_instance.lat, coords={"lat": md_instance.lat}, dims="lat",
+        # when the metadat is loaded without problems, the follwoing will work
+        self.height, self.width = md_instance.ny, md_instance.nx
+        self.vars_in = md_instance.variables
+
+        self.lats = xr.DataArray(md_instance.lat, coords={"lat": md_instance.lat}, dims="lat",
                                      attrs={"units": "degrees_east"})
-            self.lons = xr.DataArray(md_instance.lon, coords={"lon": md_instance.lon}, dims="lon",
+        self.lons = xr.DataArray(md_instance.lon, coords={"lon": md_instance.lon}, dims="lon",
                                      attrs={"units": "degrees_north"})
-        except:
-            raise IOError("%{0}: Could not retrieve all required information from metadata-file '{1}'"
-                          .format(method_name, metadata_fl))
+
 
     def setup_test_dataset(self):
         """
@@ -257,14 +265,14 @@ class Postprocess(TrainModel):
         """
         Make the dataset iterator
         """
-        self.test_tf_dataset = self.test_dataset.make_dataset(self.batch_size)
-        self.test_iterator = self.test_tf_dataset.make_one_shot_iterator()
+        test_tf_dataset = self.test_dataset.make_dataset(self.batch_size)
+        test_iterator = test_tf_dataset.make_one_shot_iterator()
         # The `Iterator.string_handle()` method returns a tensor that can be evaluated
         # and used to feed the `handle` placeholder.
-        self.test_handle = self.test_iterator.string_handle()
-        self.iterator = tf.data.Iterator.from_string_handle(self.test_handle, self.test_tf_dataset.output_types,
-                                                            self.test_tf_dataset.output_shapes)
-        self.inputs = self.iterator.get_next()
+        test_handle = test_iterator.string_handle()
+        dataset_iterator = tf.data.Iterator.from_string_handle(test_handle, test_tf_dataset.output_types,
+                                                               test_tf_dataset.output_shapes)
+        self.inputs = dataset_iterator.get_next()
         self.input_ts = self.inputs["T_start"]
         # if self.dataset == "era5" and self.model == "savp":
         #   del self.inputs["T_start"]
@@ -436,7 +444,7 @@ class Postprocess(TrainModel):
         # initialize datasets
         eval_metric_dict = dict([("{0}_{1}".format(*(fcst_prod, eval_met)), (["init_time", "lead_time"],
                                   np.full((nsamples, self.future_length), np.nan)))
-                                 for eval_met in self.eval_metrics for fcst_prod in self.fcst_products])
+                                 for eval_met in self.eval_metrics for fcst_prod in self.fcst_products.values()])
 
         eval_metric_ds = xr.Dataset(eval_metric_dict, coords={"init_time": np.arange(nsamples),  # just a placeholder
                                                               "lead_time": np.arange(self.future_length)})
@@ -475,8 +483,9 @@ class Postprocess(TrainModel):
             # ... and increment sample_ind
             sample_ind += self.batch_size
             # end of while-loop for samples
+        # safe dataset with evaluation metrics for later use
         self.eval_metrics_ds = eval_metric_ds
-        self.add_ensemble_dim()
+        #self.add_ensemble_dim()
 
     def populate_eval_metric_ds(self, metric_ds, data_ds, ind_start, varname):
         """
@@ -502,7 +511,7 @@ class Postprocess(TrainModel):
 
         varname_ref = "{0}_ref".format(varname)
         it = metric_ds["init_time"][ind_start:ind_start+self.batch_size]
-        for fcst_prod in self.fcst_products:
+        for fcst_prod in self.fcst_products.values():
             for imetric, eval_metric in enumerate(self.eval_metrics):
                 metric_name = "{0}_{1}".format(fcst_prod, eval_metric)
                 varname_fcst = "{0}_{1}".format(varname, fcst_prod)
@@ -873,8 +882,8 @@ class Postprocess(TrainModel):
                                               axis=0).ravel()  # ravel is needed to eliminate the unnecessary dimension (20,1) becomes (20,)
             # print(' Scarlet concatenate and ravel (time)', var_persistence.shape, time_persistence.shape)
 
-        if len(time_persistence.tolist()) == 0: raise ("The time_persistent is empty!")
-        if len(var_persistence) == 0: raise ("The var persistence is empty!")
+        if len(time_persistence.tolist()) == 0: raise ValueError("The time_persistent is empty!")
+        if len(var_persistence) == 0: raise ValueError("The var persistence is empty!")
         # tolist() is needed for plottingi
         var_persistence = var_persistence[1:]
         time_persistence = time_persistence[1:]
@@ -893,32 +902,40 @@ class Postprocess(TrainModel):
         return var
 
     def plot_evalution_metrics(self):
-        model_names = self.eval_metrics.keys()
-        model_ts_errors = []  # [timestamps,stochastic_number]
-        persistent_ts_errors = []
-        for ts in range(self.future_length - 1):
-            stochastic_err = self.eval_metrics["model_ts_" + str(ts)]
-            stochastic_err = [float(item) for item in stochastic_err]
-            model_ts_errors.append(stochastic_err)
-            persistent_err = self.eval_metrics["persistent_ts_" + str(ts)]
-            persistent_err = float(persistent_err[0])
-            persistent_ts_errors.append(persistent_err)
-        if len(np.array(model_ts_errors).shape) == 1:
-            model_ts_errors = np.expand_dims(np.array(model_ts_errors), axis=1)
-        model_ts_errors = np.array(model_ts_errors)
-        persistent_ts_errors = np.array(persistent_ts_errors)
-        fig = plt.figure(figsize=(6, 4))
-        ax = plt.axes([0.1, 0.15, 0.75, 0.75])
-        for stoch_ind in range(len(model_ts_errors[0])):
-            plt.plot(model_ts_errors[:, stoch_ind], lw=1)
-        plt.plot(persistent_ts_errors)
-        plt.xticks(np.arange(1, self.future_length))
-        ax.set_ylim(0., 10)
-        legend = ax.legend(loc='upper left')
-        ax.set_xlabel('Time stamps')
-        ax.set_ylabel("Errors")
-        print("Saving plot for err")
-        plt.savefig(os.path.join(self.results_dir, "evaluation.png"))
+        """
+        Plots error-metrics averaged over all predictions to file.
+        :return: a bunch of plots as png-files
+        """
+
+        method = Postprocess.plot_evalution_metrics.__name__
+
+        if self.eval_metrics_ds is None:
+            raise AttributeError("%{0}: Attribute with dataset of evaluation metrics is still None.".format(method))
+
+        nmodels = len(self.fcst_products.values())
+        for metric in self.eval_metrics:
+            err2plt = np.full(nmodels, self.future_length)
+            for ifcst, fcst_prod in enumerate(self.fcst_products.values()):
+                metric_name = "{0}_{1}".format(fcst_prod, metric)
+                err2plt[ifcst, :] = self.eval_metrics_ds[metric_name].mean(dim="init_time")
+
+            # create plot
+            colors = ["blue", "red", "black", "grey"]
+            fig = plt.figure(figsize=(6, 4))
+            ax = plt.axes([0.1, 0.15, 0.75, 0.75])
+            hours = np.arange(1, self.future_length)
+            for ifcst, fcst_name in enumerate(self.fcst_products.keys()):
+                plt.plot(err2plt[ifcst, :], hours, label=fcst_name, color=colors[ifcst], marker="o")
+
+            plt.xticks(hours)
+            ax.set_ylim(0., None)
+            legend = ax.legend(loc="upper right", bbox_to_anchor=(1.15, 1))
+            ax.set_xlabel("Lead time [hours]")
+            ax.set_ylabel(metric.upper())
+            plt_fname = os.path.join(self.results_dir, "evaluation_{0}".format(metric))
+            print("Saving basic evaluation plot in terms of {1} to '{2}'".format(method, metric, plt_fname))
+            plt.savefig(plt_fname)
+        plt.close()
 
     def plot_example_forecasts(self, metric="mse", var_ind=0):
         """
@@ -927,9 +944,8 @@ class Postprocess(TrainModel):
         every decil of the chosen metric is retrieved to cover the whole bandwith of forecasts.
         :param metric: The metric which is used for measuring accuracy
         :param var_ind: The index of the forecasted variable to plot (correspondong to self.vars_in)
-        :return: 11 forecast plots are created
+        :return: 11 exemplary forecast plots are created
         """
-
         method = Postprocess.plot_example_forecasts.__name__
 
         quantiles = np.arange(0., 1.01, .1)
