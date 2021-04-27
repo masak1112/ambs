@@ -780,7 +780,7 @@ class Postprocess(TrainModel):
         # populate data in netCDF-file (take care for the mode!)
         try:
             ds.to_netcdf(nc_fname, encoding=encode_nc)
-            print("%{0}: netcDF-file '{1}' was created successfully.".format(method, nc_fname))
+            print("%{0}: netCDF-file '{1}' was created successfully.".format(method, nc_fname))
         except Exception as err:
             print("%{0}: Something unexpected happened when creating netCDF-file '1'".format(method, nc_fname))
             raise err
@@ -901,30 +901,64 @@ class Postprocess(TrainModel):
         var = pickle.load(infile)
         return var
 
-    def plot_evalution_metrics(self):
+    def handle_eval_metrics(self):
         """
         Plots error-metrics averaged over all predictions to file.
         :return: a bunch of plots as png-files
         """
-
-        method = Postprocess.plot_evalution_metrics.__name__
+        method = Postprocess.handle_evalution_metrics.__name__
 
         if self.eval_metrics_ds is None:
             raise AttributeError("%{0}: Attribute with dataset of evaluation metrics is still None.".format(method))
 
-        nmodels = len(self.fcst_products.values())
-        for metric in self.eval_metrics:
-            err2plt = np.full(nmodels, self.future_length)
-            for ifcst, fcst_prod in enumerate(self.fcst_products.values()):
-                metric_name = "{0}_{1}".format(fcst_prod, metric)
-                err2plt[ifcst, :] = self.eval_metrics_ds[metric_name].mean(dim="init_time")
+        # save evaluation metrics to file
+        nc_fname = os.path.join(self.results_dir, "evaluation_metrics.nc")
+        Postprocess.save_ds_to_netcdf(self.eval_metrics_ds, nc_fname)
 
+        # create plots of evaluation metrics averaged over all forecasts
+        _ = self.plot_avg_eval_metrics()
+
+    @staticmethod
+    def plot_avg_eval_metrics(eval_ds, eval_metrics, fcst_prod_dict, out_dir):
+        """
+        Plots error-metrics averaged over all predictions to file.
+        :param eval_ds: The dataset storing all evaluation metrics for each forecast
+                        (as produced by run_deterministic and run_stochastic)
+        :param eval_metrics: list of evaluation metrics
+        :param fcst_prod_dict: dictionary of forecast products, e.g. {"pfcst": "persistence forecast"}
+        :param out_dir: output directory to save the lots
+        :return: a bunch of plots as png-files
+        """
+        method = Postprocess.plot_avg_eval_metrics.__name__
+        # sanity checks
+        if not isinstance(eval_ds, xr.Dataset):
+            raise ValueError("%{0}: Argument 'eval_ds' must be a xarray dataset.".format(method))
+
+        if not isinstance(fcst_prod_dict, dict):
+            raise ValueError("%{0}: Argument 'fcst_prod_dict' must be dictionary with short names of forecast product" +
+                             "as key and long names as value.".format(method))
+
+        try:
+            nhours = np.shape(eval_ds.coords["fcst_hour"])[0]
+        except Exception as err:
+            print("%{0}: Input argument 'eval_ds' appears to be unproper.".format(method))
+
+        nmodels = len(fcst_prod_dict.values())
+        colors = ["blue", "red", "black", "grey"]
+        for metric in eval_metrics:
+            err2plt = np.full(nmodels, nhours)
+            for ifcst, fcst_prod in enumerate(fcst_prod_dict.values()):
+                metric_name = "{0}_{1}".format(fcst_prod, metric)
+                try:
+                    err2plt[ifcst, :] = eval_ds[metric_name].mean(dim="init_time")
+                except Exception as err:
+                    print("%{0}: Could not retrieve {1} from evaluation metric dataset object".format(method,
+                                                                                                      metric_name))
             # create plot
-            colors = ["blue", "red", "black", "grey"]
             fig = plt.figure(figsize=(6, 4))
             ax = plt.axes([0.1, 0.15, 0.75, 0.75])
-            hours = np.arange(1, self.future_length)
-            for ifcst, fcst_name in enumerate(self.fcst_products.keys()):
+            hours = np.arange(1, nhours)
+            for ifcst, fcst_name in enumerate(fcst_prod_dict.keys()):
                 plt.plot(err2plt[ifcst, :], hours, label=fcst_name, color=colors[ifcst], marker="o")
 
             plt.xticks(hours)
@@ -932,82 +966,54 @@ class Postprocess(TrainModel):
             legend = ax.legend(loc="upper right", bbox_to_anchor=(1.15, 1))
             ax.set_xlabel("Lead time [hours]")
             ax.set_ylabel(metric.upper())
-            plt_fname = os.path.join(self.results_dir, "evaluation_{0}".format(metric))
+            plt_fname = os.path.join(out_dir, "evaluation_{0}".format(metric))
             print("Saving basic evaluation plot in terms of {1} to '{2}'".format(method, metric, plt_fname))
             plt.savefig(plt_fname)
         plt.close()
 
-    def plot_example_forecasts(self, metric="mse", var_ind=0):
+        return True
+
+    def plot_example_forecasts(self, metric="mse", channel=0):
         """
         Plots example forecasts. The forecasts are chosen from the complete pool of the test dataset and are chosen
         according to the accuracy in terms of the chosen metric. In add ition, to the best and worst forecast,
         every decil of the chosen metric is retrieved to cover the whole bandwith of forecasts.
         :param metric: The metric which is used for measuring accuracy
-        :param var_ind: The index of the forecasted variable to plot (correspondong to self.vars_in)
+        :param channel: The channel index of the forecasted variable to plot (correspondong to self.vars_in)
         :return: 11 exemplary forecast plots are created
         """
         method = Postprocess.plot_example_forecasts.__name__
 
+        metric_name = "mfcst_{0}".format(metric)
+        if not metric_name in self.eval_metrics_ds:
+            raise ValueError("%{0}: Cannot find requested evaluation metric '{1}'".format(method, metric_name) +
+                             "onto which selection of plotted forecast is done.")
+        # average metric of interest and obtain quantiles incl. indices
+        metric_mean = self.eval_metrics_ds[metric_name].mean(dim="fcst_hour")
         quantiles = np.arange(0., 1.01, .1)
-
-        metric_data, quantiles_val = self.get_quantiles(quantiles, metric)
-        quantiles_inds = self.get_matching_indices(metric_data, quantiles_val)
-
-        print(metric_data)
-        print(quantiles_inds)
+        quantiles_val = metric_mean.quantiles(quantiles, interpolation="nearest")
+        quantiles_inds = self.get_matching_indices(metric_mean.values, quantiles_val)
 
         for i, ifcst in enumerate(quantiles_inds):
-            date_curr = self.ts_fcst_ini[ifcst]
+            date_init = pd.to_datetime(metric_mean.coords["init_time"].data)
             nc_fname = os.path.join(self.results_dir, "vfp_date_{0}_sample_ind_{1:d}.nc"
-                                    .format(date_curr.strftime("%Y%m%d%H"), ifcst))
+                                    .format(date_init.strftime("%Y%m%d%H"), ifcst))
             if not os.path.isfile(nc_fname):
                 raise FileNotFoundError("%{0}: Could not find requested file '{1}'".format(method, nc_fname))
             else:
                 # get the data
-                varname = self.vars_in[var_ind]
+                varname = self.vars_in[channel]
                 with xr.open_dataset(nc_fname) as dfile:
-                    data_fcst = dfile["{0}_fcst".format(varname)]
+                    data_fcst = dfile["{0}_mfcst".format(varname)]
                     data_ref = dfile["{0}_ref".format(varname)]
 
                 data_diff = data_fcst - data_ref
-                dates_fcst = pd.to_datetime(data_ref.coords["time_forecast"].data)
                 # name of plot
                 plt_fname_base = os.path.join(self.output_dir, "forecast_{0}_{1}_{2}_{3:d}percentile.png"
-                                              .format(varname, dates_fcst[0].strftime("%Y%m%dT%H00"), metric,
+                                              .format(varname, date_init[0].strftime("%Y%m%dT%H00"), metric,
                                                       int(quantiles[i]*100.)))
 
-                self.create_plot(data_fcst, data_diff, varname, plt_fname_base)
-
-    def get_quantiles(self, quantiles, metric="mse"):
-        """
-        Get the quantiles for the metric of interest.
-        :param quantiles: The quantiles for which the index should be obtained
-        :param metric: the metric of interest ("mse" and "psnr" are currently available)
-        :return data: the array holding the metric of interst
-        :return quantiles_vals: the requested quantile values
-        """
-
-        method = Postprocess.get_quantiles.__name__
-
-        if metric == "mse":
-            print(self.fcst_mse_avg_batches)
-            if self.fcst_mse_avg_period is None:
-                raise ValueError("%{0}: fcst_mse_avg_period-attribute storing forecast MSE is still uninitialized."
-                                 .format(method))
-            data = np.array(self.fcst_mse_avg_period)
-
-        elif metric == "psnr":
-            if self.fcst_psnr_avg_period is None:
-                raise ValueError("%{0}: fcst_metric_psnr_all-attribute storing forecast PSNR is still uninitialized."
-                                 .format(method))
-            data = np.array(self.fcst_psnr_avg_period)
-        else:
-            raise ValueError("%{0}: Metric {1} is unknown.".format(method, metric))
-
-        quantiles_vals = np.quantile(np.array(data), quantiles, interpolation="nearest")
-
-        return data, quantiles_vals
-
+                Postprocess.create_plot(data_fcst, data_diff, varname, plt_fname_base)
 
     @staticmethod
     def get_matching_indices(big_array, subset):
@@ -1133,8 +1139,7 @@ def main():
 
     test_instance()
     test_instance.run()
-    test_instance.save_eval_metric_to_json()
-    test_instance.plot_evalution_metrics()
+    test_instance.handle_eval_metrics()
     test_instance.plot_example_forecasts(metric="mse")
 
 if __name__ == '__main__':
