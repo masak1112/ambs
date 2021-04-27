@@ -112,6 +112,7 @@ class Postprocess(TrainModel):
         self.setup_graph()
         self.setup_gpu_config()
 
+    # methods that are executed with __call__
     def save_args_to_option_json(self):
         """
         Save the argments defined by user to the results dir
@@ -222,7 +223,6 @@ class Postprocess(TrainModel):
         self.lons = xr.DataArray(md_instance.lon, coords={"lon": md_instance.lon}, dims="lon",
                                      attrs={"units": "degrees_north"})
 
-
     def setup_test_dataset(self):
         """
         setup the test dataset instance
@@ -293,29 +293,14 @@ class Postprocess(TrainModel):
         self.sess.run(tf.global_variables_initializer())
         self.sess.run(tf.local_variables_initializer())
 
-    def get_input_data_per_batch(self, input, norm_method="minmax"):
-        """
-        Get the input sequence from the dataset iterator object stored in self.inputs and denormalize the data
-        :return input_results: the normalized input data
-        :return input_images_denorm: the denormalized input data
-        :return t_starts: the initial time of the sequences
-        """
-        method = Postprocess.get_input_data_per_batch.__name__
-
-        input_results = self.sess.run(input)
-        input_images = input_results["images"]
-        t_starts = input_results["T_start"]
-        if self.stat_fl is None:
-            raise AttributeError("%{0}: The attribute stat_fl is still not set. Cannot continue...".format(method))
+    # the run-factory
+    def run(self):
+        if self.model == "convLSTM" or self.model == "test_model" or self.model == 'mcnet':
+            self.run_deterministic()
+        elif self.run_mode == "deterministic":
+            self.run_deterministic()
         else:
-            stat_fl = self.stat_fl
-        # sanity check on input sequence
-        assert np.ndim(input_images) == 5, "%{0}: Input sequence of mini-batch does not have five dimensions."\
-                                           .format(method)
-
-        input_images_denorm = Postprocess.denorm_images_all_channels(input_images, stat_fl, norm_method=norm_method)
-
-        return input_results, input_images_denorm, t_starts
+            self.run_stochastic()
 
     def run_stochastic(self):
         """
@@ -426,11 +411,8 @@ class Postprocess(TrainModel):
 
     def run_deterministic(self):
         """
-        Revised version by ML: more explicit (since not every thing is populated in class attributes),
-                               but still inefficient!
-        Loops over all samples of the test dataset to produce forecasts which are then saved to netCDF-files
-        Besides, basic evaluation metrics are calculated and saved (see return)
-        :return: Populated versions of self.stochastic_loss_all_batches and self.stochastic_loss_all_batches
+        Revised and vectorized version of run_deterministic
+        Loops over the training data, generates forecasts and calculates basic evaluation metrics on-the-fly
         """
         method = Postprocess.run_deterministic.__name__
 
@@ -482,90 +464,60 @@ class Postprocess(TrainModel):
         self.eval_metrics_ds = eval_metric_ds
         #self.add_ensemble_dim()
 
-    def populate_eval_metric_ds(self, metric_ds, data_ds, ind_start, varname):
+    # all methods of the run factory
+    def get_input_data_per_batch(self, input_iter, norm_method="minmax"):
         """
-        Populates evaluation metric dataset with values
-        :param metric_ds: the evaluation metric dataset with variables such as 'mfcst_mse' (MSE of model forecast)
-        :param data_ds: dataset holding the data from one mini-batch (see create_dataset-method)
-        :param ind_start: start index of dimension init_time (part of metric_ds)
-        :param varname: variable of interest (must be part of self.vars_in)
-        :return: metric_ds
+        Get the input sequence from the dataset iterator object stored in self.inputs and denormalize the data
+        :param input_iter: the iterator object built by make_test_dataset_iterator-method
+        :param norm_method: normalization method applicable to the data
+        :return input_results: the normalized input data
+        :return input_images_denorm: the denormalized input data
+        :return t_starts: the initial time of the sequences
         """
-        method = Postprocess.populate_eval_metric_ds.__name__
+        method = Postprocess.get_input_data_per_batch.__name__
 
-        # dictionary of implemented evaluation metrics
-        known_eval_metrics = {"mse": Postprocess.calc_mse_batch , "psnr": Postprocess.calc_psnr_batch}
-
-        # generate list of functions that calculate requested evaluation metrics
-        if set(self.eval_metrics).issubset(known_eval_metrics):
-            eval_metrics_func = [known_eval_metrics[metric] for metric in self.eval_metrics]
+        input_results = self.sess.run(input_iter)
+        input_images = input_results["images"]
+        t_starts = input_results["T_start"]
+        if self.stat_fl is None:
+            raise AttributeError("%{0}: The attribute stat_fl is still not set. Cannot continue...".format(method))
         else:
-            misses = list(set(self.eval_metrics) - known_eval_metrics.keys())
-            raise NotImplementedError("%{0}: The following requested evaluation metrics are not implemented yet: "
-                                      .format(method, ", ".join(misses)))
+            stat_fl = self.stat_fl
+        # sanity check on input sequence
+        assert np.ndim(input_images) == 5, "%{0}: Input sequence of mini-batch does not have five dimensions."\
+                                           .format(method)
 
-        varname_ref = "{0}_ref".format(varname)
-        it = metric_ds["init_time"][ind_start:ind_start+self.batch_size]
-        for fcst_prod in self.fcst_products.values():
-            for imetric, eval_metric in enumerate(self.eval_metrics):
-                metric_name = "{0}_{1}".format(fcst_prod, eval_metric)
-                varname_fcst = "{0}_{1}".format(varname, fcst_prod)
-                metric_ds[metric_name].loc[dict(init_time=it)] = eval_metrics_func[imetric](data_ds[varname_fcst],
-                                                                                            data_ds[varname_ref])
-            # end of metric-loop
-        # end of forecast product-loop
+        input_images_denorm = Postprocess.denorm_images_all_channels(input_images, stat_fl, norm_method=norm_method)
 
-    @staticmethod
-    def calc_mse_batch(data_fcst, data_ref):
+        return input_results, input_images_denorm, t_starts
+
+    def get_init_time(self, t_starts):
         """
-        Calculate mse of forecast data w.r.t. reference data
-        :param data_fcst: forecasted data (xarray with dimensions [batch, lat, lon])
-        :param data_ref: reference data (xarray with dimensions [batch, lat, lon])
-        :return: averaged mse for each batch example
+        Retrieves initial dates of forecast sequences from start time of whole inpt sequence
+        :param t_starts: list of start times of input sequence
+        :return: list of initial dates of forecast as numpy.datetime64 instances
         """
-        method = Postprocess.calc_mse_batch.__name__
+        method = Postprocess.get_init_time.__name__
 
-        dims = data_fcst.dims
-        # sanity checks
-        if dims[0] != "init_time":
-            raise ValueError("%{0}: First dimension of data must be init_time.".format(method))
+        if not isinstance(t_starts, list):
+            raise ValueError("%{0}: Inputted t_starts must be a list of date-strings with format %Y%m%d%H"
+                             .format(method))
+        for i, t_start in enumerate(t_starts):
+            try:
+                seq_ts = pd.date_range(dt.datetime.strptime(str(t_start), "%Y%m%d%H"), periods=self.context_frames,
+                                       freq="h")
+            except Exception as err:
+                print("%{0}: Could not convert {1} to datetime object. Ensure that the date-string format is 'Y%m%d%H'".
+                      format(method, str(t_start)))
+            if i == 0:
+                ts_all = np.expand_dims(seq_ts)
+            else:
+                ts_all = np.vstack((ts_all, seq_ts))
 
-        if not data_fcst.coords == data_ref.coords:
-            raise ValueError("%{0}: Input data arrays must have the same shape and coordinates.".format(method))
+        init_times = ts_all[:, -1]
+        times0 = ts_all[:, 0]
 
-        mse = np.square(data_fcst - data_ref).mean(dim=["lat", "lon"])
-
-        return mse.values
-
-    @staticmethod
-    def calc_psnr_batch(data_fcst, data_ref):
-        """
-        Calculate mse of forecast data w.r.t. reference data
-        :param data_fcst: forecasted data (xarray with dimensions [batch, lat, lon])
-        :param data_ref: reference data (xarray with dimensions [batch, lat, lon])
-        :return: averaged mse for each batch example
-        """
-        method = Postprocess.calc_mse_batch.__name__
-
-        dims = data_fcst.dims
-        # sanity checks
-        if dims[0] != "init_time":
-            raise ValueError("%{0}: First dimension of data must be init_time.".format(method))
-
-        if not data_fcst.coords == data_ref.coords:
-            raise ValueError("%{0}: Input data arrays must have the same shape and coordinates.".format(method))
-
-        psnr = metrics.psnr_imgs(data_ref.values, data_fcst.values)
-
-        return psnr
-
-    def add_ensemble_dim(self):
-        """
-        Expands dimensions of loss-arrays by dummy ensemble-dimension (used for deterministic forecasts only)
-        :return:
-        """
-        self.stochastic_loss_all_batches = np.expand_dims(self.fcst_mse_avg_batches, axis=0)  # [1,future_lenght]
-        self.stochastic_loss_all_batches_psnr = np.expand_dims(self.fcst_psnr_avg_batches, axis=0)  # [1,future_lenght]
+        return times0, init_times
 
     def get_persistence_forecast_per_sample(self, t_seq):
         """
@@ -579,28 +531,6 @@ class Postprocess(TrainModel):
             "%{0}: Unexpected sequence length of persistence forecast".format(method)
 
         return persistence_images
-
-    def run(self):
-        if self.model == "convLSTM" or self.model == "test_model" or self.model == 'mcnet':
-            self.run_deterministic()
-        elif self.run_mode == "deterministic":
-            self.run_deterministic()
-        else:
-            self.run_stochastic()
-
-    @staticmethod
-    def check_gen_images_stochastic_shape(gen_images_stochastic):
-        """
-        For models with deterministic forecasts, one dimension would be lacking. Therefore, here the array
-        dimension is expanded by one.
-        """
-        if len(np.array(gen_images_stochastic).shape) == 6:
-            pass
-        elif len(np.array(gen_images_stochastic).shape) == 5:
-            gen_images_stochastic = np.expand_dims(gen_images_stochastic, axis=0)
-        else:
-            raise ValueError("Passed gen_images_stochastic  is not of the right shape")
-        return gen_images_stochastic
 
     def denorm_images_all_channels(self, image_sequence, norm_method="minmax"):
         """
@@ -649,34 +579,46 @@ class Postprocess(TrainModel):
         input_images_denorm = norm_cls.denorm_var(input_images[..., channel], varname, norm_method)
         return input_images_denorm
 
-    def get_init_time(self, t_starts):
+    def populate_eval_metric_ds(self, metric_ds, data_ds, ind_start, varname):
         """
-        Retrieves initial dates of forecast sequences from start time of whole inpt sequence
-        :param t_starts: list of start times of input sequence
-        :return: list of initial dates of forecast as numpy.datetime64 instances
+        Populates evaluation metric dataset with values
+        :param metric_ds: the evaluation metric dataset with variables such as 'mfcst_mse' (MSE of model forecast)
+        :param data_ds: dataset holding the data from one mini-batch (see create_dataset-method)
+        :param ind_start: start index of dimension init_time (part of metric_ds)
+        :param varname: variable of interest (must be part of self.vars_in)
+        :return: metric_ds
         """
+        method = Postprocess.populate_eval_metric_ds.__name__
 
-        method = Postprocess.get_init_time.__name__
+        # dictionary of implemented evaluation metrics
+        known_eval_metrics = {"mse": Postprocess.calc_mse_batch , "psnr": Postprocess.calc_psnr_batch}
 
-        if not isinstance(t_starts, list):
-            raise ValueError("%{0}: Inputted t_starts must be a list of date-strings with format %Y%m%d%H"
-                             .format(method))
-        for i, t_start in enumerate(t_starts):
-            try:
-                seq_ts = pd.date_range(dt.datetime.strptime(str(t_start), "%Y%m%d%H"), periods=self.context_frames,
-                                       freq="h")
-            except Exception as err:
-                print("%{0}: Could not convert {1} to datetime object. Ensure that the date-string format is 'Y%m%d%H'".
-                      format(method, str(t_start)))
-            if i == 0:
-                ts_all = np.expand_dims(seq_ts)
-            else:
-                ts_all = np.vstack((ts_all, seq_ts))
+        # generate list of functions that calculate requested evaluation metrics
+        if set(self.eval_metrics).issubset(known_eval_metrics):
+            eval_metrics_func = [known_eval_metrics[metric] for metric in self.eval_metrics]
+        else:
+            misses = list(set(self.eval_metrics) - known_eval_metrics.keys())
+            raise NotImplementedError("%{0}: The following requested evaluation metrics are not implemented yet: "
+                                      .format(method, ", ".join(misses)))
 
-        init_times = ts_all[:, -1]
-        times0 = ts_all[:, 0]
+        varname_ref = "{0}_ref".format(varname)
+        it = metric_ds["init_time"][ind_start:ind_start+self.batch_size]
+        for fcst_prod in self.fcst_products.values():
+            for imetric, eval_metric in enumerate(self.eval_metrics):
+                metric_name = "{0}_{1}".format(fcst_prod, eval_metric)
+                varname_fcst = "{0}_{1}".format(varname, fcst_prod)
+                metric_ds[metric_name].loc[dict(init_time=it)] = eval_metrics_func[imetric](data_ds[varname_fcst],
+                                                                                            data_ds[varname_ref])
+            # end of metric-loop
+        # end of forecast product-loop
 
-        return times0, init_times
+    def add_ensemble_dim(self):
+        """
+        Expands dimensions of loss-arrays by dummy ensemble-dimension (used for deterministic forecasts only)
+        :return:
+        """
+        self.stochastic_loss_all_batches = np.expand_dims(self.fcst_mse_avg_batches, axis=0)  # [1,future_lenght]
+        self.stochastic_loss_all_batches_psnr = np.expand_dims(self.fcst_psnr_avg_batches, axis=0)  # [1,future_lenght]
 
     def create_dataset(self, input_seq, fcst_seq, ts_ini):
         """
@@ -746,56 +688,47 @@ class Postprocess(TrainModel):
 
         return data_ds
 
+    def handle_eval_metrics(self):
+        """
+        Plots error-metrics averaged over all predictions to file.
+        :return: a bunch of plots as png-files
+        """
+        method = Postprocess.handle_evalution_metrics.__name__
+
+        if self.eval_metrics_ds is None:
+            raise AttributeError("%{0}: Attribute with dataset of evaluation metrics is still None.".format(method))
+
+        # save evaluation metrics to file
+        nc_fname = os.path.join(self.results_dir, "evaluation_metrics.nc")
+        Postprocess.save_ds_to_netcdf(self.eval_metrics_ds, nc_fname)
+
+        # create plots of evaluation metrics averaged over all forecasts
+        _ = self.plot_avg_eval_metrics()
+
+    # auxiliary methods (not necessarily bound to class instance)
     @staticmethod
-    def save_ds_to_netcdf(ds, nc_fname, comp_level=5):
+    def check_gen_images_stochastic_shape(gen_images_stochastic):
         """
-        Writes xarray dataset into netCDF-file
-        :param ds: The dataset to be written
-        :param nc_fname: Path and name of the target netCDF-file
-        :param comp_level: compression level, must be an integer between 1 and 9 (defualt: 5)
-        :return: -
+        For models with deterministic forecasts, one dimension would be lacking. Therefore, here the array
+        dimension is expanded by one.
         """
-        method = Postprocess.save_ds_to_netcdf.__name__
-
-        # sanity checks
-        if not isinstance(ds, xr.Dataset):
-            raise ValueError("%{0}: Argument 'ds' must be a xarray dataset.".format(method))
-
-        if not isinstance(comp_level, int):
-            raise ValueError("%{0}: Argument 'comp_level' must be an integer.".format(method))
+        if len(np.array(gen_images_stochastic).shape) == 6:
+            pass
+        elif len(np.array(gen_images_stochastic).shape) == 5:
+            gen_images_stochastic = np.expand_dims(gen_images_stochastic, axis=0)
         else:
-            if comp_level < 1 or comp_level > 9:
-                raise ValueError("%{0}: Argument 'comp_level' must be an integer between 1 and 9.".format(method))
-
-        if not os.path.isdir(os.path.dirname(nc_fname)):
-            raise NotADirectoryError("%{0}: The directory to store the netCDf-file does not exist.".format(method))
-
-        encode_nc = {key: {"zlib": True, "complevel": comp_level} for key in ds.keys()}
-
-        # populate data in netCDF-file (take care for the mode!)
-        try:
-            ds.to_netcdf(nc_fname, encoding=encode_nc)
-            print("%{0}: netCDF-file '{1}' was created successfully.".format(method, nc_fname))
-        except Exception as err:
-            print("%{0}: Something unexpected happened when creating netCDF-file '1'".format(method, nc_fname))
-            raise err
+            raise ValueError("Passed gen_images_stochastic  is not of the right shape")
+        return gen_images_stochastic
 
     @staticmethod
     def get_persistence(ts, input_dir_pkl):
-        """This function gets the persistence forecast.
+        """
+        This function gets the persistence forecast.
         'Today's weather will be like yesterday's weather.'
-
-        Inputs:
-        ts: output by generate_seq_timestamps(t_start,len_seq=sequence_length)
-            Is a list containing dateime objects
-
-        input_dir_pkl: input directory to pickle files
-
-        Ouputs:
-        time_persistence:    list containing the dates and times of the
-                       persistence forecast.
-        var_peristence  : sequence of images corresponding to the times
-                       in ts_persistence
+        :param ts: list dontaining datetime objects from get_init_times
+        :param input_dir_pkl: input directory to pickle files
+        :return time_persistence: list containing the dates and times of the persistence forecast.
+        :return var_peristence: sequence of images corresponding to these times
         """
         ts_persistence = []
         year_origin = ts[0].year
@@ -823,15 +756,9 @@ class Postprocess(TrainModel):
 
             # Retrieve starting index
             ind = list(time_pickle).index(np.array(ts_persistence[0]))
-            # print('Scarlet, Original', ts_persistence)
-            # print('From Pickle', time_pickle[ind:ind+len(ts_persistence)])
 
             var_persistence = np.array(var_pickle)[ind:ind + len(ts_persistence)]
             time_persistence = np.array(time_pickle)[ind:ind + len(ts_persistence)].ravel()
-            # print(' Scarlet Shape of time persistence',time_persistence.shape)
-            # print(' Scarlet Shape of var persistence',var_persistence.shape)
-
-
         # case that we need to derive the data from two pickle files (changing month during the forecast periode)
         else:
             t_persistence_first_m = []  # should hold dates of the first month
@@ -874,44 +801,112 @@ class Postprocess(TrainModel):
             time_persistence = np.concatenate((time_pickle_first[ind_first_m:ind_first_m + len(t_persistence_first_m)],
                                                time_pickle_second[
                                                ind_second_m:ind_second_m + len(t_persistence_second_m)]),
-                                              axis=0).ravel()  # ravel is needed to eliminate the unnecessary dimension (20,1) becomes (20,)
-            # print(' Scarlet concatenate and ravel (time)', var_persistence.shape, time_persistence.shape)
+                                              axis=0).ravel()
+            # Note: ravel is needed to eliminate the unnecessary dimension (20,1) becomes (20,)
 
-        if len(time_persistence.tolist()) == 0: raise ValueError("The time_persistent is empty!")
-        if len(var_persistence) == 0: raise ValueError("The var persistence is empty!")
-        # tolist() is needed for plottingi
+        if len(time_persistence.tolist()) == 0:
+            raise ValueError("The time_persistent is empty!")
+        if len(var_persistence) == 0:
+            raise ValueError("The var persistence is empty!")
+
         var_persistence = var_persistence[1:]
         time_persistence = time_persistence[1:]
+
         return var_persistence, time_persistence.tolist()
-
-    def handle_eval_metrics(self):
-        """
-        Plots error-metrics averaged over all predictions to file.
-        :return: a bunch of plots as png-files
-        """
-        method = Postprocess.handle_evalution_metrics.__name__
-
-        if self.eval_metrics_ds is None:
-            raise AttributeError("%{0}: Attribute with dataset of evaluation metrics is still None.".format(method))
-
-        # save evaluation metrics to file
-        nc_fname = os.path.join(self.results_dir, "evaluation_metrics.nc")
-        Postprocess.save_ds_to_netcdf(self.eval_metrics_ds, nc_fname)
-
-        # create plots of evaluation metrics averaged over all forecasts
-        _ = self.plot_avg_eval_metrics()
 
     @staticmethod
     def load_pickle_for_persistence(input_dir_pkl, year_start, month_start, pkl_type):
-        """Helper to get the content of the pickle files. There are two types in our workflow:
-        T_[month].pkl where the time stamp is stored
-        X_[month].pkl where the variables are stored, e.g. temperature, geopotential and pressure
-        This helper function constructs the directory, opens the file to read it, returns the variable.
         """
-        path_to_pickle = input_dir_pkl + '/' + str(year_start) + '/' + pkl_type + '_{:02}.pkl'.format(month_start)
-        infile = open(path_to_pickle, 'rb')
-        var = pickle.load(infile)
+        There are two types in our workflow: T_[month].pkl where the timestamp is stored,
+        X_[month].pkl where the variables are stored, e.g. temperature, geopotential and pressure.
+        This helper function constructs the directory, opens the file to read it, returns the variable.
+        :param input_dir_pkl: directory where input pickle files are stored
+        :param year_start: The year for which data is requested as integer
+        :param month_start: The year for which data is requested as integer
+        :param pkl_type: Either "X" or "T"
+        """
+        path_to_pickle = os.path.join(input_dir_pkl, str(year_start), pkl_type + "_{:02}.pkl".format(month_start))
+        with open(path_to_pickle, "rb") as pkl_file:
+            var = pickle.load(pkl_file)
         return var
+
+    @staticmethod
+    def save_ds_to_netcdf(ds, nc_fname, comp_level=5):
+        """
+        Writes xarray dataset into netCDF-file
+        :param ds: The dataset to be written
+        :param nc_fname: Path and name of the target netCDF-file
+        :param comp_level: compression level, must be an integer between 1 and 9 (defualt: 5)
+        :return: -
+        """
+        method = Postprocess.save_ds_to_netcdf.__name__
+
+        # sanity checks
+        if not isinstance(ds, xr.Dataset):
+            raise ValueError("%{0}: Argument 'ds' must be a xarray dataset.".format(method))
+
+        if not isinstance(comp_level, int):
+            raise ValueError("%{0}: Argument 'comp_level' must be an integer.".format(method))
+        else:
+            if comp_level < 1 or comp_level > 9:
+                raise ValueError("%{0}: Argument 'comp_level' must be an integer between 1 and 9.".format(method))
+
+        if not os.path.isdir(os.path.dirname(nc_fname)):
+            raise NotADirectoryError("%{0}: The directory to store the netCDf-file does not exist.".format(method))
+
+        encode_nc = {key: {"zlib": True, "complevel": comp_level} for key in ds.keys()}
+
+        # populate data in netCDF-file (take care for the mode!)
+        try:
+            ds.to_netcdf(nc_fname, encoding=encode_nc)
+            print("%{0}: netCDF-file '{1}' was created successfully.".format(method, nc_fname))
+        except Exception as err:
+            print("%{0}: Something unexpected happened when creating netCDF-file '1'".format(method, nc_fname))
+            raise err
+
+    @staticmethod
+    def calc_mse_batch(data_fcst, data_ref):
+        """
+        Calculate mse of forecast data w.r.t. reference data
+        :param data_fcst: forecasted data (xarray with dimensions [batch, lat, lon])
+        :param data_ref: reference data (xarray with dimensions [batch, lat, lon])
+        :return: averaged mse for each batch example
+        """
+        method = Postprocess.calc_mse_batch.__name__
+
+        dims = data_fcst.dims
+        # sanity checks
+        if dims[0] != "init_time":
+            raise ValueError("%{0}: First dimension of data must be init_time.".format(method))
+
+        if not data_fcst.coords == data_ref.coords:
+            raise ValueError("%{0}: Input data arrays must have the same shape and coordinates.".format(method))
+
+        mse = np.square(data_fcst - data_ref).mean(dim=["lat", "lon"])
+
+        return mse.values
+
+    @staticmethod
+    def calc_psnr_batch(data_fcst, data_ref):
+        """
+        Calculate mse of forecast data w.r.t. reference data
+        :param data_fcst: forecasted data (xarray with dimensions [batch, lat, lon])
+        :param data_ref: reference data (xarray with dimensions [batch, lat, lon])
+        :return: averaged mse for each batch example
+        """
+        method = Postprocess.calc_mse_batch.__name__
+
+        dims = data_fcst.dims
+        # sanity checks
+        if dims[0] != "init_time":
+            raise ValueError("%{0}: First dimension of data must be init_time.".format(method))
+
+        if not data_fcst.coords == data_ref.coords:
+            raise ValueError("%{0}: Input data arrays must have the same shape and coordinates.".format(method))
+
+        psnr = metrics.psnr_imgs(data_ref.values, data_fcst.values)
+
+        return psnr
 
     @staticmethod
     def plot_avg_eval_metrics(eval_ds, eval_metrics, fcst_prod_dict, out_dir):
