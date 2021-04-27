@@ -442,12 +442,7 @@ class Postprocess(TrainModel):
         sample_ind = 0
         nsamples = self.num_samples_per_epoch * self.batch_size
         # initialize datasets
-        eval_metric_dict = dict([("{0}_{1}".format(*(fcst_prod, eval_met)), (["init_time", "lead_time"],
-                                  np.full((nsamples, self.future_length), np.nan)))
-                                 for eval_met in self.eval_metrics for fcst_prod in self.fcst_products.values()])
-
-        eval_metric_ds = xr.Dataset(eval_metric_dict, coords={"init_time": np.arange(nsamples),  # just a placeholder
-                                                              "lead_time": np.arange(self.future_length)})
+        eval_metric_ds = Postprocess.init_metric_ds(self.fcst_products, self.eval_metrics, nsamples, self.future_length)
 
         while sample_ind < self.num_samples_per_epoch:
             # get normalized and denormalized input data
@@ -889,18 +884,6 @@ class Postprocess(TrainModel):
         time_persistence = time_persistence[1:]
         return var_persistence, time_persistence.tolist()
 
-    @staticmethod
-    def load_pickle_for_persistence(input_dir_pkl, year_start, month_start, pkl_type):
-        """Helper to get the content of the pickle files. There are two types in our workflow:
-        T_[month].pkl where the time stamp is stored
-        X_[month].pkl where the variables are stored, e.g. temperature, geopotential and pressure
-        This helper function constructs the directory, opens the file to read it, returns the variable.
-        """
-        path_to_pickle = input_dir_pkl + '/' + str(year_start) + '/' + pkl_type + '_{:02}.pkl'.format(month_start)
-        infile = open(path_to_pickle, 'rb')
-        var = pickle.load(infile)
-        return var
-
     def handle_eval_metrics(self):
         """
         Plots error-metrics averaged over all predictions to file.
@@ -919,11 +902,22 @@ class Postprocess(TrainModel):
         _ = self.plot_avg_eval_metrics()
 
     @staticmethod
+    def load_pickle_for_persistence(input_dir_pkl, year_start, month_start, pkl_type):
+        """Helper to get the content of the pickle files. There are two types in our workflow:
+        T_[month].pkl where the time stamp is stored
+        X_[month].pkl where the variables are stored, e.g. temperature, geopotential and pressure
+        This helper function constructs the directory, opens the file to read it, returns the variable.
+        """
+        path_to_pickle = input_dir_pkl + '/' + str(year_start) + '/' + pkl_type + '_{:02}.pkl'.format(month_start)
+        infile = open(path_to_pickle, 'rb')
+        var = pickle.load(infile)
+        return var
+
+    @staticmethod
     def plot_avg_eval_metrics(eval_ds, eval_metrics, fcst_prod_dict, out_dir):
         """
         Plots error-metrics averaged over all predictions to file.
-        :param eval_ds: The dataset storing all evaluation metrics for each forecast
-                        (as produced by run_deterministic and run_stochastic)
+        :param eval_ds: The dataset storing all evaluation metrics for each forecast (produced by init_metric_ds-method)
         :param eval_metrics: list of evaluation metrics
         :param fcst_prod_dict: dictionary of forecast products, e.g. {"pfcst": "persistence forecast"}
         :param out_dir: output directory to save the lots
@@ -1014,6 +1008,26 @@ class Postprocess(TrainModel):
                                                       int(quantiles[i]*100.)))
 
                 Postprocess.create_plot(data_fcst, data_diff, varname, plt_fname_base)
+
+    @staticmethod
+    def init_metric_ds(fcst_products, eval_metrics, nsamples, nlead_steps):
+        """
+        Initializes dataset for storing evaluation metrics
+        :param fcst_products: list of forecast products to be evaluated
+        :param eval_metrics: list of forecast metrics to be calculated
+        :param nsamples: total number of forecast samples
+        :param nlead_steps: number of forecast steps
+        :return: eval_metric_ds
+        """
+
+        eval_metric_dict = dict([("{0}_{1}".format(*(fcst_prod, eval_met)), (["init_time", "lead_time"],
+                                  np.full((nsamples, nlead_steps), np.nan)))
+                                 for eval_met in eval_metrics for fcst_prod in fcst_products])
+
+        eval_metric_ds = xr.Dataset(eval_metric_dict, coords={"init_time": np.arange(nsamples),  # just a placeholder
+                                                              "lead_time": np.arange(nlead_steps)})
+
+        return eval_metric_ds
 
     @staticmethod
     def get_matching_indices(big_array, subset):
