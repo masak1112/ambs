@@ -298,7 +298,10 @@ class Config_runscript_base:
             if check_input(input_req):
                 break
             else:
-                attempt += 1
+                if console_str == "help":
+                    pass
+                else:
+                    attempt += 1
                 if attempt < ntries:
                     print(func_print_emph + str(err))
                     console_str = "Retry!"
