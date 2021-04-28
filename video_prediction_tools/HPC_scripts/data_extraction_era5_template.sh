@@ -47,5 +47,5 @@ years=( "2015" )
 for year in "${years[@]}"; do
   echo "Perform ERA5-data extraction for year ${year}"
   srun python ../main_scripts/main_data_extraction.py  --source_dir ${source_dir} --target_dir ${destination_dir} \
-                                                       --year ${year} --varslist_path ${varslist_path}
+                                                       --year ${year} --varslist_path ${varmap_file}
 done

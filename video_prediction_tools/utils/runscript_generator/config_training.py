@@ -12,7 +12,7 @@ import datetime as dt
 import subprocess as sp
 from model_modules.model_architectures import known_models
 from data_preprocess.dataset_options import known_datasets
-from config_utils import Config_runscript_base    # import parent class
+from runscript_generator.config_utils import Config_runscript_base    # import parent class
 
 class Config_Train(Config_runscript_base):
     cls_name = "Config_Train"#.__name__

@@ -14,21 +14,23 @@ import socket
 if sys.version_info[0] < 3:
     raise Exception("This script has to be run with Python 3!")
 sys.path.append(os.path.dirname(sys.path[0]))
-from config_utils import check_virtualenv
+from runscript_generator.config_utils import check_virtualenv
 # sanity check (is Python running in a virtual environment)
 _ = check_virtualenv(labort=True)
 
-from config_utils import Config_runscript_base
-from config_extraction import Config_Extraction
-from config_preprocess_step1 import Config_Preprocess1
-from config_preprocess_step2 import Config_Preprocess2
-from config_training import Config_Train
-from config_postprocess import Config_Postprocess
+from runscript_generator.config_utils import Config_runscript_base
+from runscript_generator.config_extraction import Config_Extraction
+from runscript_generator.config_preprocess_step1 import Config_Preprocess1
+from runscript_generator.config_preprocess_step2 import Config_Preprocess2
+from runscript_generator.config_training import Config_Train
+from runscript_generator.config_postprocess import Config_Postprocess
 
 #
 # ----------------------------- auxiliary function -----------------------------
 #
 def get_runscript_cls(target_runscript_name, venv_name, lhpc):
+
+    method_name = get_runscript_cls.__name__
 
     if target_runscript_name == "extract":
         cls_inst = Config_Extraction(venv_name, lhpc)

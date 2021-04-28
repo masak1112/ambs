@@ -12,9 +12,7 @@ import numpy as np
 import xarray as xr
 import pandas as pd
 import tensorflow as tf
-import warnings
 import pickle
-from random import seed
 import datetime as dt
 import json
 import matplotlib
@@ -22,7 +20,6 @@ import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 from mpl_toolkits.basemap import Basemap
-import matplotlib.gridspec as gridspec
 from normalization import Norm_data
 from metadata import MetaData as MetaData
 from main_scripts.main_train_models import *

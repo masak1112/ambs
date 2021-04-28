@@ -44,19 +44,11 @@ extend_path() {
 # **************** Auxiliary functions ****************
 
 HOST_NAME=`hostname`
-BASE_DIR=`pwd`
-WORKING_DIR="$(dirname "$BASE_DIR")"
-EXE_DIR="$(basename "$BASE_DIR")"
 
 SCR_NAME="convert_runscript.sh"
 
 suffix=".sh"
 ### Some sanity checks ###
-# ensure that the script is executed from the env_setup-subdirectory
-if [[ "${EXE_DIR}" != "config_runscripts"  ]]; then
-  echo "%${SCR_NAME}: ERROR: Execute 'convert_runscript.sh' from the config_runscripts-subdirectory only!"
-  exit 1
-fi
 # check input arguments
 if [[ "$#" -ne 2 ]]; then
   echo "%${SCR_NAME}: ERROR: Pass path to workflow runscript as well as name of target file"

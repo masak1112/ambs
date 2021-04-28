@@ -17,17 +17,11 @@
 # default value for base directory
 base_data_dir_default=/p/project/deepacf/deeprain/video_prediction_shared_folder/
 # some further directory paths
-CURR_DIR_FULL=`pwd`
-CURR_DIR="$(basename "$CURR_DIR_FULL")"
-BASE_DIR="$(dirname "$CURR_DIR_FULL")"
+CURR_DIR_FULL="$( cd "$( dirname "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )"   # retrieves the location of this script
+BASE_DIR="$(dirname "$(dirname "${CURR_DIR_FULL}")")"
 USER=$USER
 
 ### Some sanity checks ###
-# ensure that the script is executed from the env_setup-subdirectory
-if [[ "${CURR_DIR}" != "config_runscripts"  ]]; then
-  echo "ERROR: Execute 'setup_runscript_templates.sh' from the config_runscripts-subdirectory only!"
-  exit 1
-fi
 # check/handle input arguments
 if [[ "$#" -lt 1 ]]; then
   data_dir=${base_data_dir_default}
@@ -45,26 +39,26 @@ else
     exit 2
   fi
   if [[ ! -d ${data_dir} ]]; then
-    mkdir ${data_dir}
+    mkdir "${data_dir}"
     echo "Passed directory '${data_dir}' created successfully."
   fi
 fi
 
 echo "Start setting up templates under nonHPC_scripts/..."
-for f in ${BASE_DIR}/nonHPC_scripts/*template.sh; do
+for f in "${BASE_DIR}"/nonHPC_scripts/*template.sh; do
   echo "Setting up ${f}..."
   fnew=${f%%.*}_${USER}.sh
-  cp ${f} ${fnew}
-  sed -i "s|\(.*_dir=\).*|\1${data_dir}|g" ${fnew}
+  cp "${f}" "${fnew}"
+  sed -i "s|\(.*_dir=\).*|\1${data_dir}|g" "${fnew}"
 done
 echo "Done!"
 
 echo "Start setting up templates under HPC_scripts/"
-for f in ${BASE_DIR}/HPC_scripts/*template.sh; do
+for f in "${BASE_DIR}"/HPC_scripts/*template.sh; do
   echo "Setting up ${f}..."
   fnew=${f%%.*}_${USER}.sh
-  cp ${f} ${fnew}
-  sed -i "s|\(.*_dir=\).*|\1${data_dir}|g" ${fnew}
+  cp "${f}" "${fnew}"
+  sed -i "s|\(.*_dir=\).*|\1${data_dir}|g" "${fnew}"
 done
 echo "Done!"
 # end
