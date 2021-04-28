@@ -83,6 +83,7 @@ class ConvLstmGANVideoPredictionModel(object):
 
     def build_graph(self, x):
         self.is_build_graph = False
+        self.inputs = x
         self.x = x["images"]
         self.width = self.x.shape.as_list()[3]
         self.height = self.x.shape.as_list()[2]
@@ -97,13 +98,16 @@ class ConvLstmGANVideoPredictionModel(object):
         self.total_loss = (1-self.recon_weight) * self.G_loss + self.recon_weight*self.recon_loss
         self.D_loss =  (1-self.recon_weight) * self.D_loss
         if self.mode == "train":
-            print("Training distriminator")
-            self.D_solver = tf.train.AdamOptimizer(learning_rate = self.learning_rate).minimize(self.D_loss, var_list=self.disc_vars)
-            with tf.control_dependencies([self.D_solver]):
-                print("Training generator....")
-                self.G_solver = tf.train.AdamOptimizer(learning_rate = self.learning_rate).minimize(self.total_loss, var_list=self.gen_vars)
-            with tf.control_dependencies([self.G_solver]):
-                self.train_op = tf.assign_add(self.global_step,1)
+            if self.recon_weight == 1:
+                 self.train_op = tf.train.AdamOptimizer(learning_rate = self.learning_rate).minimize(self.total_loss, var_list=self.gen_vars) 
+            else:
+                print("Training distriminator")
+                self.D_solver = tf.train.AdamOptimizer(learning_rate = self.learning_rate).minimize(self.D_loss, var_list=self.disc_vars)
+                with tf.control_dependencies([self.D_solver]):
+                    print("Training generator....")
+                    self.G_solver = tf.train.AdamOptimizer(learning_rate = self.learning_rate).minimize(self.total_loss, var_list=self.gen_vars)
+                with tf.control_dependencies([self.G_solver]):
+                    self.train_op = tf.assign_add(self.global_step,1)
         else:
            self.train_op = None 
 
@@ -149,7 +153,7 @@ class ConvLstmGANVideoPredictionModel(object):
         """
         with tf.variable_scope("discriminator",reuse=tf.AUTO_REUSE):
             layer_disc = self.convLSTM_network(image)
-            layer_disc = layer_disc[:,self.context_frames-1:,:,:, 0:1]
+            layer_disc = layer_disc[:,self.context_frames-1:self.context_frames,:,:, 0:1]
         return layer_disc
 
 
@@ -173,7 +177,7 @@ class ConvLstmGANVideoPredictionModel(object):
             z_dim     : the dimension of the noise vector, a scalar
         Return the loss of generator given inputs
         """
-        real_labels = tf.ones_like(self.gen_images[:,self.context_frames-1:,:,:,0:1])
+        real_labels = tf.ones_like(self.gen_images[:,self.context_frames-1:self.context_frames,:,:,0:1])
         self.G_loss = tf.reduce_mean(tf.nn.sigmoid_cross_entropy_with_logits(logits=self.D_fake, labels=real_labels))
         return self.G_loss         
    
