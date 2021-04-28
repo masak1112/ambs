@@ -30,6 +30,8 @@ from config_postprocess import Config_Postprocess
 #
 def get_runscript_cls(target_runscript_name, venv_name, lhpc):
 
+    method_name = get_runscript_cls.__name__
+
     if target_runscript_name == "extract":
         cls_inst = Config_Extraction(venv_name, lhpc)
     elif target_runscript_name == "preprocess1":
