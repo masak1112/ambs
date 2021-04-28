@@ -16,7 +16,7 @@ class Config_runscript_base:
     # list of known workflow steps
     known_workflow_steps = ["extract", "preprocess1", "preprocess2", "train", "postprocess"]
     # auxiliary shell script for converting templates to executable
-    runscript_converter = "./convert_runscript.sh"
+    runscript_converter = "../utils/runscript_generator/convert_runscript.sh"
 
     def __init__(self, venv_name, lhpc=False):
         """
