@@ -143,6 +143,14 @@ class Config_Postprocess(Config_runscript_base):
         """
         status = False
 
+        model_in = os.path.basename(model_path)
+        if model_in == "help":
+            if not silent:
+                print("**** Known models ****")
+                for model in Config_Postprocess.list_models:
+                    print(model)
+                print("{0} is an unknown model (see list of known models above).".format(model_in))
+
         if not os.path.isdir(model_path):
             if not silent:
                 print("The directory {0} does not exist".format(model_path))
@@ -152,13 +160,10 @@ class Config_Postprocess(Config_runscript_base):
                     print("The base directory does not exist as well!")
             return status
 
-        model_in = os.path.basename(model_path)
         if not model_in in Config_Postprocess.list_models:
             if not silent:
-                print("**** Known models ****")
-                for model in Config_Postprocess.list_models:
-                    print(model)
-                print("{0} is an unknown model (see list of known models above).".format(model_in))
+                print("%{0}: WARNING: Unknown model name passed, but trained model seems to be present. \n " +
+                      "Please delete the directory '{0}' if this is not the case!")
         else:
             status = True
 
