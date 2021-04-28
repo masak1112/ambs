@@ -149,7 +149,7 @@ class Config_Postprocess(Config_runscript_base):
                 print("**** Known models ****")
                 for model in Config_Postprocess.list_models:
                     print(model)
-                print("{0} is an unknown model (see list of known models above).".format(model_in))
+                print("**** Known models ****")
 
         if not os.path.isdir(model_path):
             if not silent:
