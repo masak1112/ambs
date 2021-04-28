@@ -298,7 +298,7 @@ class Config_runscript_base:
             if check_input(input_req):
                 break
             else:
-                if console_str == "help":
+                if input_req == "help":
                     pass
                 else:
                     attempt += 1
