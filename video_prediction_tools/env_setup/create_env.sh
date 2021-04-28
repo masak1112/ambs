@@ -2,12 +2,11 @@
 #
 # __authors__ = Bing Gong, Michael Langguth
 # __date__  = '2020_01_15'
+# __last_update__  = '2021_04_28' by Michael Langguth
 #
 # **************** Description ****************
 # This script can be used for setting up the virtual environment needed for AMBS-project
-# It also converts the (Batch) runscript templates to executable runscripts.
-# Note, that you may pass an experiment identifier as second argument (default 'exp1') to this runscript
-# which will also be used as suffix in the executable runscripts.
+# It also setups the (Batch) runscript templates to customized runscripts (to be used by generate_runscript.py)
 # **************** Description ****************
 #
 # some first sanity checks
@@ -145,8 +144,11 @@ elif [[ "$ENV_EXIST" == 1 ]]; then
   info_str="Virtual environment ${ENV_DIR} has been activated successfully."
 fi
 
+echo "Set up runscript template for user ${USER}..."
+source "${WORKING_DIR}"/utils/runscript_generator/setup_runscript_templates.sh
+
 echo "******************************************** NOTE ********************************************"
-echo ${info_str}
+echo "${info_str}"
 echo "Make use of config_runscript.py to generate customized runscripts of the workflow steps."
 echo "******************************************** NOTE ********************************************"
 
