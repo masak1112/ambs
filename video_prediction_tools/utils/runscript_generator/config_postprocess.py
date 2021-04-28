@@ -141,6 +141,8 @@ class Config_Postprocess(Config_runscript_base):
         :param silent: flag if print-statement are executed
         :return: status with True confirming success
         """
+        method = Config_Postprocess.check_model.__name__
+
         status = False
 
         model_in = os.path.basename(model_path)
@@ -162,8 +164,9 @@ class Config_Postprocess(Config_runscript_base):
 
         if not model_in in Config_Postprocess.list_models:
             if not silent:
-                print("%{0}: WARNING: Unknown model name passed, but trained model seems to be present. \n " +
-                      "Please delete the directory '{0}' if this is not the case!")
+                print("%{0}: WARNING: Unknown model name passed, but trained model seems to be present. \n ".format(method) +
+                      "Please delete the directory '{0}' if this is not the case!".format(model_path))
+            status = True
         else:
             status = True
 
