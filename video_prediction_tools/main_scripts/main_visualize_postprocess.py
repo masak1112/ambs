@@ -445,13 +445,16 @@ class Postprocess(TrainModel):
                 # work-around to make use of get_persistence_forecast_per_sample-method
                 times_seq = (pd.date_range(times_0[i], periods=int(self.sequence_length), freq="h")).to_pydatetime()
                 # get persistence forecast for sequences at hand and write to dataset
-                persistence_seq = self.get_persistence(times_seq, self.input_dir_pkl)
-                for ivar, var in self.vars_in:
-                    batch_ds["{0}_pfcst".format(var)] = (dims_fcst, persistence_seq)
+                persistence_seq, _ = Postprocess.get_persistence(times_seq, self.input_dir_pkl)
+                for ivar, var in enumerate(self.vars_in):
+                    print(np.shape(persistence_seq[self.context_frames-1:,:,:,ivar]))
+                    print(np.shape(batch_ds["{0}_pfcst".format(var)].loc[dict(init_time=init_times[i])]))
+                    #batch_ds["{0}_pfcst".format(var)].loc[dict(init_time=init_times[i])] = (dims_fcst, persistence_seq[self.context_frames-1:,:,:,ivar])
+                    batch_ds["{0}_pfcst".format(var)].loc[dict(init_time=init_times[i])] = persistence_seq[self.context_frames-1:,:,:,ivar]
 
                 # save sequences to netcdf-file and track initial time
                 nc_fname = os.path.join(self.results_dir, "vfp_date_{0}_sample_ind_{1:d}.nc"
-                                        .format(init_times[i].strftime("%Y%m%d%H"), sample_ind + i))
+                                        .format(pd.to_datetime(init_times[i]).strftime("%Y%m%d%H"), sample_ind + i))
                 self.save_ds_to_netcdf(batch_ds.isel(init_time=i), nc_fname)
                 # end of batch-loop
             # write evaluation metric to corresponding dataset...
@@ -627,11 +630,6 @@ class Postprocess(TrainModel):
                                 for ivar, var in enumerate(self.vars_in)])
 
         # create the dataset
-        print(data_in_dict)
-        print(data_in_dict["2t_in"])
-        print(data_in_dict["tcc_in"])
-        print(xr.Dataset({**data_mfcst_dict}))
-        print(xr.Dataset({**data_in_dict}))
         data_ds = xr.Dataset({**data_in_dict, **data_ref_dict, **data_mfcst_dict, **data_pfcst_dict})
 
         return data_ds
