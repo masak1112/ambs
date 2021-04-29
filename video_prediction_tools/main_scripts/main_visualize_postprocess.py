@@ -442,8 +442,10 @@ class Postprocess(TrainModel):
             dims_fcst = list(batch_ds["{0}_ref".format(self.vars_in[0])].dims)
 
             for i in np.arange(self.batch_size):
+                # work-around to make use of get_persistence_forecast_per_sample-method
+                times_seq = (pd.date_range(times_0[i], periods=int(self.sequence_length), freq="h")).to_pydatetime()
                 # get persistence forecast for sequences at hand and write to dataset
-                persistence_seq = self.get_persistence_forecast_per_sample(times_0[i])
+                persistence_seq = self.get_persistence(times_seq, self.input_dir_pkl)
                 for ivar, var in self.vars_in:
                     batch_ds["{0}_pfcst".format(var)] = (dims_fcst, persistence_seq)
 
@@ -519,19 +521,6 @@ class Postprocess(TrainModel):
         times0 = ts_all[:, 0]
 
         return times0, init_times
-
-    def get_persistence_forecast_per_sample(self, t_seq):
-        """
-        Function to retrieve persistence forecast for each sample
-        :param t_seq: sequence of datetime objects for which persistent forecast should be retrieved
-        """
-        method = Postprocess.get_persistence_forecast_per_sample.__name__
-
-        persistence_images, _ = Postprocess.get_persistence(t_seq, self.input_dir_pkl)
-        assert persistence_images.shape[0] == self.sequence_length - 1,\
-            "%{0}: Unexpected sequence length of persistence forecast".format(method)
-
-        return persistence_images
 
     def populate_eval_metric_ds(self, metric_ds, data_ds, ind_start, varname):
         """
