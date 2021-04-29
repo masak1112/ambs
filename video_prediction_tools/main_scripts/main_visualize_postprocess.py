@@ -458,8 +458,8 @@ class Postprocess(TrainModel):
                 self.save_ds_to_netcdf(batch_ds.isel(init_time=i), nc_fname)
                 # end of batch-loop
             # write evaluation metric to corresponding dataset...
-            eval_metric_ds = Postprocess.populate_eval_metric_ds(eval_metric_ds, batch_ds, sample_ind,
-                                                                 self.vars_in[self.channel])
+            eval_metric_ds = self.populate_eval_metric_ds(eval_metric_ds, batch_ds, sample_ind,
+                                                          self.vars_in[self.channel])
             # ... and increment sample_ind
             sample_ind += self.batch_size
             # end of while-loop for samples
