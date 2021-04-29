@@ -447,9 +447,6 @@ class Postprocess(TrainModel):
                 # get persistence forecast for sequences at hand and write to dataset
                 persistence_seq, _ = Postprocess.get_persistence(times_seq, self.input_dir_pkl)
                 for ivar, var in enumerate(self.vars_in):
-                    print(np.shape(persistence_seq[self.context_frames-1:,:,:,ivar]))
-                    print(np.shape(batch_ds["{0}_pfcst".format(var)].loc[dict(init_time=init_times[i])]))
-                    #batch_ds["{0}_pfcst".format(var)].loc[dict(init_time=init_times[i])] = (dims_fcst, persistence_seq[self.context_frames-1:,:,:,ivar])
                     batch_ds["{0}_pfcst".format(var)].loc[dict(init_time=init_times[i])] = persistence_seq[self.context_frames-1:,:,:,ivar]
 
                 # save sequences to netcdf-file and track initial time
@@ -548,8 +545,6 @@ class Postprocess(TrainModel):
                                       .format(method, ", ".join(misses)))
 
         varname_ref = "{0}_ref".format(varname)
-        print(metric_ds)
-        print(metric_ds["init_time"])
         it = metric_ds["init_time"][ind_start:ind_start+self.batch_size]
         for fcst_prod in self.fcst_products.keys():
             for imetric, eval_metric in enumerate(self.eval_metrics):
@@ -559,6 +554,7 @@ class Postprocess(TrainModel):
                                                                                             data_ds[varname_ref])
             # end of metric-loop
         # end of forecast product-loop
+        return metric_ds
 
     def add_ensemble_dim(self):
         """
@@ -821,7 +817,7 @@ class Postprocess(TrainModel):
 
             # Retrieve starting index
             ind_first_m = list(time_pickle_first).index(np.array(t_persistence_first_m[0]))
-            print("time_pickle_second:", time_pickle_second)
+            #print("time_pickle_second:", time_pickle_second)
             ind_second_m = list(time_pickle_second).index(np.array(t_persistence_second_m[0]))
 
             # append the sequence of the second month to the first month
