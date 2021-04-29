@@ -1003,19 +1003,18 @@ class Postprocess(TrainModel):
         """
         method = Postprocess.plot_example_forecasts.__name__
         
-        print(self.eval_metrics_ds)
-        metric_name = "model_{0}".format(metric)
+        metric_name = "{0}_{1}".format(self.model, metric)
         if not metric_name in self.eval_metrics_ds:
             raise ValueError("%{0}: Cannot find requested evaluation metric '{1}'".format(method, metric_name) +
                              "onto which selection of plotted forecast is done.")
         # average metric of interest and obtain quantiles incl. indices
         metric_mean = self.eval_metrics_ds[metric_name].mean(dim="fcst_hour")
         quantiles = np.arange(0., 1.01, .1)
-        quantiles_val = metric_mean.quantiles(quantiles, interpolation="nearest")
+        quantiles_val = metric_mean.quantile(quantiles, interpolation="nearest")
         quantiles_inds = self.get_matching_indices(metric_mean.values, quantiles_val)
-
+        print(metric_mean.coords["init_time"])
         for i, ifcst in enumerate(quantiles_inds):
-            date_init = pd.to_datetime(metric_mean.coords["init_time"].data)
+            date_init = pd.to_datetime(metric_mean.coords["init_time"][ifcst].data)
             nc_fname = os.path.join(self.results_dir, "vfp_date_{0}_sample_ind_{1:d}.nc"
                                     .format(date_init.strftime("%Y%m%d%H"), ifcst))
             if not os.path.isfile(nc_fname):
