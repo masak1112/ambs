@@ -637,7 +637,7 @@ class Postprocess(TrainModel):
         Plots error-metrics averaged over all predictions to file.
         :return: a bunch of plots as png-files
         """
-        method = Postprocess.handle_evalution_metrics.__name__
+        method = Postprocess.handle_eval_metrics.__name__
 
         if self.eval_metrics_ds is None:
             raise AttributeError("%{0}: Attribute with dataset of evaluation metrics is still None.".format(method))
@@ -647,7 +647,7 @@ class Postprocess(TrainModel):
         Postprocess.save_ds_to_netcdf(self.eval_metrics_ds, nc_fname)
 
         # create plots of evaluation metrics averaged over all forecasts
-        _ = self.plot_avg_eval_metrics()
+        _ = self.plot_avg_eval_metrics(self.eval_metrics_ds, self.eval_metrics, self.fcst_products, self.results_dir)
 
     # auxiliary methods (not necessarily bound to class instance)
     @staticmethod
@@ -958,23 +958,26 @@ class Postprocess(TrainModel):
             nhours = np.shape(eval_ds.coords["fcst_hour"])[0]
         except Exception as err:
             print("%{0}: Input argument 'eval_ds' appears to be unproper.".format(method))
+            raise err
 
         nmodels = len(fcst_prod_dict.values())
         colors = ["blue", "red", "black", "grey"]
         for metric in eval_metrics:
-            err2plt = np.full(nmodels, nhours)
-            for ifcst, fcst_prod in enumerate(fcst_prod_dict.values()):
+            err2plt = np.full((nmodels, nhours), np.nan)
+            for ifcst, fcst_prod in enumerate(fcst_prod_dict.keys()):
                 metric_name = "{0}_{1}".format(fcst_prod, metric)
                 try:
                     err2plt[ifcst, :] = eval_ds[metric_name].mean(dim="init_time")
                 except Exception as err:
                     print("%{0}: Could not retrieve {1} from evaluation metric dataset object".format(method,
                                                                                                       metric_name))
+                    raise err
             # create plot
             fig = plt.figure(figsize=(6, 4))
             ax = plt.axes([0.1, 0.15, 0.75, 0.75])
-            hours = np.arange(1, nhours)
+            hours = np.arange(1, nhours+1)
             for ifcst, fcst_name in enumerate(fcst_prod_dict.keys()):
+                print(ifcst)
                 plt.plot(err2plt[ifcst, :], hours, label=fcst_name, color=colors[ifcst], marker="o")
 
             plt.xticks(hours)
@@ -999,8 +1002,9 @@ class Postprocess(TrainModel):
         :return: 11 exemplary forecast plots are created
         """
         method = Postprocess.plot_example_forecasts.__name__
-
-        metric_name = "mfcst_{0}".format(metric)
+        
+        print(self.eval_metrics_ds)
+        metric_name = "model_{0}".format(metric)
         if not metric_name in self.eval_metrics_ds:
             raise ValueError("%{0}: Cannot find requested evaluation metric '{1}'".format(method, metric_name) +
                              "onto which selection of plotted forecast is done.")
@@ -1042,12 +1046,12 @@ class Postprocess(TrainModel):
         :return: eval_metric_ds
         """
 
-        eval_metric_dict = dict([("{0}_{1}".format(*(fcst_prod, eval_met)), (["init_time", "lead_time"],
+        eval_metric_dict = dict([("{0}_{1}".format(*(fcst_prod, eval_met)), (["init_time", "fcst_hour"],
                                   np.full((nsamples, nlead_steps), np.nan)))
                                  for eval_met in eval_metrics for fcst_prod in fcst_products])
 
         eval_metric_ds = xr.Dataset(eval_metric_dict, coords={"init_time": np.arange(nsamples),  # just a placeholder
-                                                              "lead_time": np.arange(nlead_steps)})
+                                                              "fcst_hour": np.arange(nlead_steps)})
 
         return eval_metric_ds
 
