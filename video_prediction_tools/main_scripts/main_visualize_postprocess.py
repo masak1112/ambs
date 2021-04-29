@@ -545,7 +545,8 @@ class Postprocess(TrainModel):
                                       .format(method, ", ".join(misses)))
 
         varname_ref = "{0}_ref".format(varname)
-        it = metric_ds["init_time"][ind_start:ind_start+self.batch_size]
+        init_times_metric = metric_ds["init_time"]
+        it = init_times_metric[ind_start:ind_start+self.batch_size]
         for fcst_prod in self.fcst_products.keys():
             for imetric, eval_metric in enumerate(self.eval_metrics):
                 metric_name = "{0}_{1}".format(fcst_prod, eval_metric)
@@ -554,6 +555,9 @@ class Postprocess(TrainModel):
                                                                                             data_ds[varname_ref])
             # end of metric-loop
         # end of forecast product-loop
+        # set init-time coordinate in place
+        init_times_metric[ind_start:ind_start+self.batch_size] = data_ds["init_time"]
+        metric_ds = metric_ds.assign_coords(init_time=init_times_metric)
         return metric_ds
 
     def add_ensemble_dim(self):
