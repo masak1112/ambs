@@ -432,8 +432,9 @@ class Postprocess(TrainModel):
             # sanity check on length of forecast sequence
             assert gen_images.shape[1] == self.sequence_length - 1, \
                 "%{0}: Sequence length of prediction must be smaller by one than total sequence length.".format(method)
-            # denormalize forecast sequence
-            gen_images_denorm = self.denorm_images_all_channels(gen_images, norm_method="minmax")
+            # denormalize forecast sequence (self.norm_cls is already set in get_input_data_per_batch-method)
+            gen_images_denorm = self.denorm_images_all_channels(gen_images, self.vars_in, self.norm_cls,
+                                                                norm_method="minmax")
             # store data into datset
             times_0, init_times = Postprocess.get_init_time(t_starts)
             batch_ds = self.create_dataset(input_images_denorm, gen_images_denorm, init_times)
@@ -476,15 +477,17 @@ class Postprocess(TrainModel):
         input_results = self.sess.run(input_iter)
         input_images = input_results["images"]
         t_starts = input_results["T_start"]
-        if self.stat_fl is None:
-            raise AttributeError("%{0}: The attribute stat_fl is still not set. Cannot continue...".format(method))
-        else:
-            stat_fl = self.stat_fl
+        if self.norm_cls is None:
+            if self.stat_fl is None:
+                raise AttributeError("%{0}: Attribute stat_fl is not initialized yet.".format(method))
+            self.norm_cls = Postprocess.get_norm(self.vars_in, self.stat_fl, norm_method)
+
         # sanity check on input sequence
         assert np.ndim(input_images) == 5, "%{0}: Input sequence of mini-batch does not have five dimensions."\
                                            .format(method)
 
-        input_images_denorm = Postprocess.denorm_images_all_channels(input_images, stat_fl, norm_method=norm_method)
+        input_images_denorm = Postprocess.denorm_images_all_channels(input_images, self.vars_in, self.norm_cls,
+                                                                     norm_method=norm_method)
 
         return input_results, input_images_denorm, t_starts
 
@@ -528,53 +531,6 @@ class Postprocess(TrainModel):
             "%{0}: Unexpected sequence length of persistence forecast".format(method)
 
         return persistence_images
-
-    def denorm_images_all_channels(self, image_sequence, norm_method="minmax"):
-        """
-        Denormalize data of all image channels
-        :param image_sequence: list/array [batch, seq, lat, lon, channel] of images
-        :param norm_method: normalization-method (default: 'minmax')
-        :return: denormalized image data
-        """
-        method = Postprocess.denorm_images_all_channels.__name__
-
-        if self.stat_fl is None:
-            raise AttributeError("%{0}: Attribute stat_fl is still unset. Cannot denormalize any data.".format(method))
-
-        image_sequence = np.array(image_sequence)
-
-        input_images_all_channles_denorm = [Postprocess.denorm_images(self.stat_fl, image_sequence, c,
-                                                                      norm_method=norm_method)
-                                            for c in np.arange(len(self.vars_in))]
-
-        input_images_denorm = np.stack(input_images_all_channles_denorm, axis=-1)
-        return input_images_denorm
-
-    def denorm_images(self, stat_fl, input_images, channel, norm_method="minmax"):
-        """
-        Denormalize one channel of images
-        :param stat_fl: path tp statistics json-file
-        :param input_images: list/array [batch, seq, lat, lon, channel]
-        :param channel: the channel of interest
-        :param norm_method: normalization method (default: minmx-normalization)
-        :return: denormalized image data
-        """
-        method = Postprocess.denorm_images.__name__
-
-        if not self.norm_cls:
-            norm_cls = Norm_data(self.vars_in)
-            try:
-                with open(stat_fl) as js_file:
-                    norm_cls.check_and_set(json.load(js_file), norm_method)
-                self.norm_cls = norm_cls
-            except Exception as err:
-                print("%{0}: Could not handle statistics json-file '{1}'.".format(method, stat_fl))
-                raise err
-        else:
-            norm_cls = self.norm_cls
-        varname = self.vars_in[channel]
-        input_images_denorm = norm_cls.denorm_var(input_images[..., channel], varname, norm_method)
-        return input_images_denorm
 
     def populate_eval_metric_ds(self, metric_ds, data_ds, ind_start, varname):
         """
@@ -703,6 +659,89 @@ class Postprocess(TrainModel):
         _ = self.plot_avg_eval_metrics()
 
     # auxiliary methods (not necessarily bound to class instance)
+    @staticmethod
+    def get_norm(varnames, stat_fl, norm_method):
+        """
+        Retrieves normalization instance
+        :param varnames: list of variabe names
+        :param stat_fl: statistics JSON-file
+        :param norm_method: normalization method
+        :return: normalization instance which can be used to normalize images according to norm_method
+        """
+        method = Postprocess.get_norm.__name__
+
+        if not isinstance(varnames, list):
+            raise ValueError("%{0}: varnames must be a list of variable names.".format(method))
+
+        norm_cls = Norm_data(varnames)
+        try:
+            with open(stat_fl) as js_file:
+                norm_cls.check_and_set(json.load(js_file), norm_method)
+            norm_cls = norm_cls
+        except Exception as err:
+            print("%{0}: Could not handle statistics json-file '{1}'.".format(method, stat_fl))
+            raise err
+        return norm_cls
+
+    @staticmethod
+    def denorm_images_all_channels(image_sequence, varnames, norm, norm_method="minmax"):
+        """
+        Denormalize data of all image channels
+        :param image_sequence: list/array [batch, seq, lat, lon, channel] of images
+        :param varnames: list of variable names whose order matches channel indices
+        :param norm: normalization instance
+        :param norm_method: normalization-method (default: 'minmax')
+        :return: denormalized image data
+        """
+        method = Postprocess.denorm_images_all_channels.__name__
+
+        nvars = len(varnames)
+        image_sequence = np.array(image_sequence)
+        # sanity checks
+        if not isinstance(norm, Norm_data):
+            raise ValueError("%{0}: norm must be a normalization instance.".format(method))
+
+        if nvars != np.shape(image_sequence)[-1]:
+            raise ValueError("%{0}: Number of passed variable names ({1:d}) does not match number of channels ({2:d})" \
+                             .format(method, nvars, np.shape(image_sequence)[-1]))
+
+        input_images_all_channles_denorm = [Postprocess.denorm_images(image_sequence, norm, {varname: c},
+                                                                      norm_method=norm_method)
+                                            for c, varname in enumerate(varnames)]
+
+        input_images_denorm = np.stack(input_images_all_channles_denorm, axis=-1)
+        return input_images_denorm
+
+    @staticmethod
+    def denorm_images(input_images, norm, var_dict, norm_method="minmax"):
+        """
+        Denormalize one channel of images
+        :param input_images: list/array [batch, seq, lat, lon, channel]
+        :param norm: normalization instance
+        :param var_dict: dictionary with one key only mapping variable name to channel index, e.g. {"2_t": 0}
+        :param norm_method: normalization method (default: minmax-normalization)
+        :return: denormalized image data
+        """
+        method = Postprocess.denorm_images.__name__
+        # sanity checks
+        if not isinstance(var_dict, dict):
+            raise ValueError("%{0}: var_dict is not a dictionary.".format(method))
+        else:
+            if len(var_dict.keys()) > 1:
+                raise ValueError("%{0}: var_dict must contain one key only.".format(method))
+            varname, channel = *var_dict.keys(), *var_dict.values()
+
+        if not isinstance(norm, Norm_data):
+            raise ValueError("%{0}: norm must be a normalization instance.".format(method))
+
+        try:
+            input_images_denorm = norm.denorm_var(input_images[..., channel], varname, norm_method)
+        except Exception as err:
+            print("%{0}: Something went wrong when denormalizing image sequence. Inspect error-message!".format(method))
+            raise err
+
+        return input_images_denorm
+
     @staticmethod
     def check_gen_images_stochastic_shape(gen_images_stochastic):
         """
