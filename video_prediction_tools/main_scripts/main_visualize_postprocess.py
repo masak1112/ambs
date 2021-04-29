@@ -548,11 +548,13 @@ class Postprocess(TrainModel):
                                       .format(method, ", ".join(misses)))
 
         varname_ref = "{0}_ref".format(varname)
+        print(metric_ds)
+        print(metric_ds["init_time"])
         it = metric_ds["init_time"][ind_start:ind_start+self.batch_size]
-        for fcst_prod in self.fcst_products.values():
+        for fcst_prod in self.fcst_products.keys():
             for imetric, eval_metric in enumerate(self.eval_metrics):
                 metric_name = "{0}_{1}".format(fcst_prod, eval_metric)
-                varname_fcst = "{0}_{1}".format(varname, fcst_prod)
+                varname_fcst = "{0}_{1}".format(varname, self.fcst_products[fcst_prod])
                 metric_ds[metric_name].loc[dict(init_time=it)] = eval_metrics_func[imetric](data_ds[varname_fcst],
                                                                                             data_ds[varname_ref])
             # end of metric-loop
@@ -908,7 +910,7 @@ class Postprocess(TrainModel):
         if dims[0] != "init_time":
             raise ValueError("%{0}: First dimension of data must be init_time.".format(method))
 
-        if not data_fcst.coords == data_ref.coords:
+        if not list(data_fcst.coords) == list(data_ref.coords):
             raise ValueError("%{0}: Input data arrays must have the same shape and coordinates.".format(method))
 
         mse = np.square(data_fcst - data_ref).mean(dim=["lat", "lon"])
@@ -930,7 +932,7 @@ class Postprocess(TrainModel):
         if dims[0] != "init_time":
             raise ValueError("%{0}: First dimension of data must be init_time.".format(method))
 
-        if not data_fcst.coords == data_ref.coords:
+        if not list(data_fcst.coords) == list(data_ref.coords):
             raise ValueError("%{0}: Input data arrays must have the same shape and coordinates.".format(method))
 
         psnr = metrics.psnr_imgs(data_ref.values, data_fcst.values)
