@@ -436,7 +436,7 @@ class Postprocess(TrainModel):
             gen_images_denorm = self.denorm_images_all_channels(gen_images, self.vars_in, self.norm_cls,
                                                                 norm_method="minmax")
             # store data into datset
-            times_0, init_times = Postprocess.get_init_time(t_starts)
+            times_0, init_times = self.get_init_time(t_starts)
             batch_ds = self.create_dataset(input_images_denorm, gen_images_denorm, init_times)
             # auxilary list of forecast dimensions
             dims_fcst = list(batch_ds["{0}_ref".format(self.vars_in[0])].dims)
@@ -494,13 +494,14 @@ class Postprocess(TrainModel):
     def get_init_time(self, t_starts):
         """
         Retrieves initial dates of forecast sequences from start time of whole inpt sequence
-        :param t_starts: list of start times of input sequence
+        :param t_starts: list/array of start times of input sequence
         :return: list of initial dates of forecast as numpy.datetime64 instances
         """
         method = Postprocess.get_init_time.__name__
 
-        if not isinstance(t_starts, list):
-            raise ValueError("%{0}: Inputted t_starts must be a list of date-strings with format %Y%m%d%H"
+        t_starts = np.squeeze(np.asarray(t_starts))
+        if not np.ndim(t_starts) == 1:
+            raise ValueError("%{0}: Inputted t_starts must be a 1D list/array of date-strings with format %Y%m%d%H"
                              .format(method))
         for i, t_start in enumerate(t_starts):
             try:
@@ -510,7 +511,7 @@ class Postprocess(TrainModel):
                 print("%{0}: Could not convert {1} to datetime object. Ensure that the date-string format is 'Y%m%d%H'".
                       format(method, str(t_start)))
             if i == 0:
-                ts_all = np.expand_dims(seq_ts)
+                ts_all = np.expand_dims(seq_ts, axis=0)
             else:
                 ts_all = np.vstack((ts_all, seq_ts))
 
@@ -587,10 +588,9 @@ class Postprocess(TrainModel):
         method = Postprocess.create_dataset.__name__
 
         # auxiliary variables for temporal dimensions
-        nhours = len(self.sequence_length)
-        seq_hours = np.arange(nhours) - (self.context_frames-1)
+        seq_hours = np.arange(self.sequence_length) - (self.context_frames-1)
         # some sanity checks
-        assert np.shape(ts_ini) == self.batch_size,\
+        assert np.shape(ts_ini)[0] == self.batch_size,\
             "%{0}: Inconsistent number of sequence start times ({1:d}) and batch size ({2:d})"\
             .format(method, np.shape(ts_ini)[0], self.batch_size)
 
@@ -615,28 +615,34 @@ class Postprocess(TrainModel):
         # forecast and into the the reference sequences (which can be compared to the forecast)
         # as where the persistence forecast is containing NaNs (must be generated later)
         data_in_dict = dict([("{0}_in".format(var), input_seq.isel(fcst_hour=slice(None, self.context_frames),
-                                                                   varnames=ivar) \
-                                                             .rename({"fcst_hour": "in_hour"}))
+                                                                   varname=ivar) \
+                                                             .rename({"fcst_hour": "in_hour"})
+                                                             .reset_coords(names="varname", drop=True))
                              for ivar, var in enumerate(self.vars_in)])
 
         # get shape of forecast data (one variable) -> required to initialize persistence forecast data
-        shape_fcst = np.shape(fcst_seq.isel(fcst_hour=slice(self.context_frames-1, None), varnames=0)
-                                      .reset_coords(names="varnames", drop=True))
+        shape_fcst = np.shape(fcst_seq.isel(fcst_hour=slice(self.context_frames-1, None), varname=0)
+                                      .reset_coords(names="varname", drop=True))
         data_ref_dict = dict([("{0}_ref".format(var), input_seq.isel(fcst_hour=slice(self.context_frames, None),
-                                                                     varnames=ivar)
-                                                                .reset_coords(names="varnames", drop=True))
+                                                                     varname=ivar)
+                                                                .reset_coords(names="varname", drop=True))
                               for ivar, var in enumerate(self.vars_in)])
 
         data_mfcst_dict = dict([("{0}_mfcst".format(var), fcst_seq.isel(fcst_hour=slice(self.context_frames-1, None),
-                                                                        varnames=ivar)
-                                                                  .reset_coords(names="varnames", drop=True))
+                                                                        varname=ivar)
+                                                                  .reset_coords(names="varname", drop=True))
                                 for ivar, var in enumerate(self.vars_in)])
 
         # fill persistence forecast variables with dummy data (to be populated later)
-        data_pfcst_dict = dict([("{0}_pfcst".format(var), np.full(shape_fcst, np.nan))
+        data_pfcst_dict = dict([("{0}_pfcst".format(var), (["init_time", "fcst_hour", "lat", "lon"], np.full(shape_fcst, np.nan),))
                                 for ivar, var in enumerate(self.vars_in)])
 
         # create the dataset
+        print(data_in_dict)
+        print(data_in_dict["2t_in"])
+        print(data_in_dict["tcc_in"])
+        print(xr.Dataset({**data_mfcst_dict}))
+        print(xr.Dataset({**data_in_dict}))
         data_ds = xr.Dataset({**data_in_dict, **data_ref_dict, **data_mfcst_dict, **data_pfcst_dict})
 
         return data_ds
@@ -676,7 +682,7 @@ class Postprocess(TrainModel):
         norm_cls = Norm_data(varnames)
         try:
             with open(stat_fl) as js_file:
-                norm_cls.check_and_set(json.load(js_file), norm_method)
+                norm_cls.check_and_set_norm(json.load(js_file), norm_method)
             norm_cls = norm_cls
         except Exception as err:
             print("%{0}: Could not handle statistics json-file '{1}'.".format(method, stat_fl))
