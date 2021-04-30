@@ -557,7 +557,8 @@ class Postprocess(TrainModel):
             # end of metric-loop
         # end of forecast product-loop
         # set init-time coordinate in place
-        init_times_metric[ind_start:ind_start+self.batch_size] = data_ds["init_time"].values
+        init_times_metric = init_times_metric.values
+        init_times_metric[ind_start:ind_start+self.batch_size] = data_ds["init_time"]
         metric_ds = metric_ds.assign_coords(init_time=init_times_metric)
         return metric_ds
 
