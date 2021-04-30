@@ -419,7 +419,7 @@ class Postprocess(TrainModel):
 
         # init sample index for looping and acculmulators for evaulation metrics
         sample_ind = 0
-        nsamples = self.num_samples_per_epoch * self.batch_size
+        nsamples = self.num_samples_per_epoch
         # initialize datasets
         eval_metric_ds = Postprocess.init_metric_ds(self.fcst_products, self.eval_metrics, nsamples, self.future_length)
 
