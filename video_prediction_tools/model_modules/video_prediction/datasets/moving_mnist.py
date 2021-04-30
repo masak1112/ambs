@@ -20,14 +20,9 @@ from general_utils import get_unique_vars
 from statistics import Calc_data_stat 
 from metadata import MetaData
 
-class MovingMnist(VarLenFeatureVideoDataset):
+class MovingMnist(object):
     def __init__(self, *args, **kwargs):
         super(MovingMnist, self).__init__(*args, **kwargs)
-        from google.protobuf.json_format import MessageToDict
-        example = next(tf.python_io.tf_record_iterator(self.filenames[0]))
-        dict_message = MessageToDict(tf.train.Example.FromString(example))
-        feature = dict_message['features']['feature']
-        print("features in dataset:",feature.keys())
         self.video_shape = tuple(int(feature[key]['int64List']['value'][0]) for key in ['sequence_length','height', 'width', 'channels'])
         self.image_shape = self.video_shape[1:]
         self.state_like_names_and_shapes['images'] = 'images/encoded', self.image_shape
@@ -41,12 +36,9 @@ class MovingMnist(VarLenFeatureVideoDataset):
         )
         return dict(itertools.chain(default_hparams.items(), hparams.items()))
 
-
     @property
     def jpeg_encoding(self):
         return False
-
-
 
     def num_examples_per_epoch(self):
         with open(os.path.join(self.input_dir, 'number_squences.txt'), 'r') as sequence_lengths_file:
@@ -56,7 +48,6 @@ class MovingMnist(VarLenFeatureVideoDataset):
 
     def filter(self, serialized_example):
         return tf.convert_to_tensor(True)
-
 
     def make_dataset_v2(self, batch_size):
         def parser(serialized_example):
@@ -84,9 +75,7 @@ class MovingMnist(VarLenFeatureVideoDataset):
             seqs["images"] = images
             return seqs
         filenames = self.filenames
-        print ("FILENAMES",filenames)
-	    #TODO:
-	    #temporal_filenames = self.temporal_filenames
+      
         shuffle = self.mode == 'train' or (self.mode == 'val' and self.hparams.shuffle_on_val)
         if shuffle:
             random.shuffle(filenames)
@@ -98,7 +87,7 @@ class MovingMnist(VarLenFeatureVideoDataset):
             dataset = dataset.apply(tf.contrib.data.shuffle_and_repeat(buffer_size =1024, count = self.num_epochs))
         else:
             dataset = dataset.repeat(self.num_epochs)
-
+        
         num_parallel_calls = None if shuffle else 1
         dataset = dataset.apply(tf.contrib.data.map_and_batch(
             parser, batch_size, drop_remainder=True, num_parallel_calls=num_parallel_calls))
@@ -108,7 +97,6 @@ class MovingMnist(VarLenFeatureVideoDataset):
         #    _parser, batch_size, drop_remainder=True, num_parallel_calls=num_parallel_calls)) #  Bing: Parallel data mapping, num_parallel_calls normally depends on the hardware, however, normally should be equal to be the usalbe number of CPUs
         dataset = dataset.prefetch(batch_size)  # Bing: Take the data to buffer inorder to save the waiting time for GPU
         return dataset
-
 
 
     def make_batch(self, batch_size):
