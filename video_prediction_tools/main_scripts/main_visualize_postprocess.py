@@ -237,7 +237,8 @@ class Postprocess(TrainModel):
 
         if self.num_samples:
             if self.num_samples > self.test_dataset.num_examples_per_epoch():
-                print("%{0}: Passed number of sample larger than dataset. Complete dataset will be evaluated.".format(method))
+                print("%{0}: Passed number of sample larger than dataset. Complete dataset will be evaluated."
+                      .format(method))
             self.num_samples_per_epoch = np.minimum(self.num_samples, self.test_dataset.num_examples_per_epoch)
         else:
             self.num_samples_per_epoch = self.test_dataset.num_examples_per_epoch()
@@ -392,7 +393,7 @@ class Postprocess(TrainModel):
                 self.save_to_netcdf_for_stochastic_generate_images(self.input_images_denorm_all[batch_id],
                                                                    persistent_images_per_batch[batch_id],
                                                                    np.array(gen_images_stochastic)[batch_id],
-                                                                   fl_name="vfp_date_{}_sample_ind_{}.nc" \
+                                                                   fl_name="vfp_date_{}_sample_ind_{}.nc"
                                                                    .format(ts_batch[batch_id],
                                                                            self.sample_ind + batch_id))
 
@@ -447,7 +448,8 @@ class Postprocess(TrainModel):
                 # get persistence forecast for sequences at hand and write to dataset
                 persistence_seq, _ = Postprocess.get_persistence(times_seq, self.input_dir_pkl)
                 for ivar, var in enumerate(self.vars_in):
-                    batch_ds["{0}_pfcst".format(var)].loc[dict(init_time=init_times[i])] = persistence_seq[self.context_frames-1:,:,:,ivar]
+                    batch_ds["{0}_pfcst".format(var)].loc[dict(init_time=init_times[i])] = \
+                        persistence_seq[self.context_frames-1:, :, :, ivar]
 
                 # save sequences to netcdf-file and track initial time
                 nc_fname = os.path.join(self.results_dir, "vfp_date_{0}_sample_ind_{1:d}.nc"
@@ -513,6 +515,7 @@ class Postprocess(TrainModel):
             except Exception as err:
                 print("%{0}: Could not convert {1} to datetime object. Ensure that the date-string format is 'Y%m%d%H'".
                       format(method, str(t_start)))
+                raise err
             if i == 0:
                 ts_all = np.expand_dims(seq_ts, axis=0)
             else:
@@ -621,7 +624,7 @@ class Postprocess(TrainModel):
                                       .reset_coords(names="varname", drop=True))
         data_ref_dict = dict([("{0}_ref".format(var), input_seq.isel(fcst_hour=slice(self.context_frames, None),
                                                                      varname=ivar)
-                                                                .reset_coords(names="varname", drop=True))
+                                                               .reset_coords(names="varname", drop=True))
                               for ivar, var in enumerate(self.vars_in)])
 
         data_mfcst_dict = dict([("{0}_mfcst".format(var), fcst_seq.isel(fcst_hour=slice(self.context_frames-1, None),
@@ -630,7 +633,8 @@ class Postprocess(TrainModel):
                                 for ivar, var in enumerate(self.vars_in)])
 
         # fill persistence forecast variables with dummy data (to be populated later)
-        data_pfcst_dict = dict([("{0}_pfcst".format(var), (["init_time", "fcst_hour", "lat", "lon"], np.full(shape_fcst, np.nan),))
+        data_pfcst_dict = dict([("{0}_pfcst".format(var), (["init_time", "fcst_hour", "lat", "lon"],
+                                                           np.full(shape_fcst, np.nan),))
                                 for ivar, var in enumerate(self.vars_in)])
 
         # create the dataset
@@ -699,7 +703,7 @@ class Postprocess(TrainModel):
             raise ValueError("%{0}: norm must be a normalization instance.".format(method))
 
         if nvars != np.shape(image_sequence)[-1]:
-            raise ValueError("%{0}: Number of passed variable names ({1:d}) does not match number of channels ({2:d})" \
+            raise ValueError("%{0}: Number of passed variable names ({1:d}) does not match number of channels ({2:d})"
                              .format(method, nvars, np.shape(image_sequence)[-1]))
 
         input_images_all_channles_denorm = [Postprocess.denorm_images(image_sequence, norm, {varname: c},
@@ -1125,12 +1129,12 @@ class Postprocess(TrainModel):
             m.drawcoastlines()
             x, y = m(lons, lats)
             if t%6 == 0:
-                lat_lab = [1,0,0,0]
+                lat_lab = [1, 0, 0, 0]
                 axes[t].set_ylabel(u'Latitude', labelpad=30)
             else:
                 lat_lab = list(np.zeros(4))
             if t/6 >= 1:
-                lon_lab = [0,0,0,1]
+                lon_lab = [0, 0, 0, 1]
                 axes[t].set_xlabel(u'Longitude', labelpad=15)
             else:
                 lon_lab = list(np.zeros(4))
@@ -1152,6 +1156,7 @@ class Postprocess(TrainModel):
         cbar.set_label('°C')
         # save to disk
         plt.savefig(plt_fname, bbox_inches="tight")
+
 
 def main():
     parser = argparse.ArgumentParser()
@@ -1185,6 +1190,7 @@ def main():
     test_instance.run()
     test_instance.handle_eval_metrics()
     test_instance.plot_example_forecasts(metric="mse")
+
 
 if __name__ == '__main__':
     main()
