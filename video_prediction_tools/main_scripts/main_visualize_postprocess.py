@@ -460,7 +460,8 @@ class Postprocess(TrainModel):
             # ... and increment sample_ind
             sample_ind += self.batch_size
             # end of while-loop for samples
-        # safe dataset with evaluation metrics for later use
+        # change init_time-coordinates to datetime64-type and safe dataset with evaluation metrics for later use
+        eval_metric_ds = eval_metric_ds.assign_coords(dict(init_time=pd.to_datetime(eval_metric_ds["init_time"])))
         self.eval_metrics_ds = eval_metric_ds
         #self.add_ensemble_dim()
 
@@ -556,7 +557,7 @@ class Postprocess(TrainModel):
             # end of metric-loop
         # end of forecast product-loop
         # set init-time coordinate in place
-        init_times_metric[ind_start:ind_start+self.batch_size] = data_ds["init_time"]
+        init_times_metric[ind_start:ind_start+self.batch_size] = data_ds["init_time"].values
         metric_ds = metric_ds.assign_coords(init_time=init_times_metric)
         return metric_ds
 
