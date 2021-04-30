@@ -461,7 +461,7 @@ class Postprocess(TrainModel):
             sample_ind += self.batch_size
             # end of while-loop for samples
         # change init_time-coordinates to datetime64-type and safe dataset with evaluation metrics for later use
-        eval_metric_ds = eval_metric_ds.assign_coords(dict(init_time=pd.to_datetime(eval_metric_ds["init_time"])))
+        eval_metric_ds = eval_metric_ds.assign_coords(init_time=pd.to_datetime(eval_metric_ds["init_time"]))
         self.eval_metrics_ds = eval_metric_ds
         #self.add_ensemble_dim()
 
@@ -983,8 +983,7 @@ class Postprocess(TrainModel):
             ax = plt.axes([0.1, 0.15, 0.75, 0.75])
             hours = np.arange(1, nhours+1)
             for ifcst, fcst_name in enumerate(fcst_prod_dict.keys()):
-                print(ifcst)
-                plt.plot(err2plt[ifcst, :], hours, label=fcst_name, color=colors[ifcst], marker="o")
+                plt.plot(hours, err2plt[ifcst, :], label=fcst_name, color=colors[ifcst], marker="o")
 
             plt.xticks(hours)
             ax.set_ylim(0., None)
@@ -1035,7 +1034,7 @@ class Postprocess(TrainModel):
                 data_diff = data_fcst - data_ref
                 # name of plot
                 plt_fname_base = os.path.join(self.output_dir, "forecast_{0}_{1}_{2}_{3:d}percentile.png"
-                                              .format(varname, date_init[0].strftime("%Y%m%dT%H00"), metric,
+                                              .format(varname, date_init.strftime("%Y%m%dT%H00"), metric,
                                                       int(quantiles[i]*100.)))
 
                 Postprocess.create_plot(data_fcst, data_diff, varname, plt_fname_base)
@@ -1091,7 +1090,7 @@ class Postprocess(TrainModel):
             coords = data.coords
             # handle coordinates and forecast times
             lat, lon = coords["lat"], coords["lon"]
-            dates_fcst = pd.to_datetime(coords["time_forecast"].data)
+            dates_fcst = pd.to_datetime(coords["fcst_hour"].data)
         except Exception as err:
             print("%{0}: Could not retrieve expected coordinates lat, lon and time_forecast from data.".format(method))
             raise err
@@ -1138,10 +1137,10 @@ class Postprocess(TrainModel):
             m.drawmapboundary()
             m.drawparallels(np.arange(0,90,5),labels=lat_lab, xoffset=1.)
             m.drawmeridians(np.arange(5,355,10),labels=lon_lab, yoffset=1.)
-            cs = m.contourf(x, y, data.isel(time_forecast=t)-273.15, clevs, cmap=plt.get_cmap("jet"), ax=axes[t])
-            cs_c_pos = m.contour(x, y, data_diff.isel(time_forecast=t), clevs_diff, linewidths=0.5, ax=axes[t],
+            cs = m.contourf(x, y, data.isel(fcst_hour=t)-273.15, clevs, cmap=plt.get_cmap("jet"), ax=axes[t])
+            cs_c_pos = m.contour(x, y, data_diff.isel(fcst_hour=t), clevs_diff, linewidths=0.5, ax=axes[t],
                                  colors="black")
-            cs_c_neg = m.contour(x, y, data_diff.isel(time_forecast=t), clevs_diff2, linewidths=1, linestyles="dotted",
+            cs_c_neg = m.contour(x, y, data_diff.isel(fcst_hour=t), clevs_diff2, linewidths=1, linestyles="dotted",
                                  ax=axes[t], colors="black")
             axes[t].set_title("{0} +{1:02d}:00".format(date0_str, int(fhh)), fontsize=7.5, pad=4)
 
