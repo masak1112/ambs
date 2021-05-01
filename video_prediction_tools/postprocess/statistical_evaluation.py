@@ -17,6 +17,8 @@ def perform_block_bootstrap_metric(metric: xr.DataArray, dim_name: str, block_le
     if dim_name not in metric.dims:
         raise ValueError("%{0}: Passed dimension cannot be found in passed metric.".format(method))
 
+    metric = metric.sortby(dim_name)
+
     dim_length = np.shape(metric.coords[dim_name].values)[0]
     nblocks = int(np.floor(dim_length/block_length))
 
