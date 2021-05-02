@@ -960,8 +960,7 @@ class Postprocess(TrainModel):
 
         # settings for block bootstrapping
         nboots_block = 1000
-        block_length = 7 * 24                          # this corresponds to a block length of 7 days when forecasts are
-                                                       # produced every hour
+        block_length = 7 * 24    # this corresponds to a block length of 7 days when forecasts are produced every hour
         # sanity checks
         if not isinstance(eval_ds, xr.Dataset):
             raise ValueError("%{0}: Argument 'eval_ds' must be a xarray dataset.".format(method))
@@ -980,18 +979,17 @@ class Postprocess(TrainModel):
         colors = ["blue", "red", "black", "grey"]
         for metric in eval_metrics:
             metric2plt = np.full((nmodels, nhours), np.nan)
+            metric2plt_max, metric2plt_min = metric2plt.copy(), metric2plt.()
             for ifcst, fcst_prod in enumerate(fcst_prod_dict.keys()):
                 metric_name = "{0}_{1}".format(fcst_prod, metric)
                 try:
                     metric = eval_ds[metric_name]
                     metric_boot = perform_block_bootstrap_metric(metric, "init_time", block_length, nboots_block)
-                    metric_q05, metric_q95 = metric_boot.quantile(0.05, dim="iboot"), metric_boot.quantile(0.95,
-                                                                                                           dim="iboot")
-                    metric_mean = metric.mean(dim="init_time")
-                    metric2plt[ifcst, :] = metric_mean
+                    metric2plt_min[ifcst, :] = metric_boot.quantile(0.05, dim="iboot")
+                    metric2plt_max[ifcst, :] = metric_boot.quantile(0.95, dim="iboot")
+                    metric2plt[ifcst, :] = metric.mean(dim="init_time")
                 except Exception as err:
-                    print("%{0}: Could not retrieve {1} from evaluation metric dataset object".format(method,
-                                                                                                      metric_name))
+                    print("%{0}: Retrieval of {1} from evaluation metric dataset failes".format(method, metric_name))
                     raise err
             # create plot
             fig = plt.figure(figsize=(6, 4))
@@ -999,6 +997,8 @@ class Postprocess(TrainModel):
             hours = np.arange(1, nhours+1)
             for ifcst, fcst_name in enumerate(fcst_prod_dict.keys()):
                 plt.plot(hours, metric2plt[ifcst, :], label=fcst_name, color=colors[ifcst], marker="o")
+                plt.fill_between(hours, metric2plt_min[ifcst, :], metric2plt_max[ifcst, :], facecolor=colors[ifcst],
+                                 alpha=0.3)
 
             plt.xticks(hours)
             ax.set_ylim(0., None)
