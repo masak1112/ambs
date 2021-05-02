@@ -14,7 +14,7 @@ import argparse
 from utils.external_function import directory_scanner
 from utils.external_function import load_distributor
 from data_preprocess.process_netCDF_v2 import *  
-from metadata import MetaData\
+from metadata import MetaData
 from netcdf_datahandling import GeoSubdomain
 import json
 
