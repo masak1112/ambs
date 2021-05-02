@@ -30,17 +30,14 @@ from statistical_evaluation import perform_block_bootstrap_metric
 
 
 class Postprocess(TrainModel):
-    def __init__(self, results_dir=None, checkpoint=None, mode="test",
-                 batch_size=None, num_samples=None, num_stochastic_samples=1, stochastic_plot_id=0,
-                 gpu_mem_frac=None, seed=None, args=None, run_mode="deterministic"):
+    def __init__(self, results_dir=None, checkpoint=None, mode="test", batch_size=None, num_stochastic_samples=1,
+                 stochastic_plot_id=0, gpu_mem_frac=None, seed=None, args=None, run_mode="deterministic"):
         """
         The function for inference, generate results and images
         results_dir   :str, The output directory to save results
         checkpoint    :str, The directory point to the checkpoints
         mode          :str, Default is test, could be "train","val", and "test"
         batch_size    :int, The batch size used for generating test samples for each iteration
-        num_samples   :int, The number of test samples used for generating output.
-                            The maximum values should be the total number of samples for test dataset
         num_stochastic_samples: int, for the stochastic models such as SAVP, VAE, it is used for generate a number of
                                      ensemble for each prediction.
                                      For deterministic model such as convLSTM, it is default setup to 1
@@ -70,6 +67,7 @@ class Postprocess(TrainModel):
         self.stat_fl = None
         self.norm_cls = None            # placeholder for normalization instance
         self.channel = 0                # index of channel/input variable to evaluate
+        self.num_samples_per_epoch = None
         # set further attributes from parsed arguments
         self.results_dir = self.output_dir = os.path.normpath(results_dir)
         if not os.path.exists(self.results_dir):
@@ -77,17 +75,12 @@ class Postprocess(TrainModel):
         self.batch_size = batch_size
         self.gpu_mem_frac = gpu_mem_frac
         self.seed = seed
-        self.num_samples = num_samples
         self.num_stochastic_samples = num_stochastic_samples
         self.stochastic_plot_id = stochastic_plot_id
         self.args = args
         self.checkpoint = checkpoint
         self.run_mode = run_mode
         self.mode = mode
-        if self.num_samples < self.batch_size:
-            raise ValueError("The number of samples should be at least as large as the batch size. " +
-                             "Currently, number of samples: {} batch size: {}"
-                             .format(self.num_samples, self.batch_size))
         if self.checkpoint is None:
             raise ValueError("The directory point to checkpoint is empty, must be provided for postprocess step")
 
@@ -236,13 +229,8 @@ class Postprocess(TrainModel):
         """
         method = Postprocess.setup_num_samples_per_epoch.__name__
 
-        if self.num_samples:
-            if self.num_samples > self.test_dataset.num_examples_per_epoch():
-                print("%{0}: Passed number of sample larger than dataset. Complete dataset will be evaluated."
-                      .format(method))
-            self.num_samples_per_epoch = np.minimum(self.num_samples, self.test_dataset.num_examples_per_epoch)
-        else:
-            self.num_samples_per_epoch = self.test_dataset.num_examples_per_epoch()
+        self.num_samples_per_epoch = self.test_dataset.num_examples_per_epoch()
+
         return self.num_samples_per_epoch
 
     def get_data_params(self):
@@ -1179,7 +1167,6 @@ def main():
     parser.add_argument("--mode", type=str, choices=['train', 'val', 'test'], default='test',
                         help='mode for dataset, val or test.')
     parser.add_argument("--batch_size", type=int, default=8, help="number of samples in batch")
-    parser.add_argument("--num_samples", type=int, help="number of samples in total (all of them by default)")
     parser.add_argument("--num_stochastic_samples", type=int, default=1)
     parser.add_argument("--stochastic_plot_id", type=int, default=0,
                         help="The stochastic generate images index to plot")
@@ -1194,9 +1181,9 @@ def main():
 
     # ML: test_instance is a bit misleading here
     test_instance = Postprocess(results_dir=args.results_dir, checkpoint=args.checkpoint, mode="test",
-                                batch_size=args.batch_size, num_samples=args.num_samples,
-                                num_stochastic_samples=args.num_stochastic_samples, gpu_mem_frac=args.gpu_mem_frac,
-                                seed=args.seed, stochastic_plot_id=args.stochastic_plot_id, args=args)
+                                batch_size=args.batch_size, num_stochastic_samples=args.num_stochastic_samples,
+                                gpu_mem_frac=args.gpu_mem_frac, seed=args.seed,
+                                stochastic_plot_id=args.stochastic_plot_id, args=args)
 
     test_instance()
     test_instance.run()
