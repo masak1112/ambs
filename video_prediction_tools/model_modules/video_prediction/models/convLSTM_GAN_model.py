@@ -99,7 +99,8 @@ class ConvLstmGANVideoPredictionModel(object):
         self.D_loss =  (1-self.recon_weight) * self.D_loss
         if self.mode == "train":
             if self.recon_weight == 1:
-                 self.train_op = tf.train.AdamOptimizer(learning_rate = self.learning_rate).minimize(self.total_loss, var_list=self.gen_vars) 
+                print("Only train generator- convLSTM") 
+                self.train_op = tf.train.AdamOptimizer(learning_rate = self.learning_rate).minimize(self.total_loss, var_list=self.gen_vars) 
             else:
                 print("Training distriminator")
                 self.D_solver = tf.train.AdamOptimizer(learning_rate = self.learning_rate).minimize(self.D_loss, var_list=self.disc_vars)
@@ -140,10 +141,11 @@ class ConvLstmGANVideoPredictionModel(object):
         """
         Function to build up the generator architecture
         args:
-            noise: a noise tensor with dimension (n_batch,sequence_length,height,width,channel)
+            input images: a input tensor with dimension (n_batch,sequence_length,height,width,channel)
         """
         with tf.variable_scope("generator",reuse=tf.AUTO_REUSE):
-            layer_gen = self.convLSTM_network(self.noise)
+            layer_gen = self.convLSTM_network(self.x)
+            layer_gen_pred = layer_gen[:,self.context_frames-1:,:,:,:]
         return layer_gen
 
 
