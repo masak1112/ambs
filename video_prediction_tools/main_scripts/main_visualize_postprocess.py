@@ -972,11 +972,11 @@ class Postprocess(TrainModel):
             for ifcst, fcst_prod in enumerate(fcst_prod_dict.keys()):
                 metric_name = "{0}_{1}".format(fcst_prod, metric)
                 try:
-                    metric = eval_ds[metric_name]
-                    metric_boot = perform_block_bootstrap_metric(metric, "init_time", block_length, nboots_block)
+                    metric_data = eval_ds[metric_name]
+                    metric_boot = perform_block_bootstrap_metric(metric_data, "init_time", block_length, nboots_block)
                     metric2plt_min[ifcst, :] = metric_boot.quantile(0.05, dim="iboot")
                     metric2plt_max[ifcst, :] = metric_boot.quantile(0.95, dim="iboot")
-                    metric2plt[ifcst, :] = metric.mean(dim="init_time")
+                    metric2plt[ifcst, :] = metric_data.mean(dim="init_time")
                 except Exception as err:
                     print("%{0}: Retrieval of {1} from evaluation metric dataset failes".format(method, metric_name))
                     raise err
