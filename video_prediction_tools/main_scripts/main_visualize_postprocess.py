@@ -968,7 +968,7 @@ class Postprocess(TrainModel):
         colors = ["blue", "red", "black", "grey"]
         for metric in eval_metrics:
             metric2plt = np.full((nmodels, nhours), np.nan)
-            metric2plt_max, metric2plt_min = metric2plt.copy(), metric2plt.()
+            metric2plt_max, metric2plt_min = metric2plt.copy(), metric2plt.copy()
             for ifcst, fcst_prod in enumerate(fcst_prod_dict.keys()):
                 metric_name = "{0}_{1}".format(fcst_prod, metric)
                 try:
