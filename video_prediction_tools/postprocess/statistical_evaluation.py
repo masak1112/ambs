@@ -26,14 +26,24 @@ def perform_block_bootstrap_metric(metric: xr.DataArray, dim_name: str, block_le
         raise ValueError("%{0}: Less than 10 blocks are present with given block length {1:d}.".format(method, block_length) +
                          " Too less for bootstrapping.")
 
-    metric_val_block = xr.DataArray(np.full(nblocks, np.nan), coords={"iblock": np.arange(nblocks)}, dims=["iblock"])
-    metric_boot = xr.DataArray(np.full(nboots_block, np.nan), coords={"iboot": np.arange(nboots_block)},
-                               dims=["iboot"])
+    # get remaining coordinates and dimensions
+    dims_old = list(metric.dims)
+    dims_old.remove(dim_name)
+
+    coords_new_block = {**{"iblock": np.arange(nblocks)}, **metric.drop("init_time").coords}
+    coords_new_boot = {**{"iboot": np.arange(nboots_block)}, **metric.drop("init_time").coords}
+    
+    shape_block = tuple([a.shape[0] for a in coords_new_block.values()])
+    shape_boot = tuple([a.shape[0] for a in coords_new_boot.values()])
+    
+    metric_val_block = xr.DataArray(np.full(shape_block, np.nan), coords=coords_new_block, dims=["iblock"] + dims_old)
+    metric_boot = xr.DataArray(np.full(shape_boot, np.nan), coords=coords_new_boot,
+                               dims=["iboot"] + dims_old)
 
     # precompute metrics of block
     for iblock in np.arange(nblocks):
         ind_s, ind_e = iblock * block_length, (iblock + 1) * block_length
-        metric_val_block[iblock] = metric.isel({dim_name: slice(ind_s, ind_e)}).mean(dim=dim_name)
+        metric_val_block[iblock,...] = metric.isel({dim_name: slice(ind_s, ind_e)}).mean(dim=dim_name)
 
     # get random blocks
     np.random.seed(seed)
@@ -44,7 +54,7 @@ def perform_block_bootstrap_metric(metric: xr.DataArray, dim_name: str, block_le
     if l_tqdm:
         iterator_b = tqdm(iterator_b)
     for iboot_b in iterator_b:
-        metric_boot[iboot_b] = metric_val_block.isel(iblock=iblocks_boot[iboot_b, :]).mean(dim="iblock")
+        metric_boot[iboot_b,...] = metric_val_block.isel(iblock=iblocks_boot[iboot_b, :]).mean(dim="iblock")
 
     return metric_boot
 
