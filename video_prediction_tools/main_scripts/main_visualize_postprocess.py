@@ -949,7 +949,8 @@ class Postprocess(TrainModel):
     @staticmethod
     def plot_avg_eval_metrics(eval_ds, eval_metrics, fcst_prod_dict, out_dir):
         """
-        Plots error-metrics averaged over all predictions to file.
+        Plots error-metrics averaged over all predictions to file incl. 90%-confidence interval that is estimated by
+        block bootstrapping.
         :param eval_ds: The dataset storing all evaluation metrics for each forecast (produced by init_metric_ds-method)
         :param eval_metrics: list of evaluation metrics
         :param fcst_prod_dict: dictionary of forecast products, e.g. {"pfcst": "persistence forecast"}
