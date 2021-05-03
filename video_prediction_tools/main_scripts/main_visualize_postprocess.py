@@ -411,7 +411,8 @@ class Postprocess(TrainModel):
         sample_ind = 0
         nsamples = self.num_samples_per_epoch
         # initialize datasets
-        eval_metric_ds = Postprocess.init_metric_ds(self.fcst_products, self.eval_metrics, nsamples, self.future_length)
+        eval_metric_ds = Postprocess.init_metric_ds(self.fcst_products, self.eval_metrics, self.vars_in[self.channel],
+                                                    nsamples, self.future_length)
 
         while sample_ind < self.num_samples_per_epoch:
             # get normalized and denormalized input data
@@ -542,8 +543,8 @@ class Postprocess(TrainModel):
         it = init_times_metric[ind_start:ind_start+self.batch_size]
         for fcst_prod in self.fcst_products.keys():
             for imetric, eval_metric in enumerate(self.eval_metrics):
-                metric_name = "{0}_{1}".format(fcst_prod, eval_metric)
-                varname_fcst = "{0}_{1}".format(varname, self.fcst_products[fcst_prod])
+                metric_name = "{0}_{1}_{2}".format(varname, fcst_prod, eval_metric)
+                varname_fcst = "{0}_{1}_fcst".format(varname, fcst_prod)
                 metric_ds[metric_name].loc[dict(init_time=it)] = eval_metrics_func[imetric](data_ds[varname_fcst],
                                                                                             data_ds[varname_ref])
             # end of metric-loop
@@ -616,14 +617,14 @@ class Postprocess(TrainModel):
                                                                .reset_coords(names="varname", drop=True))
                               for ivar, var in enumerate(self.vars_in)])
 
-        data_mfcst_dict = dict([("{0}_mfcst".format(var), fcst_seq.isel(fcst_hour=slice(self.context_frames-1, None),
-                                                                        varname=ivar)
-                                                                  .reset_coords(names="varname", drop=True))
+        data_mfcst_dict = dict([("{0}_{1}_fcst".format(var, self.model),
+                                 fcst_seq.isel(fcst_hour=slice(self.context_frames-1, None), varname=ivar)
+                                         .reset_coords(names="varname", drop=True))
                                 for ivar, var in enumerate(self.vars_in)])
 
         # fill persistence forecast variables with dummy data (to be populated later)
-        data_pfcst_dict = dict([("{0}_pfcst".format(var), (["init_time", "fcst_hour", "lat", "lon"],
-                                                           np.full(shape_fcst, np.nan),))
+        data_pfcst_dict = dict([("{0}_persistence_fcst".format(var), (["init_time", "fcst_hour", "lat", "lon"],
+                                                                       np.full(shape_fcst, np.nan)))
                                 for ivar, var in enumerate(self.vars_in)])
 
         # create the dataset
@@ -646,7 +647,8 @@ class Postprocess(TrainModel):
         Postprocess.save_ds_to_netcdf(self.eval_metrics_ds, nc_fname)
 
         # create plots of evaluation metrics averaged over all forecasts
-        _ = self.plot_avg_eval_metrics(self.eval_metrics_ds, self.eval_metrics, self.fcst_products, self.results_dir)
+        _ = self.plot_avg_eval_metrics(self.eval_metrics_ds, self.eval_metrics, self.fcst_products,
+                                       self.vars_in[self.channel], self.results_dir)
 
     # auxiliary methods (not necessarily bound to class instance)
     @staticmethod
@@ -935,13 +937,14 @@ class Postprocess(TrainModel):
         return psnr
 
     @staticmethod
-    def plot_avg_eval_metrics(eval_ds, eval_metrics, fcst_prod_dict, out_dir):
+    def plot_avg_eval_metrics(eval_ds, eval_metrics, fcst_prod_dict, varname, out_dir):
         """
         Plots error-metrics averaged over all predictions to file incl. 90%-confidence interval that is estimated by
         block bootstrapping.
         :param eval_ds: The dataset storing all evaluation metrics for each forecast (produced by init_metric_ds-method)
         :param eval_metrics: list of evaluation metrics
         :param fcst_prod_dict: dictionary of forecast products, e.g. {"pfcst": "persistence forecast"}
+        :param varname: the variable name for which the evaluation metrics are available
         :param out_dir: output directory to save the lots
         :return: a bunch of plots as png-files
         """
@@ -970,7 +973,7 @@ class Postprocess(TrainModel):
             metric2plt = np.full((nmodels, nhours), np.nan)
             metric2plt_max, metric2plt_min = metric2plt.copy(), metric2plt.copy()
             for ifcst, fcst_prod in enumerate(fcst_prod_dict.keys()):
-                metric_name = "{0}_{1}".format(fcst_prod, metric)
+                metric_name = "{0}_{1}_{2}".format(varname, fcst_prod, metric)
                 try:
                     metric_data = eval_ds[metric_name]
                     metric_boot = perform_block_bootstrap_metric(metric_data, "init_time", block_length, nboots_block)
@@ -1044,17 +1047,17 @@ class Postprocess(TrainModel):
                 Postprocess.create_plot(data_fcst, data_diff, varname, plt_fname_base)
 
     @staticmethod
-    def init_metric_ds(fcst_products, eval_metrics, nsamples, nlead_steps):
+    def init_metric_ds(fcst_products, eval_metrics, varname, nsamples, nlead_steps):
         """
         Initializes dataset for storing evaluation metrics
         :param fcst_products: list of forecast products to be evaluated
         :param eval_metrics: list of forecast metrics to be calculated
+        :param varname: name of the variable for which metrics are calculated
         :param nsamples: total number of forecast samples
         :param nlead_steps: number of forecast steps
         :return: eval_metric_ds
         """
-
-        eval_metric_dict = dict([("{0}_{1}".format(*(fcst_prod, eval_met)), (["init_time", "fcst_hour"],
+        eval_metric_dict = dict([("{0}_{1}_{2}".format(varname ,*(fcst_prod, eval_met)), (["init_time", "fcst_hour"],
                                   np.full((nsamples, nlead_steps), np.nan)))
                                  for eval_met in eval_metrics for fcst_prod in fcst_products])
 
