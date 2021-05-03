@@ -994,6 +994,7 @@ class Postprocess(TrainModel):
 
             plt.xticks(hours)
             ax.set_ylim(0., None)
+            if metric == "psnr": ax.set_ylim(None, None)
             legend = ax.legend(loc="upper right", bbox_to_anchor=(1.15, 1))
             ax.set_xlabel("Lead time [hours]")
             ax.set_ylabel(metric.upper())
@@ -1142,8 +1143,8 @@ class Postprocess(TrainModel):
             else:
                 lon_lab = list(np.zeros(4))
             m.drawmapboundary()
-            m.drawparallels(np.arange(0,90,5),labels=lat_lab, xoffset=1.)
-            m.drawmeridians(np.arange(5,355,10),labels=lon_lab, yoffset=1.)
+            m.drawparallels(np.arange(0, 90, 5),labels=lat_lab, xoffset=1.)
+            m.drawmeridians(np.arange(5, 355, 10),labels=lon_lab, yoffset=1.)
             cs = m.contourf(x, y, data.isel(fcst_hour=t)-273.15, clevs, cmap=plt.get_cmap("jet"), ax=axes[t])
             cs_c_pos = m.contour(x, y, data_diff.isel(fcst_hour=t), clevs_diff, linewidths=0.5, ax=axes[t],
                                  colors="black")
