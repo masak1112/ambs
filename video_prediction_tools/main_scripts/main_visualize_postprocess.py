@@ -438,7 +438,7 @@ class Postprocess(TrainModel):
                 # get persistence forecast for sequences at hand and write to dataset
                 persistence_seq, _ = Postprocess.get_persistence(times_seq, self.input_dir_pkl)
                 for ivar, var in enumerate(self.vars_in):
-                    batch_ds["{0}_pfcst".format(var)].loc[dict(init_time=init_times[i])] = \
+                    batch_ds["{0}_persistence_fcst".format(var)].loc[dict(init_time=init_times[i])] = \
                         persistence_seq[self.context_frames-1:, :, :, ivar]
 
                 # save sequences to netcdf-file and track initial time
@@ -1015,10 +1015,10 @@ class Postprocess(TrainModel):
         """
         method = Postprocess.plot_example_forecasts.__name__
         
-        metric_name = "{0}_{1}".format(self.model, metric)
+        metric_name = "{0}_{1}_{2}".format(self.vars_in[channel], self.model, metric)
         if not metric_name in self.eval_metrics_ds:
             raise ValueError("%{0}: Cannot find requested evaluation metric '{1}'".format(method, metric_name) +
-                             "onto which selection of plotted forecast is done.")
+                             " onto which selection of plotted forecast is done.")
         # average metric of interest and obtain quantiles incl. indices
         metric_mean = self.eval_metrics_ds[metric_name].mean(dim="fcst_hour")
         quantiles = np.arange(0., 1.01, .1)
@@ -1035,7 +1035,7 @@ class Postprocess(TrainModel):
                 # get the data
                 varname = self.vars_in[channel]
                 with xr.open_dataset(nc_fname) as dfile:
-                    data_fcst = dfile["{0}_mfcst".format(varname)]
+                    data_fcst = dfile["{0}_{1}_fcst".format(varname, self.model)]
                     data_ref = dfile["{0}_ref".format(varname)]
 
                 data_diff = data_fcst - data_ref
