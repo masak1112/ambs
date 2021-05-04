@@ -1,24 +1,22 @@
+
+__email__ = "b.gong@fz-juelich.de"
+__author__ = "Bing Gong, Karim"
+__date__ = "2021-05-03"
+
+
 import argparse
-import sys
 import glob
-import itertools
 import os
-import pickle
 import random
-import re
 import numpy as np
 import json
 import tensorflow as tf
 from tensorflow.contrib.training import HParams
-from mpi4py import MPI
 from collections import OrderedDict
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
-from model_modules.video_prediction.datasets.base_dataset import VarLenFeatureVideoDataset
-import data_preprocess.process_netCDF_v2 
-from general_utils import get_unique_vars
-from statistics import Calc_data_stat 
-from metadata import MetaData
+from google.protobuf.json_format import MessageToDict
+
 
 class MovingMnist(object):
     def __init__(self, input_dir=None, datasplit_config=None, hparams_dict_config=None, mode="train",seed=None):
@@ -42,7 +40,10 @@ class MovingMnist(object):
         self.data_dict = self.get_datasplit()
         self.hparams_dict_config = hparams_dict_config
         self.hparams_dict = self.get_model_hparams_dict()
-        self.hparams = self.parse_hparams() 
+        self.hparams = self.parse_hparams()
+        self.get_tfrecords_filesnames_base_datasplit()
+        self.get_example_info()
+
 
 
     def get_datasplit(self):
@@ -78,6 +79,7 @@ class MovingMnist(object):
 
 
     def get_default_hparams_dict(self):
+
         """
         The function that contains default hparams
         Returns:
@@ -87,6 +89,7 @@ class MovingMnist(object):
             max_epochs      : the number of epochs to train model
             lr              : learning rate
             loss_fun        : the loss function
+        :return:
         """
         hparams = dict(
             context_frames=10,
@@ -100,97 +103,116 @@ class MovingMnist(object):
         return hparams
 
 
-
-
-
-   def get_tfrecords_filename_base_datasplit(self):
+    def get_tfrecords_filename_base_datasplit(self):
        """
        Get obsoluate .tfrecords names based on the data splits patterns
        """
        self.filenames = []
        self.data_mode = self.data_dict[self.mode]
        self.tf_names = []
+       self.all_filenames = glob.glob(os.path.join(self.input_dir,"*.tfrecords"))
        for indice_group, index in self.data_mode.items():
            for indice in index:
-                     
+               max_val = indice[1]
+               min_val = indice[0]
+               fs = [MovingMnist.string_filter(max_val=max_val, min_val=min_val, string=s) for s in self.all_filenames]
+               self.tf_names.append(self.all_filenames[fs])
+
+       # look for tfrecords in input_dir and input_dir/mode directories
+       for files in self.tf_names:
+            self.filenames.extend(glob.glob(os.path.join(self.input_dir, files)))
+       if self.filenames:
+           self.filenames = sorted(self.filenames)  # ensures order is the same across systems
+       if not self.filenames:
+           raise FileNotFoundError('No tfrecords were found in %s' % self.input_dir)
 
 
+    @staticmethod
+    def string_filter(max_value=None, min_value=None, string="input_directory/sequence_index_0_index_10.tfrecords"):
 
+        a = os.path.split(string)[1].split("_")
+        min_index = int(a[2])
+        max_index = int(a[4])
+        if min_index >= min_value and max_index <= max_value:
+            return True
+        else:
+            return False
 
-
-
-
-
-
-
-
-
-
+    def get_example_info(self):
+        """
+         Get the data information from tfrecord file
+        """
+        example = next(tf.python_io.tf_record_iterator(self.filenames[0]))
+        dict_message = MessageToDict(tf.train.Example.FromString(example))
+        feature = dict_message['features']['feature']
+        print("features in dataset:",feature.keys())
+        self.video_shape = tuple(int(feature[key]['int64List']['value'][0]) for key in ['sequence_length','height', 'width', 'channels'])
+        self.image_shape = self.video_shape[1:]
 
 
     def num_examples_per_epoch(self):
-        with open(os.path.join(self.input_dir, 'number_squences.txt'), 'r') as sequence_lengths_file:
-            sequence_lengths = sequence_lengths_file.readlines()
+        """
+        Calculate how many tfrecords samples in the train/val/test
+        """
+        #count how many tfrecords files for train/val/testing
+        len_fnames = len(self.filenames)
+        seq_len_file = os.path.join(self.input_dir, 'number_sequences.txt')
+        with open(seq_len_file, 'r') as sequence_lengths_file:
+             sequence_lengths = sequence_lengths_file.readlines()
         sequence_lengths = [int(sequence_length.strip()) for sequence_length in sequence_lengths]
-        return np.sum(np.array(sequence_lengths) >= self.hparams.sequence_length)
+        self.num_examples_per_epoch  = len_fnames * sequence_lengths[0]
+        return self.num_examples_per_epoch
 
-    def filter(self, serialized_example):
-        return tf.convert_to_tensor(True)
 
-    def make_dataset_v2(self, batch_size):
+
+    def make_dataset(self, batch_size):
+        """
+        Prepare batch_size dataset fed into to the models.
+        If the data are from training dataset,then the data is shuffled;
+        If the data are from val dataset, the shuffle var will be decided by the hparams.shuffled_on_val;
+        if the data are from test dataset, the data will not be shuffled
+        args:
+              batch_size: int, the size of samples fed into the models per iteration
+        """
+        self.num_epochs = self.hparams.max_epochs
         def parser(serialized_example):
             seqs = OrderedDict()
             keys_to_features = {
-                'width': tf.FixedLenFeature([], tf.int64),
-                'height': tf.FixedLenFeature([], tf.int64),
-                'sequence_length': tf.FixedLenFeature([], tf.int64),
-                'channels': tf.FixedLenFeature([], tf.int64),
-                'images/encoded': tf.VarLenFeature(tf.float32)
-            }
-            
-            # for i in range(20):
-            #     keys_to_features["frames/{:04d}".format(i)] = tf.FixedLenFeature((), tf.string)
+                 'width': tf.FixedLenFeature([], tf.int64),
+                 'height': tf.FixedLenFeature([], tf.int64),
+                 'sequence_length': tf.FixedLenFeature([], tf.int64),
+                 'channels': tf.FixedLenFeature([],tf.int64),
+                 'images/encoded': tf.VarLenFeature(tf.float32)
+             }
             parsed_features = tf.parse_single_example(serialized_example, keys_to_features)
-            print ("Parse features", parsed_features)
             seq = tf.sparse_tensor_to_dense(parsed_features["images/encoded"])
-            #width = tf.sparse_tensor_to_dense(parsed_features["width"])
-           # height = tf.sparse_tensor_to_dense(parsed_features["height"])
-           # channels  = tf.sparse_tensor_to_dense(parsed_features["channels"])
-           # sequence_length = tf.sparse_tensor_to_dense(parsed_features["sequence_length"])
-            images = []
             print("Image shape {}, {},{},{}".format(self.video_shape[0],self.image_shape[0],self.image_shape[1], self.image_shape[2]))
             images = tf.reshape(seq, [self.video_shape[0],self.image_shape[0],self.image_shape[1], self.image_shape[2]], name = "reshape_new")
             seqs["images"] = images
             return seqs
         filenames = self.filenames
-      
         shuffle = self.mode == 'train' or (self.mode == 'val' and self.hparams.shuffle_on_val)
         if shuffle:
             random.shuffle(filenames)
-        dataset = tf.data.TFRecordDataset(filenames, buffer_size = 8* 1024 * 1024)  # todo: what is buffer_size
-        print("files", self.filenames)
-        print("mode", self.mode)
-        dataset = dataset.filter(self.filter)
+        dataset = tf.data.TFRecordDataset(filenames, buffer_size = 8* 1024 * 1024)
         if shuffle:
-            dataset = dataset.apply(tf.contrib.data.shuffle_and_repeat(buffer_size =1024, count = self.num_epochs))
+            dataset = dataset.apply(tf.contrib.data.shuffle_and_repeat(buffer_size =1024, count=self.num_epochs))
         else:
             dataset = dataset.repeat(self.num_epochs)
-        
+        if self.mode == "val": dataset = dataset.repeat(20)
         num_parallel_calls = None if shuffle else 1
         dataset = dataset.apply(tf.contrib.data.map_and_batch(
             parser, batch_size, drop_remainder=True, num_parallel_calls=num_parallel_calls))
-        #dataset = dataset.map(parser)
-        # num_parallel_calls = None if shuffle else 1  # for reproducibility (e.g. sampled subclips from the test set)
-        # dataset = dataset.apply(tf.contrib.data.map_and_batch(
-        #    _parser, batch_size, drop_remainder=True, num_parallel_calls=num_parallel_calls)) #  Bing: Parallel data mapping, num_parallel_calls normally depends on the hardware, however, normally should be equal to be the usalbe number of CPUs
-        dataset = dataset.prefetch(batch_size)  # Bing: Take the data to buffer inorder to save the waiting time for GPU
+        dataset = dataset.prefetch(batch_size)
         return dataset
 
-
     def make_batch(self, batch_size):
-        dataset = self.make_dataset_v2(batch_size)
+        dataset = self.make_dataset(batch_size)
         iterator = dataset.make_one_shot_iterator()
         return iterator.get_next()
+
+
+
 
 def _bytes_feature(value):
     return tf.train.Feature(bytes_list=tf.train.BytesList(value=[value]))
@@ -222,27 +244,7 @@ def save_tf_record(output_fname, sequences):
             example = tf.train.Example(features=features)
             writer.write(example.SerializeToString())
 
-def read_frames_and_save_tf_records(output_dir,dat_npz, seq_length=20, sequences_per_file=128, height=64, width=64):#Bing: original 128
-    """
-    Read the moving_mnst data which is npz format, and save it to tfrecords files
-    The shape of dat_npz is [seq_length,number_samples,height,width]
-    moving_mnst only has one channel
 
-    """
-    os.makedirs(output_dir,exist_ok=True)
-    idx = 0
-    num_samples = dat_npz.shape[1]
-    dat_npz = np.expand_dims(dat_npz, axis=4) #add one dim to represent channel, then got [seq_length,num_samples,height,width,channel]
-    print("data_npz_shape",dat_npz.shape)
-    dat_npz = dat_npz.astype(np.float32)
-    dat_npz /= 255.0 #normalize RGB codes by dividing it to the max RGB value 
-    while idx < num_samples - sequences_per_file:
-        sequences = dat_npz[:,idx:idx+sequences_per_file,:,:,:]
-        output_fname = 'sequence_{}_{}.tfrecords'.format(idx,idx+sequences_per_file)
-        output_fname = os.path.join(output_dir, output_fname)
-        save_tf_record(output_fname, sequences)
-        idx = idx + sequences_per_file
-    return None
 
 
 def write_sequence_file(output_dir,seq_length,sequences_per_file):    
