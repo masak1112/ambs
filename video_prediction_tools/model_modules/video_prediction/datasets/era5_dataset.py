@@ -1,4 +1,3 @@
-
 __email__ = "b.gong@fz-juelich.de"
 __author__ = "Bing Gong, Scarlet Stadtler,Michael Langguth"
 
@@ -19,7 +18,7 @@ class ERA5Dataset(object):
         """
         This class is used for preparing data for training/validation and test models
         args:
-            input_dir            : the upper level path of trrecords files
+            input_dir            : the path of tfrecords files
             datasplit_config     : the path pointing to the datasplit_config json file
             hparams_dict_config  : the path to the dict that contains hparameters,
             mode                 : string, "train","val" or "test"
@@ -27,14 +26,13 @@ class ERA5Dataset(object):
         """
        # super(ERA5Dataset, self).__init__(**kwargs)
         self.input_dir = input_dir
-        self.input_dir_tfrecords = os.path.join(self.input_dir,"tfrecords")
         self.datasplit_config = datasplit_config
         self.mode = mode
         self.seed = seed
         if self.mode not in ('train', 'val', 'test'):
             raise ValueError('Invalid mode %s' % self.mode)
-        if not os.path.exists(self.input_dir_tfrecords):
-            raise FileNotFoundError("input_dir %s does not exist" % self.input_dir_tfrecords)
+        if not os.path.exists(self.input_dir):
+            raise FileNotFoundError("input_dir %s does not exist" % self.input_dir)
         self.datasplit_dict_path = datasplit_config
         self.data_dict = self.get_datasplit()
         self.hparams_dict_config = hparams_dict_config
@@ -109,11 +107,11 @@ class ERA5Dataset(object):
                 self.tf_names.append(tf_files)
         # look for tfrecords in input_dir and input_dir/mode directories
         for files in self.tf_names:
-            self.filenames.extend(glob.glob(os.path.join(self.input_dir_tfrecords, files)))
+            self.filenames.extend(glob.glob(os.path.join(self.input_dir, files)))
         if self.filenames:
             self.filenames = sorted(self.filenames)  # ensures order is the same across systems
         if not self.filenames:
-            raise FileNotFoundError('No tfrecords were found in %s' % self.input_dir_tfrecords)
+            raise FileNotFoundError('No tfrecords were found in %s' % self.input_dir)
 
 
     def get_example_info(self):
@@ -133,7 +131,7 @@ class ERA5Dataset(object):
         """
         #count how many tfrecords files for train/val/testing
         len_fnames = len(self.filenames)
-        seq_len_file = os.path.join(self.input_dir,"tfrecords", 'sequence_lengths.txt')
+        seq_len_file = os.path.join(self.input_dir, 'number_sequences.txt')
         with open(seq_len_file, 'r') as sequence_lengths_file:
              sequence_lengths = sequence_lengths_file.readlines()
         sequence_lengths = [int(sequence_length.strip()) for sequence_length in sequence_lengths]
@@ -181,6 +179,7 @@ class ERA5Dataset(object):
             dataset = dataset.apply(tf.contrib.data.shuffle_and_repeat(buffer_size =1024, count = self.num_epochs))
         else:
             dataset = dataset.repeat(self.num_epochs)
+        if self.mode == "val": dataset = dataset.repeat(20)
         num_parallel_calls = None if shuffle else 1
         dataset = dataset.apply(tf.contrib.data.map_and_batch(
             parser, batch_size, drop_remainder=True, num_parallel_calls=num_parallel_calls))

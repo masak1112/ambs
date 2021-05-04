@@ -26,9 +26,8 @@ from model_modules.video_prediction.utils import tf_utils
 
 class TrainModel(object):
     def __init__(self, input_dir=None, output_dir=None, datasplit_dict=None,
-                       model_hparams_dict=None, model=None,
-                       checkpoint=None, dataset=None,
-                       gpu_mem_frac=None, seed=None, args=None, save_interval=20):
+                 model_hparams_dict=None, model=None, checkpoint=None, dataset=None,
+                 gpu_mem_frac=None, seed=None, args=None, save_diag_intv=20, save_model_intv = 1000):
         
         """
         This class aims to train the models
@@ -43,10 +42,12 @@ class TrainModel(object):
             dataset              : str, dataset class name
             model                : str, model class name
             gpu_mem_frac         : float, fraction of gpu memory to use
-            save_interval        : int, how many steps for saving the train/val loss be saved
+            save_diag_intv    : int, interval of iteration steps for which the loss is saved and for which a new
+                                   loss curve is plotted
+            save_model_intv      : int, interval of iteration for which the model is checkpointed
         """ 
-        self.input_dir = input_dir
-        self.output_dir = output_dir
+        self.input_dir = os.path.normpath(input_dir)
+        self.output_dir = os.path.normpath(output_dir)
         self.datasplit_dict = datasplit_dict
         self.model_hparams_dict = model_hparams_dict
         self.checkpoint = checkpoint
@@ -55,7 +56,9 @@ class TrainModel(object):
         self.gpu_mem_frac = gpu_mem_frac
         self.seed = seed
         self.args = args
-        self.save_interval = save_interval
+        # for diagnozing and saving the model during training
+        self.save_diag_intv = save_diag_intv
+        self.save_model_intv = save_model_intv
 
     def setup(self):
         self.set_seed()
@@ -282,6 +285,7 @@ class TrainModel(object):
             # start at one step earlier to log everything without doing any training
             # step is relative to the start_step
             train_losses, val_losses = self.restore_train_val_losses()
+            time_per_iteration = []
             run_start_time = time.time()
             for step in range(self.start_step,self.total_steps):
                 timeit_start = time.time()
@@ -296,10 +300,12 @@ class TrainModel(object):
                 val_losses.append(self.val_results["total_loss"])
                 self.write_to_summary()
                 self.print_results(step,self.results)
-                self.saver.save(sess, os.path.join(self.output_dir, "model"), global_step=step)
                 timeit_end = time.time()
+                time_per_iteration.append(timeit_end - timeit_start)
                 print("time needed for this step", timeit_end - timeit_start, ' s')
-                if step % self.save_interval == 0:
+                if step % self.save_model_intv == 0:
+                    self.saver.save(sess, os.path.join(self.output_dir, "model"), global_step=step)
+                if step % self.save_diag_intv == 0:
                     # I save the pickle file and plot here inside the loop in case the training process cannot finished after job is done.
                     TrainModel.save_results_to_pkl(train_losses,val_losses,self.output_dir)
                     TrainModel.plot_train(train_losses,val_losses,step,self.output_dir)
@@ -313,6 +319,8 @@ class TrainModel(object):
             print("val_losses:",val_losses) 
             print("Done")
             print("Total training time:", train_time/60., "min")
+            return train_time, time_per_iteration
+            
  
     def create_fetches_for_train(self):
        """
@@ -398,8 +406,8 @@ class TrainModel(object):
             print("Total_loss:{}; latent_losses:{}; reconst_loss:{}".format(results["total_loss"],results["latent_loss"],results["recon_loss"]))
         else:
             print ("The model name does not exist")
-
-
+    
+            
     @staticmethod
     def plot_train(train_losses,val_losses,step,output_dir):
         """
@@ -411,10 +419,12 @@ class TrainModel(object):
         """ 
    
         iterations = list(range(len(train_losses)))
-        if len(train_losses) != len(val_losses) or len(train_losses) != step +1 : 
-            raise ValueError("The length of training losses must be equal to the length of val losses and  step +1 !")  
+        if len(train_losses) != len(val_losses): 
+            raise ValueError("The length of training losses must be equal to the length of val losses!")  
         plt.plot(iterations, train_losses, 'g', label='Training loss')
         plt.plot(iterations, val_losses, 'b', label='validation loss')
+        plt.ylim(10**-5, 10**2)
+        plt.yscale("log")
         plt.title('Training and Validation loss')
         plt.xlabel('Iterations')
         plt.ylabel('Loss')
@@ -433,7 +443,23 @@ class TrainModel(object):
             pkl.dump(train_losses,f)
          with open(os.path.join(output_dir,"val_losses.pkl"),"wb") as f:
             pkl.dump(val_losses,f) 
- 
+
+    @staticmethod
+    def save_timing_to_pkl(total_time,training_time,time_per_iteration, output_dir):
+         with open(os.path.join(output_dir,"timing_total_time.pkl"),"wb") as f:
+            pkl.dump(total_time,f)
+         with open(os.path.join(output_dir,"timing_training_time.pkl"),"wb") as f:
+            pkl.dump(training_time,f)
+         with open(os.path.join(output_dir,"timing_per_iteration_time.pkl"),"wb") as f:
+            pkl.dump(time_per_iteration,f)
+    
+    @staticmethod        
+    def save_loss_per_iteration_to_pkl(loss_per_iteration_train,loss_per_iteration_val, output_dir):
+        with open(os.path.join(output_dir,"loss_per_iteration_train.pkl"),"wb") as f:
+            pkl.dump(loss_per_iteration_train,f)
+        with open(os.path.join(output_dir,"loss_per_iteration_val.pkl"),"wb") as f:
+            pkl.dump(loss_per_iteration_val,f)
+
 
 def main():
     parser = argparse.ArgumentParser()
@@ -451,7 +477,8 @@ def main():
     parser.add_argument("--gpu_mem_frac", type=float, default=0.99, help="fraction of gpu memory to use")
     parser.add_argument("--seed",default=1234, type=int)
     args = parser.parse_args()
-    
+    # start timing for the whole run
+    timeit_start_total_time = time.time()  
     #create a training instance
     train_case = TrainModel(input_dir=args.input_dir,output_dir=args.output_dir,datasplit_dict=args.datasplit_dict,
                  model_hparams_dict=args.model_hparams_dict,model=args.model,checkpoint=args.checkpoint,dataset=args.dataset,
@@ -466,7 +493,10 @@ def main():
     train_case.setup() 
  
     # train model
-    train_case.train_model()
+    train_time, time_per_iteration = train_case.train_model()
        
+    total_run_time = time.time() - timeit_start_total_time
+    train_case.save_timing_to_pkl(total_run_time, train_time, time_per_iteration, args.output_dir)
+    
 if __name__ == '__main__':
     main()

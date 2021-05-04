@@ -6,9 +6,9 @@
 #SBATCH --cpus-per-task=1
 #SBATCH --output=train_era5-out.%j
 #SBATCH --error=train_era5-err.%j
-#SBATCH --time=00:20:00
-#SBATCH --gres=gpu:2
-#SBATCH --partition=develgpus
+#SBATCH --time=20:00:00
+#SBATCH --gres=gpu:1
+#SBATCH --partition=gpus
 #SBATCH --mail-type=ALL
 #SBATCH --mail-user=b.gong@fz-juelich.de
 ##jutil env activate -p cjjsc42
@@ -19,7 +19,7 @@ exit 99
 ######### Template identifier (don't remove) #########
 
 # Name of virtual environment 
-VIRT_ENV_NAME="vp"
+VIRT_ENV_NAME="my_venv"
 
 # Loading mouldes
 source ../env_setup/modules_train.sh
@@ -34,7 +34,7 @@ if [ -z ${VIRTUAL_ENV} ]; then
    fi
 fi
 
-# declare directory-variables which will be modified appropriately during Preprocessing (invoked by mpi_split_data_multi_years.py)
+# declare directory-variables which will be modified by config_runscript.py
 source_dir=/p/project/deepacf/deeprain/video_prediction_shared_folder/preprocessedData/
 destination_dir=/p/project/deepacf/deeprain/video_prediction_shared_folder/models/
 
@@ -43,9 +43,14 @@ destination_dir=/p/project/deepacf/deeprain/video_prediction_shared_folder/model
 model=convLSTM
 datasplit_dict=../data_split/cv_test.json
 model_hparams=${destination_dir}/model_hparams.json
+dataset=era5
+
+#If you train savp, Please uncomment the following CUDA configuration
+#CUDA_VISIBLE_DEVICES=1
 
 # run training
-srun python ../main_scripts/main_train_models.py --input_dir  ${source_dir} --datasplit_dict ${datasplit_dict} --dataset era5  --model ${model} --model_hparams_dict ${model_hparams} --output_dir ${destination_dir}
+srun python ../main_scripts/main_train_models.py --input_dir  ${source_dir} --datasplit_dict ${datasplit_dict} \
+ --dataset ${dataset}  --model ${model} --model_hparams_dict ${model_hparams} --output_dir ${destination_dir}
 
 
 

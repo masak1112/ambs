@@ -7,10 +7,11 @@
 #SBATCH --cpus-per-task=1
 #SBATCH --output=data_extraction_era5-out.%j
 #SBATCH --error=data_extraction_era5-err.%j
-#SBATCH --time=00:20:00
-#SBATCH --partition=devel
+#SBATCH --time=04:20:00
+#SBATCH --partition=batch
+#SBATCH --gres=gpu:0
 #SBATCH --mail-type=ALL
-#SBATCH --mail-user=b.gong@fz-juelich.de
+#SBATCH --mail-user=me@somewhere.com
 
 ######### Template identifier (don't remove) #########
 echo "Do not run the template scripts"
@@ -20,10 +21,10 @@ exit 99
 jutil env activate -p deepacf
 
 # Name of virtual environment 
-VIRT_ENV_NAME="virt_env_hdfml"
+VIRT_ENV_NAME="my_venv"
 
 # Loading mouldes
-source ../env_setup/modules_preprocess.sh
+source ../env_setup/modules_data_extraction.sh
 # Activate virtual environment if needed (and possible)
 if [ -z ${VIRTUAL_ENV} ]; then
    if [[ -f ../${VIRT_ENV_NAME}/bin/activate ]]; then
@@ -35,16 +36,16 @@ if [ -z ${VIRTUAL_ENV} ]; then
    fi
 fi
 
-# Declare path-variables
-source_dir="/p/fastdata/slmet/slmet111/met_data/ecmwf/era5/nc/"
-dest_dir="/p/scratch/deepacf/video_prediction_shared_folder/extractedData/"
+# Declare path-variables (dest_dir will be set and configured automatically via generate_runscript.py)
+source_dir=/my/path/to/era5
+destination_dir=/my/path/to/extracted/data
+varmap_file=/my/path/to/varmapping/file
 
-year="2010"
+years=( "2015" )
 
 # Run data extraction
-srun python ../main_scripts/main_data_extraction.py  --source_dir ${source_dir}/${year}/ --destination_dir ${dest_dir}/${year}/
-
-
-
-# 2tier pystager 
-#srun python ../../workflow_parallel_frame_prediction/DataExtraction/main_single_master.py --source_dir /p/fastdata/slmet/slmet111/met_data/ecmwf/era5/nc/${year}/ --destination_dir ${SAVE_DIR}/extractedData/${year}
+for year in "${years[@]}"; do
+  echo "Perform ERA5-data extraction for year ${year}"
+  srun python ../main_scripts/main_data_extraction.py  --source_dir ${source_dir} --target_dir ${destination_dir} \
+                                                       --year ${year} --varslist_path ${varmap_file}
+done
