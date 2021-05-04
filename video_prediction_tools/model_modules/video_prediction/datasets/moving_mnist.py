@@ -227,58 +227,6 @@ def _floats_feature(value):
 def _int64_feature(value):
     return tf.train.Feature(int64_list=tf.train.Int64List(value=[value]))
 
-def save_tf_record(output_fname, sequences):
-    with tf.python_io.TFRecordWriter(output_fname) as writer:
-        for i in range(len(sequences)):
-            sequence = sequences[:,i,:,:,:] 
-            num_frames = len(sequence)
-            height, width = sequence[0,:,:,0].shape
-            encoded_sequence = np.array([list(image) for image in sequence])
-            features = tf.train.Features(feature={
-                'sequence_length': _int64_feature(num_frames),
-                'height': _int64_feature(height),
-                'width': _int64_feature(width),
-                'channels': _int64_feature(1),
-                'images/encoded': _floats_feature(encoded_sequence.flatten()),
-            })
-            example = tf.train.Example(features=features)
-            writer.write(example.SerializeToString())
-
-
-
-
-def write_sequence_file(output_dir,seq_length,sequences_per_file):    
-    partition_names = ["train","val","test"]
-    for partition_name in partition_names:
-        save_output_dir = os.path.join(output_dir,partition_name)
-        tfCounter = len(glob.glob1(save_output_dir,"*.tfrecords"))
-        print("Partition_name: {}, number of tfrecords: {}".format(partition_name,tfCounter))
-        sequence_lengths_file = open(os.path.join(save_output_dir, 'sequence_lengths.txt'), 'w')
-        for i in range(tfCounter*sequences_per_file):
-            sequence_lengths_file.write("%d\n" % seq_length)
-        sequence_lengths_file.close()
-
-
-def plot_seq_imgs(imgs,output_png_dir,idx,label="Ground Truth"):
-    """
-    Plot the seq images 
-    """
-
-    if len(np.array(imgs).shape)!=3:raise("img dims should be three: (seq_len,lat,lon)")
-    img_len = imgs.shape[0]
-    fig = plt.figure(figsize=(18,6))
-    gs = gridspec.GridSpec(1, 10)
-    gs.update(wspace = 0., hspace = 0.)
-    for i in range(img_len):
-        ax1 = plt.subplot(gs[i])
-        plt.imshow(imgs[i] ,cmap = 'jet')
-        plt.setp([ax1], xticks = [], xticklabels = [], yticks = [], yticklabels = [])
-    plt.savefig(os.path.join(output_png_dir, label + "_" +   str(idx) +  ".jpg"))
-    print("images_saved")
-    plt.clf()
-
-
-    
     
 def main():
     parser = argparse.ArgumentParser()
@@ -301,14 +249,7 @@ def main():
     dat_train = data[:,:6000,:,:]
     dat_val = data[:,6000:7000,:,:]
     dat_test = data[:,7000:,:]
-    #plot_seq_imgs(dat_test[10:,0,:,:],output_png_dir="/p/project/deepacf/deeprain/video_prediction_shared_folder/results/moving_mnist/convLSTM",idx=1,label="Ground Truth from npz")
-    #save train
-    #read_frames_and_save_tf_records(os.path.join(args.output_dir,"train"),dat_train, seq_length=20, sequences_per_file=40, height=height, width=width)
-    #save val
-    #read_frames_and_save_tf_records(os.path.join(args.output_dir,"val"),dat_val, seq_length=20, sequences_per_file=40, height=height, width=width)
-    #save test     
-    #read_frames_and_save_tf_records(os.path.join(args.output_dir,"test"),dat_test, seq_length=20, sequences_per_file=40, height=height, width=width)
-    #write_sequence_file(output_dir=args.output_dir,seq_length=20,sequences_per_file=40)
+
 if __name__ == '__main__':
      main()
 
