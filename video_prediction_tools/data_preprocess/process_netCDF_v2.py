@@ -165,7 +165,7 @@ class PreprocessNcToPkl(object):
         # write times to pickle-file incl. conversion to datetime-object
         try:
             time = self.data.coords["time"]
-            time = np.array([dt.datetime.strptime(np.datetime_as_string(date, "m")[0], "%Y-%m-%dT%H:%M") for date in time])
+            time = np.array([dt.datetime.strptime(np.datetime_as_string(date, "m"), "%Y-%m-%dT%H:%M") for date in time])
             with open(tar_ftimes, "wb") as tpkl_file:
                 pickle.dump(time, tpkl_file)
         except Exception as err:
