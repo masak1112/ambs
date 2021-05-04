@@ -21,24 +21,112 @@ from statistics import Calc_data_stat
 from metadata import MetaData
 
 class MovingMnist(object):
-    def __init__(self, *args, **kwargs):
-        super(MovingMnist, self).__init__(*args, **kwargs)
-        self.video_shape = tuple(int(feature[key]['int64List']['value'][0]) for key in ['sequence_length','height', 'width', 'channels'])
-        self.image_shape = self.video_shape[1:]
-        self.state_like_names_and_shapes['images'] = 'images/encoded', self.image_shape
+    def __init__(self, input_dir=None, datasplit_config=None, hparams_dict_config=None, mode="train",seed=None):
+        """
+        This class is used for preparing the data for moving mnist, and split the data to train/val/testing
+        :params input_dir: the path of tfrecords files 
+        :params datasplit_config: the path pointing to the datasplit_config json file
+        :params hparams_dict_config: the path to the dict that contains hparameters
+        :params mode: string, "train","val" or "test"
+        :params seed:int, the seed for dataset 
+        :return None
+        """
+        self.input_dir = input_dir
+        self.mode = mode 
+        self.seed = seed
+        if self.mode not in ('train', 'val', 'test'):
+            raise ValueError('Invalid mode %s' % self.mode)
+        if not os.path.exists(self.input_dir):
+            raise FileNotFoundError("input_dir %s does not exist" % self.input_dir)
+        self.datasplit_dict_path = datasplit_config
+        self.data_dict = self.get_datasplit()
+        self.hparams_dict_config = hparams_dict_config
+        self.hparams_dict = self.get_model_hparams_dict()
+        self.hparams = self.parse_hparams() 
+
+
+    def get_datasplit(self):
+        """
+        Get the datasplit json file
+        """
+        with open(self.datasplit_dict_path) as f:
+            self.d = json.load(f)
+        return self.d
+
+
+
+    def get_model_hparams_dict(self):
+        """
+        Get model_hparams_dict from json file
+        """
+        self.model_hparams_dict_load = {}
+        if self.hparams_dict_config:
+            with open(self.hparams_dict_config) as f:
+                self.model_hparams_dict_load.update(json.loads(f.read()))
+        return self.model_hparams_dict_load
+
+                     
+    def parse_hparams(self):
+        """
+        Parse the hparams setting to ovoerride the default ones
+        """
+        parsed_hparams = self.get_default_hparams().override_from_dict(self.hparams_dict or {})
+        return parsed_hparams
+
+    def get_default_hparams(self):
+        return HParams(**self.get_default_hparams_dict())
+
 
     def get_default_hparams_dict(self):
-        default_hparams = super(MovingMnist, self).get_default_hparams_dict()
+        """
+        The function that contains default hparams
+        Returns:
+            A dict with the following hyperparameters.
+            context_frames  : the number of ground-truth frames to pass in at start.
+            sequence_length : the number of frames in the video sequence 
+            max_epochs      : the number of epochs to train model
+            lr              : learning rate
+            loss_fun        : the loss function
+        """
         hparams = dict(
-            context_frames=10,#Bing: Todo oriignal is 10
-            sequence_length=20,#bing: TODO original is 20,
-            shuffle_on_val=True, 
+            context_frames=10,
+            sequence_length=20,
+            max_epochs = 20,
+            batch_size = 40,
+            lr = 0.001,
+            loss_fun = "rmse",
+            shuffle_on_val= True,
         )
-        return dict(itertools.chain(default_hparams.items(), hparams.items()))
+        return hparams
 
-    @property
-    def jpeg_encoding(self):
-        return False
+
+
+
+
+   def get_tfrecords_filename_base_datasplit(self):
+       """
+       Get obsoluate .tfrecords names based on the data splits patterns
+       """
+       self.filenames = []
+       self.data_mode = self.data_dict[self.mode]
+       self.tf_names = []
+       for indice_group, index in self.data_mode.items():
+           for indice in index:
+                     
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
     def num_examples_per_epoch(self):
         with open(os.path.join(self.input_dir, 'number_squences.txt'), 'r') as sequence_lengths_file:
