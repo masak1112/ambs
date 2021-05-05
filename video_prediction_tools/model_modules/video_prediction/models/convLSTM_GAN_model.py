@@ -155,7 +155,7 @@ class ConvLstmGANVideoPredictionModel(object):
         """
         with tf.variable_scope("discriminator",reuse=tf.AUTO_REUSE):
             layer_disc = self.convLSTM_network(image)
-            layer_disc = layer_disc[:,self.context_frames-1:,:,:, 0:1]
+            layer_disc = layer_disc[:,self.context_frames-1:self.context_frames,:,:, 0:1]
         return layer_disc
 
 
@@ -179,7 +179,7 @@ class ConvLstmGANVideoPredictionModel(object):
             z_dim     : the dimension of the noise vector, a scalar
         Return the loss of generator given inputs
         """
-        real_labels = tf.ones_like(self.gen_images[:,self.context_frames-1:,:,:,0:1])
+        real_labels = tf.ones_like(self.gen_images[:,self.context_frames-1:self.context_frames,:,:,0:1])
         self.G_loss = tf.reduce_mean(tf.nn.sigmoid_cross_entropy_with_logits(logits=self.D_fake, labels=real_labels))
         return self.G_loss         
    
