@@ -178,7 +178,7 @@ class TrainModel(object):
         self.inputs = self.iterator.get_next()
         #since era5 tfrecords include T_start, we need to remove it from the tfrecord when we train the model,
         # otherwise the model will raise error
-        if self.dataset == "era5" and self.model == "savp":
+        if self.dataset == "era5" and self.model == "savp" or self.model == 'ours_gan':
            del self.inputs["T_start"]
 
 
