@@ -15,7 +15,7 @@ from google.protobuf.json_format import MessageToDict
 
 class KTHVideoDataset(object):
     def __init__(self,input_dir=None,datasplit_config=None,hparams_dict_config=None, mode='train',seed=None):
-       """
+        """
         This class is used for preparing data for training/validation and test models
         args:
             input_dir            : the path of tfrecords files
@@ -24,7 +24,6 @@ class KTHVideoDataset(object):
             mode                 : string, "train","val" or "test"
             seed                 : int, the seed for dataset 
         """
-       # super(ERA5Dataset, self).__init__(**kwargs)
         self.input_dir = input_dir
         self.datasplit_config = datasplit_config
         self.mode = mode
