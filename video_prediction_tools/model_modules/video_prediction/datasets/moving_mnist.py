@@ -4,17 +4,14 @@ __author__ = "Bing Gong, Karim"
 __date__ = "2021-05-03"
 
 
-import argparse
+
 import glob
 import os
 import random
-import numpy as np
 import json
 import tensorflow as tf
 from tensorflow.contrib.training import HParams
 from collections import OrderedDict
-import matplotlib.pyplot as plt
-import matplotlib.gridspec as gridspec
 from google.protobuf.json_format import MessageToDict
 
 
@@ -164,7 +161,6 @@ class MovingMnist(object):
         return self.num_examples_per_epoch
 
 
-
     def make_dataset(self, batch_size):
         """
         Prepare batch_size dataset fed into to the models.
@@ -211,9 +207,6 @@ class MovingMnist(object):
         iterator = dataset.make_one_shot_iterator()
         return iterator.get_next()
 
-
-
-
 def _bytes_feature(value):
     return tf.train.Feature(bytes_list=tf.train.BytesList(value=[value]))
 
@@ -227,29 +220,8 @@ def _floats_feature(value):
 def _int64_feature(value):
     return tf.train.Feature(int64_list=tf.train.Int64List(value=[value]))
 
-    
-def main():
-    parser = argparse.ArgumentParser()
-    parser.add_argument("input_dir", type=str, help="directory containing the processed directories ""boxing, handclapping, handwaving, ""jogging, running, walking")
-    parser.add_argument("output_dir", type=str)
-    parser.add_argument("-sequences_per_file",type=int,default=2)
-    args = parser.parse_args()
-    current_path = os.getcwd()
-    data = np.load(os.path.join(args.input_dir,"mnist_test_seq.npy"))
-    print("data in minist_test_Seq shape",data.shape)
-    seq_length =  data.shape[0]
-    height = data.shape[2]
-    width = data.shape[3]
-    num_samples = data.shape[1] 
-    max_npz = np.max(data)
-    min_npz = np.min(data)
-    print("max_npz,",max_npz)
-    print("min_npz",min_npz)
-    #Todo need to discuss how to split the data, since we have totally 10000 samples, the origin paper convLSTM used 10000 as training, 2000 as validation and 3000 for testing
-    dat_train = data[:,:6000,:,:]
-    dat_val = data[:,6000:7000,:,:]
-    dat_test = data[:,7000:,:]
 
-if __name__ == '__main__':
-     main()
+
+
+    
 
