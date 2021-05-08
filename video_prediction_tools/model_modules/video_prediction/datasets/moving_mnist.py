@@ -106,14 +106,13 @@ class MovingMnist(object):
        """
        self.filenames = []
        self.data_mode = self.data_dict[self.mode]
-       self.tf_names = []
        self.all_filenames = glob.glob(os.path.join(self.input_dir,"*.tfrecords"))
+       print("self.all_files",self.all_filenames)
        for indice_group, index in self.data_mode.items():
-           max_val = index[1]
-           min_val = index[0]
-           fs = [MovingMnist.string_filter(max_val=max_val, min_val=min_val, string=s) for s in self.all_filenames]
-           self.tf_names.append(self.all_filenames[fs])
-
+           fs = [MovingMnist.string_filter(max_value=index[1], min_value=index[0], string=s) for s in self.all_filenames]
+           print("fs:",fs)
+           self.tf_names = [self.all_filenames[fs_index] for fs_index in range(len(fs)) if fs[fs_index]==True]
+           print("tf_names,",self.tf_names)
        # look for tfrecords in input_dir and input_dir/mode directories
        for files in self.tf_names:
             self.filenames.extend(glob.glob(os.path.join(self.input_dir, files)))
@@ -125,10 +124,11 @@ class MovingMnist(object):
 
     @staticmethod
     def string_filter(max_value=None, min_value=None, string="input_directory/sequence_index_0_index_10.tfrecords"):
-
-        a = os.path.split(string)[1].split("_")
+        a = os.path.split(string)[-1].split("_")
+        if not len(a) == 5:
+            raise ("The tfrecords pattern does not match the expected pattern, for instanct: 'sequence_index_0_to_10.tfrecords'") 
         min_index = int(a[2])
-        max_index = int(a[4])
+        max_index = int(a[4].split(".")[0])
         if min_index >= min_value and max_index <= max_value:
             return True
         else:
