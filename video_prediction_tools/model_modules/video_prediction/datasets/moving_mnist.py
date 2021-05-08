@@ -38,7 +38,7 @@ class MovingMnist(object):
         self.hparams_dict_config = hparams_dict_config
         self.hparams_dict = self.get_model_hparams_dict()
         self.hparams = self.parse_hparams()
-        self.get_tfrecords_filesnames_base_datasplit()
+        self.get_tfrecords_filename_base_datasplit()
         self.get_example_info()
 
 
@@ -109,11 +109,10 @@ class MovingMnist(object):
        self.tf_names = []
        self.all_filenames = glob.glob(os.path.join(self.input_dir,"*.tfrecords"))
        for indice_group, index in self.data_mode.items():
-           for indice in index:
-               max_val = indice[1]
-               min_val = indice[0]
-               fs = [MovingMnist.string_filter(max_val=max_val, min_val=min_val, string=s) for s in self.all_filenames]
-               self.tf_names.append(self.all_filenames[fs])
+           max_val = index[1]
+           min_val = index[0]
+           fs = [MovingMnist.string_filter(max_val=max_val, min_val=min_val, string=s) for s in self.all_filenames]
+           self.tf_names.append(self.all_filenames[fs])
 
        # look for tfrecords in input_dir and input_dir/mode directories
        for files in self.tf_names:

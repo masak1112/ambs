@@ -10,12 +10,12 @@ import os
 import numpy as np
 import tensorflow as tf
 import argparse
-from model_modules.video_prediction.datasets import moving_mnist
+from model_modules.video_prediction.datasets.moving_mnist import MovingMnist
 
 
-class MovingMnist2Tfrecords(moving_mnist):
+class MovingMnist2Tfrecords(MovingMnist):
 
-    def __init__(self, input_dir=None, dest_dir=None,  sequence_length=20, sequences_per_file=128):
+    def __init__(self, input_dir=None, dest_dir=None, sequences_per_file=128):
         """
         This class is used for converting .npz files to tfrecords
 
@@ -26,9 +26,7 @@ class MovingMnist2Tfrecords(moving_mnist):
         """
         self.input_dir = input_dir
         self.output_dir = dest_dir
-
         os.makedirs(self.output_dir, exist_ok = True)
-        self.sequence_length = sequence_length
         self.sequences_per_file = sequences_per_file
         self.write_sequence_file()
 
@@ -46,7 +44,7 @@ class MovingMnist2Tfrecords(moving_mnist):
         print("data in minist_test_Seq shape", self.data.shape)
         return None
 
-    def save_npz_to_tfrecords(self, sequences_per_file=20):  # Bing: original 128
+    def save_npz_to_tfrecords(self):  # Bing: original 128
         """
         Read the moving_mnst data which is npz format, and save it to tfrecords files
         The shape of dat_npz is [seq_length,number_samples,height,width]
@@ -64,18 +62,18 @@ class MovingMnist2Tfrecords(moving_mnist):
 
         self.data = self.data.astype(np.float32)
         self.data/= 255.0  # normalize RGB codes by dividing it to the max RGB value
-        while idx < num_samples - sequences_per_file:
-            sequences = self.data[:, idx:idx + sequences_per_file, :, :, :]
-            output_fname = 'sequence_index_{}_to_{}.tfrecords'.format(idx, idx + sequences_per_file)
+        while idx < num_samples - self.sequences_per_file:
+            sequences = self.data[:, idx:idx+self.sequences_per_file, :, :, :]
+            output_fname = 'sequence_index_{}_to_{}.tfrecords'.format(idx, idx + self.sequences_per_file-1)
             output_fname = os.path.join(self.output_dir, output_fname)
             MovingMnist2Tfrecords.save_tf_record(output_fname, sequences)
-            idx = idx + sequences_per_file
+            idx = idx + self.sequences_per_file
         return None
 
     @staticmethod
     def save_tf_record(output_fname, sequences):
         with tf.python_io.TFRecordWriter(output_fname) as writer:
-            for i in range(len(sequences)):
+            for i in range(np.array(sequences).shape[1] - 1):
                 sequence = sequences[:, i, :, :, :]
                 num_frames = len(sequence)
                 height, width = sequence[0, :, :, 0].shape
@@ -119,7 +117,7 @@ def _int64_feature(value):
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("-input_dir", type=str, help="The input directory that contains the movning mnnist npz file")
+    parser.add_argument("-input_dir", type=str, help="The input directory that contains the movning mnnist npz file", default="/p/largedata/datasets/moving-mnist/mnist_test_seq.npy")
     parser.add_argument("-output_dir", type=str)
     parser.add_argument("-sequences_per_file", type=int, default=2)
     args = parser.parse_args()
