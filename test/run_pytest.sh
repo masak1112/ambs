@@ -24,7 +24,7 @@ fi
 source ../video_prediction_tools/env_setup/modules_train.sh
 ##Test for preprocess moving mnist
 #python -m pytest test_prepare_moving_mnist_data.py
-python -m pytest test_moving_mnist_data.py 
+python -m pytest test_train_moving_mnist_data.py 
 #Test for process step2
 #python -m pytest test_data_preprocess_step2.py
 #python -m pytest test_era5_data.py
