@@ -139,6 +139,8 @@ class TrainModel(object):
         Setup train and val dataset instance with the corresponding data split configuration
         """
         VideoDataset = datasets.get_dataset_class(self.dataset)
+        print(self.dataset)
+        print(VideoDataset)
         self.train_dataset = VideoDataset(input_dir=self.input_dir,mode='train',datasplit_config=self.datasplit_dict)
         self.val_dataset = VideoDataset(input_dir=self.input_dir, mode='val',datasplit_config=self.datasplit_dict)
         #self.variable_scope = tf.get_variable_scope()
