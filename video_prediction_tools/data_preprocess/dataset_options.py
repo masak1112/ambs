@@ -13,7 +13,7 @@ def known_datasets():
         'cartgripper': 'CartgripperVideoDataset',
         "era5": "ERA5Dataset",
         "moving_mnist": "MovingMnist",
-        "guizhou_prcp": "GZprcp"
+        "gzprcp_data": "GZprcp"
     }
 
     return dataset_mappings
