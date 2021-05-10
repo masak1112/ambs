@@ -219,6 +219,7 @@ class Config_runscript_base:
             for line in runscript:
                 if script_variable in line:
                     var_value = (line.strip(script_variable)).replace("\n", "")
+                    print(var_value)
                     found = True
                     break
 

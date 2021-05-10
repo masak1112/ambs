@@ -1,0 +1,20 @@
+# NOTE: This json-file should not be processed and simply serves as an exemplary file to configure the datasplit for kth human action dataset.
+#       If you would like to generate your own datasplit config file, you may copy this template and modify it to your personal needs.
+#       However, remember to remove any comment lines (starting with #) from your config-file then!!!
+#
+# Explanation: In the following, the data is splitted based on the index, each index has a list with two elements which are the start and end indices of the 
+#              raw dataset
+#              Be aware that this is a prue data file, i.e. do not make use of any Python-functions such as np.range or similar here!
+{
+    "train":{ 
+             "index1":[0,100]
+             },
+     "val":
+             {
+             "index1":[110,149]
+             },
+      "test":
+             {
+	     "index1":[150,200]
+             }
+ }

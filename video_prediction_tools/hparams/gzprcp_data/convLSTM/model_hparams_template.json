@@ -1,0 +1,12 @@
+
+{
+    "batch_size": 4,
+    "lr": 0.001,
+    "max_epochs":2,
+    "context_frames":20,
+    "sequence_length":40,
+    "loss_fun":"rmse"
+}
+
+
+

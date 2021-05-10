@@ -36,13 +36,13 @@ class ERA5DataExtraction(object):
             self.varslist = json.load(f)
         
         self.varslist_keys = list(self.varslist.keys())
-        if not ("surface" in self.varslist_keys and "multi" in self.varslist_keys):
-            raise ValueError("Thie file '{0}' should have two keys : surface and multi".format(self.varslist_json))
+        if not ("surface" in self.varslist_keys and "surface_fc" in self.varslist_keys and "multi" in self.varslist_keys):
+            raise ValueError("Thie file '{0}' should have three keys : surface, surface_fc and multi".format(self.varslist_json))
         else:
             self.varslist_surface = self.varslist["surface"]
+            self.varslist_surface_fc = self.varslist["surface_fc"]
             self.varslist_multi = self.varslist["multi"]
             self.varslist_multi_vars = self.varslist_multi.keys()
-
 
     def prepare_era5_data_one_file(self, month, day, hour):  # extract 2t,tcc,msl,t850,10u,10v
         """
@@ -53,19 +53,25 @@ class ERA5DataExtraction(object):
             hour        : str, the target hour to be processed e.g. "00","01",...,"23"
             varslist_path: str, the path to variable list json file
             output_path : str, the path to output directory
-    
         """ 
         temp_path = os.path.join(self.target_dir, self.year)
         os.makedirs(temp_path, exist_ok=True)
         temp_path = os.path.join(self.target_dir, self.year, month)
         os.makedirs(temp_path, exist_ok=True)
         
+        # surface variables
         for var,value in self.varslist_surface.items():
-            # surface variables
             infile = os.path.join(self.src_dir, self.year, month, self.year+month+day+hour+'_sf.grb')
             outfile_sf = os.path.join(self.target_dir, self.year, month, self.year+month+day+hour+'_'+var+'.nc')
             os.system('cdo -f nc copy -selname,%s %s %s' % (value, infile, outfile_sf))
-            os.system('cdo -chname,%s,%s %s %s' % (value, var, outfile_sf, outfile_sf))
+            os.system('cdo -chname,%s,%s %s %s' % (var, value, outfile_sf, outfile_sf))
+
+        # surface_fc variables
+        for var,value in self.varslist_surface_fc.items():
+            infile = os.path.join(self.src_dir, self.year, month, self.year+month+day+hour+'_sf_fc.grb')
+            outfile_sf = os.path.join(self.target_dir, self.year, month, self.year+month+day+hour+'_'+var+'.nc')
+            os.system('cdo -f nc copy -selname,%s %s %s' % (value, infile, outfile_sf))
+            os.system('cdo -chname,%s,%s %s %s' % (var, value, outfile_sf, outfile_sf))
 
         # multi-level variables
         for var, pl_dic in self.varslist_multi.items():

@@ -8,6 +8,7 @@ from .ucf101_dataset import UCF101VideoDataset
 from .cartgripper_dataset import CartgripperVideoDataset
 from .era5_dataset import ERA5Dataset
 from .moving_mnist import MovingMnist
+from .gzprcp_data import GZprcp
 from data_preprocess.dataset_options import known_datasets
 #from .era5_dataset_v2_anomaly import ERA5Dataset_v2_anomaly
 
