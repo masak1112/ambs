@@ -7,7 +7,7 @@ __date__ = "2021-01-28"
 # import modules
 import os, glob
 from data_preprocess.dataset_options import known_datasets
-from config_utils import Config_runscript_base    # import parent class
+from runscript_generator.config_utils import Config_runscript_base    # import parent class
 
 class Config_Preprocess2(Config_runscript_base):
 
