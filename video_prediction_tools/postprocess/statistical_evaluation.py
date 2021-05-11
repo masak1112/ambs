@@ -2,18 +2,34 @@ from typing import Union, Tuple, Dict, List
 import numpy as np
 import xarray as xr
 import pandas as pd
+from typing import Union, List
 try:
     from tqdm import tqdm
     l_tqdm = True
 except:
     l_tqdm = False
 
+# basic data types
+da_or_ds = Union[xr.DataArray, xr.Dataset]
 
-def perform_block_bootstrap_metric(metric: xr.DataArray, dim_name: str, block_length: int, nboots_block: int = 1000,
+
+def perform_block_bootstrap_metric(metric: da_or_ds, dim_name: str, block_length: int, nboots_block: int = 1000,
                                    seed: int = 42):
+    """
+    Performs block bootstrapping on metric along given dimension (e.g. along time dimension)
+    :param metric: DataArray or dataset of metric that should be bootstrapped
+    :param dim_name: name of the dimension on which division into blocks is applied
+    :param block_length: length of block (index-based)
+    :param nboots_block: number of bootstrapping steps to be performed
+    :param seed: seed for random block sampling (to be held constant for reproducability)
+    :return: bootstrapped version of metric(-s)
+    """
 
     method = perform_block_bootstrap_metric.__name__
 
+    if not isinstance(metric, da_or_ds.__args__):
+        raise ValueError("%{0}: Input metric must be a xarray DataArray or Dataset and not {1}".format(method,
+                                                                                                       type(metric)))
     if dim_name not in metric.dims:
         raise ValueError("%{0}: Passed dimension cannot be found in passed metric.".format(method))
 
@@ -23,27 +39,20 @@ def perform_block_bootstrap_metric(metric: xr.DataArray, dim_name: str, block_le
     nblocks = int(np.floor(dim_length/block_length))
 
     if nblocks < 10:
-        raise ValueError("%{0}: Less than 10 blocks are present with given block length {1:d}.".format(method, block_length) +
-                         " Too less for bootstrapping.")
-
-    # get remaining coordinates and dimensions
-    dims_old = list(metric.dims)
-    dims_old.remove(dim_name)
-
-    coords_new_block = {**{"iblock": np.arange(nblocks)}, **metric.drop("init_time").coords}
-    coords_new_boot = {**{"iboot": np.arange(nboots_block)}, **metric.drop("init_time").coords}
-    
-    shape_block = tuple([a.shape[0] for a in coords_new_block.values()])
-    shape_boot = tuple([a.shape[0] for a in coords_new_boot.values()])
-    
-    metric_val_block = xr.DataArray(np.full(shape_block, np.nan), coords=coords_new_block, dims=["iblock"] + dims_old)
-    metric_boot = xr.DataArray(np.full(shape_boot, np.nan), coords=coords_new_boot,
-                               dims=["iboot"] + dims_old)
+        raise ValueError("%{0}: Less than 10 blocks are present with given block length {1:d}."
+                         .format(method, block_length) + " Too less for bootstrapping.")
 
     # precompute metrics of block
     for iblock in np.arange(nblocks):
         ind_s, ind_e = iblock * block_length, (iblock + 1) * block_length
-        metric_val_block[iblock,...] = metric.isel({dim_name: slice(ind_s, ind_e)}).mean(dim=dim_name)
+        metric_block_aux = metric.isel({dim_name: slice(ind_s, ind_e)}).mean(dim=dim_name)
+        if iblock == 0:
+            metric_val_block = metric_block_aux.expand_dims(dim={"iblock": 1}, axis=0).copy(deep=True)
+        else:
+            metric_val_block = xr.concat([metric_val_block, metric_block_aux.expand_dims(dim={"iblock": 1}, axis=0)],
+                                         dim="iblock")
+
+    metric_val_block["iblock"] = np.arange(nblocks)
 
     # get random blocks
     np.random.seed(seed)
@@ -54,7 +63,13 @@ def perform_block_bootstrap_metric(metric: xr.DataArray, dim_name: str, block_le
     if l_tqdm:
         iterator_b = tqdm(iterator_b)
     for iboot_b in iterator_b:
-        metric_boot[iboot_b,...] = metric_val_block.isel(iblock=iblocks_boot[iboot_b, :]).mean(dim="iblock")
+        metric_boot_aux = metric_val_block.isel(iblock=iblocks_boot[iboot_b, :]).mean(dim="iblock")
+        if iboot_b == 0:
+            metric_boot = metric_boot_aux.expand_dims(dim={"iboot": 1}, axis=0).copy(deep=True)
+        else:
+            metric_boot = xr.concat([metric_boot, metric_boot_aux.expand_dims(dim={"iboot": 1}, axis=0)], dim="iboot")
+
+    metric_boot["iboot"] = np.arange(nboots_block)
 
     return metric_boot
 
