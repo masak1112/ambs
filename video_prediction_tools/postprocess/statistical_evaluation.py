@@ -69,7 +69,11 @@ def perform_block_bootstrap_metric(metric: da_or_ds, dim_name: str, block_length
         else:
             metric_boot = xr.concat([metric_boot, metric_boot_aux.expand_dims(dim={"iboot": 1}, axis=0)], dim="iboot")
 
+    # set iboot-coordinate
     metric_boot["iboot"] = np.arange(nboots_block)
+    if isinstance(metric_boot, xr.Dataset):
+        new_varnames = ["{0}_mean".format(var) for var in metric.data_vars]
+        metric_boot = metric_boot.rename_vars(dict(zip(metric.data_vars, new_varnames)))
 
     return metric_boot
 
