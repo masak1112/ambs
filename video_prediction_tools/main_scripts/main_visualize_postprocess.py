@@ -61,8 +61,10 @@ class Postprocess(TrainModel):
         # forecast products and evaluation metrics to be handled in postprocessing
         self.eval_metrics = ["mse", "psnr"]
         self.fcst_products = {"persistence": "pfcst", "model": "mfcst"}
-        # dataset to track evaluation metrics
+        # initialize dataset to track evaluation metrics and configure bootstrapping procedure
         self.eval_metrics_ds = None
+        self.nboots_block = 1000
+        self.block_length = 7 * 24    # this corresponds to a block length of 7 days when forecasts are produced every hour
         # other attributes
         self.stat_fl = None
         self.norm_cls = None            # placeholder for normalization instance
@@ -642,6 +644,12 @@ class Postprocess(TrainModel):
         if self.eval_metrics_ds is None:
             raise AttributeError("%{0}: Attribute with dataset of evaluation metrics is still None.".format(method))
 
+        # perform bootstrapping on metric dataset
+        eval_metric_boot_ds = perform_block_bootstrap_metric(self.eval_metrics_ds, "init_time", self.block_length,
+                                                             self.nboots_block)
+        # ... and merge into existing metric dataset
+        self.eval_metrics_ds = xr.merge([self.eval_metrics_ds, eval_metric_boot_ds])
+
         # save evaluation metrics to file
         nc_fname = os.path.join(self.results_dir, "evaluation_metrics.nc")
         Postprocess.save_ds_to_netcdf(self.eval_metrics_ds, nc_fname)
@@ -970,6 +978,11 @@ class Postprocess(TrainModel):
         nmodels = len(fcst_prod_dict.values())
         colors = ["blue", "red", "black", "grey"]
         for metric in eval_metrics:
+            # create a new figure object
+            fig = plt.figure(figsize=(6, 4))
+            ax = plt.axes([0.1, 0.15, 0.75, 0.75])
+            hours = np.arange(1, nhours+1)
+
             metric2plt = np.full((nmodels, nhours), np.nan)
             metric2plt_max, metric2plt_min = metric2plt.copy(), metric2plt.copy()
             for ifcst, fcst_prod in enumerate(fcst_prod_dict.keys()):
@@ -983,15 +996,13 @@ class Postprocess(TrainModel):
                 except Exception as err:
                     print("%{0}: Retrieval of {1} from evaluation metric dataset failes".format(method, metric_name))
                     raise err
-            # create plot
-            fig = plt.figure(figsize=(6, 4))
-            ax = plt.axes([0.1, 0.15, 0.75, 0.75])
-            hours = np.arange(1, nhours+1)
-            for ifcst, fcst_name in enumerate(fcst_prod_dict.keys()):
-                plt.plot(hours, metric2plt[ifcst, :], label=fcst_name, color=colors[ifcst], marker="o")
+                # plot the data
+                plt.plot(hours, metric2plt[ifcst, :], label=fcst_prod, color=colors[ifcst], marker="o")
                 plt.fill_between(hours, metric2plt_min[ifcst, :], metric2plt_max[ifcst, :], facecolor=colors[ifcst],
                                  alpha=0.3)
 
+                Postprocess.save_eval_metric_to_json(metric_data, )
+            # configure plot
             plt.xticks(hours)
             ax.set_ylim(0., None)
             if metric == "psnr": ax.set_ylim(None, None)
@@ -1001,7 +1012,11 @@ class Postprocess(TrainModel):
             plt_fname = os.path.join(out_dir, "evaluation_{0}".format(metric))
             print("Saving basic evaluation plot in terms of {1} to '{2}'".format(method, metric, plt_fname))
             plt.savefig(plt_fname)
+
         plt.close()
+
+        # save metrics to JSON-file
+        Postprocess.save_eval_metric_to_json(metric2plt, fcst_prod_dict.keys())
 
         return True
 
@@ -1066,6 +1081,13 @@ class Postprocess(TrainModel):
                                                               "fcst_hour": np.arange(nlead_steps)})
 
         return eval_metric_ds
+
+    @staticmethod
+    def save_eval_metric_to_json(metric, fcst_prod, js_name):
+
+        metric2plt = np.full((nmodels, nhours), np.nan)
+        for
+
 
     @staticmethod
     def get_matching_indices(big_array, subset):
