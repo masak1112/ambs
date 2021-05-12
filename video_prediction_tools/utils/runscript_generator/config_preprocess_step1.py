@@ -14,7 +14,7 @@ except:
 
 from netcdf_datahandling import NetcdfUtils
 from general_utils import check_str_in_list
-from config_utils import Config_runscript_base    # import parent class
+from runscript_generator.config_utils import Config_runscript_base    # import parent class
 
 class Config_Preprocess1(Config_runscript_base):
 

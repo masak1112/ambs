@@ -26,9 +26,8 @@ from model_modules.video_prediction.utils import tf_utils
 
 class TrainModel(object):
     def __init__(self, input_dir=None, output_dir=None, datasplit_dict=None,
-                       model_hparams_dict=None, model=None,
-                       checkpoint=None, dataset=None,
-                       gpu_mem_frac=None, seed=None, args=None, save_interval=20):
+                 model_hparams_dict=None, model=None, checkpoint=None, dataset=None,
+                 gpu_mem_frac=None, seed=None, args=None, save_diag_intv=20, save_model_intv = 1000):
         
         """
         This class aims to train the models
@@ -43,7 +42,9 @@ class TrainModel(object):
             dataset              : str, dataset class name
             model                : str, model class name
             gpu_mem_frac         : float, fraction of gpu memory to use
-            save_interval        : int, how many steps for saving the train/val loss be saved
+            save_diag_intv    : int, interval of iteration steps for which the loss is saved and for which a new
+                                   loss curve is plotted
+            save_model_intv      : int, interval of iteration for which the model is checkpointed
         """ 
         self.input_dir = os.path.normpath(input_dir)
         self.output_dir = os.path.normpath(output_dir)
@@ -55,7 +56,9 @@ class TrainModel(object):
         self.gpu_mem_frac = gpu_mem_frac
         self.seed = seed
         self.args = args
-        self.save_interval = save_interval
+        # for diagnozing and saving the model during training
+        self.save_diag_intv = save_diag_intv
+        self.save_model_intv = save_model_intv
 
     def setup(self):
         self.set_seed()
@@ -297,11 +300,12 @@ class TrainModel(object):
                 val_losses.append(self.val_results["total_loss"])
                 self.write_to_summary()
                 self.print_results(step,self.results)
-                self.saver.save(sess, os.path.join(self.output_dir, "model"), global_step=step)
                 timeit_end = time.time()
                 time_per_iteration.append(timeit_end - timeit_start)
                 print("time needed for this step", timeit_end - timeit_start, ' s')
-                if step % self.save_interval == 0:
+                if step % self.save_model_intv == 0:
+                    self.saver.save(sess, os.path.join(self.output_dir, "model"), global_step=step)
+                if step % self.save_diag_intv == 0:
                     # I save the pickle file and plot here inside the loop in case the training process cannot finished after job is done.
                     TrainModel.save_results_to_pkl(train_losses,val_losses,self.output_dir)
                     TrainModel.plot_train(train_losses,val_losses,step,self.output_dir)
@@ -415,10 +419,12 @@ class TrainModel(object):
         """ 
    
         iterations = list(range(len(train_losses)))
-        if len(train_losses) != len(val_losses) or len(train_losses) != step +1 : 
-            raise ValueError("The length of training losses must be equal to the length of val losses and  step +1 !")  
+        if len(train_losses) != len(val_losses): 
+            raise ValueError("The length of training losses must be equal to the length of val losses!")  
         plt.plot(iterations, train_losses, 'g', label='Training loss')
         plt.plot(iterations, val_losses, 'b', label='validation loss')
+        plt.ylim(10**-5, 10**2)
+        plt.yscale("log")
         plt.title('Training and Validation loss')
         plt.xlabel('Iterations')
         plt.ylabel('Loss')

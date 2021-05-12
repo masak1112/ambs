@@ -3,72 +3,84 @@ from __future__ import division
 from __future__ import print_function
 
 __email__ = "b.gong@fz-juelich.de"
-__author__ = "Bing Gong"
+__author__ = "Bing Gong, Yan Ji, Michael Langguth"
 __date__ = "2020-11-10"
 
 import argparse
 import os
+import shutil
 import numpy as np
+import xarray as xr
+import pandas as pd
 import tensorflow as tf
-import warnings
 import pickle
-from random import seed
-import datetime
+import datetime as dt
 import json
-from netCDF4 import Dataset,date2num
 import matplotlib
+
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
-import matplotlib.gridspec as gridspec
+from mpl_toolkits.basemap import Basemap
 from normalization import Norm_data
 from metadata import MetaData as MetaData
 from main_scripts.main_train_models import *
 from data_preprocess.preprocess_data_step2 import *
-import shutil
-from model_modules.video_prediction import datasets, models
+from model_modules.video_prediction import datasets, models, metrics
+from statistical_evaluation import perform_block_bootstrap_metric
 
 
 class Postprocess(TrainModel):
-    def __init__(self, results_dir=None, checkpoint=None, mode="test",
-                      batch_size=None, num_samples=None, num_stochastic_samples=1, stochastic_plot_id=0,
-                      gpu_mem_frac=None, seed=None,args=None):
+    def __init__(self, results_dir=None, checkpoint=None, mode="test", batch_size=None, num_stochastic_samples=1,
+                 stochastic_plot_id=0, gpu_mem_frac=None, seed=None, args=None, run_mode="deterministic"):
         """
         The function for inference, generate results and images
         results_dir   :str, The output directory to save results
         checkpoint    :str, The directory point to the checkpoints
         mode          :str, Default is test, could be "train","val", and "test"
         batch_size    :int, The batch size used for generating test samples for each iteration
-        num_samples   :int, The number of test samples used for generating output.
-                            The maximum values should be the total number of samples for test dataset
         num_stochastic_samples: int, for the stochastic models such as SAVP, VAE, it is used for generate a number of
                                      ensemble for each prediction.
                                      For deterministic model such as convLSTM, it is default setup to 1
         stochastic_plot_id :int, the index for stochastically generated images to plot
         gpu_mem_frac       :int, GPU memory fraction to be used
         seed               :seed for control test samples
+        run_mode           :str, if "deterministic" then the model running for deterministic forecasting,  other string values, it will go for stochastic forecasting
+
+        Side notes : other important varialbes in the class:
+        self.ts               : list, contains the sequence_length timestamps
+        self.gen_images_      :  the length of generate images by model is sequence_length - 1
+        self.persistent_image : the length of persistent images is sequence_length - 1
+        self.input_images     : the length of inputs images is sequence length
+
         """
 
         # initialize input directories (to be retrieved by load_jsons)
         self.input_dir = None
         self.input_dir_tfr = None
         self.input_dir_pkl = None
+        # forecast products and evaluation metrics to be handled in postprocessing
+        self.eval_metrics = ["mse", "psnr"]
+        self.fcst_products = {"persistence": "pfcst", "model": "mfcst"}
+        # dataset to track evaluation metrics
+        self.eval_metrics_ds = None
+        # other attributes
+        self.stat_fl = None
+        self.norm_cls = None            # placeholder for normalization instance
+        self.channel = 0                # index of channel/input variable to evaluate
+        self.num_samples_per_epoch = None
         # set further attributes from parsed arguments
-        self.results_dir = self.output_dir = os.path.normpath(results_dir) 
+        self.results_dir = self.output_dir = os.path.normpath(results_dir)
         if not os.path.exists(self.results_dir):
             os.makedirs(self.results_dir)
         self.batch_size = batch_size
         self.gpu_mem_frac = gpu_mem_frac
         self.seed = seed
-        self.num_samples = num_samples
         self.num_stochastic_samples = num_stochastic_samples
         self.stochastic_plot_id = stochastic_plot_id
-        self.args = args 
+        self.args = args
         self.checkpoint = checkpoint
+        self.run_mode = run_mode
         self.mode = mode
-        if self.num_samples < self.batch_size:
-            raise ValueError("The number of samples should be at least as large as the batch size. " +
-                             "Currently, number of samples: {} batch size: {}"
-                             .format(self.num_samples, self.batch_size))
         if self.checkpoint is None:
             raise ValueError("The directory point to checkpoint is empty, must be provided for postprocess step")
 
@@ -86,11 +98,12 @@ class Postprocess(TrainModel):
         self.get_data_params()
         self.setup_num_samples_per_epoch()
         self.get_stat_file()
-        self.make_test_dataset_iterator() 
+        self.make_test_dataset_iterator()
         self.check_stochastic_samples_ind_based_on_model()
         self.setup_graph()
         self.setup_gpu_config()
 
+    # methods that are executed with __call__
     def save_args_to_option_json(self):
         """
         Save the argments defined by user to the results dir
@@ -106,7 +119,7 @@ class Postprocess(TrainModel):
 
         # correctness of self.checkpoint and self.results_dir is already checked in __init__
         model_opt_js = os.path.join(self.checkpoint, "options.json")
-        model_ds_js = os.path.join(self.checkpoint,"dataset_hparams.json")
+        model_ds_js = os.path.join(self.checkpoint, "dataset_hparams.json")
         model_hp_js = os.path.join(self.checkpoint, "model_hparams.json")
         model_dd_js = os.path.join(self.checkpoint, "data_dict.json")
 
@@ -156,17 +169,22 @@ class Postprocess(TrainModel):
         # retrieve some data from options_checkpoints.json
         try:
             with open(checkpoint_opt_dict) as f:
-                self.options_checkpoint = json.loads(f.read())
-                self.dataset = self.options_checkpoint["dataset"]
-                self.model = self.options_checkpoint["model"]
-                self.input_dir_tfr = self.options_checkpoint["input_dir"]
-                self.input_dir = os.path.dirname(self.input_dir_tfr)
+                options_checkpoint = json.loads(f.read())
+                self.dataset = options_checkpoint["dataset"]
+                self.model = options_checkpoint["model"]
+                self.input_dir_tfr = options_checkpoint["input_dir"]
+                self.input_dir = os.path.dirname(self.input_dir_tfr.rstrip("/"))
                 self.input_dir_pkl = os.path.join(self.input_dir, "pickle")
-        except:
-            raise IOError("%{0}: Could not retrieve all information from options_checkpoints.json".format(method_name))
+                # update self.fcst_products
+                if "model" in self.fcst_products.keys():
+                    self.fcst_products[self.model] = self.fcst_products.pop("model")
+        except Exception as err:
+            print("%{0}: Something went wrong when reading the checkpoint-file '{1}'".format(method_name,
+                                                                                             checkpoint_opt_dict))
+            raise err
 
         self.model_hparams_dict_load = self.get_model_hparams_dict()
-       
+
     def get_metadata(self):
 
         method_name = Postprocess.get_metadata.__name__
@@ -181,38 +199,40 @@ class Postprocess(TrainModel):
             raise FileNotFoundError("%{0}: Could not find metadata JSON-file under '{1}'".format(method_name,
                                                                                                  self.input_dir))
 
-        md_instance = MetaData(json_file=metadata_fl)
-
         try:
-            self.height, self.width = md_instance.ny, md_instance.nx
-            self.vars_in = md_instance.variables
+            md_instance = MetaData(json_file=metadata_fl)
+        except Exception as err:
+            print("%{0}: Something went wrong when getting metadata from file '{1}'".format(method_name, metadata_fl))
+            raise err
 
-            self.lats = md_instance.lat
-            self.lons = md_instance.lon
-        except:
-            raise IOError("%{0}: Could not retrieve all required information from metadata-file '{1}'"
-                          .format(method_name, metadata_fl))
+        # when the metadat is loaded without problems, the follwoing will work
+        self.height, self.width = md_instance.ny, md_instance.nx
+        self.vars_in = md_instance.variables
+
+        self.lats = xr.DataArray(md_instance.lat, coords={"lat": md_instance.lat}, dims="lat",
+                                     attrs={"units": "degrees_east"})
+        self.lons = xr.DataArray(md_instance.lon, coords={"lon": md_instance.lon}, dims="lon",
+                                     attrs={"units": "degrees_north"})
 
     def setup_test_dataset(self):
         """
         setup the test dataset instance
         """
         VideoDataset = datasets.get_dataset_class(self.dataset)
-        self.test_dataset = VideoDataset(input_dir=self.input_dir_tfr, mode=self.mode, datasplit_config=self.datasplit_dict)
-        
+        self.test_dataset = VideoDataset(input_dir=self.input_dir_tfr, mode=self.mode,
+                                         datasplit_config=self.datasplit_dict)
+
     def setup_num_samples_per_epoch(self):
         """
         For generating images, the user can define the examples used, and will be taken as num_examples_per_epoch
         For testing we only use exactly one epoch, but to be consistent with the training, we keep the name '_per_epoch'
         """
-        if self.num_samples:
-            if self.num_samples > self.test_dataset.num_examples_per_epoch():
-                raise ValueError('num_samples cannot be larger than the dataset')
-            self.num_samples_per_epoch = self.num_samples
-        else:
-            self.num_samples_per_epoch = self.test_dataset.num_examples_per_epoch()
+        method = Postprocess.setup_num_samples_per_epoch.__name__
+
+        self.num_samples_per_epoch = self.test_dataset.num_examples_per_epoch()
+
         return self.num_samples_per_epoch
-   
+
     def get_data_params(self):
         """
         Get the context_frames, future_frames and total frames from hparamters settings.
@@ -226,100 +246,87 @@ class Postprocess(TrainModel):
         """
         Load the statistics from statistic file from the input directory
         """
-        self.stat_fl = os.path.join(self.input_dir, "pickle/statistics.json")
+        self.stat_fl = os.path.join(self.input_dir, "statistics.json")
 
     def make_test_dataset_iterator(self):
         """
         Make the dataset iterator
         """
-        self.test_tf_dataset = self.test_dataset.make_dataset(self.batch_size)
-        self.test_iterator = self.test_tf_dataset.make_one_shot_iterator()
+        test_tf_dataset = self.test_dataset.make_dataset(self.batch_size)
+        test_iterator = test_tf_dataset.make_one_shot_iterator()
         # The `Iterator.string_handle()` method returns a tensor that can be evaluated
         # and used to feed the `handle` placeholder.
-        self.test_handle = self.test_iterator.string_handle()
-        self.iterator = tf.data.Iterator.from_string_handle(self.test_handle, self.test_tf_dataset.output_types,
-                                                            self.test_tf_dataset.output_shapes)
-        self.inputs = self.iterator.get_next()
+        test_handle = test_iterator.string_handle()
+        dataset_iterator = tf.data.Iterator.from_string_handle(test_handle, test_tf_dataset.output_types,
+                                                               test_tf_dataset.output_shapes)
+        self.inputs = dataset_iterator.get_next()
         self.input_ts = self.inputs["T_start"]
-        #if self.dataset == "era5" and self.model == "savp":
+        # if self.dataset == "era5" and self.model == "savp":
         #   del self.inputs["T_start"]
 
     def check_stochastic_samples_ind_based_on_model(self):
         """
-        stochastic forecasting only suitable for the geneerate models such as SAVP, vae. 
+        stochastic forecasting only suitable for the geneerate models such as SAVP, vae.
         For convLSTM, McNet only do determinstic forecasting
         """
         if self.model == "convLSTM" or self.model == "test_model" or self.model == 'mcnet':
             if self.num_stochastic_samples > 1:
                 print("Number of samples for deterministic model cannot be larger than 1. Higher values are ignored.")
             self.num_stochastic_samples = 1
-    
+
     def init_session(self):
-        self.sess = tf.Session(config = self.config)
+        self.sess = tf.Session(config=self.config)
         self.sess.graph.as_default()
         self.sess.run(tf.global_variables_initializer())
         self.sess.run(tf.local_variables_initializer())
 
-    def run_and_plot_inputs_per_batch(self):
-        """
-        batch_id :int, the index in each batch size, maximum value is the batch_size
-        """
-        self.input_results = self.sess.run(self.inputs)
-        self.input_images = self.input_results["images"]
-        self.t_starts_results = self.input_results["T_start"]
-        print("t_starts_results:",self.t_starts_results)
-        self.t_starts = self.t_starts_results
-        #get one seq and the corresponding start time poin
-        #self.t_starts = self.input_results["T_start"]
-        self.input_images_denorm_all = []
-        for batch_id in range(self.batch_size):
-            self.input_images_ = Postprocess.get_one_seq_from_batch(self.input_images,batch_id)
-            #Renormalized data for inputs
-            ts = Postprocess.generate_seq_timestamps(self.t_starts[batch_id],len_seq=self.sequence_length)
-            input_images_denorm = Postprocess.denorm_images_all_channels(self.stat_fl,self.input_images_,self.vars_in)
-            assert len(input_images_denorm.shape) == 4
-            Postprocess.plot_seq_imgs(imgs = input_images_denorm[self.context_frames:,:,:,0],
-                                      lats=self.lats, lons=self.lons, ts=ts[self.context_frames:], label="Ground Truth",
-                                      output_png_dir=self.results_dir)
-            self.input_images_denorm_all.append(list(input_images_denorm))
-        assert len(np.array(self.input_images_denorm_all).shape) == 5
-        return self.input_results, self.input_images_denorm_all, self.t_starts
-
-
+    # the run-factory
     def run(self):
+        if self.model == "convLSTM" or self.model == "test_model" or self.model == 'mcnet':
+            self.run_deterministic()
+        elif self.run_mode == "deterministic":
+            self.run_deterministic()
+        else:
+            self.run_stochastic()
+
+    def run_stochastic(self):
         """
         Run session, save results to netcdf, plot input images, generate images and persistent images
         """
-        self.init_session()     
+        method = Postprocess.run_stochastic.__name__
+        raise ValueError("ML: %{0} is not runnable now".format(method))
+
+        self.init_session()
         self.restore(self.sess, self.checkpoint)
-        #Loop for samples
+        # Loop for samples
         self.sample_ind = 0
-        self.persistent_loss_all_batches = []  # store the evaluation metric with shape [batch,future_len]
-        self.stochastic_loss_all_batches = []  # store the stochastic model metric with shape [stochastic,batch, future_len]
+        self.prst_metric_all = []  # store evaluation metrics of persistence forecast (shape [future_len])
+        self.fcst_metric_all = []  # store evaluation metric of stochastic forecasts (shape [nstoch, batch, future_len])
         while self.sample_ind < self.num_samples_per_epoch:
             if self.num_samples_per_epoch < self.sample_ind:
                 break
             else:
-                self.input_results, self.input_images_denorm_all, self.t_starts = self.run_and_plot_inputs_per_batch() #run the inputs and plot each sequence images
-            
+                # run the inputs and plot each sequence images
+                self.input_results, self.input_images_denorm_all, self.t_starts = self.get_input_data_per_batch()
+
             feed_dict = {input_ph: self.input_results[name] for name, input_ph in self.inputs.items()}
-            gen_loss_stochastic_batch = [] #[stochastic_ind,future_length]
-            gen_images_stochastic = []   #[stochastic_ind,batch_size,seq_len,lat,lon,channels]
-            #Loop for stochastics 
+            gen_loss_stochastic_batch = []  # [stochastic_ind,future_length]
+            gen_images_stochastic = []  # [stochastic_ind,batch_size,seq_len,lat,lon,channels]
+            # Loop for stochastics
             for stochastic_sample_ind in range(self.num_stochastic_samples):
-                print("stochastic_sample_ind:",stochastic_sample_ind)
+                print("stochastic_sample_ind:", stochastic_sample_ind)
                 # return [batchsize,seq_len,lat,lon,channel]
                 gen_images = self.sess.run(self.video_model.outputs['gen_images'], feed_dict=feed_dict)
                 # The generate images seq_len should be sequence_len -1, since the last one is
                 # not used for comparing with groud truth
                 assert gen_images.shape[1] == self.sequence_length - 1
                 gen_images_per_batch = []
-                if stochastic_sample_ind == 0: 
-                    persistent_images_per_batch = [] #[batch_size,seq_len,lat,lon,channel]
-                    ts_batch = [] 
+                if stochastic_sample_ind == 0:
+                    persistent_images_per_batch = []  # [batch_size,seq_len,lat,lon,channel]
+                    ts_batch = []
                 for i in range(self.batch_size):
                     # generate time stamps for sequences only once, since they are the same for all ensemble members
-                    if stochastic_sample_ind == 0: 
+                    if stochastic_sample_ind == 0:
                         self.ts = Postprocess.generate_seq_timestamps(self.t_starts[i], len_seq=self.sequence_length)
                         init_date_str = self.ts[0].strftime("%Y%m%d%H")
                         ts_batch.append(init_date_str)
@@ -327,141 +334,405 @@ class Postprocess(TrainModel):
                         self.persistence_images, self.ts_persistence = Postprocess.get_persistence(self.ts,
                                                                                                    self.input_dir_pkl)
                         persistent_images_per_batch.append(self.persistence_images)
-                        assert len(np.array(persistent_images_per_batch).shape) == 5 
+                        assert len(np.array(persistent_images_per_batch).shape) == 5
                         self.plot_persistence_images()
-                                
+
                     # Denormalized data for generate
                     gen_images_ = gen_images[i]
                     self.gen_images_denorm = Postprocess.denorm_images_all_channels(self.stat_fl, gen_images_,
                                                                                     self.vars_in)
                     gen_images_per_batch.append(self.gen_images_denorm)
-                    assert len(np.array(gen_images_per_batch).shape) == 5 
+                    assert len(np.array(gen_images_per_batch).shape) == 5
                     # only plot when the first stochastic ind otherwise too many plots would be created
                     # only plot the stochastic results of user-defined ind
                     self.plot_generate_images(stochastic_sample_ind, self.stochastic_plot_id)
-                #calculate the persistnet error per batch
+                # calculate the persistnet error per batch
                 if stochastic_sample_ind == 0:
-                   persistent_loss_per_batch = Postprocess.calculate_metrics_by_batch(self.input_images_denorm_all,
-                                                                                      persistent_images_per_batch,
-                                                                                      self.future_length,
-                                                                                      self.context_frames,
-                                                                                      matric="mse", channel=0)
-                   self.persistent_loss_all_batches.append(persistent_loss_per_batch)
-                   
-                #calculate the gen_images_per_batch error
-                gen_loss_per_batch =  Postprocess.calculate_metrics_by_batch(self.input_images_denorm_all,
-                                                                             gen_images_per_batch, self.future_length,
-                                                                             self.context_frames,
-                                                                             matric="mse",channel=0)
-                gen_loss_stochastic_batch.append(gen_loss_per_batch) # self.gen_images_stochastic[stochastic,future_length]
-                print("gen_images_per_batch shape:",np.array(gen_images_per_batch).shape)
-                gen_images_stochastic.append(gen_images_per_batch)# [stochastic,batch_size, seq_len, lat, lon, channel]
-                
+                    persistent_loss_per_batch = Postprocess.calculate_metrics_by_batch(self.input_images_denorm_all,
+                                                                                       persistent_images_per_batch,
+                                                                                       self.future_length,
+                                                                                       self.context_frames,
+                                                                                       matric="mse", channel=0)
+                    self.prst_metric_all.append(persistent_loss_per_batch)
+
+                # calculate the gen_images_per_batch error
+                gen_loss_per_batch = Postprocess.calculate_metrics_by_batch(self.input_images_denorm_all,
+                                                                            gen_images_per_batch, self.future_length,
+                                                                            self.context_frames,
+                                                                            matric="mse", channel=0)
+                gen_loss_stochastic_batch.append(
+                    gen_loss_per_batch)  # self.gen_images_stochastic[stochastic,future_length]
+                print("gen_images_per_batch shape:", np.array(gen_images_per_batch).shape)
+                gen_images_stochastic.append(
+                    gen_images_per_batch)  # [stochastic,batch_size, seq_len, lat, lon, channel]
+
                 # Switch the 0 and 1 position
-                print("before transpose:",np.array(gen_images_stochastic).shape)
-            gen_images_stochastic = np.transpose(np.array(gen_images_stochastic),(1,0,2,3,4,5)) #[batch_size, stochastic, seq_len, lat, lon, chanel]
-            Postprocess.check_gen_images_stochastic_shape(gen_images_stochastic)         
+                print("before transpose:", np.array(gen_images_stochastic).shape)
+            gen_images_stochastic = np.transpose(np.array(gen_images_stochastic), (
+                1, 0, 2, 3, 4, 5))  # [batch_size, stochastic, seq_len, lat, lon, chanel]
+            Postprocess.check_gen_images_stochastic_shape(gen_images_stochastic)
             assert len(gen_images_stochastic.shape) == 6
             assert np.array(gen_images_stochastic).shape[1] == self.num_stochastic_samples
-            
-            self.stochastic_loss_all_batches.append(gen_loss_stochastic_batch) #[samples/batch_size,stochastic,future_length]
+
+            self.fcst_metric_all.append(
+                gen_loss_stochastic_batch)  # [samples/batch_size,stochastic,future_length]
             # save input and stochastic generate images to netcdf file
             # For each prediction (either deterministic or ensemble) we create one netCDF file.
             for batch_id in range(self.batch_size):
                 self.save_to_netcdf_for_stochastic_generate_images(self.input_images_denorm_all[batch_id],
                                                                    persistent_images_per_batch[batch_id],
                                                                    np.array(gen_images_stochastic)[batch_id],
-                                                                   fl_name="vfp_date_{}_sample_ind_{}.nc"\
+                                                                   fl_name="vfp_date_{}_sample_ind_{}.nc"
                                                                    .format(ts_batch[batch_id],
-                                                                           self.sample_ind+batch_id))
-            
+                                                                           self.sample_ind + batch_id))
+
             self.sample_ind += self.batch_size
-        
+
         self.persistent_loss_all_batches = np.mean(np.array(self.persistent_loss_all_batches), axis=0)
         self.stochastic_loss_all_batches = np.mean(np.array(self.stochastic_loss_all_batches), axis=0)
-        assert len(np.array(self.persistent_loss_all_batches).shape) == 1 
+        assert len(np.array(self.persistent_loss_all_batches).shape) == 1
         assert np.array(self.persistent_loss_all_batches).shape[0] == self.future_length
-        print("Bug here:",np.array(self.stochastic_loss_all_batches).shape)
+        print("Bug here:", np.array(self.stochastic_loss_all_batches).shape)
         assert len(np.array(self.stochastic_loss_all_batches).shape) == 2
         assert np.array(self.stochastic_loss_all_batches).shape[0] == self.num_stochastic_samples
-        
-    def calculate_metrics(self,metric="mse",by=0):
-        """ 
-        args:
-             mse: str the metric type, mse
-             by: which channel of output based on to calculate error
-        Calculate the mes metrics
-        return a dictionary
-        eval_metrics = {
-                         "model_ts_{t1}":[stochast_error1,stochast_err2,.....]
-                         "model_ts_{t2}": [stochast_erro1,stochast_err2,.....]
-                         "persisent_ts_{t1}":[determinstic_error1]
-                         "persistent_ts_{t2}":[determinstic_error1]
-                       }
-        {t1} is the forecasting timestamp
-        """
-        self.input_images_denorm_all_batches = np.array(self.input_images_denorm_all_batches)
-        self.persistent_images_all_batches = np.array(self.persistent_images_all_batches)
-        self.stochastic_images_all_batches  = np.array(self.stochastic_images_all_batches)
-        assert len(self.input_images_denorm_all_batches.shape) == 5
-        assert len(self.stochastic_images_all_batches.shape) == 6
-        assert len(self.persistent_images_all_batches.shape) == 5
-        self.eval_metrics = {}
-        for ts in range(self.future_length):
-            #calcualte the metric on persistent
-            mse_persistent =  (np.square(self.input_images_denorm_all_batches[:,self.context_frames+ts,:,:,by] -
-                                         self.persistent_images_all_batches[:,self.context_frames+ts-1,:,:,by])).mean()
-            self.eval_metrics["persistent_ts_"+str(ts)] = [mse_persistent]
-            self.stochastic_evals = []
-            for stochastic_sample_ind in range(self.num_stochastic_samples):
-                mse_model = (np.square(self.input_images_denorm_all_batches[:,self.context_frames+ts,:,:,by] -
-                                       self.stochastic_images_all_batches[:,stochastic_sample_ind,
-                                       self.context_frames+ts-1,:,:,by])).mean()
-                self.stochastic_evals.append(str(mse_model))
-                self.eval_metrics["model_ts_"+str(ts)] = self.stochastic_evals
-        print("metric",self.eval_metrics)
-        with open (os.path.join(self.results_dir,metric),"w") as fjs:
-            json.dump(self.eval_metrics,fjs)
-    
-    @staticmethod
-    def calculate_metrics_by_batch(input_per_batch, output_per_batch, future_length, context_frames, matric="mse",
-                                   channel=0):
-        """
-        Calculate the metrics by samples per batch
-        args:
-	     input_per_batch : list or array, shape is [batch_size, seq_len,lat,lon,channel], seq_len is the sum of context_frames and future_length, the references input
-             output_per_batch: list or array, shape is [batch_size,seq_len-1,lat,lon,channel],seq_len for output_per_batch is 1 less than the input_per_batch, the forecasting outputs
-             future_lengths:   int, the future frames to be predicted
-             context_frames:   int, the inputs frames used as input to the model
-             matric:       :   str, the metric evaluation type
-             channel       :   int, the channel of output which is used for calculating the metrics 
-        return:
-             loss : a list with length of future_length  
-        """
-        input_per_batch = np.array(input_per_batch)
-        output_per_batch = np.array(output_per_batch)
-        assert len(input_per_batch.shape) == 5
-        assert len(output_per_batch.shape)  == 5
-        eval_metrics_by_ts = []
-        for ts in range(future_length):
-            loss  =  (np.square(input_per_batch[:,context_frames+ts,:,:,channel] -
-                                output_per_batch[:,context_frames+ts-1,:,:,channel])).mean()
-            eval_metrics_by_ts.append(loss)
-        assert len(eval_metrics_by_ts) == future_length
-        return eval_metrics_by_ts
 
-    def save_eval_metric_to_json(self, metric="mse"):
+    def run_deterministic(self):
         """
-        save list to pickle file in results directory
+        Revised and vectorized version of run_deterministic
+        Loops over the training data, generates forecasts and calculates basic evaluation metrics on-the-fly
         """
-        self.eval_metrics = {}
-        for ts in range(self.future_length):
-            self.eval_metrics["persistent_ts_"+str(ts)] =  [self.persistent_loss_all_batches[ts]]
-            #for stochastic_sample_ind in range(self.num_stochastic_samples): 
-            self.eval_metrics["model_ts_"+str(ts)] = [str(i) for i in self.stochastic_loss_all_batches[:,ts]]
-    
-        with open (os.path.join(self.results_dir,metric),"w") as fjs:
-            json.dump(self.eval_metrics,fjs)
+        method = Postprocess.run_deterministic.__name__
+
+        # init the session and restore the trained model
+        self.init_session()
+        self.restore(self.sess, self.checkpoint)
+
+        # init sample index for looping and acculmulators for evaulation metrics
+        sample_ind = 0
+        nsamples = self.num_samples_per_epoch
+        # initialize datasets
+        eval_metric_ds = Postprocess.init_metric_ds(self.fcst_products, self.eval_metrics, self.vars_in[self.channel],
+                                                    nsamples, self.future_length)
+
+        while sample_ind < self.num_samples_per_epoch:
+            # get normalized and denormalized input data
+            input_results, input_images_denorm, t_starts = self.get_input_data_per_batch(self.inputs)
+            # feed and run the trained model; returned array has the shape [batchsize, seq_len, lat, lon, channel]
+            feed_dict = {input_ph: input_results[name] for name, input_ph in self.inputs.items()}
+            gen_images = self.sess.run(self.video_model.outputs['gen_images'], feed_dict=feed_dict)
+            # sanity check on length of forecast sequence
+            assert gen_images.shape[1] == self.sequence_length - 1, \
+                "%{0}: Sequence length of prediction must be smaller by one than total sequence length.".format(method)
+            # denormalize forecast sequence (self.norm_cls is already set in get_input_data_per_batch-method)
+            gen_images_denorm = self.denorm_images_all_channels(gen_images, self.vars_in, self.norm_cls,
+                                                                norm_method="minmax")
+            # store data into datset
+            times_0, init_times = self.get_init_time(t_starts)
+            batch_ds = self.create_dataset(input_images_denorm, gen_images_denorm, init_times)
+            # auxilary list of forecast dimensions
+            dims_fcst = list(batch_ds["{0}_ref".format(self.vars_in[0])].dims)
+
+            for i in np.arange(self.batch_size):
+                # work-around to make use of get_persistence_forecast_per_sample-method
+                times_seq = (pd.date_range(times_0[i], periods=int(self.sequence_length), freq="h")).to_pydatetime()
+                # get persistence forecast for sequences at hand and write to dataset
+                persistence_seq, _ = Postprocess.get_persistence(times_seq, self.input_dir_pkl)
+                for ivar, var in enumerate(self.vars_in):
+                    batch_ds["{0}_persistence_fcst".format(var)].loc[dict(init_time=init_times[i])] = \
+                        persistence_seq[self.context_frames-1:, :, :, ivar]
+
+                # save sequences to netcdf-file and track initial time
+                nc_fname = os.path.join(self.results_dir, "vfp_date_{0}_sample_ind_{1:d}.nc"
+                                        .format(pd.to_datetime(init_times[i]).strftime("%Y%m%d%H"), sample_ind + i))
+                self.save_ds_to_netcdf(batch_ds.isel(init_time=i), nc_fname)
+                # end of batch-loop
+            # write evaluation metric to corresponding dataset...
+            eval_metric_ds = self.populate_eval_metric_ds(eval_metric_ds, batch_ds, sample_ind,
+                                                          self.vars_in[self.channel])
+            # ... and increment sample_ind
+            sample_ind += self.batch_size
+            # end of while-loop for samples
+        # change init_time-coordinates to datetime64-type and safe dataset with evaluation metrics for later use
+        eval_metric_ds = eval_metric_ds.assign_coords(init_time=pd.to_datetime(eval_metric_ds["init_time"]))
+        self.eval_metrics_ds = eval_metric_ds
+        #self.add_ensemble_dim()
+
+    # all methods of the run factory
+    def get_input_data_per_batch(self, input_iter, norm_method="minmax"):
+        """
+        Get the input sequence from the dataset iterator object stored in self.inputs and denormalize the data
+        :param input_iter: the iterator object built by make_test_dataset_iterator-method
+        :param norm_method: normalization method applicable to the data
+        :return input_results: the normalized input data
+        :return input_images_denorm: the denormalized input data
+        :return t_starts: the initial time of the sequences
+        """
+        method = Postprocess.get_input_data_per_batch.__name__
+
+        input_results = self.sess.run(input_iter)
+        input_images = input_results["images"]
+        t_starts = input_results["T_start"]
+        if self.norm_cls is None:
+            if self.stat_fl is None:
+                raise AttributeError("%{0}: Attribute stat_fl is not initialized yet.".format(method))
+            self.norm_cls = Postprocess.get_norm(self.vars_in, self.stat_fl, norm_method)
+
+        # sanity check on input sequence
+        assert np.ndim(input_images) == 5, "%{0}: Input sequence of mini-batch does not have five dimensions."\
+                                           .format(method)
+
+        input_images_denorm = Postprocess.denorm_images_all_channels(input_images, self.vars_in, self.norm_cls,
+                                                                     norm_method=norm_method)
+
+        return input_results, input_images_denorm, t_starts
+
+    def get_init_time(self, t_starts):
+        """
+        Retrieves initial dates of forecast sequences from start time of whole inpt sequence
+        :param t_starts: list/array of start times of input sequence
+        :return: list of initial dates of forecast as numpy.datetime64 instances
+        """
+        method = Postprocess.get_init_time.__name__
+
+        t_starts = np.squeeze(np.asarray(t_starts))
+        if not np.ndim(t_starts) == 1:
+            raise ValueError("%{0}: Inputted t_starts must be a 1D list/array of date-strings with format %Y%m%d%H"
+                             .format(method))
+        for i, t_start in enumerate(t_starts):
+            try:
+                seq_ts = pd.date_range(dt.datetime.strptime(str(t_start), "%Y%m%d%H"), periods=self.context_frames,
+                                       freq="h")
+            except Exception as err:
+                print("%{0}: Could not convert {1} to datetime object. Ensure that the date-string format is 'Y%m%d%H'".
+                      format(method, str(t_start)))
+                raise err
+            if i == 0:
+                ts_all = np.expand_dims(seq_ts, axis=0)
+            else:
+                ts_all = np.vstack((ts_all, seq_ts))
+
+        init_times = ts_all[:, -1]
+        times0 = ts_all[:, 0]
+
+        return times0, init_times
+
+    def populate_eval_metric_ds(self, metric_ds, data_ds, ind_start, varname):
+        """
+        Populates evaluation metric dataset with values
+        :param metric_ds: the evaluation metric dataset with variables such as 'mfcst_mse' (MSE of model forecast)
+        :param data_ds: dataset holding the data from one mini-batch (see create_dataset-method)
+        :param ind_start: start index of dimension init_time (part of metric_ds)
+        :param varname: variable of interest (must be part of self.vars_in)
+        :return: metric_ds
+        """
+        method = Postprocess.populate_eval_metric_ds.__name__
+
+        # dictionary of implemented evaluation metrics
+        known_eval_metrics = {"mse": Postprocess.calc_mse_batch , "psnr": Postprocess.calc_psnr_batch}
+
+        # generate list of functions that calculate requested evaluation metrics
+        if set(self.eval_metrics).issubset(known_eval_metrics):
+            eval_metrics_func = [known_eval_metrics[metric] for metric in self.eval_metrics]
+        else:
+            misses = list(set(self.eval_metrics) - known_eval_metrics.keys())
+            raise NotImplementedError("%{0}: The following requested evaluation metrics are not implemented yet: "
+                                      .format(method, ", ".join(misses)))
+
+        varname_ref = "{0}_ref".format(varname)
+        init_times_metric = metric_ds["init_time"]
+        it = init_times_metric[ind_start:ind_start+self.batch_size]
+        for fcst_prod in self.fcst_products.keys():
+            for imetric, eval_metric in enumerate(self.eval_metrics):
+                metric_name = "{0}_{1}_{2}".format(varname, fcst_prod, eval_metric)
+                varname_fcst = "{0}_{1}_fcst".format(varname, fcst_prod)
+                metric_ds[metric_name].loc[dict(init_time=it)] = eval_metrics_func[imetric](data_ds[varname_fcst],
+                                                                                            data_ds[varname_ref])
+            # end of metric-loop
+        # end of forecast product-loop
+        # set init-time coordinate in place
+        init_times_metric = init_times_metric.values
+        init_times_metric[ind_start:ind_start+self.batch_size] = data_ds["init_time"]
+        metric_ds = metric_ds.assign_coords(init_time=init_times_metric)
+        return metric_ds
+
+    def add_ensemble_dim(self):
+        """
+        Expands dimensions of loss-arrays by dummy ensemble-dimension (used for deterministic forecasts only)
+        :return:
+        """
+        self.stochastic_loss_all_batches = np.expand_dims(self.fcst_mse_avg_batches, axis=0)  # [1,future_lenght]
+        self.stochastic_loss_all_batches_psnr = np.expand_dims(self.fcst_psnr_avg_batches, axis=0)  # [1,future_lenght]
+
+    def create_dataset(self, input_seq, fcst_seq, ts_ini):
+        """
+        Put input and forecast sequences into a xarray dataset. The latter also involves the persistence forecast
+        which is just initialized, but unpopulated at this stage.
+        The input data sequence is split into (effective) input sequence used for the forecast and into reference part.
+        :param input_seq: sequence of input images [batch ,seq, lat, lon, channel]
+        :param fcst_seq: sequence of forecast images [batch ,seq-1, lat, lon, channel]
+        :param ts_ini: initial time of forecast (=last time step of effective input sequence)
+        :return data_ds: above mentioned data in a nicely formatted dataset
+        """
+
+        method = Postprocess.create_dataset.__name__
+
+        # auxiliary variables for temporal dimensions
+        seq_hours = np.arange(self.sequence_length) - (self.context_frames-1)
+        # some sanity checks
+        assert np.shape(ts_ini)[0] == self.batch_size,\
+            "%{0}: Inconsistent number of sequence start times ({1:d}) and batch size ({2:d})"\
+            .format(method, np.shape(ts_ini)[0], self.batch_size)
+
+        # turn input and forecast sequences to Data Arrays to ease indexing
+        try:
+            input_seq = xr.DataArray(input_seq, coords={"init_time": ts_ini, "fcst_hour": seq_hours,
+                                                        "lat": self.lats, "lon": self.lons, "varname": self.vars_in},
+                                     dims=["init_time", "fcst_hour", "lat", "lon", "varname"])
+        except Exception as err:
+            print("%{0}: Could not create Data Array for input sequence.".format(method))
+            raise err
+
+        try:
+            fcst_seq = xr.DataArray(fcst_seq, coords={"init_time": ts_ini, "fcst_hour": seq_hours[1::],
+                                                      "lat": self.lats, "lon": self.lons, "varname": self.vars_in},
+                                    dims=["init_time", "fcst_hour", "lat", "lon", "varname"])
+        except Exception as err:
+            print("%{0}: Could not create Data Array for forecast sequence.".format(method))
+            raise err
+
+        # Now create the dataset where the input sequence is splitted into input that served for creating the
+        # forecast and into the the reference sequences (which can be compared to the forecast)
+        # as where the persistence forecast is containing NaNs (must be generated later)
+        data_in_dict = dict([("{0}_in".format(var), input_seq.isel(fcst_hour=slice(None, self.context_frames),
+                                                                   varname=ivar) \
+                                                             .rename({"fcst_hour": "in_hour"})
+                                                             .reset_coords(names="varname", drop=True))
+                             for ivar, var in enumerate(self.vars_in)])
+
+        # get shape of forecast data (one variable) -> required to initialize persistence forecast data
+        shape_fcst = np.shape(fcst_seq.isel(fcst_hour=slice(self.context_frames-1, None), varname=0)
+                                      .reset_coords(names="varname", drop=True))
+        data_ref_dict = dict([("{0}_ref".format(var), input_seq.isel(fcst_hour=slice(self.context_frames, None),
+                                                                     varname=ivar)
+                                                               .reset_coords(names="varname", drop=True))
+                              for ivar, var in enumerate(self.vars_in)])
+
+        data_mfcst_dict = dict([("{0}_{1}_fcst".format(var, self.model),
+                                 fcst_seq.isel(fcst_hour=slice(self.context_frames-1, None), varname=ivar)
+                                         .reset_coords(names="varname", drop=True))
+                                for ivar, var in enumerate(self.vars_in)])
+
+        # fill persistence forecast variables with dummy data (to be populated later)
+        data_pfcst_dict = dict([("{0}_persistence_fcst".format(var), (["init_time", "fcst_hour", "lat", "lon"],
+                                                                       np.full(shape_fcst, np.nan)))
+                                for ivar, var in enumerate(self.vars_in)])
+
+        # create the dataset
+        data_ds = xr.Dataset({**data_in_dict, **data_ref_dict, **data_mfcst_dict, **data_pfcst_dict})
+
+        return data_ds
+
+    def handle_eval_metrics(self):
+        """
+        Plots error-metrics averaged over all predictions to file.
+        :return: a bunch of plots as png-files
+        """
+        method = Postprocess.handle_eval_metrics.__name__
+
+        if self.eval_metrics_ds is None:
+            raise AttributeError("%{0}: Attribute with dataset of evaluation metrics is still None.".format(method))
+
+        # save evaluation metrics to file
+        nc_fname = os.path.join(self.results_dir, "evaluation_metrics.nc")
+        Postprocess.save_ds_to_netcdf(self.eval_metrics_ds, nc_fname)
+
+        # create plots of evaluation metrics averaged over all forecasts
+        _ = self.plot_avg_eval_metrics(self.eval_metrics_ds, self.eval_metrics, self.fcst_products,
+                                       self.vars_in[self.channel], self.results_dir)
+
+    # auxiliary methods (not necessarily bound to class instance)
+    @staticmethod
+    def get_norm(varnames, stat_fl, norm_method):
+        """
+        Retrieves normalization instance
+        :param varnames: list of variabe names
+        :param stat_fl: statistics JSON-file
+        :param norm_method: normalization method
+        :return: normalization instance which can be used to normalize images according to norm_method
+        """
+        method = Postprocess.get_norm.__name__
+
+        if not isinstance(varnames, list):
+            raise ValueError("%{0}: varnames must be a list of variable names.".format(method))
+
+        norm_cls = Norm_data(varnames)
+        try:
+            with open(stat_fl) as js_file:
+                norm_cls.check_and_set_norm(json.load(js_file), norm_method)
+            norm_cls = norm_cls
+        except Exception as err:
+            print("%{0}: Could not handle statistics json-file '{1}'.".format(method, stat_fl))
+            raise err
+        return norm_cls
+
+    @staticmethod
+    def denorm_images_all_channels(image_sequence, varnames, norm, norm_method="minmax"):
+        """
+        Denormalize data of all image channels
+        :param image_sequence: list/array [batch, seq, lat, lon, channel] of images
+        :param varnames: list of variable names whose order matches channel indices
+        :param norm: normalization instance
+        :param norm_method: normalization-method (default: 'minmax')
+        :return: denormalized image data
+        """
+        method = Postprocess.denorm_images_all_channels.__name__
+
+        nvars = len(varnames)
+        image_sequence = np.array(image_sequence)
+        # sanity checks
+        if not isinstance(norm, Norm_data):
+            raise ValueError("%{0}: norm must be a normalization instance.".format(method))
+
+        if nvars != np.shape(image_sequence)[-1]:
+            raise ValueError("%{0}: Number of passed variable names ({1:d}) does not match number of channels ({2:d})"
+                             .format(method, nvars, np.shape(image_sequence)[-1]))
+
+        input_images_all_channles_denorm = [Postprocess.denorm_images(image_sequence, norm, {varname: c},
+                                                                      norm_method=norm_method)
+                                            for c, varname in enumerate(varnames)]
+
+        input_images_denorm = np.stack(input_images_all_channles_denorm, axis=-1)
+        return input_images_denorm
+
+    @staticmethod
+    def denorm_images(input_images, norm, var_dict, norm_method="minmax"):
+        """
+        Denormalize one channel of images
+        :param input_images: list/array [batch, seq, lat, lon, channel]
+        :param norm: normalization instance
+        :param var_dict: dictionary with one key only mapping variable name to channel index, e.g. {"2_t": 0}
+        :param norm_method: normalization method (default: minmax-normalization)
+        :return: denormalized image data
+        """
+        method = Postprocess.denorm_images.__name__
+        # sanity checks
+        if not isinstance(var_dict, dict):
+            raise ValueError("%{0}: var_dict is not a dictionary.".format(method))
+        else:
+            if len(var_dict.keys()) > 1:
+                raise ValueError("%{0}: var_dict must contain one key only.".format(method))
+            varname, channel = *var_dict.keys(), *var_dict.values()
+
+        if not isinstance(norm, Norm_data):
+            raise ValueError("%{0}: norm must be a normalization instance.".format(method))
+
+        try:
+            input_images_denorm = norm.denorm_var(input_images[..., channel], varname, norm_method)
+        except Exception as err:
+            print("%{0}: Something went wrong when denormalizing image sequence. Inspect error-message!".format(method))
+            raise err
+
+        return input_images_denorm
 
     @staticmethod
     def check_gen_images_stochastic_shape(gen_images_stochastic):
@@ -478,399 +749,417 @@ class Postprocess(TrainModel):
         return gen_images_stochastic
 
     @staticmethod
-    def denorm_images(stat_fl, input_images_, channel,var):
+    def get_persistence(ts, input_dir_pkl):
         """
-        denormaize one channel of images for particular var
-        args:
-            stat_fl       : str, the path of the statistical json file
-            input_images_ : list/array [seq, lat,lon,channel], the input images are  denormalized
-            channel       : the channel of images going to be denormalized
-            var           : the variable name of the channel, 
-
-        """
-        norm_cls  = Norm_data(var)
-        norm = 'minmax' # TODO: can be replaced by loading option.json from previous step, if this information is saved there.
-        with open(stat_fl) as js_file:
-             norm_cls.check_and_set_norm(json.load(js_file),norm)
-        input_images_denorm = norm_cls.denorm_var(input_images_[:, :, :,channel], var, norm)
-        return input_images_denorm
-
-    @staticmethod
-    def denorm_images_all_channels(stat_fl, input_images_, vars_in):
-        """
-        Denormalized all the channles of images
-        args:
-            stat_fl       : str, the path of the statistical json file
-            input_images_ : list/array [seq, lat,lon,channel], the input images are  denormalized
-            vars_in       : list of str, the variable names of all the channels
-        """
-        
-        input_images_all_channles_denorm = []
-        input_images_ = np.array(input_images_)
-        
-        for c in range(len(vars_in)):
-            input_images_all_channles_denorm.append(Postprocess.denorm_images(stat_fl, input_images_,
-                                                                              channel=c, var=vars_in[c]))
-        input_images_denorm = np.stack(input_images_all_channles_denorm, axis=-1)
-        return input_images_denorm
-    
-    @staticmethod
-    def get_one_seq_from_batch(input_images, i):
-        """
-        Get one sequence images from batch images
-        """
-        assert (len(np.array(input_images).shape) == 5)
-        input_images_ = input_images[i,:,:,:,:]
-        return input_images_
-
-    @staticmethod
-    def generate_seq_timestamps(t_start, len_seq=20):
-
-        """
-        Given the start timestampe and generate the len_seq hourly sequence timestamps
-        
-        args:
-            t_start   :int, str, array, the defined start timestamps
-            len_seq   :int, the sequence length for generating hourly timestamps
-        """
-        if isinstance(t_start,int): t_start = str(t_start)
-        if isinstance(t_start,np.ndarray):
-            warnings.warn("You give array of timestamps, we only use the first timestamp as start datetime " +
-                          "to generate sequence timestamps")
-            t_start = str(t_start[0])
-        if not len(t_start) == 10:
-            raise ValueError ("The timestamp gived should following the pattern '%Y%m%d%H' : 2017121209")
-        s_datetime = datetime.datetime.strptime(t_start, '%Y%m%d%H')
-        seq_ts = [s_datetime + datetime.timedelta(hours = i+1) for i in range(len_seq)]
-        return seq_ts
-
-    def plot_persistence_images(self):
-        """
-        Plot the persistence images
-        """
-       # I am not sure about the number of frames given with context_frames and context_frames +
-        Postprocess.plot_seq_imgs(imgs=self.persistence_images[self.context_frames:,:,:,0], lats=self.lats,
-                                  lons=self.lons, ts=self.ts_persistence[self.context_frames:],
-                                  label="Persistence Forecast" + self.model, output_png_dir=self.results_dir)
-
-    def plot_generate_images(self,stochastic_sample_ind,stochastic_plot_id=0):
-        """
-        Plot the generate image for specific stochastic index
-        """
-        if stochastic_sample_ind == stochastic_plot_id: 
-            Postprocess.plot_seq_imgs(imgs=self.gen_images_denorm[self.context_frames-1:,:,:,0], lats=self.lats,
-                                      lons=self.lons, ts=self.ts[self.context_frames:],
-                                      label="Forecast by Model " + self.model, output_png_dir=self.results_dir)
-        else:
-            pass
-
-    def save_to_netcdf_for_stochastic_generate_images(self, input_images_, persistent_images_, gen_images_stochastic,
-                                                      fl_name="test.nc"):
-        """
-        Save the input images, persistent images and generated stochatsic images to netCDF file
-        args:
-            input_images_        : list/array, [seq,lat,lon,channel]
-            persistent_images_   : list/array, [seq,lat,lon,channel]
-            gen_images_stochastic: list/array (float), [stochastic_number,seq,lat,lon,channel]
-            fl_name              : str, the netcdf file name to be saved
-        """
-        print("inputs fpor netcdf:",input_images_)
-        input_images_ = np.array(input_images_)
-        persistent_images_ = np.array(persistent_images_)
-        gen_images_stochastic = np.array(gen_images_stochastic)
-
-        assert (len(np.array(input_images_).shape)==len(np.array(gen_images_stochastic).shape))-1
-        persistent_images_ = np.array(persistent_images_)
-        assert len(persistent_images_.shape) == 4 #[seq,lat,lon,channel]
-        y_len = len(self.lats)
-        x_len = len(self.lons)
-        ts_len = len(self.ts)
-        ts_input = self.ts[:self.context_frames]
-        ts_forecast = self.ts[self.context_frames:]
-        gen_images_ = np.array(gen_images_stochastic)
-        output_file = os.path.join(self.results_dir,fl_name)
-        with Dataset(output_file, "w", format="NETCDF4") as nc_file:
-            nc_file.title = "ERA5 hourly reanalysis data and the forecasting data by deep learning " + \
-                            "for 2-m above sea level temperatures"
-            nc_file.author = "Bing Gong, Michael Langguth"
-            nc_file.create_date = "2020-08-04"
-            #create groups forecasts and analysis 
-            fcst = nc_file.createGroup("forecasts")
-            analgrp = nc_file.createGroup("analysis")
-            #create dims for all the data(forecast and analysis)
-            latD = nc_file.createDimension('lat', y_len)
-            lonD = nc_file.createDimension('lon', x_len)
-            timeD = nc_file.createDimension('time_input', self.context_frames) 
-            timeF = nc_file.createDimension('time_forecast', self.future_length)
-            #Latitude
-            lat  = nc_file.createVariable('lat', float, ('lat',), zlib = True)
-            lat.units = 'degrees_north'
-            lat[:] = self.lats
-            #Longitude
-            lon = nc_file.createVariable('lon', float, ('lon',), zlib = True)
-            lon.units = 'degrees_east'
-            lon[:] = self.lons
-
-            #Time for input
-            time = nc_file.createVariable('time_input', 'f8', ('time_input',), zlib = True)
-            time.units = "hours since 1970-01-01 00:00:00" 
-            time.calendar = "gregorian"
-            time[:] = date2num(ts_input, units = time.units, calendar = time.calendar)
-        
-            #time for forecast
-            time_f = nc_file.createVariable('time_forecast', 'f8', ('time_forecast',), zlib = True)
-            time_f.units = "hours since 1970-01-01 00:00:00" 
-            time_f.calendar = "gregorian"
-            time_f[:] = date2num(ts_forecast, units = time.units, calendar = time.calendar)
-        
-           ################ analysis group  #####################
-        
-            #####sub group for inputs
-            # create variables for non-meta data
-            #Temperature
-            t2 = nc_file.createVariable("/analysis/inputs/T2","f4",("time_input","lat","lon"), zlib = True)
-            t2.units = 'K'
-            t2[:,:,:] = input_images_[:self.context_frames,:,:,0]
-
-            #mean sea level pressure
-            msl = nc_file.createVariable("/analysis/inputs/MSL","f4",("time_input","lat","lon"), zlib = True)
-            msl.units = 'Pa'
-            msl[:,:,:] = input_images_[:self.context_frames,:,:,1]
-
-            #Geopotential at 500 
-            gph500 = nc_file.createVariable("/analysis/inputs/GPH500","f4",("time_input","lat","lon"), zlib = True)
-            gph500.units = 'm'
-            gph500[:,:,:] = input_images_[:self.context_frames,:,:,2]
-        
-            #####sub group for reference(ground truth)
-            #Temperature
-            t2_r = nc_file.createVariable("/analysis/reference/T2","f4",("time_forecast","lat","lon"), zlib = True)
-            t2_r.units = 'K'
-            t2_r[:,:,:] = input_images_[self.context_frames:,:,:,0]
-
-             #mean sea level pressure
-            msl_r = nc_file.createVariable("/analysis/reference/MSL","f4",("time_forecast","lat","lon"), zlib = True)
-            msl_r.units = 'Pa'
-            msl_r[:,:,:] = input_images_[self.context_frames:,:,:,1]
-
-            #Geopotential at 500 
-            gph500_r = nc_file.createVariable("/analysis/reference/GPH500","f4",("time_forecast","lat","lon"), zlib = True)
-            gph500_r.units = 'm'
-            gph500_r[:,:,:] = input_images_[self.context_frames:,:,:,2]
-
-            ###subgroup for Pesistent analysis #######
-            t2_p = nc_file.createVariable("/analysis/persistent/T2","f4",("time_forecast","lat","lon"), zlib = True)
-            t2_p.units = 'K'
-            t2_p[:,:,:] = persistent_images_[self.context_frames:,:,:,0]
-
-            #msl_p = nc_file.createVariable("/analysis/persistent/MSL","f4",("time_forecast","lat","lon"), zlib = True)
-            #msl_p.units = 'Pa'
-            #msl_p[:,:,:] = persistent_images_[self.context_frames:,:,:,1]
-             
-            #Geopotential at 500 
-            #gph500_p = nc_file.createVariable("/analysis/persistent/GPH500","f4",("time_forecast","lat","lon"), zlib = True)
-            #gph500_p.units = 'm'
-            #gph500_p[:,:,:] = persistent_images_[self.context_frames:,:,:,2]
-
-
-            ################ forecast group  #####################
-            for stochastic_sample_ind in range(self.num_stochastic_samples):
-                #Temperature:
-                t2 = nc_file.createVariable("/forecasts/T2/stochastic/{}".format(stochastic_sample_ind), "f4",
-                                            ("time_forecast","lat","lon"), zlib = True)
-                t2.units = 'K'
-                t2[:,:,:] = gen_images_[stochastic_sample_ind,self.context_frames-1:,:,:,0]
-
-                #mean sea level pressure
-                msl = nc_file.createVariable("/forecasts/MSL/stochastic/{}".format(stochastic_sample_ind), "f4",
-                                             ("time_forecast","lat","lon"), zlib = True)
-                msl.units = 'Pa'
-                msl[:,:,:] = gen_images_[stochastic_sample_ind,self.context_frames-1:,:,:,1]
-
-                #Geopotential at 500 
-                gph500 = nc_file.createVariable("/forecasts/GPH500/stochastic/{}".format(stochastic_sample_ind), "f4",
-                                                ("time_forecast","lat","lon"), zlib = True)
-                gph500.units = 'm'
-                gph500[:,:,:] = gen_images_[stochastic_sample_ind,self.context_frames-1:,:,:,2]        
-
-            print("{} created".format(output_file)) 
-        return None
-    
-    @staticmethod
-    def plot_seq_imgs(imgs, lats, lons, ts, output_png_dir, label="Ground Truth"):
-        """
-        Plot the seq images 
-        """
-        assert len(np.array(imgs).shape) == 3, "img dims should be four: (seq_len,lat,lon)"
-        assert np.array(imgs).shape[0] == len(ts), "The len of timestamps should be equal the image seq_len"
-        fig = plt.figure(figsize=(18,6))
-        gs = gridspec.GridSpec(1, len(ts))
-        gs.update(wspace=0., hspace=0.)
-        xlables = [round(i,2) for i in list(np.linspace(np.min(lons),np.max(lons),5))]
-        ylabels = [round(i,2) for i in list(np.linspace(np.max(lats),np.min(lats),5))]
-        for i in range(len(ts)):
-            t = ts[i]
-            ax1 = plt.subplot(gs[i])
-            plt.imshow(imgs[i] ,cmap='jet', vmin=270, vmax=300)
-            #plt.imshow(imgs[i] ,cmap='jet')
-            ax1.title.set_text("t=" + t.strftime("%Y%m%d%H"))
-            plt.setp([ax1], xticks=[], xticklabels=[], yticks=[], yticklabels=[])
-            if i == 0:
-                plt.setp([ax1], xticks=list(np.linspace(0, len(lons), 5)), xticklabels=xlables,
-                         yticks=list(np.linspace(0, len(lats), 5)), yticklabels=ylabels)
-                plt.ylabel(label, fontsize=10)
-        plt.savefig(os.path.join(output_png_dir, label + "_TS_" + str(ts[0]) + ".jpg"))
-        plt.clf()
-        plt.close()
-        output_fname = label + "_TS_" + ts[0].strftime("%Y%m%d%H") + ".jpg"
-        print("image {} saved".format(output_fname))
-
-    
-    @staticmethod
-    def get_persistence(ts,input_dir_pkl):
-        """This function gets the persistence forecast.
+        This function gets the persistence forecast.
         'Today's weather will be like yesterday's weather.'
-    
-        Inputs:
-        ts: output by generate_seq_timestamps(t_start,len_seq=sequence_length)
-            Is a list containing dateime objects
-        
-        input_dir_pkl: input directory to pickle files
-    
-        Ouputs:
-        time_persistence:    list containing the dates and times of the 
-                       persistence forecast.
-        var_peristence  : sequence of images corresponding to the times
-                       in ts_persistence
+        :param ts: list dontaining datetime objects from get_init_times
+        :param input_dir_pkl: input directory to pickle files
+        :return time_persistence: list containing the dates and times of the persistence forecast.
+        :return var_peristence: sequence of images corresponding to these times
         """
         ts_persistence = []
         year_origin = ts[0].year
-        for t in range(len(ts)): # Scarlet: this certainly can be made nicer with list comprehension 
-            ts_temp = ts[t] - datetime.timedelta(days=1)
+        for t in range(len(ts)):  # Scarlet: this certainly can be made nicer with list comprehension
+            ts_temp = ts[t] - dt.timedelta(days=1)
             ts_persistence.append(ts_temp)
         t_persistence_start = ts_persistence[0]
         t_persistence_end = ts_persistence[-1]
         year_start = t_persistence_start.year
         month_start = t_persistence_start.month
         month_end = t_persistence_end.month
-        print("start year:",year_start)    
+        print("start year:", year_start)
         # only one pickle file is needed (all hours during the same month)
-        if month_start == month_end: 
+        if month_start == month_end:
             # Open files to search for the indizes of the corresponding time
-            time_pickle  = list(Postprocess.load_pickle_for_persistence(input_dir_pkl, year_start, month_start, 'T'))
+            time_pickle = list(Postprocess.load_pickle_for_persistence(input_dir_pkl, year_start, month_start, 'T'))
             # Open file to search for the correspoding meteorological fields
-            var_pickle  = list(Postprocess.load_pickle_for_persistence(input_dir_pkl, year_start, month_start, 'X'))
-            
+            var_pickle = list(Postprocess.load_pickle_for_persistence(input_dir_pkl, year_start, month_start, 'X'))
+
             if year_origin != year_start:
-               time_origin_pickle = list(Postprocess.load_pickle_for_persistence(input_dir_pkl, year_origin, 12, 'T'))
-               var_origin_pickle  = list(Postprocess.load_pickle_for_persistence(input_dir_pkl, year_origin, 12, 'X'))            
-               time_pickle.extend(time_origin_pickle)
-               var_pickle.extend(var_origin_pickle)
-            
-           # Retrieve starting index
+                time_origin_pickle = list(Postprocess.load_pickle_for_persistence(input_dir_pkl, year_origin, 12, 'T'))
+                var_origin_pickle = list(Postprocess.load_pickle_for_persistence(input_dir_pkl, year_origin, 12, 'X'))
+                time_pickle.extend(time_origin_pickle)
+                var_pickle.extend(var_origin_pickle)
+
+            # Retrieve starting index
             ind = list(time_pickle).index(np.array(ts_persistence[0]))
-            # print('Scarlet, Original', ts_persistence)
-            # print('From Pickle', time_pickle[ind:ind+len(ts_persistence)])
-        
-            var_persistence  = np.array(var_pickle)[ind:ind+len(ts_persistence)]
-            time_persistence = np.array(time_pickle)[ind:ind+len(ts_persistence)].ravel()
-            # print(' Scarlet Shape of time persistence',time_persistence.shape)
-            # print(' Scarlet Shape of var persistence',var_persistence.shape)
-    
-    
+
+            var_persistence = np.array(var_pickle)[ind:ind + len(ts_persistence)]
+            time_persistence = np.array(time_pickle)[ind:ind + len(ts_persistence)].ravel()
         # case that we need to derive the data from two pickle files (changing month during the forecast periode)
-        else: 
-            t_persistence_first_m  = [] # should hold dates of the first month
-            t_persistence_second_m = [] # should hold dates of the second month
-        
+        else:
+            t_persistence_first_m = []  # should hold dates of the first month
+            t_persistence_second_m = []  # should hold dates of the second month
+
             for t in range(len(ts)):
                 m = ts_persistence[t].month
                 if m == month_start:
                     t_persistence_first_m.append(ts_persistence[t])
                 if m == month_end:
                     t_persistence_second_m.append(ts_persistence[t])
-            if year_origin == year_start: 
+            if year_origin == year_start:
                 # Open files to search for the indizes of the corresponding time
-                time_pickle_first  = Postprocess.load_pickle_for_persistence(input_dir_pkl,year_start, month_start, 'T')
-                time_pickle_second = Postprocess.load_pickle_for_persistence(input_dir_pkl,year_start, month_end, 'T')
-        
+                time_pickle_first = Postprocess.load_pickle_for_persistence(input_dir_pkl, year_start, month_start, 'T')
+                time_pickle_second = Postprocess.load_pickle_for_persistence(input_dir_pkl, year_start, month_end, 'T')
+
                 # Open file to search for the correspoding meteorological fields
-                var_pickle_first = Postprocess.load_pickle_for_persistence(input_dir_pkl,year_start, month_start, 'X')
-                var_pickle_second = Postprocess.load_pickle_for_persistence(input_dir_pkl,year_start, month_end, 'X')
-           
+                var_pickle_first = Postprocess.load_pickle_for_persistence(input_dir_pkl, year_start, month_start, 'X')
+                var_pickle_second = Postprocess.load_pickle_for_persistence(input_dir_pkl, year_start, month_end, 'X')
+
             if year_origin != year_start:
                 # Open files to search for the indizes of the corresponding time
-                time_pickle_second = Postprocess.load_pickle_for_persistence(input_dir_pkl,year_origin, 1, 'T')
-                time_pickle_first = Postprocess.load_pickle_for_persistence(input_dir_pkl,year_start, 12, 'T')
+                time_pickle_second = Postprocess.load_pickle_for_persistence(input_dir_pkl, year_origin, 1, 'T')
+                time_pickle_first = Postprocess.load_pickle_for_persistence(input_dir_pkl, year_start, 12, 'T')
 
                 # Open file to search for the correspoding meteorological fields
-                var_pickle_second  =  Postprocess.load_pickle_for_persistence(input_dir_pkl,year_origin, 1, 'X')
-                var_pickle_first =  Postprocess.load_pickle_for_persistence(input_dir_pkl,year_start, 12, 'X')
-                
-                # print('Scarlet, Original', ts_persistence)
-                # print('From Pickle', time_pickle_first[ind_first_m:ind_first_m+len(t_persistence_first_m)],
-                # time_pickle_second[ind_second_m:ind_second_m+len(t_persistence_second_m)])
-                # print(' Scarlet before', time_pickle_first[ind_first_m:ind_first_m+len(t_persistence_first_m)].shape,
-                # time_pickle_second[ind_second_m:ind_second_m+len(t_persistence_second_m)].shape)
-            
+                var_pickle_second = Postprocess.load_pickle_for_persistence(input_dir_pkl, year_origin, 1, 'X')
+                var_pickle_first = Postprocess.load_pickle_for_persistence(input_dir_pkl, year_start, 12, 'X')
+
             # Retrieve starting index
             ind_first_m = list(time_pickle_first).index(np.array(t_persistence_first_m[0]))
-            print ("time_pickle_second:",time_pickle_second)
+            #print("time_pickle_second:", time_pickle_second)
             ind_second_m = list(time_pickle_second).index(np.array(t_persistence_second_m[0]))
-        
-             # append the sequence of the second month to the first month
-            var_persistence = np.concatenate((var_pickle_first[ind_first_m:ind_first_m+len(t_persistence_first_m)],
-                                          var_pickle_second[ind_second_m:ind_second_m+len(t_persistence_second_m)]), 
-                                          axis=0)
-            time_persistence = np.concatenate((time_pickle_first[ind_first_m:ind_first_m+len(t_persistence_first_m)],
-                                          time_pickle_second[ind_second_m:ind_second_m+len(t_persistence_second_m)]), 
-                                          axis=0).ravel() # ravel is needed to eliminate the unnecessary dimension (20,1) becomes (20,)
-            #print(' Scarlet concatenate and ravel (time)', var_persistence.shape, time_persistence.shape)
-           
-        if len(time_persistence.tolist()) == 0 : raise ("The time_persistent is empty!")    
-        if len(var_persistence) ==0 : raise ("The var persistence is empty!")
-        # tolist() is needed for plotting
+
+            # append the sequence of the second month to the first month
+            var_persistence = np.concatenate((var_pickle_first[ind_first_m:ind_first_m + len(t_persistence_first_m)],
+                                              var_pickle_second[
+                                              ind_second_m:ind_second_m + len(t_persistence_second_m)]),
+                                             axis=0)
+            time_persistence = np.concatenate((time_pickle_first[ind_first_m:ind_first_m + len(t_persistence_first_m)],
+                                               time_pickle_second[
+                                               ind_second_m:ind_second_m + len(t_persistence_second_m)]),
+                                              axis=0).ravel()
+            # Note: ravel is needed to eliminate the unnecessary dimension (20,1) becomes (20,)
+
+        if len(time_persistence.tolist()) == 0:
+            raise ValueError("The time_persistent is empty!")
+        if len(var_persistence) == 0:
+            raise ValueError("The var persistence is empty!")
+
+        var_persistence = var_persistence[1:]
+        time_persistence = time_persistence[1:]
+
         return var_persistence, time_persistence.tolist()
-    
+
     @staticmethod
-    def load_pickle_for_persistence(input_dir_pkl,year_start, month_start, pkl_type):
-        """Helper to get the content of the pickle files. There are two types in our workflow:
-        T_[month].pkl where the time stamp is stored
-        X_[month].pkl where the variables are stored, e.g. temperature, geopotential and pressure
-        This helper function constructs the directory, opens the file to read it, returns the variable. 
+    def load_pickle_for_persistence(input_dir_pkl, year_start, month_start, pkl_type):
         """
-        path_to_pickle = input_dir_pkl+'/'+str(year_start)+'/'+pkl_type+'_{:02}.pkl'.format(month_start)
-        infile = open(path_to_pickle,'rb')    
-        var = pickle.load(infile)
+        There are two types in our workflow: T_[month].pkl where the timestamp is stored,
+        X_[month].pkl where the variables are stored, e.g. temperature, geopotential and pressure.
+        This helper function constructs the directory, opens the file to read it, returns the variable.
+        :param input_dir_pkl: directory where input pickle files are stored
+        :param year_start: The year for which data is requested as integer
+        :param month_start: The year for which data is requested as integer
+        :param pkl_type: Either "X" or "T"
+        """
+        path_to_pickle = os.path.join(input_dir_pkl, str(year_start), pkl_type + "_{:02}.pkl".format(month_start))
+        with open(path_to_pickle, "rb") as pkl_file:
+            var = pickle.load(pkl_file)
         return var
 
-    def plot_evalution_metrics(self):
-        model_names = self.eval_metrics.keys()
-        model_ts_errors = [] # [timestamps,stochastic_number]
-        persistent_ts_errors = []
-        for ts in range(self.future_length-1):
-            stochastic_err = self.eval_metrics["model_ts_"+str(ts)]  
-            stochastic_err = [float(item) for item in stochastic_err]
-            model_ts_errors.append(stochastic_err)  
-            persistent_err = self.eval_metrics["persistent_ts_"+str(ts)]
-            persistent_err = float(persistent_err[0])
-            persistent_ts_errors.append(persistent_err)
-        if len(np.array(model_ts_errors).shape) == 1:
-            model_ts_errors = np.expand_dims(np.array(model_ts_errors), axis=1)
-        model_ts_errors = np.array(model_ts_errors)
-        persistent_ts_errors = np.array(persistent_ts_errors)
-        fig = plt.figure(figsize=(6,4))
-        ax = plt.axes([0.1, 0.15, 0.75, 0.75])
-        for stoch_ind in range(len(model_ts_errors[0])):
-            plt.plot(model_ts_errors[:,stoch_ind],lw=1)
-        plt.plot(persistent_ts_errors)
-        plt.xticks(np.arange(1,self.future_length))
-        ax.set_ylim(0., 10)
-        legend = ax.legend(loc='upper left')
-        ax.set_xlabel('Time stamps')
-        ax.set_ylabel("Errors")
-        print("Saving plot for err")
-        plt.savefig(os.path.join(self.results_dir,"evaluation.png"))
+    @staticmethod
+    def save_ds_to_netcdf(ds, nc_fname, comp_level=5):
+        """
+        Writes xarray dataset into netCDF-file
+        :param ds: The dataset to be written
+        :param nc_fname: Path and name of the target netCDF-file
+        :param comp_level: compression level, must be an integer between 1 and 9 (defualt: 5)
+        :return: -
+        """
+        method = Postprocess.save_ds_to_netcdf.__name__
+
+        # sanity checks
+        if not isinstance(ds, xr.Dataset):
+            raise ValueError("%{0}: Argument 'ds' must be a xarray dataset.".format(method))
+
+        if not isinstance(comp_level, int):
+            raise ValueError("%{0}: Argument 'comp_level' must be an integer.".format(method))
+        else:
+            if comp_level < 1 or comp_level > 9:
+                raise ValueError("%{0}: Argument 'comp_level' must be an integer between 1 and 9.".format(method))
+
+        if not os.path.isdir(os.path.dirname(nc_fname)):
+            raise NotADirectoryError("%{0}: The directory to store the netCDf-file does not exist.".format(method))
+
+        encode_nc = {key: {"zlib": True, "complevel": comp_level} for key in ds.keys()}
+
+        # populate data in netCDF-file (take care for the mode!)
+        try:
+            ds.to_netcdf(nc_fname, encoding=encode_nc)
+            print("%{0}: netCDF-file '{1}' was created successfully.".format(method, nc_fname))
+        except Exception as err:
+            print("%{0}: Something unexpected happened when creating netCDF-file '1'".format(method, nc_fname))
+            raise err
+
+    @staticmethod
+    def calc_mse_batch(data_fcst, data_ref):
+        """
+        Calculate mse of forecast data w.r.t. reference data
+        :param data_fcst: forecasted data (xarray with dimensions [batch, lat, lon])
+        :param data_ref: reference data (xarray with dimensions [batch, lat, lon])
+        :return: averaged mse for each batch example
+        """
+        method = Postprocess.calc_mse_batch.__name__
+
+        dims = data_fcst.dims
+        # sanity checks
+        if dims[0] != "init_time":
+            raise ValueError("%{0}: First dimension of data must be init_time.".format(method))
+
+        if not list(data_fcst.coords) == list(data_ref.coords):
+            raise ValueError("%{0}: Input data arrays must have the same shape and coordinates.".format(method))
+
+        mse = np.square(data_fcst - data_ref).mean(dim=["lat", "lon"])
+
+        return mse.values
+
+    @staticmethod
+    def calc_psnr_batch(data_fcst, data_ref):
+        """
+        Calculate mse of forecast data w.r.t. reference data
+        :param data_fcst: forecasted data (xarray with dimensions [batch, lat, lon])
+        :param data_ref: reference data (xarray with dimensions [batch, lat, lon])
+        :return: averaged mse for each batch example
+        """
+        method = Postprocess.calc_mse_batch.__name__
+
+        dims = data_fcst.dims
+        # sanity checks
+        if dims[0] != "init_time":
+            raise ValueError("%{0}: First dimension of data must be init_time.".format(method))
+
+        if not list(data_fcst.coords) == list(data_ref.coords):
+            raise ValueError("%{0}: Input data arrays must have the same shape and coordinates.".format(method))
+
+        psnr = metrics.psnr_imgs(data_ref.values, data_fcst.values)
+
+        return psnr
+
+    @staticmethod
+    def plot_avg_eval_metrics(eval_ds, eval_metrics, fcst_prod_dict, varname, out_dir):
+        """
+        Plots error-metrics averaged over all predictions to file incl. 90%-confidence interval that is estimated by
+        block bootstrapping.
+        :param eval_ds: The dataset storing all evaluation metrics for each forecast (produced by init_metric_ds-method)
+        :param eval_metrics: list of evaluation metrics
+        :param fcst_prod_dict: dictionary of forecast products, e.g. {"pfcst": "persistence forecast"}
+        :param varname: the variable name for which the evaluation metrics are available
+        :param out_dir: output directory to save the lots
+        :return: a bunch of plots as png-files
+        """
+        method = Postprocess.plot_avg_eval_metrics.__name__
+
+        # settings for block bootstrapping
+        nboots_block = 1000
+        block_length = 7 * 24    # this corresponds to a block length of 7 days when forecasts are produced every hour
+        # sanity checks
+        if not isinstance(eval_ds, xr.Dataset):
+            raise ValueError("%{0}: Argument 'eval_ds' must be a xarray dataset.".format(method))
+
+        if not isinstance(fcst_prod_dict, dict):
+            raise ValueError("%{0}: Argument 'fcst_prod_dict' must be dictionary with short names of forecast product" +
+                             "as key and long names as value.".format(method))
+
+        try:
+            nhours = np.shape(eval_ds.coords["fcst_hour"])[0]
+        except Exception as err:
+            print("%{0}: Input argument 'eval_ds' appears to be unproper.".format(method))
+            raise err
+
+        nmodels = len(fcst_prod_dict.values())
+        colors = ["blue", "red", "black", "grey"]
+        for metric in eval_metrics:
+            metric2plt = np.full((nmodels, nhours), np.nan)
+            metric2plt_max, metric2plt_min = metric2plt.copy(), metric2plt.copy()
+            for ifcst, fcst_prod in enumerate(fcst_prod_dict.keys()):
+                metric_name = "{0}_{1}_{2}".format(varname, fcst_prod, metric)
+                try:
+                    metric_data = eval_ds[metric_name]
+                    metric_boot = perform_block_bootstrap_metric(metric_data, "init_time", block_length, nboots_block)
+                    metric2plt_min[ifcst, :] = metric_boot.quantile(0.05, dim="iboot")
+                    metric2plt_max[ifcst, :] = metric_boot.quantile(0.95, dim="iboot")
+                    metric2plt[ifcst, :] = metric_data.mean(dim="init_time")
+                except Exception as err:
+                    print("%{0}: Retrieval of {1} from evaluation metric dataset failes".format(method, metric_name))
+                    raise err
+            # create plot
+            fig = plt.figure(figsize=(6, 4))
+            ax = plt.axes([0.1, 0.15, 0.75, 0.75])
+            hours = np.arange(1, nhours+1)
+            for ifcst, fcst_name in enumerate(fcst_prod_dict.keys()):
+                plt.plot(hours, metric2plt[ifcst, :], label=fcst_name, color=colors[ifcst], marker="o")
+                plt.fill_between(hours, metric2plt_min[ifcst, :], metric2plt_max[ifcst, :], facecolor=colors[ifcst],
+                                 alpha=0.3)
+
+            plt.xticks(hours)
+            ax.set_ylim(0., None)
+            if metric == "psnr": ax.set_ylim(None, None)
+            legend = ax.legend(loc="upper right", bbox_to_anchor=(1.15, 1))
+            ax.set_xlabel("Lead time [hours]")
+            ax.set_ylabel(metric.upper())
+            plt_fname = os.path.join(out_dir, "evaluation_{0}".format(metric))
+            print("Saving basic evaluation plot in terms of {1} to '{2}'".format(method, metric, plt_fname))
+            plt.savefig(plt_fname)
+        plt.close()
+
+        return True
+
+    def plot_example_forecasts(self, metric="mse", channel=0):
+        """
+        Plots example forecasts. The forecasts are chosen from the complete pool of the test dataset and are chosen
+        according to the accuracy in terms of the chosen metric. In add ition, to the best and worst forecast,
+        every decil of the chosen metric is retrieved to cover the whole bandwith of forecasts.
+        :param metric: The metric which is used for measuring accuracy
+        :param channel: The channel index of the forecasted variable to plot (correspondong to self.vars_in)
+        :return: 11 exemplary forecast plots are created
+        """
+        method = Postprocess.plot_example_forecasts.__name__
+        
+        metric_name = "{0}_{1}_{2}".format(self.vars_in[channel], self.model, metric)
+        if not metric_name in self.eval_metrics_ds:
+            raise ValueError("%{0}: Cannot find requested evaluation metric '{1}'".format(method, metric_name) +
+                             " onto which selection of plotted forecast is done.")
+        # average metric of interest and obtain quantiles incl. indices
+        metric_mean = self.eval_metrics_ds[metric_name].mean(dim="fcst_hour")
+        quantiles = np.arange(0., 1.01, .1)
+        quantiles_val = metric_mean.quantile(quantiles, interpolation="nearest")
+        quantiles_inds = self.get_matching_indices(metric_mean.values, quantiles_val)
+        print(metric_mean.coords["init_time"])
+        for i, ifcst in enumerate(quantiles_inds):
+            date_init = pd.to_datetime(metric_mean.coords["init_time"][ifcst].data)
+            nc_fname = os.path.join(self.results_dir, "vfp_date_{0}_sample_ind_{1:d}.nc"
+                                    .format(date_init.strftime("%Y%m%d%H"), ifcst))
+            if not os.path.isfile(nc_fname):
+                raise FileNotFoundError("%{0}: Could not find requested file '{1}'".format(method, nc_fname))
+            else:
+                # get the data
+                varname = self.vars_in[channel]
+                with xr.open_dataset(nc_fname) as dfile:
+                    data_fcst = dfile["{0}_{1}_fcst".format(varname, self.model)]
+                    data_ref = dfile["{0}_ref".format(varname)]
+
+                data_diff = data_fcst - data_ref
+                # name of plot
+                plt_fname_base = os.path.join(self.output_dir, "forecast_{0}_{1}_{2}_{3:d}percentile.png"
+                                              .format(varname, date_init.strftime("%Y%m%dT%H00"), metric,
+                                                      int(quantiles[i]*100.)))
+
+                Postprocess.create_plot(data_fcst, data_diff, varname, plt_fname_base)
+
+    @staticmethod
+    def init_metric_ds(fcst_products, eval_metrics, varname, nsamples, nlead_steps):
+        """
+        Initializes dataset for storing evaluation metrics
+        :param fcst_products: list of forecast products to be evaluated
+        :param eval_metrics: list of forecast metrics to be calculated
+        :param varname: name of the variable for which metrics are calculated
+        :param nsamples: total number of forecast samples
+        :param nlead_steps: number of forecast steps
+        :return: eval_metric_ds
+        """
+        eval_metric_dict = dict([("{0}_{1}_{2}".format(varname ,*(fcst_prod, eval_met)), (["init_time", "fcst_hour"],
+                                  np.full((nsamples, nlead_steps), np.nan)))
+                                 for eval_met in eval_metrics for fcst_prod in fcst_products])
+
+        eval_metric_ds = xr.Dataset(eval_metric_dict, coords={"init_time": np.arange(nsamples),  # just a placeholder
+                                                              "fcst_hour": np.arange(nlead_steps)})
+
+        return eval_metric_ds
+
+    @staticmethod
+    def get_matching_indices(big_array, subset):
+        """
+        Returns the indices where element values match the values in an array
+        :param big_array: the array to dig through
+        :param subset: array of values contained in big_array
+        :return: the desired indices
+        """
+
+        sorted_keys = np.argsort(big_array)
+        indexes = sorted_keys[np.searchsorted(big_array, subset, sorter=sorted_keys)]
+
+        return indexes
+
+    @staticmethod
+    def create_plot(data, data_diff, varname, plt_fname):
+        """
+        Creates filled contour plot of forecast data and also draws contours for differences.
+        ML: So far, only plotting of the 2m temperature is supported (with 12 predicted hours/frames)
+        :param data: the forecasted data array to be plotted
+        :param data_diff: the reference data ('ground truth')
+        :param varname: the name of the variable
+        :param plt_fname: the filename to the store the plot
+        :return: -
+        """
+        method = Postprocess.create_plot.__name__
+
+        try:
+            coords = data.coords
+            # handle coordinates and forecast times
+            lat, lon = coords["lat"], coords["lon"]
+            dates_fcst = pd.to_datetime(coords["fcst_hour"].data)
+        except Exception as err:
+            print("%{0}: Could not retrieve expected coordinates lat, lon and time_forecast from data.".format(method))
+            raise err
+
+        lons, lats = np.meshgrid(lon, lat)
+
+        date0 = dates_fcst[0] - (dates_fcst[1] - dates_fcst[0])
+        date0_str = date0.strftime("%Y-%m-%d %H:%M UTC")
+
+        fhhs = ((dates_fcst - date0) / pd.Timedelta('1 hour')).values
+
+        # check data to be plotted since programme is not generic so far
+        if np.shape(dates_fcst)[0] != 12:
+            raise ValueError("%{0}: Currently, only 12 hour forecast can be handled properly.".format(method))
+
+        if varname != "2t":
+            raise ValueError("%{0}: Currently, only 2m temperature is plotted nicely properly.".format(method))
+
+        # define levels
+        clevs = np.arange(-10., 40., 1.)
+        clevs_diff = np.arange(0.5, 10.5, 2.)
+        clevs_diff2 = np.arange(-10.5, -0.5, 2.)
+
+        # create fig and subplot axes
+        fig, axes = plt.subplots(2, 6, sharex=True, sharey=True, figsize=(12, 6))
+        axes = axes.flatten()
+
+        # create all subplots
+        for t, fhh in enumerate(fhhs):
+            m = Basemap(projection='cyl', llcrnrlat=np.min(lat), urcrnrlat=np.max(lat),
+                        llcrnrlon=np.min(lon), urcrnrlon=np.max(lon), resolution='l', ax=axes[t])
+            m.drawcoastlines()
+            x, y = m(lons, lats)
+            if t%6 == 0:
+                lat_lab = [1, 0, 0, 0]
+                axes[t].set_ylabel(u'Latitude', labelpad=30)
+            else:
+                lat_lab = list(np.zeros(4))
+            if t/6 >= 1:
+                lon_lab = [0, 0, 0, 1]
+                axes[t].set_xlabel(u'Longitude', labelpad=15)
+            else:
+                lon_lab = list(np.zeros(4))
+            m.drawmapboundary()
+            m.drawparallels(np.arange(0, 90, 5),labels=lat_lab, xoffset=1.)
+            m.drawmeridians(np.arange(5, 355, 10),labels=lon_lab, yoffset=1.)
+            cs = m.contourf(x, y, data.isel(fcst_hour=t)-273.15, clevs, cmap=plt.get_cmap("jet"), ax=axes[t])
+            cs_c_pos = m.contour(x, y, data_diff.isel(fcst_hour=t), clevs_diff, linewidths=0.5, ax=axes[t],
+                                 colors="black")
+            cs_c_neg = m.contour(x, y, data_diff.isel(fcst_hour=t), clevs_diff2, linewidths=1, linestyles="dotted",
+                                 ax=axes[t], colors="black")
+            axes[t].set_title("{0} +{1:02d}:00".format(date0_str, int(fhh)), fontsize=7.5, pad=4)
+
+        fig.subplots_adjust(top=0.92, bottom=0.08, left=0.10, right=0.95, hspace=-0.7,
+                            wspace=0.05)
+        # add colorbar.
+        cbar_ax = fig.add_axes([0.3, 0.22, 0.4, 0.02])
+        cbar = fig.colorbar(cs, cax=cbar_ax, orientation="horizontal")
+        cbar.set_label('°C')
+        # save to disk
+        plt.savefig(plt_fname, bbox_inches="tight")
 
 
 def main():
@@ -879,10 +1168,9 @@ def main():
                         help="ignored if output_gif_dir is specified")
     parser.add_argument("--checkpoint",
                         help="directory with checkpoint or checkpoint name (e.g. checkpoint_dir/model-200000)")
-    parser.add_argument("--mode", type=str, choices=['train','val', 'test'], default='test',
+    parser.add_argument("--mode", type=str, choices=['train', 'val', 'test'], default='test',
                         help='mode for dataset, val or test.')
     parser.add_argument("--batch_size", type=int, default=8, help="number of samples in batch")
-    parser.add_argument("--num_samples", type=int, help= "number of samples in total (all of them by default)")
     parser.add_argument("--num_stochastic_samples", type=int, default=1)
     parser.add_argument("--stochastic_plot_id", type=int, default=0,
                         help="The stochastic generate images index to plot")
@@ -895,15 +1183,17 @@ def main():
         print(k, "=", v)
     print('------------------------------------- End --------------------------------------')
 
+    # ML: test_instance is a bit misleading here
     test_instance = Postprocess(results_dir=args.results_dir, checkpoint=args.checkpoint, mode="test",
-                                batch_size=args.batch_size, num_samples=args.num_samples,
-                                num_stochastic_samples=args.num_stochastic_samples, gpu_mem_frac=args.gpu_mem_frac,
-                                seed=args.seed, stochastic_plot_id=args.stochastic_plot_id, args=args)
+                                batch_size=args.batch_size, num_stochastic_samples=args.num_stochastic_samples,
+                                gpu_mem_frac=args.gpu_mem_frac, seed=args.seed,
+                                stochastic_plot_id=args.stochastic_plot_id, args=args)
 
     test_instance()
     test_instance.run()
-    test_instance.save_eval_metric_to_json()
-    test_instance.plot_evalution_metrics()
+    test_instance.handle_eval_metrics()
+    test_instance.plot_example_forecasts(metric="mse")
+
 
 if __name__ == '__main__':
     main()
