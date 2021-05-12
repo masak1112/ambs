@@ -2,14 +2,17 @@
 Class to retrieve and handle meta-data
 """
 
+__email__ = "b.gong@fz-juelich.de"
+__author__ = "Michael Langguth"
+__date__ = "2020-xx-xx"
+
 import os
 import sys
 import time
 import numpy as np
-import xarray as xr
 import json
-from netCDF4 import Dataset
-from general_utils import is_integer, add_str_to_path, check_str_in_list
+from general_utils import is_integer, add_str_to_path, check_str_in_list, isw
+from netcdf_datahandling import GeoSubdomain
 
 
 class MetaData:
@@ -17,7 +20,8 @@ class MetaData:
      Class for handling, storing and retrieving meta-data
     """
 
-    def __init__(self, json_file=None, suffix_indir=None, exp_id=None, data_filename=None, slices=None, variables=None):
+    def __init__(self, json_file=None, suffix_indir=None, exp_id=None, data_filename=None, tar_dom=None,
+                 variables=None):
         """
         Initailizes MetaData instance by reading a corresponding json-file or by handling arguments of the
         Preprocessing step (i.e. exemplary input file, slices defining region of interest, input variables)
@@ -25,7 +29,7 @@ class MetaData:
         :param suffix_indir: suffix of directory where processed data is stored for running the models
         :param exp_id: experiment identifier
         :param data_filename: name of netCDF-file serving as base for metadata retrieval
-        :param slices: indices defining the region of interest
+        :param tar_dom: class instance for defining target domain
         :param variables: predictor variables
         """
 
@@ -56,10 +60,10 @@ class MetaData:
                 if not isinstance(data_filename, str):
                     raise TypeError(method_name + ": 'data_filename'-argument must be a string.")
 
-            if not slices:
+            if not tar_dom:
                 raise TypeError(method_name + ": 'slices'-argument is required if 'json_file' is not passed.")
             else:
-                if not isinstance(slices, dict):
+                if not isinstance(tar_dom, GeoSubdomain):
                     raise TypeError(method_name + ": 'slices'-argument must be a dictionary.")
 
             if not variables:
@@ -68,11 +72,11 @@ class MetaData:
                 if not isinstance(variables, list):
                     raise TypeError(method_name + ": 'variables'-argument must be a list.")
 
-            MetaData.get_and_set_metadata_from_file(self, suffix_indir, exp_id, data_filename, slices, variables)
+            MetaData.get_and_set_metadata_from_file(self, suffix_indir, exp_id, data_filename, tar_dom, variables)
 
             MetaData.write_metadata_to_file(self)
 
-    def get_and_set_metadata_from_file(self, suffix_indir, exp_id, datafile_name, slices, variables):
+    def get_and_set_metadata_from_file(self, suffix_indir, exp_id, datafile_name, tar_dom, variables):
         """
         Retrieves several meta data from an ERA5 netCDF-file and sets corresponding class instance attributes.
         Besides, the name of the experiment directory is constructed following the naming convention (see below)
@@ -85,7 +89,7 @@ class MetaData:
         :param suffix_indir: Path to directory where the preprocessed data will be stored
         :param exp_id: Experimental identifier
         :param datafile_name: ERA 5 reanalysis netCDF file
-        :param slices: indices of lat- and lon-coordinates defining the region of interest
+        :param tar_dom: class instance for defining target domain
         :param variables: meteorological variables to be processed during preprocessing
         :return: A class instance with the following attributes set:
                  * varnames       : name of variables to be processed
@@ -102,47 +106,40 @@ class MetaData:
 
         method_name = MetaData.get_and_set_metadata_from_file.__name__ + " of Class " + MetaData.__name__
 
-        if not suffix_indir: raise ValueError(method_name + ": suffix_indir must be a non-empty path.")
+        if not suffix_indir:
+            raise ValueError(method_name + ": suffix_indir must be a non-empty path.")
 
         # retrieve required information from file 
         flag_coords = ["N", "E"]
 
         print("Retrieve metadata based on file: '" + datafile_name + "'")
-        try:
-            datafile = Dataset(datafile_name, 'r')
-        except:
-            print(method_name + ": Error when handling data file: '" + datafile_name + "'.")
-            exit()
+        aux_data = tar_dom.get_data_dom(datafile_name, variables)
+        aux_coords = aux_data.coords
 
-        # Check if all requested variables can be obtained from datafile
-        MetaData.check_datafile(datafile, variables)
-        self.varnames = variables
-
-        self.nx, self.ny = np.abs(slices['lon_e'] - slices['lon_s']), np.abs(slices['lat_e'] - slices['lat_s'])
-        sw_c = [float(datafile.variables['lat'][slices['lat_e'] - 1]), float(datafile.variables['lon'][slices[
-            'lon_s']])]  # meridional axis lat is oriented from north to south (i.e. monotonically decreasing)
+        self.lat, self.lon = aux_coords["lat"].values, aux_coords["lon"].values
+        self.nx, self.ny = np.shape(self.lon)[0], np.shape(self.lat)[0]
+        sw_c = tar_dom.sw_c
+        # switch to [-180..180]-range for convenince before setting attribute
+        if sw_c[1] > 180.:
+            sw_c[1] -= 360.
         self.sw_c = sw_c
-        self.lat = datafile.variables['lat'][slices['lat_s']:slices['lat_e']]
-        self.lon = datafile.variables['lon'][slices['lon_s']:slices['lon_e']]
-
-        # Now start constructing expdir-string
-        # switch sign and coordinate-flags to avoid negative values appearing in expdir-name
+        # switch coordinate-flage for longitudes to avoid negative values appearing in expdir-name
         if sw_c[0] < 0.:
             sw_c[0] = np.abs(sw_c[0])
             flag_coords[0] = "S"
-        if sw_c[1] < 0.:
+        if sw_c[1] < 0:
             sw_c[1] = np.abs(sw_c[1])
             flag_coords[1] = "W"
+        self.varnames = variables
         nvar = len(variables)
 
+        # Now start constructing expdir-string
         # splitting has to be done in order to retrieve the expname-suffix (and the year if required)
         path_parts = os.path.split(suffix_indir.rstrip("/"))
 
         if is_integer(path_parts[1]):
-            year = path_parts[1]
+            _ = path_parts[1]
             path_parts = os.path.split(path_parts[0].rstrip("/"))
-        else:
-            year = ""
 
         expdir, expname = path_parts[0], path_parts[1]
 
@@ -159,8 +156,8 @@ class MetaData:
         self.expname = expname
         self.expdir = expdir
         self.exp_id = exp_id
-        self.status = ""    # uninitialized (is set when metadata is written/compared to/with json-file,
-                            # see write_metadata_to_file-method)
+        self.status = ""  # uninitialized (is set when metadata is written/compared to/with json-file,
+        # see write_metadata_to_file-method)
 
     # ML 2020/04/24 E         
 
@@ -175,15 +172,15 @@ class MetaData:
         method_name = MetaData.write_metadata_to_file.__name__ + " of Class " + MetaData.__name__
         # actual work:
         meta_dict = {"expname": self.expname, "expdir": self.expdir, "exp_id": self.exp_id, "sw_corner_frame": {
-                "lat": np.around(self.sw_c[0], decimals=2),
-                "lon": np.around(self.sw_c[1], decimals=2)},
-            "coordinates": {
-                "lat": np.around(self.lat, decimals=2).tolist(),
-                "lon": np.around(self.lon, decimals=2).tolist()},
-            "frame_size": {
-                "nx": int(self.nx),
-                "ny": int(self.ny)},
-            "variables": []}
+            "lat": np.around(self.sw_c[0], decimals=2),
+            "lon": np.around(self.sw_c[1], decimals=2)},
+                     "coordinates": {
+                         "lat": np.around(self.lat, decimals=2).tolist(),
+                         "lon": np.around(self.lon, decimals=2).tolist()},
+                     "frame_size": {
+                         "nx": int(self.nx),
+                         "ny": int(self.ny)},
+                     "variables": []}
 
         for i in range(len(self.varnames)):
             # print(self.varnames[i])
@@ -207,8 +204,8 @@ class MetaData:
                     meta_fname_dbg = os.path.join(dest_dir, "metadata_debug.json")
                     print("%{0}: Already existing metadata (see '{1}') do not fit data being processed right now " +
                           "(see '{2}'). Ensure a common data base.".format(method_name, meta_fname, meta_fname_dbg))
-                    with open(meta_fname_dbg, 'w') as js_file:
-                        json.dump(meta_dict, js_file)
+                    with open(meta_fname_dbg, 'w') as js_file_new:
+                        json.dump(meta_dict, js_file_new)
                     raise ValueError
                 else:  # do not need to do anything
                     pass
@@ -325,12 +322,14 @@ class MetaData:
         try:
             with open(file_tmp, "r") as js_file:
                 dict_tmp = json.load(js_file)
-        except:
-            print(method_name + ": Could not open requested json-file '" + file_tmp + "'")
+        except Exception as err:
+            print("%{0}: Could not open requested json-file '{1}'".format(method_name, file_tmp))
+            print(str(err))
             sys.exit(1)
 
         if not "destination_dir" in dict_tmp.keys():
-            raise Exception(method_name + ": Could not find 'destination_dir' in dictionary obtained from " + file_tmp)
+            raise NotADirectoryError("%{0}: Could not find 'destination_dir' in dictionary obtained from {1}"
+                                     .format(method_name, file_tmp))
         else:
             return dict_tmp.get("destination_dir")
 
@@ -368,108 +367,4 @@ class MetaData:
             raise FileNotFoundError("%{0}: '{1}' does not exist after waiting for {2:5.2f} sec."
                                     .format(method_name, file_tmp, waittime))
 
-    @staticmethod
-    def issubset(a, b):
-        """
-        Checks if all elements of a exist in b or vice versa (depends on the length of the corresponding lists/sets)
-        :param a: list 1
-        :param b: list 2
-        :return: True or False
-        """
-
-        if len(a) > len(b):
-            return set(b).issubset(set(a))
-        elif len(b) >= len(a):
-            return set(a).issubset(set(b))
-
-    @staticmethod
-    def check_datafile(datafile, varnames):
-        """
-        Checks if all variables whose names are given in varnames can be found in data-object (read in from a netCDF)
-        :param datafile: data-object
-        :param varnames: names of variables to be expected in data-object
-        :return: Raises a ValueError if any variable cannot be found
-        """
-
-        varnames2check = list(set(varnames))
-        if not MetaData.issubset(varnames, datafile.variables.keys()):
-            for i in range(len(varnames2check)):
-                if not varnames2check[i] in datafile.variables.keys():
-                    print("Variable '" + varnames2check[i] + "' not found in datafile.")
-                raise ValueError("Could not find the above mentioned variables.")
-        else:
-            pass
-
 # ----------------------------------- end of class MetaData -----------------------------------
-
-
-class Netcdf_utils:
-    """
-    Class containing some auxiliary functions to check netCDf-files
-    """
-
-    def __init__(self, filename):
-        self.filename = filename
-        Netcdf_utils.check_file(self)
-
-        self.varlist = Netcdf_utils.list_vars(self)
-        self.coords = None
-        self.attributes = None
-
-    def check_file(self):
-        method = Netcdf_utils.check_file.__name__
-
-        assert hasattr(self, "filename") is True, "%{0}: Class instance does not have a filename property."\
-                                                  .format(method)
-
-        if not isinstance(self.filename, str):
-            raise ValueError("%{0}: filename property must be a path-string".format(method))
-
-        if not self.filename.endswith(".nc"):
-            raise ValueError("%{0}: Passed filename must be a netCDF-file".format(method))
-
-        if not os.path.isfile(self.filename):
-            raise FileNotFoundError("%{0}: Could not find passed filename '{1}'".format(method, self.filename))
-
-        return
-
-    def list_vars(self):
-        """
-        Retrieves list all variables of file
-        :return: varlist
-        """
-        method = Netcdf_utils.list_vars.__name__
-
-        try:
-            with xr.open_dataset(self.filename) as dfile:
-                varlist = list(dfile.keys())
-        except:
-            raise IOError("%{0}: Could not open {1}".format(method, self.filename))
-
-        return varlist
-
-    def get_coords(self):
-        """
-        Retrive coordinates from Dataset of netCDF-file
-        :return coords: dictionary of coordinates from netCDf-file
-        """
-        method = Netcdf_utils.get_coords.__name__
-
-        try:
-            with xr.open_dataset(self.filename) as dfile:
-                coords = dfile.coords()
-        except:
-            raise IOError("%{0}: Could not handle coordinates of netCDF-file '{1}'".format(method, self.filename))
-
-        return coords
-
-    def var_in_file(self, varnames, labort=True):
-
-        method = Netcdf_utils.var_in_file.__name__
-
-        stat = check_str_in_list(self.varlist, varnames, labort=False)
-
-        if not stat and labort:
-            raise ValueError("%{0}: Could not find all varnames in netCDF-file".method(method))
-
-        return stat
