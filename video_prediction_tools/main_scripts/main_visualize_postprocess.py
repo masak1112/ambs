@@ -26,7 +26,7 @@ from metadata import MetaData as MetaData
 from main_scripts.main_train_models import *
 from data_preprocess.preprocess_data_step2 import *
 from model_modules.video_prediction import datasets, models, metrics
-from statistical_evaluation import perform_block_bootstrap_metric
+from statistical_evaluation import perform_block_bootstrap_metric, avg_metrics
 
 
 class Postprocess(TrainModel):
@@ -650,13 +650,18 @@ class Postprocess(TrainModel):
         # ... and merge into existing metric dataset
         self.eval_metrics_ds = xr.merge([self.eval_metrics_ds, eval_metric_boot_ds])
 
+        # calculate (unbootstrapped) averaged metrics
+        eval_metric_avg_ds = avg_metrics(self.eval_metrics_ds, "init_time")
+        # ... and merge into existing metric dataset
+        self.eval_metrics_ds = xr.merge([self.eval_metrics_ds, eval_metric_avg_ds])
+
         # save evaluation metrics to file
         nc_fname = os.path.join(self.results_dir, "evaluation_metrics.nc")
         Postprocess.save_ds_to_netcdf(self.eval_metrics_ds, nc_fname)
 
-        # create plots of evaluation metrics averaged over all forecasts
-        _ = self.plot_avg_eval_metrics(self.eval_metrics_ds, self.eval_metrics, self.fcst_products,
-                                       self.vars_in[self.channel], self.results_dir)
+        # also save averaged metrics to JSON-file and plot it for diagnosis
+        _ = Postprocess.plot_avg_eval_metrics(self.eval_metrics_ds, self.eval_metrics, self.fcst_products,
+                                              self.vars_in[self.channel], self.results_dir)
 
     # auxiliary methods (not necessarily bound to class instance)
     @staticmethod
@@ -959,8 +964,6 @@ class Postprocess(TrainModel):
         method = Postprocess.plot_avg_eval_metrics.__name__
 
         # settings for block bootstrapping
-        nboots_block = 1000
-        block_length = 7 * 24    # this corresponds to a block length of 7 days when forecasts are produced every hour
         # sanity checks
         if not isinstance(eval_ds, xr.Dataset):
             raise ValueError("%{0}: Argument 'eval_ds' must be a xarray dataset.".format(method))
@@ -986,22 +989,19 @@ class Postprocess(TrainModel):
             metric2plt = np.full((nmodels, nhours), np.nan)
             metric2plt_max, metric2plt_min = metric2plt.copy(), metric2plt.copy()
             for ifcst, fcst_prod in enumerate(fcst_prod_dict.keys()):
-                metric_name = "{0}_{1}_{2}".format(varname, fcst_prod, metric)
+                metric_name = "{0}_{1}_{2}_avg".format(varname, fcst_prod, metric)
                 try:
-                    metric_data = eval_ds[metric_name]
-                    metric_boot = perform_block_bootstrap_metric(metric_data, "init_time", block_length, nboots_block)
-                    metric2plt_min[ifcst, :] = metric_boot.quantile(0.05, dim="iboot")
-                    metric2plt_max[ifcst, :] = metric_boot.quantile(0.95, dim="iboot")
-                    metric2plt[ifcst, :] = metric_data.mean(dim="init_time")
+                    metric2plt = eval_ds[metric_name]
+                    metric_boot = eval_ds[metric_name+"_boot"]
                 except Exception as err:
-                    print("%{0}: Retrieval of {1} from evaluation metric dataset failes".format(method, metric_name))
+                    print("%{0}: Could not retrieve {1} and/or {2} from evaluation metric dataset."
+                          .format(method, metric_name, metric_name+"_boot"))
                     raise err
                 # plot the data
-                plt.plot(hours, metric2plt[ifcst, :], label=fcst_prod, color=colors[ifcst], marker="o")
-                plt.fill_between(hours, metric2plt_min[ifcst, :], metric2plt_max[ifcst, :], facecolor=colors[ifcst],
-                                 alpha=0.3)
-
-                Postprocess.save_eval_metric_to_json(metric_data, )
+                metric2plt_min = metric_boot.quantile(0.05, dim="iboot")
+                metric2plt_max = metric_boot.quantile(0.95, dim="iboot")
+                plt.plot(hours, metric2plt, label=fcst_prod, color=colors[ifcst], marker="o")
+                plt.fill_between(hours, metric2plt_min, metric2plt_max, facecolor=colors[ifcst], alpha=0.3)
             # configure plot
             plt.xticks(hours)
             ax.set_ylim(0., None)
@@ -1014,9 +1014,6 @@ class Postprocess(TrainModel):
             plt.savefig(plt_fname)
 
         plt.close()
-
-        # save metrics to JSON-file
-        Postprocess.save_eval_metric_to_json(metric2plt, fcst_prod_dict.keys())
 
         return True
 
@@ -1081,12 +1078,6 @@ class Postprocess(TrainModel):
                                                               "fcst_hour": np.arange(nlead_steps)})
 
         return eval_metric_ds
-
-    @staticmethod
-    def save_eval_metric_to_json(metric, fcst_prod, js_name):
-
-        metric2plt = np.full((nmodels, nhours), np.nan)
-        for
 
 
     @staticmethod
