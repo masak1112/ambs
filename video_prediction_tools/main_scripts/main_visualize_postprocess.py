@@ -989,10 +989,10 @@ class Postprocess(TrainModel):
             metric2plt = np.full((nmodels, nhours), np.nan)
             metric2plt_max, metric2plt_min = metric2plt.copy(), metric2plt.copy()
             for ifcst, fcst_prod in enumerate(fcst_prod_dict.keys()):
-                metric_name = "{0}_{1}_{2}_avg".format(varname, fcst_prod, metric)
+                metric_name = "{0}_{1}_{2}".format(varname, fcst_prod, metric)
                 try:
-                    metric2plt = eval_ds[metric_name]
-                    metric_boot = eval_ds[metric_name+"_boot"]
+                    metric2plt = eval_ds[metric_name+"_avg"]
+                    metric_boot = eval_ds[metric_name+"_bootstrapped"]
                 except Exception as err:
                     print("%{0}: Could not retrieve {1} and/or {2} from evaluation metric dataset."
                           .format(method, metric_name, metric_name+"_boot"))
