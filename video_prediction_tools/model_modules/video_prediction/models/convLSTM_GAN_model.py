@@ -147,17 +147,66 @@ class ConvLstmGANVideoPredictionModel(object):
             layer_gen = self.convLSTM_network(self.x)
             layer_gen_pred = layer_gen[:,self.context_frames-1:,:,:,:]
         return layer_gen
+     
+    @staticmethod
+    def lrelu(x, leak=0.2, name="lrelu"):
+        return tf.maximum(x, leak*x)
+    
+    @staticmethod    
+    def linear(input_, output_size, scope=None, stddev=0.02, bias_start=0.0, with_w=False):
+        shape = input_.get_shape().as_list()
 
+        with tf.variable_scope(scope or "Linear"):
+            matrix = tf.get_variable("Matrix", [shape[1], output_size], tf.float32,
+                     tf.random_normal_initializer(stddev=stddev))
+            bias = tf.get_variable("bias", [output_size],
+            initializer=tf.constant_initializer(bias_start))
+            if with_w:
+                return tf.matmul(input_, matrix) + bias, matrix, bias
+            else:
+                return tf.matmul(input_, matrix) + bias
+     
+    @staticmethod
+    def conv2d(input_, output_dim, k_h=5, k_w=5, d_h=2, d_w=2, stddev=0.02, name="conv2d"):
+        with tf.variable_scope(name):
+            w = tf.get_variable('w', [k_h, k_w, input_.get_shape()[-1], output_dim],
+                  initializer=tf.truncated_normal_initializer(stddev=stddev))
+            conv = tf.nn.conv2d(input_, w, strides=[1, d_h, d_w, 1], padding='SAME')
 
-    def discriminator(self,image):
+            biases = tf.get_variable('biases', [output_dim], initializer=tf.constant_initializer(0.0))
+            conv = tf.reshape(tf.nn.bias_add(conv, biases), conv.get_shape())
+
+        return conv
+
+    @staticmethod
+    def bn(x, scope):
+        return tf.contrib.layers.batch_norm(x,
+                                        decay=0.9,
+                                        updates_collections=None,
+                                        epsilon=1e-5,
+                                        scale=True,
+                                        scope=scope)
+
+    def discriminator(self,sequence):
         """
-        Function that get discriminator architecture      
+        https://github.com/hwalsuklee/tensorflow-generative-model-collections/blob/master/GAN.py
+        Function that give the possibility of a sequence of frames is ture of false 
+        the input squence shape is like [batch_size,time_seq_length,height,width,channel]  (e.g., self.x[:,:self.context_frames,:,:,:])
         """
         with tf.variable_scope("discriminator",reuse=tf.AUTO_REUSE):
-            layer_disc = self.convLSTM_network(image)
-            layer_disc = layer_disc[:,self.context_frames-1:self.context_frames,:,:, 0:1]
-        return layer_disc
-
+            print(sequence.shape)
+            x = sequence[:,:,:,:,0:1] # extract targeted variable
+            x = tf.transpose(x, [0,2,3,1,4]) # sequence shape is like: [batch_size,height,width,time_seq_length]
+            x = tf.reshape(x,[x.shape[0],x.shape[1],x.shape[2],x.shape[3]])
+            print(x.shape)
+            net = ConvLstmGANVideoPredictionModel.lrelu(ConvLstmGANVideoPredictionModel.conv2d(x, 64, 4, 4, 2, 2, name='d_conv1'))
+            net = ConvLstmGANVideoPredictionModel.lrelu(ConvLstmGANVideoPredictionModel.bn(ConvLstmGANVideoPredictionModel.conv2d(net, 128, 4, 4, 2, 2, name='d_conv2'),scope='d_bn2'))
+            net = tf.reshape(net, [self.batch_size, -1])
+            net = ConvLstmGANVideoPredictionModel.lrelu(ConvLstmGANVideoPredictionModel.bn(ConvLstmGANVideoPredictionModel.linear(net, 1024, scope='d_fc3'),scope='d_bn3'))
+            out_logit = ConvLstmGANVideoPredictionModel.linear(net, 1, scope='d_fc4')
+            out = tf.nn.sigmoid(out_logit)
+            print(out.shape)
+        return out, out_logit
 
     def get_disc_loss(self):
         """
@@ -166,8 +215,8 @@ class ConvLstmGANVideoPredictionModel(object):
           
         real_labels = tf.ones_like(self.D_real)
         gen_labels = tf.zeros_like(self.D_fake)
-        self.D_loss_real = tf.reduce_mean(tf.nn.sigmoid_cross_entropy_with_logits(logits=self.D_real, labels=real_labels))
-        self.D_loss_fake = tf.reduce_mean(tf.nn.sigmoid_cross_entropy_with_logits(logits=self.D_fake, labels=gen_labels))
+        self.D_loss_real = tf.reduce_mean(tf.nn.sigmoid_cross_entropy_with_logits(logits=self.D_real_logits, labels=real_labels))
+        self.D_loss_fake = tf.reduce_mean(tf.nn.sigmoid_cross_entropy_with_logits(logits=self.D_fake_logits, labels=gen_labels))
         self.D_loss = self.D_loss_real + self.D_loss_fake
         return self.D_loss
 
@@ -179,8 +228,8 @@ class ConvLstmGANVideoPredictionModel(object):
             z_dim     : the dimension of the noise vector, a scalar
         Return the loss of generator given inputs
         """
-        real_labels = tf.ones_like(self.gen_images[:,self.context_frames-1:self.context_frames,:,:,0:1])
-        self.G_loss = tf.reduce_mean(tf.nn.sigmoid_cross_entropy_with_logits(logits=self.D_fake, labels=real_labels))
+        real_labels = tf.ones_like(self.D_fake)
+        self.G_loss = tf.reduce_mean(tf.nn.sigmoid_cross_entropy_with_logits(logits=self.D_fake_logits, labels=real_labels))
         return self.G_loss         
    
     def get_vars(self):
@@ -200,8 +249,8 @@ class ConvLstmGANVideoPredictionModel(object):
         """
         self.noise = self.get_noise()
         self.gen_images = self.generator()
-        self.D_real = self.discriminator(self.x[:,:self.context_frames,:,:,:])
-        self.D_fake = self.discriminator(self.gen_images[:,:self.context_frames,:,:,:])
+        self.D_real, self.D_real_logits = self.discriminator(self.x[:,:self.context_frames,:,:,:])
+        self.D_fake, self.D_fake_logits = self.discriminator(self.gen_images[:,:self.context_frames,:,:,:])
         self.get_gen_loss()
         self.get_disc_loss()
         self.get_vars()
@@ -250,7 +299,7 @@ class ConvLstmGANVideoPredictionModel(object):
 
         # pack them all together
         x_hat = tf.stack(x_hat)
-        self.x_hat= tf.transpose(x_hat, [1, 0, 2, 3, 4])  # change first dim with sec dim
+        self.x_hat= tf.transpose(x_hat, [1, 0, 2, 3, 4])  # change first dim with sec dim  ???? yan: why?
         return self.x_hat
      
    
