@@ -45,7 +45,7 @@ def avg_metrics(metric: da_or_ds, dim_name: str):
 
     if isinstance(metric, xr.Dataset):
         new_varnames = ["{0}_avg".format(var) for var in list_vars]
-        metric_avg = metric_avg.rename_vars(dict(zip(list_vars, new_varnames)))
+        metric_avg = metric_avg.rename(dict(zip(list_vars, new_varnames)))
 
     return metric_avg
 
@@ -110,7 +110,7 @@ def perform_block_bootstrap_metric(metric: da_or_ds, dim_name: str, block_length
     metric_boot["iboot"] = np.arange(nboots_block)
     if isinstance(metric_boot, xr.Dataset):
         new_varnames = ["{0}_bootstrapped".format(var) for var in metric.data_vars]
-        metric_boot = metric_boot.rename_vars(dict(zip(metric.data_vars, new_varnames)))
+        metric_boot = metric_boot.rename(dict(zip(metric.data_vars, new_varnames)))
 
     return metric_boot
 
