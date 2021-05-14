@@ -76,7 +76,7 @@ class GZprcp2Tfrecords(GZprcp):
     @staticmethod
     def save_tf_record(output_fname, sequences):
         with tf.python_io.TFRecordWriter(output_fname) as writer:
-            for i in range(np.array(sequences).shape[0] - 1):
+            for i in range(np.array(sequences).shape[0]):
                 sequence = sequences[i, :, :, :, :]
                 num_frames = len(sequence)
                 height, width = sequence[0, :, :, 0].shape

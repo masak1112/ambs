@@ -85,7 +85,7 @@ class GZprcp(object):
         hparams = dict(
             context_frames=20,
             sequence_length=40,
-            max_epochs = 2,
+            max_epochs = 20,
             batch_size = 4,
             lr = 0.001,
             loss_fun = "rmse",
@@ -103,9 +103,9 @@ class GZprcp(object):
        print("self.all_files",self.all_filenames)
        for indice_group, index in self.data_mode.items():
            fs = [GZprcp.string_filter(max_value=index[1], min_value=index[0], string=s) for s in self.all_filenames]
-           print("fs:",fs)
            self.tf_names = [self.all_filenames[fs_index] for fs_index in range(len(fs)) if fs[fs_index]==True]
-           print("tf_names,",self.tf_names)
+           print("tf_names:",self.tf_names)
+           print("tf_length",len(self.tf_names))
        # look for tfrecords in input_dir and input_dir/mode directories
        for files in self.tf_names:
             self.filenames.extend(glob.glob(os.path.join(self.input_dir, files)))
@@ -180,6 +180,7 @@ class GZprcp(object):
             return seqs
         filenames = self.filenames
         shuffle = self.mode == 'train' or (self.mode == 'val' and self.hparams.shuffle_on_val)
+        print("number of epochs",self.num_epochs)
         if shuffle:
             random.shuffle(filenames)
         dataset = tf.data.TFRecordDataset(filenames, buffer_size = 8* 1024 * 1024)
@@ -187,7 +188,7 @@ class GZprcp(object):
             dataset = dataset.apply(tf.contrib.data.shuffle_and_repeat(buffer_size =1024, count=self.num_epochs))
         else:
             dataset = dataset.repeat(self.num_epochs)
-        if self.mode == "val": dataset = dataset.repeat(20)
+        if self.mode == "val": dataset = dataset.repeat(110)
         num_parallel_calls = None if shuffle else 1
         dataset = dataset.apply(tf.contrib.data.map_and_batch(
             parser, batch_size, drop_remainder=True, num_parallel_calls=num_parallel_calls))

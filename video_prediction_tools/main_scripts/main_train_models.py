@@ -141,8 +141,8 @@ class TrainModel(object):
         VideoDataset = datasets.get_dataset_class(self.dataset)
         print(self.dataset)
         print(VideoDataset)
-        self.train_dataset = VideoDataset(input_dir=self.input_dir,mode='train',datasplit_config=self.datasplit_dict)
-        self.val_dataset = VideoDataset(input_dir=self.input_dir, mode='val',datasplit_config=self.datasplit_dict)
+        self.train_dataset = VideoDataset(input_dir=self.input_dir,mode='train',datasplit_config=self.datasplit_dict,hparams_dict_config=self.model_hparams_dict)
+        self.val_dataset = VideoDataset(input_dir=self.input_dir, mode='val',datasplit_config=self.datasplit_dict,hparams_dict_config=self.model_hparams_dict)
         #self.variable_scope = tf.get_variable_scope()
         #self.variable_scope.set_use_resource(True)
       
@@ -295,6 +295,7 @@ class TrainModel(object):
                 self.create_fetches_for_train()             # In addition to the loss, we fetch the optimizer
                 self.results = sess.run(self.fetches)       # ...and run it here!
                 train_losses.append(self.results["total_loss"])
+                print("length of results",len(self.results["x"]))
                 #Run and fetch losses for validation data
                 val_handle_eval = sess.run(self.val_handle)
                 self.create_fetches_for_val()
@@ -343,7 +344,7 @@ class TrainModel(object):
         Fetch variables in the graph for convLSTM model, this can be custermized based on models and the needs of users
         """
         self.fetches["total_loss"] = self.video_model.total_loss
- 
+        self.fetches["x"] = self.video_model.x 
 
 
  
