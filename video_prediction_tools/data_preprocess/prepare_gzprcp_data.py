@@ -16,7 +16,7 @@ from model_modules.video_prediction.datasets.gzprcp_data import GZprcp
 
 class GZprcp2Tfrecords(GZprcp):
 
-    def __init__(self, input_dir=None, dest_dir=None, sequences_per_file=4):
+    def __init__(self, input_dir=None, dest_dir=None, sequences_per_file=10):
         """
         This class is used for converting .nc files to tfrecords
 
@@ -41,7 +41,9 @@ class GZprcp2Tfrecords(GZprcp):
 
     def read_nc_file(self):
         data_temp = nc.Dataset(os.path.join(self.input_dir, "guizhou_prcp.nc"))
-        self.data = np.transpose(data_temp['prcp'],[3,2,1,0])
+        prcp_temp = np.transpose(data_temp['prcp'],[3,2,1,0])
+        prcp_temp[np.isnan(prcp_temp)] = 0
+        self.data = prcp_temp
         self.time = np.transpose(data_temp['time'],[2,1,0])
         print("data in gzprcp_test_Seq shape", self.data.shape)
         return None
@@ -120,11 +122,11 @@ def _int64_feature(value):
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("-input_dir", type=str, help="The input directory that contains the zgprcp_data nc file", default="/p/scratch/deepacf/video_prediction_shared_folder/extractedData/guizhou_prcp")
-    parser.add_argument("-output_dir", type=str,default="/p/project/deepacf/deeprain/video_prediction_shared_folder/preprocessedData/gzprcp_data/tfrecords_seq_len_40")
-    parser.add_argument("-sequences_per_file", type=int, default=4)
+    parser.add_argument("-source_dir", type=str, help="The input directory that contains the zgprcp_data nc file", default="/p/scratch/deepacf/video_prediction_shared_folder/extractedData/guizhou_prcp")
+    parser.add_argument("-dest_dir", type=str,default="/p/project/deepacf/deeprain/video_prediction_shared_folder/preprocessedData/gzprcp_data/tfrecords_seq_len_40")
+    parser.add_argument("-sequences_per_file", type=int, default=10)
     args = parser.parse_args()
-    inst = GZprcp2Tfrecords(args.input_dir, args.output_dir, args.sequences_per_file)
+    inst = GZprcp2Tfrecords(args.source_dir, args.dest_dir, args.sequences_per_file)
     inst()
 
 
