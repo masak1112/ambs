@@ -2,12 +2,13 @@
 #
 # __authors__ = Bing Gong, Michael Langguth
 # __date__  = '2020_01_15'
+# __last_update__  = '2021_04_28' by Michael Langguth
 #
 # **************** Description ****************
 # This script can be used for setting up the virtual environment needed for AMBS-project
-# It also converts the (Batch) runscript templates to executable runscripts.
-# Note, that you may pass an experiment identifier as second argument (default 'exp1') to this runscript
-# which will also be used as suffix in the executable runscripts.
+# The name of the virtual environment is controlled by the first parsed argument.
+# It also setups the (Batch) runscript templates to customized runscripts (to be used by generate_runscript.py)
+# Note that the basic output directory for the workflow may be set may passing a path as second argument to this script.
 # **************** Description ****************
 #
 # some first sanity checks
@@ -54,7 +55,7 @@ if [[ "${EXE_DIR}" != "env_setup"  ]]; then
 fi
 
 if [[ -d ${ENV_DIR} ]]; then
-  echo "Virtual environment has already been set up under ${ENV_DIR}. The present virtual environment is activated now."
+  echo "Virtual environment has already been set up under ${ENV_DIR}. The present virtual environment will be activated now."
   echo "NOTE: If you wish to set up a new virtual environment, delete the existing one or provide a different name."
   
   ENV_EXIST=1
@@ -117,6 +118,7 @@ if [[ "$ENV_EXIST" == 0 ]]; then
   export PYTHONPATH=${WORKING_DIR}/utils:$PYTHONPATH >> ${activate_virt_env}
   export PYTHONPATH=${WORKING_DIR}/external_package/lpips-tensorflow:$PYTHONPATH >> ${activate_virt_env}
   export PYTHONPATH=${WORKING_DIR}/model_modules:$PYTHONPATH >> ${activate_virt_env}
+  export PYTHONPATH=${WORKING_DIR}/postprocess:$PYTHONPATH >> ${activate_virt_env}
 
   if [[ "${HOST_NAME}" == hdfml* || "${HOST_NAME}" == *juwels* ]]; then
      export PYTHONPATH=${ENV_DIR}/lib/python3.6/site-packages:$PYTHONPATH >> ${activate_virt_env}
@@ -131,6 +133,7 @@ if [[ "$ENV_EXIST" == 0 ]]; then
   echo "export PYTHONPATH=${WORKING_DIR}/utils/:\$PYTHONPATH" >> ${activate_virt_env}
   echo "export PYTHONPATH=${WORKING_DIR}/model_modules:$PYTHONPATH " >> ${activate_virt_env}
   echo "export PYTHONPATH=${WORKING_DIR}/external_package/lpips-tensorflow:\$PYTHONPATH" >> ${activate_virt_env}
+  echo "export PYTHONPATH=${WORKING_DIR}/postprocess:$PYTHONPATH" >> ${activate_virt_env}
 
   if [[ "${HOST_NAME}" == hdfml* || "${HOST_NAME}" == *juwels* ]]; then
     echo "export PYTHONPATH=${ENV_DIR}/lib/python3.6/site-packages:\$PYTHONPATH" >> ${activate_virt_env}
@@ -145,8 +148,12 @@ elif [[ "$ENV_EXIST" == 1 ]]; then
   info_str="Virtual environment ${ENV_DIR} has been activated successfully."
 fi
 
+echo "Set up runscript template for user ${USER}..."
+shift                   # shift parsed arguments so that name of venv is not parsed to setup_runscript_template.sh
+source "${WORKING_DIR}"/utils/runscript_generator/setup_runscript_templates.sh
+
 echo "******************************************** NOTE ********************************************"
-echo ${info_str}
+echo "${info_str}"
 echo "Make use of config_runscript.py to generate customized runscripts of the workflow steps."
 echo "******************************************** NOTE ********************************************"
 

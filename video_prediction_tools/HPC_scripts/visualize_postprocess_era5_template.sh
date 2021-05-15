@@ -45,6 +45,6 @@ model=convLSTM
 
 # run postprocessing/generation of model results including evaluation metrics
 srun python -u ../main_scripts/main_visualize_postprocess.py --checkpoint  ${checkpoint_dir} --mode test  \
-                                                             --results_dir ${results_dir} --batch_size 2 \
-                                                             --num_samples 20 --num_stochastic_samples 2  \
+                                                             --results_dir ${results_dir} --batch_size 4 \
+                                                             --num_stochastic_samples 1  \
                                                                > generate_era5-out.out
