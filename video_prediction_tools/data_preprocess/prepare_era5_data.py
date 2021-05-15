@@ -64,14 +64,14 @@ class ERA5DataExtraction(object):
             infile = os.path.join(self.src_dir, self.year, month, self.year+month+day+hour+'_sf.grb')
             outfile_sf = os.path.join(self.target_dir, self.year, month, self.year+month+day+hour+'_'+var+'.nc')
             os.system('cdo -f nc copy -selname,%s %s %s' % (value, infile, outfile_sf))
-            os.system('cdo -chname,%s,%s %s %s' % (var, value, outfile_sf, outfile_sf))
+            os.system('cdo -chname,%s,%s %s %s' % (value, var, outfile_sf, outfile_sf))
 
         # surface_fc variables
         for var,value in self.varslist_surface_fc.items():
             infile = os.path.join(self.src_dir, self.year, month, self.year+month+day+hour+'_sf_fc.grb')
             outfile_sf = os.path.join(self.target_dir, self.year, month, self.year+month+day+hour+'_'+var+'.nc')
             os.system('cdo -f nc copy -selname,%s %s %s' % (value, infile, outfile_sf))
-            os.system('cdo -chname,%s,%s %s %s' % (var, value, outfile_sf, outfile_sf))
+            os.system('cdo -chname,%s,%s %s %s' % (value, var, outfile_sf, outfile_sf))
 
         # multi-level variables
         for var, pl_dic in self.varslist_multi.items():
