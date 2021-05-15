@@ -134,19 +134,6 @@ class ConvLstmGANVideoPredictionModel(object):
         """ 
         self.noise = tf.random.uniform(minval=-1., maxval=1., shape=[self.batch_size, self.sequence_length, self.height, self.width, self.channels])
         return self.noise
-
-
-
-    def generator(self):
-        """
-        Function to build up the generator architecture
-        args:
-            input images: a input tensor with dimension (n_batch,sequence_length,height,width,channel)
-        """
-        with tf.variable_scope("generator",reuse=tf.AUTO_REUSE):
-            layer_gen = self.convLSTM_network(self.x)
-            layer_gen_pred = layer_gen[:,self.context_frames-1:,:,:,:]
-        return layer_gen
      
     @staticmethod
     def lrelu(x, leak=0.2, name="lrelu"):
@@ -186,6 +173,27 @@ class ConvLstmGANVideoPredictionModel(object):
                                         epsilon=1e-5,
                                         scale=True,
                                         scope=scope)
+
+    def generator(self):
+        """
+        Function to build up the generator architecture
+        args:
+            input images: a input tensor with dimension (n_batch,sequence_length,height,width,channel)
+        """
+        with tf.variable_scope("generator",reuse=tf.AUTO_REUSE):
+            layer_gen = self.convLSTM_network(self.x)
+            layer_gen_pred = layer_gen[:,self.context_frames-1:,:,:,:]
+        return layer_gen
+
+
+    def discriminator0(self,image):
+        """
+        Function that get discriminator architecture      
+        """
+        with tf.variable_scope("discriminator",reuse=tf.AUTO_REUSE):
+            layer_disc = self.convLSTM_network(image)
+            layer_disc = layer_disc[:,self.context_frames-1:self.context_frames,:,:, 0:1]
+        return layer_disc
 
     def discriminator(self,sequence):
         """
@@ -281,6 +289,7 @@ class ConvLstmGANVideoPredictionModel(object):
         z3 = tf.reshape(output, [-1, output_shape[1], output_shape[2], output_shape[3]])
         #we feed the learn representation into a 1 × 1 convolutional layer to generate the final prediction
         x_hat = ld.conv_layer(z3, 1, 1, channels, "decode_1", activate="sigmoid")
+        print('x_hat shape is: ',x_hat.shape)
         return x_hat, hidden
 
     def convLSTM_network(self,x):
@@ -300,6 +309,7 @@ class ConvLstmGANVideoPredictionModel(object):
         # pack them all together
         x_hat = tf.stack(x_hat)
         self.x_hat= tf.transpose(x_hat, [1, 0, 2, 3, 4])  # change first dim with sec dim  ???? yan: why?
+        print('self.x_hat shape is: ',self.x_hat.shape)
         return self.x_hat
      
    
