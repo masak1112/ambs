@@ -121,8 +121,8 @@ class Scores:
     """
     def __init__(self, score_name: str, dims: List[str]):
 
-        self.metrics_dict = {"mse": Scores.calc_mse_batch , "psnr": Scores.calc_psnr_batch}
-        self.score_name = Scores.set_score_name(score_name)
+        self.metrics_dict = {"mse": self.calc_mse_batch , "psnr": self.calc_psnr_batch}
+        self.score_name = self.set_score_name(score_name)
         self.score_func = self.metrics_dict[score_name]
         # attributes set when run_calculation is called
         self.avg_dims = dims
