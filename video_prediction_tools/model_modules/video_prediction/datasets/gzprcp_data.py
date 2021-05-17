@@ -170,6 +170,7 @@ class GZprcp(object):
                  'height': tf.FixedLenFeature([], tf.int64),
                  'sequence_length': tf.FixedLenFeature([], tf.int64),
                  'channels': tf.FixedLenFeature([],tf.int64),
+                 't_start': tf.FixedLenFeature([],tf.int64),
                  'images/encoded': tf.VarLenFeature(tf.float32)
              }
             parsed_features = tf.parse_single_example(serialized_example, keys_to_features)

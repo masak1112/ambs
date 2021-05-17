@@ -69,14 +69,15 @@ class GZprcp2Tfrecords(GZprcp):
         # self.data/= 255.0  # normalize RGB codes by dividing it to the max RGB value
         while idx < num_samples - self.sequences_per_file:
             sequences = self.data[idx:idx+self.sequences_per_file, :, :, :, :]
+            t_start = self.time[idx,0,4]+self.time[idx,0,3]*100+self.time[idx,0,2]*10000+self.time[idx,0,1]*1000000+self.time[idx,0,0]*100000000
             output_fname = 'sequence_index_{}_to_{}.tfrecords'.format(idx, idx + self.sequences_per_file-1)
             output_fname = os.path.join(self.output_dir, output_fname)
-            GZprcp2Tfrecords.save_tf_record(output_fname, sequences)
+            GZprcp2Tfrecords.save_tf_record(output_fname, sequences, t_start)
             idx = idx + self.sequences_per_file
         return None
 
     @staticmethod
-    def save_tf_record(output_fname, sequences):
+    def save_tf_record(output_fname, sequences, t_start):
         with tf.python_io.TFRecordWriter(output_fname) as writer:
             for i in range(np.array(sequences).shape[0]):
                 sequence = sequences[i, :, :, :, :]
@@ -88,6 +89,7 @@ class GZprcp2Tfrecords(GZprcp):
                     'height': _int64_feature(height),
                     'width': _int64_feature(width),
                     'channels': _int64_feature(1),
+                    't_start': _int64_feature(int(t_start)),
                     'images/encoded': _floats_feature(encoded_sequence.flatten()),
                 })
                 example = tf.train.Example(features = features)
