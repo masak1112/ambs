@@ -119,13 +119,13 @@ class Scores:
     """
     Class to calculate scores and skill scores.
     """
-    def __init__(self, score_name):
+    def __init__(self, score_name: str, dims: List[str]):
 
         self.metrics_dict = {"mse": Scores.calc_mse_batch , "psnr": Scores.calc_psnr_batch}
         self.score_name = Scores.set_score_name(score_name)
         self.score_func = self.metrics_dict[score_name]
         # attributes set when run_calculation is called
-        self.avg_dims = None
+        self.avg_dims = dims
 
     def run_calculation(self, model_data, ref_data, dims2avg=None, **kwargs):
 
@@ -156,24 +156,6 @@ class Scores:
             for score in self.metrics_dict.keys():
                 print("* {0}".format(score))
             raise ValueError("%{0}: The selected score '{1}' cannot be selected.".format(method, score_name))
-
-    def set_model_and_ref_data(self, model_data: xr.DataArray, ref_data: xr.DataArray, dims2avg: List[str] = None):
-
-        method = Scores.set_score_name.__name__
-
-        coords = model_data.coords
-        if not list(coords) == list(ref_data.coords):
-            raise ValueError("%{0}: Input data arrays must have the same shape and coordinates.".format(method))
-
-        if dims2avg is None:
-            self.avg_dims = dims2avg
-        else:
-            for dim in dims2avg:
-                if not dim in coords:
-                    raise ValueError("%{0}: Dimension '{1}' does not exist in model and reference data"
-                                     .format(method, dim))
-
-        return model_data, ref_data
 
     def calc_mse_batch(self, data_fcst, data_ref, **kwargs):
         """
