@@ -530,7 +530,8 @@ class Postprocess(TrainModel):
         method = Postprocess.populate_eval_metric_ds.__name__
 
         # dictionary of implemented evaluation metrics
-        known_eval_metrics = {"mse": Scores("mse"), "psnr": Scores("psnr")}
+        dims = ["lat", "lon"]
+        known_eval_metrics = {"mse": Scores("mse", dims), "psnr": Scores("psnr", dims)}
 
         # generate list of functions that calculate requested evaluation metrics
         if set(self.eval_metrics).issubset(known_eval_metrics):
