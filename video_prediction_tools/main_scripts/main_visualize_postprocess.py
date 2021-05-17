@@ -26,7 +26,7 @@ from metadata import MetaData as MetaData
 from main_scripts.main_train_models import *
 from data_preprocess.preprocess_data_step2 import *
 from model_modules.video_prediction import datasets, models, metrics
-from statistical_evaluation import perform_block_bootstrap_metric, avg_metrics
+from statistical_evaluation import perform_block_bootstrap_metric, avg_metrics, Scores
 
 
 class Postprocess(TrainModel):
@@ -530,11 +530,11 @@ class Postprocess(TrainModel):
         method = Postprocess.populate_eval_metric_ds.__name__
 
         # dictionary of implemented evaluation metrics
-        known_eval_metrics = {"mse": Postprocess.calc_mse_batch , "psnr": Postprocess.calc_psnr_batch}
+        known_eval_metrics = {"mse": Scores("mse"), "psnr": Scores("psnr")}
 
         # generate list of functions that calculate requested evaluation metrics
         if set(self.eval_metrics).issubset(known_eval_metrics):
-            eval_metrics_func = [known_eval_metrics[metric] for metric in self.eval_metrics]
+            eval_metrics_func = [known_eval_metrics[metric].score_func for metric in self.eval_metrics]
         else:
             misses = list(set(self.eval_metrics) - known_eval_metrics.keys())
             raise NotImplementedError("%{0}: The following requested evaluation metrics are not implemented yet: "
@@ -906,50 +906,6 @@ class Postprocess(TrainModel):
             raise err
 
     @staticmethod
-    def calc_mse_batch(data_fcst, data_ref):
-        """
-        Calculate mse of forecast data w.r.t. reference data
-        :param data_fcst: forecasted data (xarray with dimensions [batch, lat, lon])
-        :param data_ref: reference data (xarray with dimensions [batch, lat, lon])
-        :return: averaged mse for each batch example
-        """
-        method = Postprocess.calc_mse_batch.__name__
-
-        dims = data_fcst.dims
-        # sanity checks
-        if dims[0] != "init_time":
-            raise ValueError("%{0}: First dimension of data must be init_time.".format(method))
-
-        if not list(data_fcst.coords) == list(data_ref.coords):
-            raise ValueError("%{0}: Input data arrays must have the same shape and coordinates.".format(method))
-
-        mse = np.square(data_fcst - data_ref).mean(dim=["lat", "lon"])
-
-        return mse.values
-
-    @staticmethod
-    def calc_psnr_batch(data_fcst, data_ref):
-        """
-        Calculate mse of forecast data w.r.t. reference data
-        :param data_fcst: forecasted data (xarray with dimensions [batch, lat, lon])
-        :param data_ref: reference data (xarray with dimensions [batch, lat, lon])
-        :return: averaged mse for each batch example
-        """
-        method = Postprocess.calc_mse_batch.__name__
-
-        dims = data_fcst.dims
-        # sanity checks
-        if dims[0] != "init_time":
-            raise ValueError("%{0}: First dimension of data must be init_time.".format(method))
-
-        if not list(data_fcst.coords) == list(data_ref.coords):
-            raise ValueError("%{0}: Input data arrays must have the same shape and coordinates.".format(method))
-
-        psnr = metrics.psnr_imgs(data_ref.values, data_fcst.values)
-
-        return psnr
-
-    @staticmethod
     def plot_avg_eval_metrics(eval_ds, eval_metrics, fcst_prod_dict, varname, out_dir):
         """
         Plots error-metrics averaged over all predictions to file incl. 90%-confidence interval that is estimated by
@@ -986,8 +942,6 @@ class Postprocess(TrainModel):
             ax = plt.axes([0.1, 0.15, 0.75, 0.75])
             hours = np.arange(1, nhours+1)
 
-            metric2plt = np.full((nmodels, nhours), np.nan)
-            metric2plt_max, metric2plt_min = metric2plt.copy(), metric2plt.copy()
             for ifcst, fcst_prod in enumerate(fcst_prod_dict.keys()):
                 metric_name = "{0}_{1}_{2}".format(varname, fcst_prod, metric)
                 try:
