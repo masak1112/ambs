@@ -206,10 +206,17 @@ class Scores:
         """
         method = Scores.calc_mse_batch.__name__
 
-        if kwargs is not None:
-            print("%{0}: Passed keyword arguments are without effect.".format(method))
+        if "pixel_max" in kwargs:
+            pixel_max = kwargs.get("pixel_max")
+        else:
+            pixel_max = 1.
 
-        psnr = metrics.psnr_imgs(data_ref.values, data_fcst.values)
+        mse = self.calc_mse_batch(data_fcst, data_ref)
+        if np.count_nonzero(mse) == 0:
+            psnr = mse
+            psnr[...] = 100.
+        else:
+            psnr = 20.*np.log10(pixel_max / np.sqrt(mse))
 
         return psnr
 
