@@ -22,6 +22,22 @@ from model_modules.video_prediction.layers.BasicConvLSTMCell import BasicConvLST
 from tensorflow.contrib.training import HParams
 from .vanilla_convLSTM_model import VanillaConvLstmVideoPredictionModel
 
+class batch_norm(object):
+  def __init__(self, epsilon=1e-5, momentum = 0.9, name="batch_norm"):
+    with tf.variable_scope(name):
+      self.epsilon  = epsilon
+      self.momentum = momentum
+      self.name = name
+
+  def __call__(self, x, train=True):
+    return tf.contrib.layers.batch_norm(x,
+                      decay=self.momentum,
+                      updates_collections=None,
+                      epsilon=self.epsilon,
+                      scale=True,
+                      is_training=train,
+                      scope=self.name)
+
 class ConvLstmGANVideoPredictionModel(object):
     def __init__(self, mode='train', hparams_dict=None):
         """
@@ -42,7 +58,10 @@ class ConvLstmGANVideoPredictionModel(object):
         self.loss_fun = self.hparams.loss_fun
         self.batch_size = self.hparams.batch_size
         self.recon_weight = self.hparams.recon_weight
-       
+        self.bd1 = batch_norm(name = "dis1")
+        self.bd2 = batch_norm(name = "dis2")
+        self.bd3 = batch_norm(name = "dis3")   
+
     def get_default_hparams(self):
         return HParams(**self.get_default_hparams_dict())
 
@@ -138,7 +157,7 @@ class ConvLstmGANVideoPredictionModel(object):
     @staticmethod
     def lrelu(x, leak=0.2, name="lrelu"):
         return tf.maximum(x, leak*x)
-    
+
     @staticmethod    
     def linear(input_, output_size, scope=None, stddev=0.02, bias_start=0.0, with_w=False):
         shape = input_.get_shape().as_list()
@@ -186,6 +205,24 @@ class ConvLstmGANVideoPredictionModel(object):
         return layer_gen
 
 
+    def discriminator(self,vid):
+        """
+        Function that get discriminator architecture      
+        """
+        with tf.variable_scope("discriminator",reuse=tf.AUTO_REUSE):
+            conv1 = tf.layers.conv3d(vid,64,kernel_size=[4,4,4],strides=[2,2,2],padding="SAME",name="dis1")
+            conv1 = ConvLstmGANVideoPredictionModel.lrelu(conv1)
+            conv2 = tf.layers.conv3d(conv1,128,kernel_size=[4,4,4],strides=[2,2,2],padding="SAME",name="dis2")
+            conv2 = ConvLstmGANVideoPredictionModel.lrelu(self.bd1(conv2))
+            conv3 = tf.layers.conv3d(conv2,256,kernel_size=[4,4,4],strides=[2,2,2],padding="SAME",name="dis3")
+            conv3 = ConvLstmGANVideoPredictionModel.lrelu(self.bd2(conv3))
+            conv4 = tf.layers.conv3d(conv3,512,kernel_size=[4,4,4],strides=[2,2,2],padding="SAME",name="dis4")
+            conv4 = ConvLstmGANVideoPredictionModel.lrelu(self.bd3(conv4))
+            conv5 = tf.layers.conv3d(conv4,1,kernel_size=[2,4,4],strides=[1,1,1],padding="SAME",name="dis5")
+            conv5 = tf.reshape(conv5, [-1,1])
+            conv5sigmoid = tf.nn.sigmoid(conv5)
+            return conv5sigmoid,conv5
+
     def discriminator0(self,image):
         """
         Function that get discriminator architecture      
@@ -195,7 +232,7 @@ class ConvLstmGANVideoPredictionModel(object):
             layer_disc = layer_disc[:,self.context_frames-1:self.context_frames,:,:, 0:1]
         return layer_disc
 
-    def discriminator(self,sequence):
+    def discriminator1(self,sequence):
         """
         https://github.com/hwalsuklee/tensorflow-generative-model-collections/blob/master/GAN.py
         Function that give the possibility of a sequence of frames is ture of false 
@@ -257,8 +294,9 @@ class ConvLstmGANVideoPredictionModel(object):
         """
         self.noise = self.get_noise()
         self.gen_images = self.generator()
-        self.D_real, self.D_real_logits = self.discriminator(self.x[:,:self.context_frames,:,:,:])
-        self.D_fake, self.D_fake_logits = self.discriminator(self.gen_images[:,:self.context_frames,:,:,:])
+        #!!!! the input of discriminator should be changed when use different discriminators
+        self.D_real, self.D_real_logits = self.discriminator(self.x[:,self.context_frames:,:,:,:])
+        self.D_fake, self.D_fake_logits = self.discriminator(self.gen_images[:,self.context_frames-1:,:,:,:])
         self.get_gen_loss()
         self.get_disc_loss()
         self.get_vars()
