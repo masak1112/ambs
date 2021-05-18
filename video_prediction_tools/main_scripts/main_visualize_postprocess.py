@@ -1067,20 +1067,18 @@ class Postprocess(TrainModel):
             coords = data.coords
             # handle coordinates and forecast times
             lat, lon = coords["lat"], coords["lon"]
-            dates_fcst = pd.to_datetime(coords["fcst_hour"].data)
+            date0 = pd.to_datetime(coords["init_time"].data)
+            fhhs = coords["fcst_hour"].data
         except Exception as err:
             print("%{0}: Could not retrieve expected coordinates lat, lon and time_forecast from data.".format(method))
             raise err
 
         lons, lats = np.meshgrid(lon, lat)
 
-        date0 = dates_fcst[0] - (dates_fcst[1] - dates_fcst[0])
         date0_str = date0.strftime("%Y-%m-%d %H:%M UTC")
 
-        fhhs = ((dates_fcst - date0) / pd.Timedelta('1 hour')).values
-
         # check data to be plotted since programme is not generic so far
-        if np.shape(dates_fcst)[0] != 12:
+        if np.shape(fhhs)[0] != 12:
             raise ValueError("%{0}: Currently, only 12 hour forecast can be handled properly.".format(method))
 
         if varname != "2t":
