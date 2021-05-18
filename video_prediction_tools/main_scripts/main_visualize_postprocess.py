@@ -542,8 +542,9 @@ class Postprocess(TrainModel):
 
         varname_ref = "{0}_ref".format(varname)
         # reset init-time coordinate of metric_ds in place
+        ind_end = ind_start + min(self.batch_size, len(data_ds["init_time"]))
         init_times_metric = metric_ds["init_time"].values
-        init_times_metric[ind_start:ind_start+self.batch_size] = data_ds["init_time"]
+        init_times_metric[ind_start:ind_end] = data_ds["init_time"]
         metric_ds = metric_ds.assign_coords(init_time=init_times_metric)
         # populate metric_ds
         for fcst_prod in self.fcst_products.keys():
