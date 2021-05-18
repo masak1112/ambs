@@ -64,7 +64,7 @@ class Postprocess(TrainModel):
         # initialize dataset to track evaluation metrics and configure bootstrapping procedure
         self.eval_metrics_ds = None
         self.nboots_block = 1000
-        self.block_length = 7 * 24    # this corresponds to a block length of 7 days when forecasts are produced every hour
+        self.block_length = 7 #* 24    # this corresponds to a block length of 7 days when forecasts are produced every hour
         # other attributes
         self.stat_fl = None
         self.norm_cls = None            # placeholder for normalization instance
@@ -231,7 +231,7 @@ class Postprocess(TrainModel):
         """
         method = Postprocess.setup_num_samples_per_epoch.__name__
 
-        self.num_samples_per_epoch = self.test_dataset.num_examples_per_epoch()
+        self.num_samples_per_epoch = 100#self.test_dataset.num_examples_per_epoch()
 
         return self.num_samples_per_epoch
 
@@ -454,8 +454,7 @@ class Postprocess(TrainModel):
             # ... and increment sample_ind
             sample_ind += self.batch_size
             # end of while-loop for samples
-        # change init_time-coordinates to datetime64-type and safe dataset with evaluation metrics for later use
-        eval_metric_ds = eval_metric_ds.assign_coords(init_time=pd.to_datetime(eval_metric_ds["init_time"]))
+        # safe dataset with evaluation metrics for later use
         self.eval_metrics_ds = eval_metric_ds
         #self.add_ensemble_dim()
 
