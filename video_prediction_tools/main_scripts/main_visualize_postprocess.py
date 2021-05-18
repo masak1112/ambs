@@ -906,72 +906,6 @@ class Postprocess(TrainModel):
             print("%{0}: Something unexpected happened when creating netCDF-file '1'".format(method, nc_fname))
             raise err
 
-    @staticmethod
-    def plot_avg_eval_metrics(eval_ds, eval_metrics, fcst_prod_dict, varname, out_dir):
-        """
-        Plots error-metrics averaged over all predictions to file incl. 90%-confidence interval that is estimated by
-        block bootstrapping.
-        :param eval_ds: The dataset storing all evaluation metrics for each forecast (produced by init_metric_ds-method)
-        :param eval_metrics: list of evaluation metrics
-        :param fcst_prod_dict: dictionary of forecast products, e.g. {"pfcst": "persistence forecast"}
-        :param varname: the variable name for which the evaluation metrics are available
-        :param out_dir: output directory to save the lots
-        :return: a bunch of plots as png-files
-        """
-        method = Postprocess.plot_avg_eval_metrics.__name__
-
-        # settings for block bootstrapping
-        # sanity checks
-        if not isinstance(eval_ds, xr.Dataset):
-            raise ValueError("%{0}: Argument 'eval_ds' must be a xarray dataset.".format(method))
-
-        if not isinstance(fcst_prod_dict, dict):
-            raise ValueError("%{0}: Argument 'fcst_prod_dict' must be dictionary with short names of forecast product" +
-                             "as key and long names as value.".format(method))
-
-        try:
-            nhours = np.shape(eval_ds.coords["fcst_hour"])[0]
-        except Exception as err:
-            print("%{0}: Input argument 'eval_ds' appears to be unproper.".format(method))
-            raise err
-
-        nmodels = len(fcst_prod_dict.values())
-        colors = ["blue", "red", "black", "grey"]
-        for metric in eval_metrics:
-            # create a new figure object
-            fig = plt.figure(figsize=(6, 4))
-            ax = plt.axes([0.1, 0.15, 0.75, 0.75])
-            hours = np.arange(1, nhours+1)
-
-            for ifcst, fcst_prod in enumerate(fcst_prod_dict.keys()):
-                metric_name = "{0}_{1}_{2}".format(varname, fcst_prod, metric)
-                try:
-                    metric2plt = eval_ds[metric_name+"_avg"]
-                    metric_boot = eval_ds[metric_name+"_bootstrapped"]
-                except Exception as err:
-                    print("%{0}: Could not retrieve {1} and/or {2} from evaluation metric dataset."
-                          .format(method, metric_name, metric_name+"_boot"))
-                    raise err
-                # plot the data
-                metric2plt_min = metric_boot.quantile(0.05, dim="iboot")
-                metric2plt_max = metric_boot.quantile(0.95, dim="iboot")
-                plt.plot(hours, metric2plt, label=fcst_prod, color=colors[ifcst], marker="o")
-                plt.fill_between(hours, metric2plt_min, metric2plt_max, facecolor=colors[ifcst], alpha=0.3)
-            # configure plot
-            plt.xticks(hours)
-            ax.set_ylim(0., None)
-            if metric == "psnr": ax.set_ylim(None, None)
-            legend = ax.legend(loc="upper right", bbox_to_anchor=(1.15, 1))
-            ax.set_xlabel("Lead time [hours]")
-            ax.set_ylabel(metric.upper())
-            plt_fname = os.path.join(out_dir, "evaluation_{0}".format(metric))
-            print("Saving basic evaluation plot in terms of {1} to '{2}'".format(method, metric, plt_fname))
-            plt.savefig(plt_fname)
-
-        plt.close()
-
-        return True
-
     def plot_example_forecasts(self, metric="mse", channel=0):
         """
         Plots example forecasts. The forecasts are chosen from the complete pool of the test dataset and are chosen
@@ -1049,6 +983,72 @@ class Postprocess(TrainModel):
         indexes = sorted_keys[np.searchsorted(big_array, subset, sorter=sorted_keys)]
 
         return indexes
+
+    @staticmethod
+    def plot_avg_eval_metrics(eval_ds, eval_metrics, fcst_prod_dict, varname, out_dir):
+        """
+        Plots error-metrics averaged over all predictions to file incl. 90%-confidence interval that is estimated by
+        block bootstrapping.
+        :param eval_ds: The dataset storing all evaluation metrics for each forecast (produced by init_metric_ds-method)
+        :param eval_metrics: list of evaluation metrics
+        :param fcst_prod_dict: dictionary of forecast products, e.g. {"persistence": "pfcst"}
+        :param varname: the variable name for which the evaluation metrics are available
+        :param out_dir: output directory to save the lots
+        :return: a bunch of plots as png-files
+        """
+        method = Postprocess.plot_avg_eval_metrics.__name__
+
+        # settings for block bootstrapping
+        # sanity checks
+        if not isinstance(eval_ds, xr.Dataset):
+            raise ValueError("%{0}: Argument 'eval_ds' must be a xarray dataset.".format(method))
+
+        if not isinstance(fcst_prod_dict, dict):
+            raise ValueError("%{0}: Argument 'fcst_prod_dict' must be dictionary with short names of forecast product" +
+                             "as key and long names as value.".format(method))
+
+        try:
+            nhours = np.shape(eval_ds.coords["fcst_hour"])[0]
+        except Exception as err:
+            print("%{0}: Input argument 'eval_ds' appears to be unproper.".format(method))
+            raise err
+
+        nmodels = len(fcst_prod_dict.values())
+        colors = ["blue", "red", "black", "grey"]
+        for metric in eval_metrics:
+            # create a new figure object
+            fig = plt.figure(figsize=(6, 4))
+            ax = plt.axes([0.1, 0.15, 0.75, 0.75])
+            hours = np.arange(1, nhours+1)
+
+            for ifcst, fcst_prod in enumerate(fcst_prod_dict.keys()):
+                metric_name = "{0}_{1}_{2}".format(varname, fcst_prod, metric)
+                try:
+                    metric2plt = eval_ds[metric_name+"_avg"]
+                    metric_boot = eval_ds[metric_name+"_bootstrapped"]
+                except Exception as err:
+                    print("%{0}: Could not retrieve {1} and/or {2} from evaluation metric dataset."
+                          .format(method, metric_name, metric_name+"_boot"))
+                    raise err
+                # plot the data
+                metric2plt_min = metric_boot.quantile(0.05, dim="iboot")
+                metric2plt_max = metric_boot.quantile(0.95, dim="iboot")
+                plt.plot(hours, metric2plt, label=fcst_prod, color=colors[ifcst], marker="o")
+                plt.fill_between(hours, metric2plt_min, metric2plt_max, facecolor=colors[ifcst], alpha=0.3)
+            # configure plot
+            plt.xticks(hours)
+            # automatic y-limits for PSNR wich can be negative and positive
+            if metric != "psnr": ax.set_ylim(0., None)
+            legend = ax.legend(loc="upper right", bbox_to_anchor=(1.15, 1))
+            ax.set_xlabel("Lead time [hours]")
+            ax.set_ylabel(metric.upper())
+            plt_fname = os.path.join(out_dir, "evaluation_{0}".format(metric))
+            print("Saving basic evaluation plot in terms of {1} to '{2}'".format(method, metric, plt_fname))
+            plt.savefig(plt_fname)
+
+        plt.close()
+
+        return True
 
     @staticmethod
     def create_plot(data, data_diff, varname, plt_fname):
