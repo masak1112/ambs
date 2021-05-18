@@ -166,11 +166,11 @@ class Scores:
         """
         method = Scores.calc_mse_batch.__name__
 
-        if kwargs is not None:
+        if kwargs:
             print("%{0}: Passed keyword arguments are without effect.".format(method))
         # sanity checks
         if self.avg_dims is None:
-            print("%{0}: Squeared difference is averaged over all dimensions.".format(method))
+            print("%{0}: Squared difference is averaged over all dimensions.".format(method))
             dims = list(data_fcst.dims)
         else:
             dims = self.avg_dims
