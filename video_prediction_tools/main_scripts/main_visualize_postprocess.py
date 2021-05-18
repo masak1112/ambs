@@ -1032,7 +1032,7 @@ class Postprocess(TrainModel):
 
         init_time_dummy = pd.date_range("1900-01-01 00:00", freq="s", periods=nsamples)
         eval_metric_ds = xr.Dataset(eval_metric_dict, coords={"init_time": init_time_dummy,  # just a placeholder
-                                                              "fcst_hour": np.arange(nlead_steps)})
+                                                              "fcst_hour": np.arange(1, nlead_steps+1)})
 
         return eval_metric_ds
 
