@@ -119,9 +119,21 @@ class Scores:
     """
     Class to calculate scores and skill scores.
     """
+
+    known_scores = ["mse", "psnr"]
+
     def __init__(self, score_name: str, dims: List[str]):
+        """
+        Initialize score instance.
+        :param score_name: name of score taht is queried
+        :param dims: list of dimension over which the score shall operate
+        :return: Score instance
+        """
+        method = Scores.__init__.__name
 
         self.metrics_dict = {"mse": self.calc_mse_batch , "psnr": self.calc_psnr_batch}
+        if set(self.metrics_dict.keys()) != set(Scores.known_scores):
+            raise ValueError("%{0}: Known scores must coincide with keys of metrics_dict.".format(method))
         self.score_name = self.set_score_name(score_name)
         self.score_func = self.metrics_dict[score_name]
         # attributes set when run_calculation is called
