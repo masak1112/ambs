@@ -129,7 +129,7 @@ class Scores:
         :param dims: list of dimension over which the score shall operate
         :return: Score instance
         """
-        method = Scores.__init__.__name
+        method = Scores.__init__.__name__
 
         self.metrics_dict = {"mse": self.calc_mse_batch , "psnr": self.calc_psnr_batch}
         if set(self.metrics_dict.keys()) != set(Scores.known_scores):
