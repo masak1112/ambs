@@ -551,8 +551,9 @@ class Postprocess(TrainModel):
             for imetric, eval_metric in enumerate(self.eval_metrics):
                 metric_name = "{0}_{1}_{2}".format(varname, fcst_prod, eval_metric)
                 varname_fcst = "{0}_{1}_fcst".format(varname, fcst_prod)
-                metric_ds[metric_name].loc[dict(init_time=data_ds["init_time"])] = eval_metrics_func[imetric](data_ds[varname_fcst],
-                                                                                                     data_ds[varname_ref])
+                dict_ind = dict(init_time=data_ds["init_time"])
+                metric_ds[metric_name].loc[dict_ind] = eval_metrics_func[imetric](data_ds[varname_fcst],
+                                                                                  data_ds[varname_ref])
             # end of metric-loop
         # end of forecast product-loop
         
@@ -1025,11 +1026,12 @@ class Postprocess(TrainModel):
         :param nlead_steps: number of forecast steps
         :return: eval_metric_ds
         """
-        eval_metric_dict = dict([("{0}_{1}_{2}".format(varname ,*(fcst_prod, eval_met)), (["init_time", "fcst_hour"],
+        eval_metric_dict = dict([("{0}_{1}_{2}".format(varname, *(fcst_prod, eval_met)), (["init_time", "fcst_hour"],
                                   np.full((nsamples, nlead_steps), np.nan)))
                                  for eval_met in eval_metrics for fcst_prod in fcst_products])
 
-        eval_metric_ds = xr.Dataset(eval_metric_dict, coords={"init_time": np.arange(nsamples),  # just a placeholder
+        init_time_dummy = pd.date_range("1900-01-01 00:00", freq="s", periods=nsamples)
+        eval_metric_ds = xr.Dataset(eval_metric_dict, coords={"init_time": init_time_dummy,  # just a placeholder
                                                               "fcst_hour": np.arange(nlead_steps)})
 
         return eval_metric_ds
