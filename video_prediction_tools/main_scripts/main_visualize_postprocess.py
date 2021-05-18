@@ -1112,7 +1112,8 @@ class Postprocess(TrainModel):
             m.drawmapboundary()
             m.drawparallels(np.arange(0, 90, 5),labels=lat_lab, xoffset=1.)
             m.drawmeridians(np.arange(5, 355, 10),labels=lon_lab, yoffset=1.)
-            cs = m.contourf(x, y, data.isel(fcst_hour=t)-273.15, clevs, cmap=plt.get_cmap("jet"), ax=axes[t])
+            cs = m.contourf(x, y, data.isel(fcst_hour=t)-273.15, clevs, cmap=plt.get_cmap("jet"), ax=axes[t],
+                            extend="both")
             cs_c_pos = m.contour(x, y, data_diff.isel(fcst_hour=t), clevs_diff, linewidths=0.5, ax=axes[t],
                                  colors="black")
             cs_c_neg = m.contour(x, y, data_diff.isel(fcst_hour=t), clevs_diff2, linewidths=1, linestyles="dotted",
