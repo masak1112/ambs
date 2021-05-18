@@ -542,20 +542,20 @@ class Postprocess(TrainModel):
                                       .format(method, ", ".join(misses)))
 
         varname_ref = "{0}_ref".format(varname)
-        init_times_metric = metric_ds["init_time"]
-        it = init_times_metric[ind_start:ind_start+self.batch_size]
+        # reset init-time coordinate of metric_ds in place
+        init_times_metric = metric_ds["init_time"].values
+        init_times_metric[ind_start:ind_start+self.batch_size] = data_ds["init_time"]
+        metric_ds = metric_ds.assign_coords(init_time=init_times_metric)
+        # populate metric_ds
         for fcst_prod in self.fcst_products.keys():
             for imetric, eval_metric in enumerate(self.eval_metrics):
                 metric_name = "{0}_{1}_{2}".format(varname, fcst_prod, eval_metric)
                 varname_fcst = "{0}_{1}_fcst".format(varname, fcst_prod)
-                metric_ds[metric_name].loc[dict(init_time=it)] = eval_metrics_func[imetric](data_ds[varname_fcst],
-                                                                                            data_ds[varname_ref])
+                metric_ds[metric_name].loc[dict(init_time=data_ds["init_time"])] = eval_metrics_func[imetric](data_ds[varname_fcst],
+                                                                                                     data_ds[varname_ref])
             # end of metric-loop
         # end of forecast product-loop
-        # set init-time coordinate in place
-        init_times_metric = init_times_metric.values
-        init_times_metric[ind_start:ind_start+self.batch_size] = data_ds["init_time"]
-        metric_ds = metric_ds.assign_coords(init_time=init_times_metric)
+        
         return metric_ds
 
     def add_ensemble_dim(self):
