@@ -59,12 +59,13 @@ class Config_Preprocess1(Config_runscript_base):
         sorurce_dir_err = NotADirectoryError("Passed directory does not exist.")
         source_dir_str = Config_Preprocess1.keyboard_interaction(src_dir_req_str, Config_Preprocess1.src_dir_check,
                                                                  sorurce_dir_err, ntries=3)
-
         if not source_dir_str:
             # standard source_dir
             self.source_dir = Config_Preprocess1.handle_source_dir(self, "extractedData")
+            print("%{0}: The following standard base-directory obtained from runscript template was set: '{1}'".format(method_name, self.source_dir))
         else:
             self.source_dir = source_dir_str
+            Config_Preprocess1.get_subdir_list(self.source_dir)
 
         # get years for preprocessing step 1
         years_req_str = "Enter a comma-separated sequence of years from list above:"
@@ -247,7 +248,7 @@ class Config_Preprocess1(Config_runscript_base):
         check_years = [year.strip().isnumeric() for year in years_list]
         status = all(check_years)
         if not status:
-            inds_bad = [i for i, e in enumerate(check_years) if e] #np.where(~np.array(check_years))[0]
+            inds_bad = [i for i, e in enumerate(check_years) if not e] #np.where(~np.array(check_years))[0]
             if not silent:
                 print("%{0}: The following comma-separated elements could not be interpreted as valid years:"
                       .format(method))
