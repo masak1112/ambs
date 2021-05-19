@@ -247,13 +247,13 @@ class Config_Preprocess1(Config_runscript_base):
         if not status:
             inds_bad = [i for i, e in enumerate(check_vars) if e] # np.where(~np.array(check_vars))[0]
             if not silent:
-                print("%{0}: The following comma-separated elements are unknown variables:".format(method_name))
+                print("%{0}: The following comma-separated elements are unknown variables:".format(method))
                 for ind in inds_bad:
                     print(vars_list[ind])
             return status
 
         if not (len(check_vars) == Config_Preprocess1.nvars or len(check_vars) == 1):
-            if not silent: print("%{0}: Unexpected number of variables passed.".method(method))
+            if not silent: print("%{0}: Unexpected number of variables passed ({1} vs. {2}).".format(method, len(check_vars), Config_Preprocess1.nvars))
             status = False
 
         return status
