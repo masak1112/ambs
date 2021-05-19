@@ -15,7 +15,8 @@
 # **************** Auxiliary functions ****************
 
 # default value for base directory
-base_data_dir_default=/p/project/deepacf/deeprain/video_prediction_shared_folder/
+# base_data_dir_default=/p/project/deepacf/deeprain/video_prediction_shared_folder/
+base_data_dir_default=/p/project/deepacf/deeprain/ji4/ambs/
 # some further directory paths
 CURR_DIR_FULL=`pwd`
 CURR_DIR="$(basename "$CURR_DIR_FULL")"
