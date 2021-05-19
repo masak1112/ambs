@@ -155,7 +155,7 @@ source "${WORKING_DIR}"/utils/runscript_generator/setup_runscript_templates.sh
 
 echo "******************************************** NOTE ********************************************"
 echo "${info_str}"
-echo "Make use of config_runscript.py to generate customized runscripts of the workflow steps."
+echo "Make use of generate_runscript.py to generate customized runscripts of the workflow steps."
 echo "******************************************** NOTE ********************************************"
 
 # finally clean up loaded modules (if we are not on Juwels)
