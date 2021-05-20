@@ -13,8 +13,7 @@
     "state_weight": 0.0,
     "nz": 16,
     "max_epochs":2,
-    "context_frames":10,
-    "sequence_length":20
+    "context_frames":10
 }
 
 

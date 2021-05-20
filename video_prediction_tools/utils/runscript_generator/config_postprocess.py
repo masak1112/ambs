@@ -8,7 +8,7 @@ __date__ = "2021-02-01"
 import os, glob
 from model_modules.model_architectures import known_models
 from data_preprocess.dataset_options import known_datasets
-from config_utils import Config_runscript_base    # import parent class
+from runscript_generator.config_utils import Config_runscript_base    # import parent class
 
 class Config_Postprocess(Config_runscript_base):
     cls_name = "Config_Postprocess"#.__name__
@@ -141,7 +141,17 @@ class Config_Postprocess(Config_runscript_base):
         :param silent: flag if print-statement are executed
         :return: status with True confirming success
         """
+        method = Config_Postprocess.check_model.__name__
+
         status = False
+
+        model_in = os.path.basename(model_path)
+        if model_in == "help":
+            if not silent:
+                print("**** Known models ****")
+                for model in Config_Postprocess.list_models:
+                    print(model)
+                print("**** Known models ****")
 
         if not os.path.isdir(model_path):
             if not silent:
@@ -152,13 +162,11 @@ class Config_Postprocess(Config_runscript_base):
                     print("The base directory does not exist as well!")
             return status
 
-        model_in = os.path.basename(model_path)
         if not model_in in Config_Postprocess.list_models:
             if not silent:
-                print("**** Known models ****")
-                for model in Config_Postprocess.list_models:
-                    print(model)
-                print("{0} is an unknown model (see list of known models above).".format(model_in))
+                print("%{0}: WARNING: Unknown model name passed, but trained model seems to be present. \n ".format(method) +
+                      "Please delete the directory '{0}' if this is not the case!".format(model_path))
+            status = True
         else:
             status = True
 

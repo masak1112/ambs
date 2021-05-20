@@ -7,12 +7,11 @@
 #              Be aware that this is a prue data file, i.e. do not make use of any Python-functions such as np.range or similar here!
 {
     "train":{ 
-             "index1":[0,100],
-	     "index2":[150,200]
+             "index1":[0,100]
              },
      "val":
              {
-             "index1":[110,149]
+             "index1":[100,149]
              },
       "test":
              {

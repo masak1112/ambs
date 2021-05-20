@@ -12,6 +12,6 @@
     "gan_feature_cdist_weight": 10.0,
     "state_weight": 0.0,
     "nz": 32,
-    "context_frames":12,
-    "sequence_length":24
+    "max_epochs":2,
+    "context_frames":12
 }

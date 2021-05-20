@@ -10,7 +10,6 @@
     "video_sn_gan_weight": 0.0,
     "state_weight": 0.0,
     "nz": 32,
-    "context_frames":10,
-    "sequence_length":20
-
+    "max_epochs":2,
+    "context_frames":10
 }

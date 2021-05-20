@@ -14,7 +14,8 @@ import argparse
 from utils.external_function import directory_scanner
 from utils.external_function import load_distributor
 from data_preprocess.process_netCDF_v2 import *  
-from metadata import MetaData as MetaData
+from metadata import MetaData
+from netcdf_datahandling import GeoSubdomain
 import json
 
 
@@ -29,10 +30,9 @@ def main():
     parser.add_argument("--years", "-y", dest="years", help="Year of data to be processed.")
     parser.add_argument("--rsync_status", type=int, default=1)
     parser.add_argument("--vars", nargs="+", default=["2t", "2t", "2t"], help="Variables to be processed.")
-    parser.add_argument("--lat_s", type=int, default=106)
-    parser.add_argument("--lat_e", type=int, default=170)
-    parser.add_argument("--lon_s", type=int, default=598)
-    parser.add_argument("--lon_e", type=int, default=662)
+    parser.add_argument("--sw_corner", "-swc", dest="sw_corner", nargs="+", help="Defines south-west corner of target domain " +
+                        "(lat, lon)=(-90..90, 0..360)")
+    parser.add_argument("--nyx", "-nyx", dest="nyx", nargs="+", help="Number of grid points in zonal and meridional direction.")
     parser.add_argument("--experimental_id", "-exp_id", dest="exp_id", type=str, default="dummy",
                         help="Experimental identifier helping to distinguish between different experiments.")
     args = parser.parse_args()
@@ -45,18 +45,9 @@ def main():
     rsync_status = args.rsync_status
    
     vars1 = args.vars
-    lat_s = args.lat_s
-    lat_e = args.lat_e
-    lon_s = args.lon_s
-    lon_e = args.lon_e
-
-    slices = {"lat_s": lat_s,
-              "lat_e": lat_e,
-              "lon_s": lon_s,
-              "lon_e": lon_e
-              }
+    sw_c = [float(f) for f in args.sw_corner]
+    nyx = [int(i) for i in args.nyx]
     print("Selected variables", vars1)
-    print("Selected Slices", slices)
 
     exp_id = args.exp_id
 
@@ -95,12 +86,16 @@ def main():
         
     # Expand destination_dir-variable by searching for netCDF-files in source_dir
     # and processing the file from the first list element to obtain all relevant (meta-)data.
+    data_files_list = glob.iglob(source_dir_full+"/**/*.nc", recursive=True)
+    try:
+        data_file = next(data_files_list)
+    except StopIteration:
+        raise FileNotFoundError("Could not find any data to be processed in '{0}'".format(source_dir_full))
+
+    tar_dom = GeoSubdomain(sw_c, nyx, data_file)
+
     if my_rank == 0:
-        data_files_list = glob.glob(source_dir_full+"/**/*.nc", recursive=True)
-        if not data_files_list:
-            raise FileNotFoundError("Could not find any data to be processed in '{0}'".format(source_dir_full))
-        print("variables", vars1)
-        md = MetaData(suffix_indir=destination_dir, exp_id=exp_id, data_filename=data_files_list[0], slices=slices,
+        md = MetaData(suffix_indir=destination_dir, exp_id=exp_id, data_filename=data_file, tar_dom=tar_dom,
                       variables=vars1)
 
         if md.status == "old":          # meta-data file already exists and is ok
@@ -129,8 +124,6 @@ def main():
         
         with open(os.path.join(md.expdir, md.expname, "options.json"), "w") as f:
             f.write(json.dumps(vars(args), sort_keys=True, indent=4))
-
-    # ML 2020/04/24 E   
 
     if my_rank == 0:  # node is master:
         # ==================================== Master : Directory scanner ================================= #
@@ -203,8 +196,7 @@ def main():
                 if rsync_status == 1:
                     # ML 2020/06/09: workaround to get correct destination_dir obtained by the master node
                     destination_dir = MetaData.get_destdir_jsontmp(tmp_dir=current_path)
-                    process_data = PreprocessNcToPkl(src_dir=source_dir, target_dir=destination_dir, year=years,
-                                                     job_name=job, slices=slices, vars=vars1)
+                    process_data = PreprocessNcToPkl(source_dir, destination_dir, years, job, tar_dom, vars1)
                     process_data()
 
                 # Send : the finish of the sync message back to master node
