@@ -2,18 +2,71 @@ from typing import Union, Tuple, Dict, List
 import numpy as np
 import xarray as xr
 import pandas as pd
+from typing import Union, List
 try:
     from tqdm import tqdm
     l_tqdm = True
 except:
     l_tqdm = False
 
+# basic data types
+da_or_ds = Union[xr.DataArray, xr.Dataset]
 
-def perform_block_bootstrap_metric(metric: xr.DataArray, dim_name: str, block_length: int, nboots_block: int = 1000,
+
+def avg_metrics(metric: da_or_ds, dim_name: str):
+    """
+    Averages metric over given dimension
+    :param metric: DataArray or Dataset of metric that should be averaged
+    :param dim_name: name of the dimension on which division into blocks is applied
+    :return: DataArray or Dataset of metric averaged over given dimension. If a Dataset is passed, the averaged metrics
+             carry the suffix "_avg" in their variable names.
+    """
+    method = perform_block_bootstrap_metric.__name__
+
+    if not isinstance(metric, da_or_ds.__args__):
+        raise ValueError("%{0}: Input metric must be a xarray DataArray or Dataset and not {1}".format(method,
+                                                                                                       type(metric)))
+
+    if isinstance(metric, xr.Dataset):
+        list_vars = [varname for varname in metric.data_vars if dim_name in metric[varname].dims]
+        if not list_vars:
+            raise ValueError("%{0}: {1} is not a dimension in the input metric dataset".format(method, dim_name))
+
+        metric2avg = metric[list_vars]
+    else:
+        if dim_name in metric.dims:
+            pass
+        else:
+            raise ValueError("%{0}: {1} is not a dimension in the input metric data-array".format(method, dim_name))
+
+        metric2avg = metric
+
+    metric_avg = metric2avg.mean(dim=dim_name)
+
+    if isinstance(metric, xr.Dataset):
+        new_varnames = ["{0}_avg".format(var) for var in list_vars]
+        metric_avg = metric_avg.rename(dict(zip(list_vars, new_varnames)))
+
+    return metric_avg
+
+
+def perform_block_bootstrap_metric(metric: da_or_ds, dim_name: str, block_length: int, nboots_block: int = 1000,
                                    seed: int = 42):
+    """
+    Performs block bootstrapping on metric along given dimension (e.g. along time dimension)
+    :param metric: DataArray or dataset of metric that should be bootstrapped
+    :param dim_name: name of the dimension on which division into blocks is applied
+    :param block_length: length of block (index-based)
+    :param nboots_block: number of bootstrapping steps to be performed
+    :param seed: seed for random block sampling (to be held constant for reproducability)
+    :return: bootstrapped version of metric(-s)
+    """
 
     method = perform_block_bootstrap_metric.__name__
 
+    if not isinstance(metric, da_or_ds.__args__):
+        raise ValueError("%{0}: Input metric must be a xarray DataArray or Dataset and not {1}".format(method,
+                                                                                                       type(metric)))
     if dim_name not in metric.dims:
         raise ValueError("%{0}: Passed dimension cannot be found in passed metric.".format(method))
 
@@ -23,27 +76,20 @@ def perform_block_bootstrap_metric(metric: xr.DataArray, dim_name: str, block_le
     nblocks = int(np.floor(dim_length/block_length))
 
     if nblocks < 10:
-        raise ValueError("%{0}: Less than 10 blocks are present with given block length {1:d}.".format(method, block_length) +
-                         " Too less for bootstrapping.")
-
-    # get remaining coordinates and dimensions
-    dims_old = list(metric.dims)
-    dims_old.remove(dim_name)
-
-    coords_new_block = {**{"iblock": np.arange(nblocks)}, **metric.drop("init_time").coords}
-    coords_new_boot = {**{"iboot": np.arange(nboots_block)}, **metric.drop("init_time").coords}
-    
-    shape_block = tuple([a.shape[0] for a in coords_new_block.values()])
-    shape_boot = tuple([a.shape[0] for a in coords_new_boot.values()])
-    
-    metric_val_block = xr.DataArray(np.full(shape_block, np.nan), coords=coords_new_block, dims=["iblock"] + dims_old)
-    metric_boot = xr.DataArray(np.full(shape_boot, np.nan), coords=coords_new_boot,
-                               dims=["iboot"] + dims_old)
+        raise ValueError("%{0}: Less than 10 blocks are present with given block length {1:d}."
+                         .format(method, block_length) + " Too less for bootstrapping.")
 
     # precompute metrics of block
     for iblock in np.arange(nblocks):
         ind_s, ind_e = iblock * block_length, (iblock + 1) * block_length
-        metric_val_block[iblock,...] = metric.isel({dim_name: slice(ind_s, ind_e)}).mean(dim=dim_name)
+        metric_block_aux = metric.isel({dim_name: slice(ind_s, ind_e)}).mean(dim=dim_name)
+        if iblock == 0:
+            metric_val_block = metric_block_aux.expand_dims(dim={"iblock": 1}, axis=0).copy(deep=True)
+        else:
+            metric_val_block = xr.concat([metric_val_block, metric_block_aux.expand_dims(dim={"iblock": 1}, axis=0)],
+                                         dim="iblock")
+
+    metric_val_block["iblock"] = np.arange(nblocks)
 
     # get random blocks
     np.random.seed(seed)
@@ -54,7 +100,17 @@ def perform_block_bootstrap_metric(metric: xr.DataArray, dim_name: str, block_le
     if l_tqdm:
         iterator_b = tqdm(iterator_b)
     for iboot_b in iterator_b:
-        metric_boot[iboot_b,...] = metric_val_block.isel(iblock=iblocks_boot[iboot_b, :]).mean(dim="iblock")
+        metric_boot_aux = metric_val_block.isel(iblock=iblocks_boot[iboot_b, :]).mean(dim="iblock")
+        if iboot_b == 0:
+            metric_boot = metric_boot_aux.expand_dims(dim={"iboot": 1}, axis=0).copy(deep=True)
+        else:
+            metric_boot = xr.concat([metric_boot, metric_boot_aux.expand_dims(dim={"iboot": 1}, axis=0)], dim="iboot")
+
+    # set iboot-coordinate
+    metric_boot["iboot"] = np.arange(nboots_block)
+    if isinstance(metric_boot, xr.Dataset):
+        new_varnames = ["{0}_bootstrapped".format(var) for var in metric.data_vars]
+        metric_boot = metric_boot.rename(dict(zip(metric.data_vars, new_varnames)))
 
     return metric_boot
 
@@ -63,13 +119,25 @@ class Scores:
     """
     Class to calculate scores and skill scores.
     """
-    def __init__(self, score_name):
 
-        self.metrics_dict = {"mse": Scores.calc_mse_batch , "psnr": Scores.calc_psnr_batch}
-        self.score_name = Scores.set_score_name(score_name)
+    known_scores = ["mse", "psnr"]
+
+    def __init__(self, score_name: str, dims: List[str]):
+        """
+        Initialize score instance.
+        :param score_name: name of score taht is queried
+        :param dims: list of dimension over which the score shall operate
+        :return: Score instance
+        """
+        method = Scores.__init__.__name__
+
+        self.metrics_dict = {"mse": self.calc_mse_batch , "psnr": self.calc_psnr_batch}
+        if set(self.metrics_dict.keys()) != set(Scores.known_scores):
+            raise ValueError("%{0}: Known scores must coincide with keys of metrics_dict.".format(method))
+        self.score_name = self.set_score_name(score_name)
         self.score_func = self.metrics_dict[score_name]
         # attributes set when run_calculation is called
-        self.avg_dims = None
+        self.avg_dims = dims
 
     def run_calculation(self, model_data, ref_data, dims2avg=None, **kwargs):
 
@@ -101,24 +169,6 @@ class Scores:
                 print("* {0}".format(score))
             raise ValueError("%{0}: The selected score '{1}' cannot be selected.".format(method, score_name))
 
-    def set_model_and_ref_data(self, model_data: xr.DataArray, ref_data: xr.DataArray, dims2avg: List[str] = None):
-
-        method = Scores.set_score_name.__name__
-
-        coords = model_data.coords
-        if not list(coords) == list(ref_data.coords):
-            raise ValueError("%{0}: Input data arrays must have the same shape and coordinates.".format(method))
-
-        if dims2avg is None:
-            self.avg_dims = dims2avg
-        else:
-            for dim in dims2avg:
-                if not dim in coords:
-                    raise ValueError("%{0}: Dimension '{1}' does not exist in model and reference data"
-                                     .format(method, dim))
-
-        return model_data, ref_data
-
     def calc_mse_batch(self, data_fcst, data_ref, **kwargs):
         """
         Calculate mse of forecast data w.r.t. reference data
@@ -128,11 +178,11 @@ class Scores:
         """
         method = Scores.calc_mse_batch.__name__
 
-        if kwargs is not None:
+        if kwargs:
             print("%{0}: Passed keyword arguments are without effect.".format(method))
         # sanity checks
         if self.avg_dims is None:
-            print("%{0}: Squeared difference is averaged over all dimensions.".format(method))
+            print("%{0}: Squared difference is averaged over all dimensions.".format(method))
             dims = list(data_fcst.dims)
         else:
             dims = self.avg_dims
@@ -150,10 +200,17 @@ class Scores:
         """
         method = Scores.calc_mse_batch.__name__
 
-        if kwargs is not None:
-            print("%{0}: Passed keyword arguments are without effect.".format(method))
+        if "pixel_max" in kwargs:
+            pixel_max = kwargs.get("pixel_max")
+        else:
+            pixel_max = 1.
 
-        psnr = metrics.psnr_imgs(data_ref.values, data_fcst.values)
+        mse = self.calc_mse_batch(data_fcst, data_ref)
+        if np.count_nonzero(mse) == 0:
+            psnr = mse
+            psnr[...] = 100.
+        else:
+            psnr = 20.*np.log10(pixel_max / np.sqrt(mse))
 
         return psnr
 

@@ -26,7 +26,7 @@ from metadata import MetaData as MetaData
 from main_scripts.main_train_models import *
 from data_preprocess.preprocess_data_step2 import *
 from model_modules.video_prediction import datasets, models, metrics
-from statistical_evaluation import perform_block_bootstrap_metric
+from statistical_evaluation import perform_block_bootstrap_metric, avg_metrics, Scores
 
 
 class Postprocess(TrainModel):
@@ -61,8 +61,10 @@ class Postprocess(TrainModel):
         # forecast products and evaluation metrics to be handled in postprocessing
         self.eval_metrics = ["mse", "psnr"]
         self.fcst_products = {"persistence": "pfcst", "model": "mfcst"}
-        # dataset to track evaluation metrics
+        # initialize dataset to track evaluation metrics and configure bootstrapping procedure
         self.eval_metrics_ds = None
+        self.nboots_block = 1000
+        self.block_length = 7 * 24    # this corresponds to a block length of 7 days when forecasts are produced every hour
         # other attributes
         self.stat_fl = None
         self.norm_cls = None            # placeholder for normalization instance
@@ -426,13 +428,13 @@ class Postprocess(TrainModel):
             # denormalize forecast sequence (self.norm_cls is already set in get_input_data_per_batch-method)
             gen_images_denorm = self.denorm_images_all_channels(gen_images, self.vars_in, self.norm_cls,
                                                                 norm_method="minmax")
-            # store data into datset
+            # store data into datset and get number of samples (may differ from batch_size at the end of the test dataset)
             times_0, init_times = self.get_init_time(t_starts)
             batch_ds = self.create_dataset(input_images_denorm, gen_images_denorm, init_times)
-            # auxilary list of forecast dimensions
-            dims_fcst = list(batch_ds["{0}_ref".format(self.vars_in[0])].dims)
+            nbs = np.minimum(self.batch_size, self.num_samples_per_epoch - sample_ind)
+            batch_ds = batch_ds.isel(init_time=slice(0, nbs))
 
-            for i in np.arange(self.batch_size):
+            for i in np.arange(nbs):
                 # work-around to make use of get_persistence_forecast_per_sample-method
                 times_seq = (pd.date_range(times_0[i], periods=int(self.sequence_length), freq="h")).to_pydatetime()
                 # get persistence forecast for sequences at hand and write to dataset
@@ -452,8 +454,7 @@ class Postprocess(TrainModel):
             # ... and increment sample_ind
             sample_ind += self.batch_size
             # end of while-loop for samples
-        # change init_time-coordinates to datetime64-type and safe dataset with evaluation metrics for later use
-        eval_metric_ds = eval_metric_ds.assign_coords(init_time=pd.to_datetime(eval_metric_ds["init_time"]))
+        # safe dataset with evaluation metrics for later use
         self.eval_metrics_ds = eval_metric_ds
         #self.add_ensemble_dim()
 
@@ -528,31 +529,34 @@ class Postprocess(TrainModel):
         method = Postprocess.populate_eval_metric_ds.__name__
 
         # dictionary of implemented evaluation metrics
-        known_eval_metrics = {"mse": Postprocess.calc_mse_batch , "psnr": Postprocess.calc_psnr_batch}
+        dims = ["lat", "lon"]
+        known_eval_metrics = {"mse": Scores("mse", dims), "psnr": Scores("psnr", dims)}
 
         # generate list of functions that calculate requested evaluation metrics
         if set(self.eval_metrics).issubset(known_eval_metrics):
-            eval_metrics_func = [known_eval_metrics[metric] for metric in self.eval_metrics]
+            eval_metrics_func = [known_eval_metrics[metric].score_func for metric in self.eval_metrics]
         else:
             misses = list(set(self.eval_metrics) - known_eval_metrics.keys())
             raise NotImplementedError("%{0}: The following requested evaluation metrics are not implemented yet: "
                                       .format(method, ", ".join(misses)))
 
         varname_ref = "{0}_ref".format(varname)
-        init_times_metric = metric_ds["init_time"]
-        it = init_times_metric[ind_start:ind_start+self.batch_size]
+        # reset init-time coordinate of metric_ds in place and get indices for slicing
+        ind_end = np.minimum(ind_start + self.batch_size, self.num_samples_per_epoch)
+        init_times_metric = metric_ds["init_time"].values
+        init_times_metric[ind_start:ind_end] = data_ds["init_time"]
+        metric_ds = metric_ds.assign_coords(init_time=init_times_metric)
+        # populate metric_ds
         for fcst_prod in self.fcst_products.keys():
             for imetric, eval_metric in enumerate(self.eval_metrics):
                 metric_name = "{0}_{1}_{2}".format(varname, fcst_prod, eval_metric)
                 varname_fcst = "{0}_{1}_fcst".format(varname, fcst_prod)
-                metric_ds[metric_name].loc[dict(init_time=it)] = eval_metrics_func[imetric](data_ds[varname_fcst],
-                                                                                            data_ds[varname_ref])
+                dict_ind = dict(init_time=data_ds["init_time"])
+                metric_ds[metric_name].loc[dict_ind] = eval_metrics_func[imetric](data_ds[varname_fcst],
+                                                                                  data_ds[varname_ref])
             # end of metric-loop
         # end of forecast product-loop
-        # set init-time coordinate in place
-        init_times_metric = init_times_metric.values
-        init_times_metric[ind_start:ind_start+self.batch_size] = data_ds["init_time"]
-        metric_ds = metric_ds.assign_coords(init_time=init_times_metric)
+        
         return metric_ds
 
     def add_ensemble_dim(self):
@@ -642,13 +646,24 @@ class Postprocess(TrainModel):
         if self.eval_metrics_ds is None:
             raise AttributeError("%{0}: Attribute with dataset of evaluation metrics is still None.".format(method))
 
+        # perform bootstrapping on metric dataset
+        eval_metric_boot_ds = perform_block_bootstrap_metric(self.eval_metrics_ds, "init_time", self.block_length,
+                                                             self.nboots_block)
+        # ... and merge into existing metric dataset
+        self.eval_metrics_ds = xr.merge([self.eval_metrics_ds, eval_metric_boot_ds])
+
+        # calculate (unbootstrapped) averaged metrics
+        eval_metric_avg_ds = avg_metrics(self.eval_metrics_ds, "init_time")
+        # ... and merge into existing metric dataset
+        self.eval_metrics_ds = xr.merge([self.eval_metrics_ds, eval_metric_avg_ds])
+
         # save evaluation metrics to file
         nc_fname = os.path.join(self.results_dir, "evaluation_metrics.nc")
         Postprocess.save_ds_to_netcdf(self.eval_metrics_ds, nc_fname)
 
-        # create plots of evaluation metrics averaged over all forecasts
-        _ = self.plot_avg_eval_metrics(self.eval_metrics_ds, self.eval_metrics, self.fcst_products,
-                                       self.vars_in[self.channel], self.results_dir)
+        # also save averaged metrics to JSON-file and plot it for diagnosis
+        _ = Postprocess.plot_avg_eval_metrics(self.eval_metrics_ds, self.eval_metrics, self.fcst_products,
+                                              self.vars_in[self.channel], self.results_dir)
 
     # auxiliary methods (not necessarily bound to class instance)
     @staticmethod
@@ -892,119 +907,6 @@ class Postprocess(TrainModel):
             print("%{0}: Something unexpected happened when creating netCDF-file '1'".format(method, nc_fname))
             raise err
 
-    @staticmethod
-    def calc_mse_batch(data_fcst, data_ref):
-        """
-        Calculate mse of forecast data w.r.t. reference data
-        :param data_fcst: forecasted data (xarray with dimensions [batch, lat, lon])
-        :param data_ref: reference data (xarray with dimensions [batch, lat, lon])
-        :return: averaged mse for each batch example
-        """
-        method = Postprocess.calc_mse_batch.__name__
-
-        dims = data_fcst.dims
-        # sanity checks
-        if dims[0] != "init_time":
-            raise ValueError("%{0}: First dimension of data must be init_time.".format(method))
-
-        if not list(data_fcst.coords) == list(data_ref.coords):
-            raise ValueError("%{0}: Input data arrays must have the same shape and coordinates.".format(method))
-
-        mse = np.square(data_fcst - data_ref).mean(dim=["lat", "lon"])
-
-        return mse.values
-
-    @staticmethod
-    def calc_psnr_batch(data_fcst, data_ref):
-        """
-        Calculate mse of forecast data w.r.t. reference data
-        :param data_fcst: forecasted data (xarray with dimensions [batch, lat, lon])
-        :param data_ref: reference data (xarray with dimensions [batch, lat, lon])
-        :return: averaged mse for each batch example
-        """
-        method = Postprocess.calc_mse_batch.__name__
-
-        dims = data_fcst.dims
-        # sanity checks
-        if dims[0] != "init_time":
-            raise ValueError("%{0}: First dimension of data must be init_time.".format(method))
-
-        if not list(data_fcst.coords) == list(data_ref.coords):
-            raise ValueError("%{0}: Input data arrays must have the same shape and coordinates.".format(method))
-
-        psnr = metrics.psnr_imgs(data_ref.values, data_fcst.values)
-
-        return psnr
-
-    @staticmethod
-    def plot_avg_eval_metrics(eval_ds, eval_metrics, fcst_prod_dict, varname, out_dir):
-        """
-        Plots error-metrics averaged over all predictions to file incl. 90%-confidence interval that is estimated by
-        block bootstrapping.
-        :param eval_ds: The dataset storing all evaluation metrics for each forecast (produced by init_metric_ds-method)
-        :param eval_metrics: list of evaluation metrics
-        :param fcst_prod_dict: dictionary of forecast products, e.g. {"pfcst": "persistence forecast"}
-        :param varname: the variable name for which the evaluation metrics are available
-        :param out_dir: output directory to save the lots
-        :return: a bunch of plots as png-files
-        """
-        method = Postprocess.plot_avg_eval_metrics.__name__
-
-        # settings for block bootstrapping
-        nboots_block = 1000
-        block_length = 7 * 24    # this corresponds to a block length of 7 days when forecasts are produced every hour
-        # sanity checks
-        if not isinstance(eval_ds, xr.Dataset):
-            raise ValueError("%{0}: Argument 'eval_ds' must be a xarray dataset.".format(method))
-
-        if not isinstance(fcst_prod_dict, dict):
-            raise ValueError("%{0}: Argument 'fcst_prod_dict' must be dictionary with short names of forecast product" +
-                             "as key and long names as value.".format(method))
-
-        try:
-            nhours = np.shape(eval_ds.coords["fcst_hour"])[0]
-        except Exception as err:
-            print("%{0}: Input argument 'eval_ds' appears to be unproper.".format(method))
-            raise err
-
-        nmodels = len(fcst_prod_dict.values())
-        colors = ["blue", "red", "black", "grey"]
-        for metric in eval_metrics:
-            metric2plt = np.full((nmodels, nhours), np.nan)
-            metric2plt_max, metric2plt_min = metric2plt.copy(), metric2plt.copy()
-            for ifcst, fcst_prod in enumerate(fcst_prod_dict.keys()):
-                metric_name = "{0}_{1}_{2}".format(varname, fcst_prod, metric)
-                try:
-                    metric_data = eval_ds[metric_name]
-                    metric_boot = perform_block_bootstrap_metric(metric_data, "init_time", block_length, nboots_block)
-                    metric2plt_min[ifcst, :] = metric_boot.quantile(0.05, dim="iboot")
-                    metric2plt_max[ifcst, :] = metric_boot.quantile(0.95, dim="iboot")
-                    metric2plt[ifcst, :] = metric_data.mean(dim="init_time")
-                except Exception as err:
-                    print("%{0}: Retrieval of {1} from evaluation metric dataset failes".format(method, metric_name))
-                    raise err
-            # create plot
-            fig = plt.figure(figsize=(6, 4))
-            ax = plt.axes([0.1, 0.15, 0.75, 0.75])
-            hours = np.arange(1, nhours+1)
-            for ifcst, fcst_name in enumerate(fcst_prod_dict.keys()):
-                plt.plot(hours, metric2plt[ifcst, :], label=fcst_name, color=colors[ifcst], marker="o")
-                plt.fill_between(hours, metric2plt_min[ifcst, :], metric2plt_max[ifcst, :], facecolor=colors[ifcst],
-                                 alpha=0.3)
-
-            plt.xticks(hours)
-            ax.set_ylim(0., None)
-            if metric == "psnr": ax.set_ylim(None, None)
-            legend = ax.legend(loc="upper right", bbox_to_anchor=(1.15, 1))
-            ax.set_xlabel("Lead time [hours]")
-            ax.set_ylabel(metric.upper())
-            plt_fname = os.path.join(out_dir, "evaluation_{0}".format(metric))
-            print("Saving basic evaluation plot in terms of {1} to '{2}'".format(method, metric, plt_fname))
-            plt.savefig(plt_fname)
-        plt.close()
-
-        return True
-
     def plot_example_forecasts(self, metric="mse", channel=0):
         """
         Plots example forecasts. The forecasts are chosen from the complete pool of the test dataset and are chosen
@@ -1058,14 +960,16 @@ class Postprocess(TrainModel):
         :param nlead_steps: number of forecast steps
         :return: eval_metric_ds
         """
-        eval_metric_dict = dict([("{0}_{1}_{2}".format(varname ,*(fcst_prod, eval_met)), (["init_time", "fcst_hour"],
+        eval_metric_dict = dict([("{0}_{1}_{2}".format(varname, *(fcst_prod, eval_met)), (["init_time", "fcst_hour"],
                                   np.full((nsamples, nlead_steps), np.nan)))
                                  for eval_met in eval_metrics for fcst_prod in fcst_products])
 
-        eval_metric_ds = xr.Dataset(eval_metric_dict, coords={"init_time": np.arange(nsamples),  # just a placeholder
-                                                              "fcst_hour": np.arange(nlead_steps)})
+        init_time_dummy = pd.date_range("1900-01-01 00:00", freq="s", periods=nsamples)
+        eval_metric_ds = xr.Dataset(eval_metric_dict, coords={"init_time": init_time_dummy,  # just a placeholder
+                                                              "fcst_hour": np.arange(1, nlead_steps+1)})
 
         return eval_metric_ds
+
 
     @staticmethod
     def get_matching_indices(big_array, subset):
@@ -1080,6 +984,72 @@ class Postprocess(TrainModel):
         indexes = sorted_keys[np.searchsorted(big_array, subset, sorter=sorted_keys)]
 
         return indexes
+
+    @staticmethod
+    def plot_avg_eval_metrics(eval_ds, eval_metrics, fcst_prod_dict, varname, out_dir):
+        """
+        Plots error-metrics averaged over all predictions to file incl. 90%-confidence interval that is estimated by
+        block bootstrapping.
+        :param eval_ds: The dataset storing all evaluation metrics for each forecast (produced by init_metric_ds-method)
+        :param eval_metrics: list of evaluation metrics
+        :param fcst_prod_dict: dictionary of forecast products, e.g. {"persistence": "pfcst"}
+        :param varname: the variable name for which the evaluation metrics are available
+        :param out_dir: output directory to save the lots
+        :return: a bunch of plots as png-files
+        """
+        method = Postprocess.plot_avg_eval_metrics.__name__
+
+        # settings for block bootstrapping
+        # sanity checks
+        if not isinstance(eval_ds, xr.Dataset):
+            raise ValueError("%{0}: Argument 'eval_ds' must be a xarray dataset.".format(method))
+
+        if not isinstance(fcst_prod_dict, dict):
+            raise ValueError("%{0}: Argument 'fcst_prod_dict' must be dictionary with short names of forecast product" +
+                             "as key and long names as value.".format(method))
+
+        try:
+            nhours = np.shape(eval_ds.coords["fcst_hour"])[0]
+        except Exception as err:
+            print("%{0}: Input argument 'eval_ds' appears to be unproper.".format(method))
+            raise err
+
+        nmodels = len(fcst_prod_dict.values())
+        colors = ["blue", "red", "black", "grey"]
+        for metric in eval_metrics:
+            # create a new figure object
+            fig = plt.figure(figsize=(6, 4))
+            ax = plt.axes([0.1, 0.15, 0.75, 0.75])
+            hours = np.arange(1, nhours+1)
+
+            for ifcst, fcst_prod in enumerate(fcst_prod_dict.keys()):
+                metric_name = "{0}_{1}_{2}".format(varname, fcst_prod, metric)
+                try:
+                    metric2plt = eval_ds[metric_name+"_avg"]
+                    metric_boot = eval_ds[metric_name+"_bootstrapped"]
+                except Exception as err:
+                    print("%{0}: Could not retrieve {1} and/or {2} from evaluation metric dataset."
+                          .format(method, metric_name, metric_name+"_boot"))
+                    raise err
+                # plot the data
+                metric2plt_min = metric_boot.quantile(0.05, dim="iboot")
+                metric2plt_max = metric_boot.quantile(0.95, dim="iboot")
+                plt.plot(hours, metric2plt, label=fcst_prod, color=colors[ifcst], marker="o")
+                plt.fill_between(hours, metric2plt_min, metric2plt_max, facecolor=colors[ifcst], alpha=0.3)
+            # configure plot
+            plt.xticks(hours)
+            # automatic y-limits for PSNR wich can be negative and positive
+            if metric != "psnr": ax.set_ylim(0., None)
+            legend = ax.legend(loc="upper right", bbox_to_anchor=(1.15, 1))
+            ax.set_xlabel("Lead time [hours]")
+            ax.set_ylabel(metric.upper())
+            plt_fname = os.path.join(out_dir, "evaluation_{0}".format(metric))
+            print("Saving basic evaluation plot in terms of {1} to '{2}'".format(method, metric, plt_fname))
+            plt.savefig(plt_fname)
+
+        plt.close()
+
+        return True
 
     @staticmethod
     def create_plot(data, data_diff, varname, plt_fname):
@@ -1098,20 +1068,18 @@ class Postprocess(TrainModel):
             coords = data.coords
             # handle coordinates and forecast times
             lat, lon = coords["lat"], coords["lon"]
-            dates_fcst = pd.to_datetime(coords["fcst_hour"].data)
+            date0 = pd.to_datetime(coords["init_time"].data)
+            fhhs = coords["fcst_hour"].data
         except Exception as err:
             print("%{0}: Could not retrieve expected coordinates lat, lon and time_forecast from data.".format(method))
             raise err
 
         lons, lats = np.meshgrid(lon, lat)
 
-        date0 = dates_fcst[0] - (dates_fcst[1] - dates_fcst[0])
         date0_str = date0.strftime("%Y-%m-%d %H:%M UTC")
 
-        fhhs = ((dates_fcst - date0) / pd.Timedelta('1 hour')).values
-
         # check data to be plotted since programme is not generic so far
-        if np.shape(dates_fcst)[0] != 12:
+        if np.shape(fhhs)[0] != 12:
             raise ValueError("%{0}: Currently, only 12 hour forecast can be handled properly.".format(method))
 
         if varname != "2t":
@@ -1145,7 +1113,8 @@ class Postprocess(TrainModel):
             m.drawmapboundary()
             m.drawparallels(np.arange(0, 90, 5),labels=lat_lab, xoffset=1.)
             m.drawmeridians(np.arange(5, 355, 10),labels=lon_lab, yoffset=1.)
-            cs = m.contourf(x, y, data.isel(fcst_hour=t)-273.15, clevs, cmap=plt.get_cmap("jet"), ax=axes[t])
+            cs = m.contourf(x, y, data.isel(fcst_hour=t)-273.15, clevs, cmap=plt.get_cmap("jet"), ax=axes[t],
+                            extend="both")
             cs_c_pos = m.contour(x, y, data_diff.isel(fcst_hour=t), clevs_diff, linewidths=0.5, ax=axes[t],
                                  colors="black")
             cs_c_neg = m.contour(x, y, data_diff.isel(fcst_hour=t), clevs_diff2, linewidths=1, linestyles="dotted",
