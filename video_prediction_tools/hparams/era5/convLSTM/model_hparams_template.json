@@ -6,7 +6,6 @@
     "context_frames":10,
     "loss_fun":"rmse",
     "shuffle_on_val":false
-
 }
 
 
