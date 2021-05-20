@@ -22,7 +22,7 @@ from model_modules.video_prediction.layers.BasicConvLSTMCell import BasicConvLST
 from tensorflow.contrib.training import HParams
 
 class VanillaConvLstmVideoPredictionModel(object):
-    def __init__(self, sequence_length, mode='train', hparams_dict=None):
+    def __init__(self, mode='train', hparams_dict=None):
         """
         This is class for building convLSTM architecture by using updated hparameters
         args:
