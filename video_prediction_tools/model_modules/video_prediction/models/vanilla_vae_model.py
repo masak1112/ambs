@@ -3,7 +3,7 @@ __email__ = "b.gong@fz-juelich.de"
 __author__ = "Bing Gong"
 __date__ = "2020-09-01"
 
-from model_helpers import set_and_check_pred_frames
+from model_modules.video_prediction.models.model_helpers import set_and_check_pred_frames
 import tensorflow as tf
 from model_modules.video_prediction.layers import layer_def as ld
 from tensorflow.contrib.training import HParams

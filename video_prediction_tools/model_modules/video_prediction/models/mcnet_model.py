@@ -7,7 +7,7 @@ import itertools
 import numpy as np
 import tensorflow as tf
 
-from model_helpers import set_and_check_pred_frames
+from model_modules.video_prediction.models.model_helpers import set_and_check_pred_frames
 from model_modules.video_prediction.models import BaseVideoPredictionModel
 from model_modules.video_prediction.ops import dense, pad2d, conv2d, flatten, tile_concat
 from model_modules.video_prediction.layers.BasicConvLSTMCell import BasicConvLSTMCell

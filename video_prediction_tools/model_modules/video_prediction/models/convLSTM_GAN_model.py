@@ -2,7 +2,7 @@ __email__ = "b.gong@fz-juelich.de"
 __author__ = "Bing Gong,Yanji"
 __date__ = "2021-04-13"
 
-from model_helpers import set_and_check_pred_frames
+from model_modules.video_prediction.models.model_helpers import set_and_check_pred_frames
 import tensorflow as tf
 from model_modules.video_prediction.layers import layer_def as ld
 from model_modules.video_prediction.layers.BasicConvLSTMCell import BasicConvLSTMCell
