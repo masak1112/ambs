@@ -26,7 +26,7 @@ from metadata import MetaData as MetaData
 from main_scripts.main_train_models import *
 from data_preprocess.preprocess_data_step2 import *
 from model_modules.video_prediction import datasets, models, metrics
-from statistical_evaluation import perform_block_bootstrap_metric, avg_metrics, Scores
+from postprocess.statistical_evaluation import perform_block_bootstrap_metric, avg_metrics, Scores
 
 
 class Postprocess(TrainModel):
