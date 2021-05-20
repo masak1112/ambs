@@ -3,21 +3,8 @@ __email__ = "b.gong@fz-juelich.de"
 __author__ = "Bing Gong"
 __date__ = "2020-09-01"
 
-import collections
-import functools
-import itertools
-from collections import OrderedDict
-import numpy as np
+from model_helpers import set_and_check_pred_frames
 import tensorflow as tf
-from tensorflow.python.util import nest
-from model_modules.video_prediction import ops, flow_ops
-from model_modules.video_prediction.models import BaseVideoPredictionModel
-from model_modules.video_prediction.models import networks
-from model_modules.video_prediction.ops import dense, pad2d, conv2d, flatten, tile_concat
-from model_modules.video_prediction.rnn_ops import BasicConv2DLSTMCell, Conv2DGRUCell
-from model_modules.video_prediction.utils import tf_utils
-from datetime import datetime
-from pathlib import Path
 from model_modules.video_prediction.layers import layer_def as ld
 from tensorflow.contrib.training import HParams
 
@@ -37,7 +24,7 @@ class VanillaVAEVideoPredictionModel(object):
         self.total_loss = None
         self.context_frames = self.hparams.context_frames
         self.sequence_length = self.hparams.sequence_length
-        self.predict_frames = self.sequence_length - self.context_frames
+        self.predict_frames = set_and_check_pred_frames(self.sequence_length, self.context_frames)
         self.max_epochs = self.hparams.max_epochs
         self.nz = self.hparams.nz
         self.loss_fun = self.hparams.loss_fun

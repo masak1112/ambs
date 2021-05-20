@@ -3,22 +3,13 @@ __author__ = "Bing Gong"
 __date__ = "2020-08-22"
 
 
-import collections
-import functools
 import itertools
-from collections import OrderedDict
 import numpy as np
 import tensorflow as tf
-from tensorflow.python.util import nest
-from model_modules.video_prediction import ops, flow_ops
+
+from model_helpers import set_and_check_pred_frames
 from model_modules.video_prediction.models import BaseVideoPredictionModel
-from model_modules.video_prediction.models import networks
 from model_modules.video_prediction.ops import dense, pad2d, conv2d, flatten, tile_concat
-from model_modules.video_prediction.rnn_ops import BasicConv2DLSTMCell, Conv2DGRUCell
-from model_modules.video_prediction.utils import tf_utils
-from datetime import datetime
-from pathlib import Path
-from model_modules.video_prediction.layers import layer_def as ld
 from model_modules.video_prediction.layers.BasicConvLSTMCell import BasicConvLSTMCell
 from model_modules.video_prediction.layers.mcnet_ops import *
 from model_modules.video_prediction.utils.mcnet_utils import *
@@ -32,7 +23,7 @@ class McNetVideoPredictionModel(BaseVideoPredictionModel):
         self.lr = self.hparams.lr
         self.context_frames = self.hparams.context_frames
         self.sequence_length = self.hparams.sequence_length
-        self.predict_frames = self.sequence_length - self.context_frames
+        self.predict_frames = set_and_check_pred_frames(self.sequence_length, self.context_frames)
         self.df_dim = self.hparams.df_dim
         self.gf_dim = self.hparams.gf_dim
         self.alpha = self.hparams.alpha
