@@ -2,7 +2,7 @@
 
 # Name of virtual environment 
 #VIRT_ENV_NAME="vp_new_structure"
-VIRT_ENV_NAME="env_hdfml"
+VIRT_ENV_NAME="juwels_env"
 
 if [ -z ${VIRTUAL_ENV} ]; then
    if [[ -f ../video_prediction_tools/${VIRT_ENV_NAME}/bin/activate ]]; then

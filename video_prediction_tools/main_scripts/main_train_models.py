@@ -177,8 +177,8 @@ class TrainModel(object):
         self.inputs = self.iterator.get_next()
         #since era5 tfrecords include T_start, we need to remove it from the tfrecord when we train the model,
         # otherwise the model will raise error
-        if self.dataset == "era5" and self.model == "savp":
-           del self.inputs["T_start"]
+        #if self.dataset == "era5" and self.model == "savp":
+        #   del self.inputs["T_start"]
 
 
 
@@ -231,6 +231,7 @@ class TrainModel(object):
         self.num_examples = self.train_dataset.num_examples_per_epoch()
         self.steps_per_epoch = int(self.num_examples/batch_size)
         self.total_steps = self.steps_per_epoch * max_epochs
+        print("Batch size is {} ; max_epochs is {}; num_samples per epoch is {}; steps_per_epoch is {}, total steps is {}".format(batch_size,max_epochs, self.num_examples,self.steps_per_epoch,self.total_steps))
 
     def restore(self,sess, checkpoints, restore_to_checkpoint_mapping=None):
         """
@@ -292,11 +293,15 @@ class TrainModel(object):
                 self.create_fetches_for_train()             # In addition to the loss, we fetch the optimizer
                 self.results = sess.run(self.fetches)       # ...and run it here!
                 train_losses.append(self.results["total_loss"])
+                print("t_start for training",self.results["inputs"]["T_start"])
+                print("len of t_start per iteration",len(self.results["inputs"]["T_start"]))
                 #Run and fetch losses for validation data
                 val_handle_eval = sess.run(self.val_handle)
                 self.create_fetches_for_val()
                 self.val_results = sess.run(self.val_fetches,feed_dict={self.train_handle: val_handle_eval})
                 val_losses.append(self.val_results["total_loss"])
+                print("t_start for validation",self.val_results["inputs"]["T_start"])
+                print("len of t_start per iteration",len(self.val_results["inputs"]["T_start"]))
                 self.write_to_summary()
                 self.print_results(step,self.results)
                 timeit_end = time.time()
@@ -333,6 +338,8 @@ class TrainModel(object):
        if self.video_model.__class__.__name__ == "VanillaConvLstmVideoPredictionModel": self.fetches_for_train_convLSTM()
        if self.video_model.__class__.__name__ == "SAVPVideoPredictionModel": self.fetches_for_train_savp()
        if self.video_model.__class__.__name__ == "VanillaVAEVideoPredictionModel": self.fetches_for_train_vae()
+       if self.video_model.__class__.__name__ == "VanillaGANVideoPredictionModel":self.fetches_for_train_gan()
+       if self.video_model.__class__.__name__ == "ConvLstmGANVideoPredictionModel":self.fetches_for_train_convLSTM()
        return self.fetches     
     
     def fetches_for_train_convLSTM(self):
@@ -340,8 +347,7 @@ class TrainModel(object):
         Fetch variables in the graph for convLSTM model, this can be custermized based on models and the needs of users
         """
         self.fetches["total_loss"] = self.video_model.total_loss
- 
-
+        self.fetches["inputs"] = self.video_model.inputs
 
  
     def fetches_for_train_savp(self):
@@ -353,7 +359,7 @@ class TrainModel(object):
         self.fetches["d_loss"] = self.video_model.d_loss
         self.fetches["g_loss"] = self.video_model.g_loss
         self.fetches["total_loss"] = self.video_model.g_loss
-
+        self.fetches["inputs"] = self.video_model.inputs
 
 
     def fetches_for_train_mcnet(self):
@@ -372,15 +378,19 @@ class TrainModel(object):
         self.fetches["recon_loss"] = self.video_model.recon_loss
         self.fetches["total_loss"] = self.video_model.total_loss
 
+    def fetches_for_train_gan(self):
+        self.fetches["total_loss"] = self.video_model.total_loss
+
     def create_fetches_for_val(self):
         """
         Fetch variables in the graph for validation dataset, this can be custermized based on models and the needs of users
         """
         if self.video_model.__class__.__name__ == "SAVPVideoPredictionModel":
             self.val_fetches = {"total_loss": self.video_model.g_loss}
+            self.val_fetches["inputs"] = self.video_model.inputs
         else:
             self.val_fetches = {"total_loss": self.video_model.total_loss}
-        
+            self.val_fetches["inputs"] = self.video_model.inputs
         self.val_fetches["summary"] = self.video_model.summary_op
 
     def write_to_summary(self):

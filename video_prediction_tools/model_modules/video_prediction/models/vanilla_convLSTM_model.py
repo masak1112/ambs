@@ -8,6 +8,8 @@ from model_modules.video_prediction.layers import layer_def as ld
 from model_modules.video_prediction.layers.BasicConvLSTMCell import BasicConvLSTMCell
 from tensorflow.contrib.training import HParams
 
+
+
 class VanillaConvLstmVideoPredictionModel(object):
     def __init__(self, mode='train', hparams_dict=None):
         """
@@ -65,6 +67,7 @@ class VanillaConvLstmVideoPredictionModel(object):
 
     def build_graph(self, x):
         self.is_build_graph = False
+        self.inputs = x
         self.x = x["images"]
         self.global_step = tf.train.get_or_create_global_step()
         original_global_variables = tf.global_variables()
