@@ -259,7 +259,7 @@ class TrainModel(object):
         """
         Restore the train and validation losses in the pickle file if checkpoint is given 
         """
-        if os.path.exists(os.path.join(self.output_dir,"checkpoint")):
+        if not os.path.exists(os.path.join(self.output_dir,"checkpoint")):
             train_losses = []
             val_losses = []
         else:
