@@ -63,27 +63,27 @@ else
   ENV_EXIST=0
 fi
 
-# add personal email-address to Batch-scripts
-if [[ "${HOST_NAME}" == hdfml* || "${HOST_NAME}" == *juwels* ]]; then
-  if [[ "${HOST_NAME}" == jwlogin2[1-4]* ]]; then  
-    # on Juwels Booster, we are in a container environment -> loading modules is not possible	  
-    echo "***** Note for Juwels Booster! *****"
-    echo "Already checked the required modules?"
-    echo "To do so, run 'source modules_train.sh' after exiting the singularity."
-    echo "***** Note for Juwels Booster! *****"
-  else
-    # load modules and check for their availability
-    echo "***** Checking modules required during the workflow... *****"
-    source ${ENV_SETUP_DIR}/modules_preprocess.sh purge
-    source ${ENV_SETUP_DIR}/modules_train.sh purge
-    source ${ENV_SETUP_DIR}/modules_postprocess.sh
-  fi
-else 
-  # unset PYTHONPATH on every other machine that is not a known HPC-system	
-  unset PYTHONPATH
-fi
-
+# Create fresh virtual environment or just activate the existing one
 if [[ "$ENV_EXIST" == 0 ]]; then
+  # Check modules first
+  if [[ "${HOST_NAME}" == hdfml* || "${HOST_NAME}" == *juwels* ]]; then
+    if [[ "${HOST_NAME}" == jwlogin2[1-4]* ]]; then  
+      # on Juwels Booster, we are in a container environment -> loading modules is not possible	  
+      echo "***** Note for Juwels Booster! *****"
+      echo "Already checked the required modules?"
+      echo "To do so, run 'source modules_train.sh' after exiting the singularity."
+      echo "***** Note for Juwels Booster! *****"
+    else
+      # load modules and check for their availability
+      echo "***** Checking modules required during the workflow... *****"
+      source ${ENV_SETUP_DIR}/modules_preprocess.sh purge
+      source ${ENV_SETUP_DIR}/modules_train.sh purge
+      source ${ENV_SETUP_DIR}/modules_postprocess.sh
+    fi
+  else 
+    # unset PYTHONPATH on every other machine that is not a known HPC-system	
+    unset PYTHONPATH
+  fi
   # Activate virtual environment and install additional Python packages.
   echo "Configuring and activating virtual environment on ${HOST_NAME}"
     
@@ -143,7 +143,8 @@ if [[ "$ENV_EXIST" == 0 ]]; then
   fi
   info_str="Virtual environment ${ENV_DIR} has been set up successfully."
 elif [[ "$ENV_EXIST" == 1 ]]; then
-  # activating virtual env is suifficient
+  # loading modules of postprocessing and activating virtual env are suifficient
+  source ${ENV_SETUP_DIR}/modules_postprocess.sh
   source ${ENV_DIR}/bin/activate
   info_str="Virtual environment ${ENV_DIR} has been activated successfully."
 fi
@@ -154,10 +155,10 @@ source "${WORKING_DIR}"/utils/runscript_generator/setup_runscript_templates.sh
 
 echo "******************************************** NOTE ********************************************"
 echo "${info_str}"
-echo "Make use of config_runscript.py to generate customized runscripts of the workflow steps."
+echo "Make use of generate_runscript.py to generate customized runscripts of the workflow steps."
 echo "******************************************** NOTE ********************************************"
 
 # finally clean up loaded modules (if we are not on Juwels)
-if [[ "${HOST_NAME}" == *hdfml* || "${HOST_NAME}" == *juwels* ]] && [[ "${HOST_NAME}" != jwlogin2[1-4]* ]]; then
-  module --force purge
-fi
+#if [[ "${HOST_NAME}" == *hdfml* || "${HOST_NAME}" == *juwels* ]] && [[ "${HOST_NAME}" != jwlogin2[1-4]* ]]; then
+#  module --force purge
+#fi
