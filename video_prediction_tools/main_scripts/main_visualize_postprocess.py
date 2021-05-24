@@ -14,16 +14,12 @@ import pandas as pd
 import tensorflow as tf
 import warnings
 import pickle
-from random import seed
 import datetime
 import json
-from netCDF4 import Dataset, date2num
 import matplotlib
-
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 from mpl_toolkits.basemap import Basemap
-import matplotlib.gridspec as gridspec
 from normalization import Norm_data
 from metadata import MetaData as MetaData
 from main_scripts.main_train_models import *
