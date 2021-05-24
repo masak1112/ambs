@@ -60,7 +60,7 @@ class ERA5DataExtraction(object):
         temp_path = os.path.join(self.target_dir, self.year, month)
         os.makedirs(temp_path, exist_ok=True)
         
-        for var,value in self.varslist_surface.items():
+        for var, value in self.varslist_surface.items():
             # surface variables
             infile = os.path.join(self.src_dir, self.year, month, self.year+month+day+hour+'_sf.grb')
             outfile_sf = os.path.join(self.target_dir, self.year, month, self.year+month+day+hour+'_'+var+'.nc')
