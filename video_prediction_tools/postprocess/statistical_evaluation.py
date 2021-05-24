@@ -2,7 +2,7 @@
 import numpy as np
 import xarray as xr
 from typing import Union, List
-from skimage.metrics import structural_similarity as ssim
+from skimage.measure import compare_ssim as ssim
 
 try:
     from tqdm import tqdm

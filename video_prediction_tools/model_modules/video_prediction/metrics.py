@@ -1,7 +1,7 @@
 import tensorflow as tf
 #import lpips_tf
 import math
-from skimage.metrics import structural_similarity as ssim_ski
+from skimage.measure import compare_ssim as ssim_ski
 
 def mse(a, b):
     return tf.reduce_mean(tf.squared_difference(a, b), [-3, -2, -1])
