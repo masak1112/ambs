@@ -1,8 +1,7 @@
 import tensorflow as tf
 #import lpips_tf
-import numpy as np
 import math
-from skimage.metrics import structural_similarity as ssim
+from skimage.metrics import structural_similarity as ssim_ski
 
 def mse(a, b):
     return tf.reduce_mean(tf.squared_difference(a, b), [-3, -2, -1])
@@ -43,6 +42,6 @@ def ssim_images(image1, image2):
     :param image1 the reference images
     :param image2 the predicte images
     """
-    ssim_pred = ssim(image1, image2,
+    ssim_pred = ssim_ski(image1, image2,
                       data_range = image2.max() - image2.min())
     return ssim_pred
