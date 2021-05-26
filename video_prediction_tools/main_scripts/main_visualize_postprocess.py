@@ -31,7 +31,7 @@ from statistical_evaluation import perform_block_bootstrap_metric, avg_metrics, 
 
 class Postprocess(TrainModel):
     def __init__(self, results_dir=None, checkpoint=None, mode="test", batch_size=None, num_stochastic_samples=1,
-                 stochastic_plot_id=0, gpu_mem_frac=None, seed=None, args=None, run_mode="deterministic"):
+                 stochastic_plot_id=0, gpu_mem_frac=None, seed=None, channel=0,  args=None, run_mode="deterministic"):
         """
         The function for inference, generate results and images
         results_dir   :str, The output directory to save results
@@ -64,11 +64,13 @@ class Postprocess(TrainModel):
         # initialize dataset to track evaluation metrics and configure bootstrapping procedure
         self.eval_metrics_ds = None
         self.nboots_block = 1000
-        self.block_length = 7 * 24    # this corresponds to a block length of 7 days when forecasts are produced every hour
+        self.block_length = 7 * 24  # this corresponds to a block length of 7 days in case of hourly forecasts
         # other attributes
         self.stat_fl = None
+        self.data_acc_tmp_fl = None     # placeholder for temporay data accumulator file (for cond. quantile plot)
+        self.acc_vars = None            # variables for conditional quantile plots
         self.norm_cls = None            # placeholder for normalization instance
-        self.channel = 0                # index of channel/input variable to evaluate
+        self.channel = args.channel     # index of channel/input variable to evaluate
         self.num_samples_per_epoch = None
         # set further attributes from parsed arguments
         self.results_dir = self.output_dir = os.path.normpath(results_dir)
@@ -99,7 +101,8 @@ class Postprocess(TrainModel):
         self.setup_model()
         self.get_data_params()
         self.setup_num_samples_per_epoch()
-        self.get_stat_file()
+        self.set_stat_file()
+        self.set_acc_tmp_fname()
         self.make_test_dataset_iterator()
         self.check_stochastic_samples_ind_based_on_model()
         self.setup_graph()
@@ -244,11 +247,20 @@ class Postprocess(TrainModel):
         self.sequence_length = self.model_hparams_dict_load["sequence_length"]
         self.future_length = self.sequence_length - self.context_frames
 
-    def get_stat_file(self):
+    def set_stat_file(self):
         """
-        Load the statistics from statistic file from the input directory
+        Set the name of the statistic file from the input directory
         """
         self.stat_fl = os.path.join(self.input_dir, "statistics.json")
+
+    def init_cond_quantile_plotdata(self):
+        """
+        Set the name of the temproray data accumulator file (for conditional quantile plot)
+        """
+        self.data_acc_tmp_fl = os.path.join(self.results_dir, "{0}_all_forecasts_tmp.nc"
+                                            .format(self.vars_in[self.channel]))
+        self.acc_vars = ["{0}_{1}_fcst".format(self.vars_in[self.channel], self.model),
+                         "{0}_ref".format(self.vars_in[self.channel])]
 
     def make_test_dataset_iterator(self):
         """
@@ -409,9 +421,10 @@ class Postprocess(TrainModel):
         self.init_session()
         self.restore(self.sess, self.checkpoint)
 
-        # init sample index for looping and acculmulators for evaulation metrics
+        # init sample index for looping
         sample_ind = 0
         nsamples = self.num_samples_per_epoch
+
         # initialize datasets
         eval_metric_ds = Postprocess.init_metric_ds(self.fcst_products, self.eval_metrics, self.vars_in[self.channel],
                                                     nsamples, self.future_length)
@@ -429,7 +442,7 @@ class Postprocess(TrainModel):
             # denormalize forecast sequence (self.norm_cls is already set in get_input_data_per_batch-method)
             gen_images_denorm = self.denorm_images_all_channels(gen_images, self.vars_in, self.norm_cls,
                                                                 norm_method="minmax")
-            # store data into datset and get number of samples (may differ from batch_size at the end of the test dataset)
+            # store data into datset & get number of samples (may differ from batch_size at the end of the test dataset)
             times_0, init_times = self.get_init_time(t_starts)
             batch_ds = self.create_dataset(input_images_denorm, gen_images_denorm, init_times)
             nbs = np.minimum(self.batch_size, self.num_samples_per_epoch - sample_ind)
@@ -449,9 +462,10 @@ class Postprocess(TrainModel):
                                         .format(pd.to_datetime(init_times[i]).strftime("%Y%m%d%H"), sample_ind + i))
                 self.save_ds_to_netcdf(batch_ds.isel(init_time=i), nc_fname)
                 # end of batch-loop
-            # write evaluation metric to corresponding dataset...
+            # write evaluation metric to corresponding dataset and sa
             eval_metric_ds = self.populate_eval_metric_ds(eval_metric_ds, batch_ds, sample_ind,
                                                           self.vars_in[self.channel])
+            Postprocess.accumulate_netcdf_with_ds(batch_ds, self.acc_vars, self.data_acc_tmp_fl)
             # ... and increment sample_ind
             sample_ind += self.batch_size
             # end of while-loop for samples
@@ -906,6 +920,36 @@ class Postprocess(TrainModel):
             print("%{0}: netCDF-file '{1}' was created successfully.".format(method, nc_fname))
         except Exception as err:
             print("%{0}: Something unexpected happened when creating netCDF-file '1'".format(method, nc_fname))
+            raise err
+
+    @staticmethod
+    def accumulate_netcdf_with_ds(ds : xr.Dataset, acc_vars: list, nc_fname: str):
+        """
+        Accumulate data in netCDF-file by appending
+        :param ds: the complete dataset
+        :param acc_vars: the variables in the dataset which should be accumulated in the netCDF-file
+        :param nc_fname: path to the netCDF-file that holds the accumulated data
+        :return: created or appended netCDF-file on disk
+        """
+        method = Postprocess.accumulate_netcdf_with_ds.__name__
+
+        if not nc_fname.endswith(".nc"):
+            raise ValueError("nc_fname-argument must be a netCDF-filename.".format(method))
+
+        write_mode = "a"
+        if not os.path.isfile(nc_fname):
+            write_mode = "w"
+
+        try:
+            ds_subset = ds[acc_vars]
+        except Exception as err:
+            print("%{0}: Failed to receive all variables from dataset.".format(method))
+            raise err
+
+        try:
+            ds_subset.to_netcdf(nc_fname, mode=write_mode)
+        except Exception as err:
+            print("%{0}: Failed to write data to netCDF-file {1} (mode: '{2}')".format(method, nc_fname, write_mode))
             raise err
 
     def plot_example_forecasts(self, metric="mse", channel=0):
