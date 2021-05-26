@@ -422,6 +422,7 @@ class Postprocess(TrainModel):
             # feed and run the trained model; returned array has the shape [batchsize, seq_len, lat, lon, channel]
             feed_dict = {input_ph: input_results[name] for name, input_ph in self.inputs.items()}
             gen_images = self.sess.run(self.video_model.outputs['gen_images'], feed_dict=feed_dict)
+
             # sanity check on length of forecast sequence
             assert gen_images.shape[1] == self.sequence_length - 1, \
                 "%{0}: Sequence length of prediction must be smaller by one than total sequence length.".format(method)
