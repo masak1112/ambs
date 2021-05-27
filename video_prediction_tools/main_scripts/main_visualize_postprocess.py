@@ -23,6 +23,7 @@ matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 from mpl_toolkits.basemap import Basemap
 from normalization import Norm_data
+from general_utils import check_dir
 from metadata import MetaData as MetaData
 from main_scripts.main_train_models import *
 from data_preprocess.preprocess_data_step2 import *
@@ -32,7 +33,8 @@ from statistical_evaluation import perform_block_bootstrap_metric, avg_metrics, 
 
 class Postprocess(TrainModel):
     def __init__(self, results_dir=None, checkpoint=None, mode="test", batch_size=None, num_stochastic_samples=1,
-                 stochastic_plot_id=0, gpu_mem_frac=None, seed=None, channel=0,  args=None, run_mode="deterministic"):
+                 stochastic_plot_id=0, gpu_mem_frac=None, seed=None, channel=0,  args=None, run_mode="deterministic",
+                 eval_metrics=None):
         """
         The function for inference, generate results and images
         results_dir   :str, The output directory to save results
@@ -54,60 +56,73 @@ class Postprocess(TrainModel):
         self.input_images     : the length of inputs images is sequence length
 
         """
-
-        # initialize input directories (to be retrieved by load_jsons)
-        self.input_dir = None
-        self.input_dir_tfr = None
-        self.input_dir_pkl = None
-        # forecast products and evaluation metrics to be handled in postprocessing
-        self.eval_metrics = ["mse", "psnr"]
-        self.fcst_products = {"persistence": "pfcst", "model": "mfcst"}
-        # initialize dataset to track evaluation metrics and configure bootstrapping procedure
-        self.eval_metrics_ds = None
-        self.nboots_block = 1000
-        self.block_length = 7 * 24  # this corresponds to a block length of 7 days in case of hourly forecasts
-        # other attributes
-        self.stat_fl = None
-        self.self.cond_quantiple_ds = None
-        self.cond_quantile_vars = None  # variables for conditional quantile plots
-        self.norm_cls = None            # placeholder for normalization instance
-        self.channel = args.channel     # index of channel/input variable to evaluate
-        self.num_samples_per_epoch = None
-        # set further attributes from parsed arguments
+        # copy over attributes from parsed argument
         self.results_dir = self.output_dir = os.path.normpath(results_dir)
-        if not os.path.exists(self.results_dir):
-            os.makedirs(self.results_dir)
+        _ = check_dir(self.results_dir, lcreate=True)
         self.batch_size = batch_size
         self.gpu_mem_frac = gpu_mem_frac
         self.seed = seed
+        self.set_seed()
         self.num_stochastic_samples = num_stochastic_samples
         self.stochastic_plot_id = stochastic_plot_id
         self.args = args
         self.checkpoint = checkpoint
+        _ = check_dir(self.checkpoint)
         self.run_mode = run_mode
         self.mode = mode
-        if self.checkpoint is None:
-            raise ValueError("The directory point to checkpoint is empty, must be provided for postprocess step")
+        self.channel = channel
+        # configuration of basic evaluation
+        self.eval_metrics = eval_metrics
+        self.nboots_block = 1000
+        self.block_length = 7 * 24  # this corresponds to a block length of 7 days in case of hourly forecasts
 
-        if not os.path.isdir(self.checkpoint):
-            raise NotADirectoryError("The checkpoint-directory '{0}' does not exist".format(self.checkpoint))
-
-    def __call__(self):
-        self.set_seed()
-        self.save_args_to_option_json()
-        self.copy_data_model_json()
-        self.load_jsons()
-        self.get_metadata()
-        self.setup_test_dataset()
+        # initialize evrything to get an executable Postprocess instance
+        self.save_args_to_option_json()     # create options.json-in results directory
+        self.copy_data_model_json()         # copy over JSON-files from model directory
+        # get some parameters related to model and dataset
+        self.datasplit_dict, self.model_hparams_dict, self.dataset, self.model, self.input_dir_tfr = self.load_jsons()
+        self.model_hparams_dict_load = self.get_model_hparams_dict()
+        # set input paths and forecast product dictionary
+        self.input_dir, self.input_dir_pkl = self.get_input_dirs()
+        self.fcst_products = {"persistence": "pfcst", self.model: "mfcst"}
+        # correct number of stochastic samples if necessary
+        self.check_num_stochastic_samples()
+        # get metadata
+        md_instance = self.get_metadata()
+        self.height, self.width = md_instance.ny, md_instance.nx
+        self.vars_in = md_instance.variables
+        self.lats, self.lons = md_instance.get_coord_array()
+        # get statistics JSON-file
+        self.stat_fl = self.set_stat_file()
+        # setup test dataset and model
+        self.test_dataset, self.num_samples_per_epoch = self.setup_test_dataset()
+        self.sequence_length, self.context_frames, self.future_length = self.get_data_params()
+        self.inputs, self.input_ts = self.make_test_dataset_iterator()
+        # set-up model, its graph and do GPU-configuration (from TrainModel)
         self.setup_model()
-        self.get_data_params()
-        self.setup_num_samples_per_epoch()
-        self.set_stat_file()
-        self.set_acc_tmp_fname()
-        self.make_test_dataset_iterator()
-        self.check_stochastic_samples_ind_based_on_model()
         self.setup_graph()
         self.setup_gpu_config()
+
+    # Methods that are called during initialization
+    def get_input_dirs(self):
+        """
+        Retrieves top-level input directory and nested pickle-directory from input_dir_tfr
+        :return input_dir: top-level input-directoy
+        :return input_dir_pkl: Input directory where pickle-files are placed
+        """
+        method = Postprocess.get_input_dirs.__name__
+
+        if not hasattr(self, "input_dir_tfr"):
+            raise AttributeError("Attribute input_dir_tfr is still missing.".format(method))
+
+        _ = check_dir(self.input_dir_pkl)
+
+        input_dir = os.path.dirname(self.input_dir_tfr.rstrip("/"))
+        input_dir_pkl = os.path.join(self.input_dir, "pickle")
+
+        _ = check_dir(input_dir_pkl)
+
+        return input_dir, input_dir_pkl
 
     # methods that are executed with __call__
     def save_args_to_option_json(self):
@@ -153,19 +168,24 @@ class Postprocess(TrainModel):
         """
         Set attributes pointing to JSON-files which track essential information and also load some information
         to store it to attributes of the class instance
+        :return datasplit_dict: path to datasplit-dictionary JSON-file of trained model
+        :return model_hparams_dict: path to model hyperparameter-dictionary JSON-file of trained model
+        :return dataset: Name of datset used to train model
+        :return model: Name of trained model
+        :return input_dir_tfr: path to input directory where TF-records are stored
         """
         method_name = Postprocess.load_jsons.__name__
 
-        self.datasplit_dict = os.path.join(self.results_dir, "data_dict.json")
-        self.model_hparams_dict = os.path.join(self.results_dir, "model_hparams.json")
+        datasplit_dict = os.path.join(self.results_dir, "data_dict.json")
+        model_hparams_dict = os.path.join(self.results_dir, "model_hparams.json")
         checkpoint_opt_dict = os.path.join(self.results_dir, "options_checkpoints.json")
 
         # sanity checks on the JSON-files
-        if not os.path.isfile(self.datasplit_dict):
+        if not os.path.isfile(datasplit_dict):
             raise FileNotFoundError("%{0}: The file data_dict.json is missing in {1}".format(method_name,
                                                                                              self.results_dir))
 
-        if not os.path.isfile(self.model_hparams_dict):
+        if not os.path.isfile(model_hparams_dict):
             raise FileNotFoundError("%{0}: The file model_hparams.json is missing in {1}".format(method_name,
                                                                                                  self.results_dir))
 
@@ -176,20 +196,15 @@ class Postprocess(TrainModel):
         try:
             with open(checkpoint_opt_dict) as f:
                 options_checkpoint = json.loads(f.read())
-                self.dataset = options_checkpoint["dataset"]
-                self.model = options_checkpoint["model"]
-                self.input_dir_tfr = options_checkpoint["input_dir"]
-                self.input_dir = os.path.dirname(self.input_dir_tfr.rstrip("/"))
-                self.input_dir_pkl = os.path.join(self.input_dir, "pickle")
-                # update self.fcst_products
-                if "model" in self.fcst_products.keys():
-                    self.fcst_products[self.model] = self.fcst_products.pop("model")
+                dataset = options_checkpoint["dataset"]
+                model = options_checkpoint["model"]
+                input_dir_tfr = options_checkpoint["input_dir"]
         except Exception as err:
             print("%{0}: Something went wrong when reading the checkpoint-file '{1}'".format(method_name,
                                                                                              checkpoint_opt_dict))
             raise err
 
-        self.model_hparams_dict_load = self.get_model_hparams_dict()
+        return datasplit_dict, model_hparams_dict, dataset, model, input_dir_tfr
 
     def get_metadata(self):
 
@@ -211,60 +226,84 @@ class Postprocess(TrainModel):
             print("%{0}: Something went wrong when getting metadata from file '{1}'".format(method_name, metadata_fl))
             raise err
 
-        # when the metadat is loaded without problems, the follwoing will work
-        self.height, self.width = md_instance.ny, md_instance.nx
-        self.vars_in = md_instance.variables
-
-        self.lats = xr.DataArray(md_instance.lat, coords={"lat": md_instance.lat}, dims="lat",
-                                     attrs={"units": "degrees_east"})
-        self.lons = xr.DataArray(md_instance.lon, coords={"lon": md_instance.lon}, dims="lon",
-                                     attrs={"units": "degrees_north"})
+        return md_instance
 
     def setup_test_dataset(self):
         """
         setup the test dataset instance
+        :return test_dataset: the test dataset instance
         """
         VideoDataset = datasets.get_dataset_class(self.dataset)
-        self.test_dataset = VideoDataset(input_dir=self.input_dir_tfr, mode=self.mode,
-                                         datasplit_config=self.datasplit_dict)
+        test_dataset = VideoDataset(input_dir=self.input_dir_tfr, mode=self.mode, datasplit_config=self.datasplit_dict)
+        nsamples = test_dataset.num_examples_per_epoch()
 
-    def setup_num_samples_per_epoch(self):
-        """
-        For generating images, the user can define the examples used, and will be taken as num_examples_per_epoch
-        For testing we only use exactly one epoch, but to be consistent with the training, we keep the name '_per_epoch'
-        """
-        method = Postprocess.setup_num_samples_per_epoch.__name__
-
-        self.num_samples_per_epoch = self.test_dataset.num_examples_per_epoch()
-
-        return self.num_samples_per_epoch
+        return test_dataset, nsamples
 
     def get_data_params(self):
         """
         Get the context_frames, future_frames and total frames from hparamters settings.
         Note that future_frames_length is the number of predicted frames.
         """
-        self.context_frames = self.model_hparams_dict_load["context_frames"]
-        self.sequence_length = self.model_hparams_dict_load["sequence_length"]
-        self.future_length = self.sequence_length - self.context_frames
+        method = Postprocess.get_data_params.__name__
+
+        if not hasattr(self, "model_hparams_dict_load"):
+            raise AttributeError("%{0}: Attribute model_hparams_dict_load is still unset.".format(method))
+
+        try:
+            context_frames = self.model_hparams_dict_load["context_frames"]
+            sequence_length = self.model_hparams_dict_load["sequence_length"]
+        except Exception as err:
+            print("%{0}: Could not retrieve context_frames and sequence_length from model_hparams_dict_load-attribute"
+                  .format(method))
+            raise err
+        future_length = sequence_length - context_frames
+        if future_length <= 0:
+            raise ValueError("Calculated future_length must be greater than zero.".format(method))
+
+        return sequence_length, context_frames, future_length
 
     def set_stat_file(self):
         """
         Set the name of the statistic file from the input directory
+        :return stat_fl: Path to statistics JSON-file of input data used to train the model
         """
-        self.stat_fl = os.path.join(self.input_dir, "statistics.json")
+        method = Postprocess.set_stat_file.__name__
 
-    def init_cond_quantile_plotdata(self):
+        if not hasattr(self, "input_dir"):
+            raise AttributeError("%{0}: Attribute input_dir is still unset".format(method))
+
+        stat_fl = os.path.join(self.input_dir, "statistics.json")
+        if not os.path.isfile(stat_fl):
+            raise FileNotFoundError("%{0}: Cannot find statistics JSON-file '{1}'".format(method, stat_fl))
+
+        return stat_fl
+
+    def init_cond_quantile_vars(self):
         """
-        Set the name of the temproray data accumulator file (for conditional quantile plot)
+        Get a list of variable names for conditional quantile plot
+        :return cond_quantile_vars: list holding the variable names of interest
         """
-        self.cond_quantile_vars = ["{0}_{1}_fcst".format(self.vars_in[self.channel], self.model),
-                                   "{0}_ref".format(self.vars_in[self.channel])]
+        method = Postprocess.init_cond_quantile_vars.__name__
+
+        if not hasattr(self, "model"):
+            raise AttributeError("%{0}: Attribute model is still unset.".format(method))
+        cond_quantile_vars = ["{0}_{1}_fcst".format(self.vars_in[self.channel], self.model),
+                              "{0}_ref".format(self.vars_in[self.channel])]
+
+        return cond_quantile_vars
 
     def make_test_dataset_iterator(self):
         """
         Make the dataset iterator
         """
+        method = Postprocess.make_test_dataset_iterator.__name__
+
+        if not hasattr(self, "test_dataset"):
+            raise AttributeError("%{0}: Attribute test_dataset is still unset".format(method))
+
+        if not hasattr(self, "batch_size"):
+            raise AttributeError("%{0}: Attribute batch_sie is still unset".format(method))
+
         test_tf_dataset = self.test_dataset.make_dataset(self.batch_size)
         test_iterator = test_tf_dataset.make_one_shot_iterator()
         # The `Iterator.string_handle()` method returns a tensor that can be evaluated
@@ -272,26 +311,27 @@ class Postprocess(TrainModel):
         test_handle = test_iterator.string_handle()
         dataset_iterator = tf.data.Iterator.from_string_handle(test_handle, test_tf_dataset.output_types,
                                                                test_tf_dataset.output_shapes)
-        self.inputs = dataset_iterator.get_next()
-        self.input_ts = self.inputs["T_start"]
-        # if self.dataset == "era5" and self.model == "savp":
-        #   del self.inputs["T_start"]
+        input_iter = dataset_iterator.get_next()
+        ts_iter = input_iter["T_start"]
 
-    def check_stochastic_samples_ind_based_on_model(self):
+        return input_iter, ts_iter
+
+    def check_num_stochastic_samples(self):
         """
         stochastic forecasting only suitable for the geneerate models such as SAVP, vae.
         For convLSTM, McNet only do determinstic forecasting
         """
+        method = Postprocess.check_num_stochastic_samples.__name__
+
+        if not hasattr(self, "model"):
+            raise AttributeError("%{0}: Attribute model is still unset".format(method))
+        if not hasattr(self, "num_stochastic_samples"):
+            raise AttributeError("%{0}: Attribute num_stochastic_samples is still unset".format(method))
+
         if self.model == "convLSTM" or self.model == "test_model" or self.model == 'mcnet':
             if self.num_stochastic_samples > 1:
                 print("Number of samples for deterministic model cannot be larger than 1. Higher values are ignored.")
             self.num_stochastic_samples = 1
-
-    def init_session(self):
-        self.sess = tf.Session(config=self.config)
-        self.sess.graph.as_default()
-        self.sess.run(tf.global_variables_initializer())
-        self.sess.run(tf.local_variables_initializer())
 
     # the run-factory
     def run(self):
@@ -475,6 +515,21 @@ class Postprocess(TrainModel):
         #self.add_ensemble_dim()
 
     # all methods of the run factory
+    def init_session(self):
+        """
+        Initialize TensorFlow-session
+        :return: -
+        """
+        method = Postprocess.init_session.__name__
+
+        if not hasattr(self, "config"):
+            raise AttributeError("Attribute config is still unset.".format(method))
+
+        self.sess = tf.Session(config=self.config)
+        self.sess.graph.as_default()
+        self.sess.run(tf.global_variables_initializer())
+        self.sess.run(tf.local_variables_initializer())
+
     def get_input_data_per_batch(self, input_iter, norm_method="minmax"):
         """
         Get the input sequence from the dataset iterator object stored in self.inputs and denormalize the data
