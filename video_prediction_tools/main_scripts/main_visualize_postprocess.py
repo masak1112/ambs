@@ -25,7 +25,7 @@ from main_scripts.main_train_models import *
 from data_preprocess.preprocess_data_step2 import *
 from model_modules.video_prediction import datasets, models, metrics
 from statistical_evaluation import perform_block_bootstrap_metric, avg_metrics, Scores
-from plotting import plot_avg_eval_metrics, create_geo_contour_plot
+from postprocess_plotting import plot_avg_eval_metrics, create_geo_contour_plot
 
 
 class Postprocess(TrainModel):
