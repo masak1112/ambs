@@ -117,3 +117,33 @@ def check_str_in_list(list_in, str2check, labort=True):
         stat = True
     
     return stat
+
+
+def check_dir(path2dir: str, lcreate=False):
+    """
+    Checks if path2dir exists and create it if desired
+    :param path2dir:
+    :param lcreate: create directory if it is not existing
+    :return: True in case of success
+    """
+    method = check_dir.__name__
+
+    if (path2dir is None) or not isinstance(path2dir, str):
+        raise ValueError("%{0}: path2dir must be a string defining a pat to a directory.".format(method))
+
+    if os.path.isdir(path2dir):
+        return True
+    else:
+        if lcreate:
+            try:
+                os.makedirs(path2dir)
+            except Exception as err:
+                print("%{0}: Failed to create directory '{1}'".format(method, path2dir))
+                raise err
+            print("%{0}: Created directory '{1}'".format(method, path2dir))
+            return True
+        else:
+            raise NotADirectoryError("%{0}: Directory '{1}' does not exist".format(method, path2dir))
+
+
+
