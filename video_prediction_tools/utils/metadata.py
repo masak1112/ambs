@@ -9,6 +9,7 @@ __date__ = "2020-xx-xx"
 import os
 import sys
 import time
+import xarray as xr
 import numpy as np
 import json
 from general_utils import is_integer, add_str_to_path, check_str_in_list, isw
@@ -253,6 +254,24 @@ class MetaData:
             # iterate through the list with an integer ivar
             # note: the naming of the variables starts with var1, thus add 1 to the iterator
             self.variables = [list_of_dict_aux[ivar]["var" + str(ivar + 1)] for ivar in range(len(list_of_dict_aux))]
+
+    def get_coord_array(self):
+        """
+        Returns data arrays of latitudes and longitudes
+        :return lats_da: data array of latitudes
+        :return lons_da: data array of longitudes
+        """
+        method = MetaData.get_coord_array.__name__
+
+        if not hasattr(self.lat) or not hasattr(self.lon):
+            raise AttributeError("%{0}: lat and lon are still not set.".format(method))
+
+        lats_da = xr.DataArray(self.lat, coords={"lat": self.lat}, dims="lat",
+                               attrs={"units": "degrees_east"})
+        lons_da = xr.DataArray(self.lon, coords={"lon": self.lon}, dims="lon",
+                               attrs={"units": "degrees_north"})
+
+        return lats_da, lons_da
 
     def write_dirs_to_batch_scripts(self, batch_script):
         """
