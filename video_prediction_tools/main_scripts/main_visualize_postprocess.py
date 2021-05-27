@@ -17,6 +17,7 @@ import pickle
 import datetime as dt
 import json
 import matplotlib
+from typing import Union, List
 
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
@@ -67,8 +68,8 @@ class Postprocess(TrainModel):
         self.block_length = 7 * 24  # this corresponds to a block length of 7 days in case of hourly forecasts
         # other attributes
         self.stat_fl = None
-        self.data_acc_tmp_fl = None     # placeholder for temporay data accumulator file (for cond. quantile plot)
-        self.acc_vars = None            # variables for conditional quantile plots
+        self.self.cond_quantiple_ds = None
+        self.cond_quantile_vars = None  # variables for conditional quantile plots
         self.norm_cls = None            # placeholder for normalization instance
         self.channel = args.channel     # index of channel/input variable to evaluate
         self.num_samples_per_epoch = None
@@ -257,10 +258,8 @@ class Postprocess(TrainModel):
         """
         Set the name of the temproray data accumulator file (for conditional quantile plot)
         """
-        self.data_acc_tmp_fl = os.path.join(self.results_dir, "{0}_all_forecasts_tmp.nc"
-                                            .format(self.vars_in[self.channel]))
-        self.acc_vars = ["{0}_{1}_fcst".format(self.vars_in[self.channel], self.model),
-                         "{0}_ref".format(self.vars_in[self.channel])]
+        self.cond_quantile_vars = ["{0}_{1}_fcst".format(self.vars_in[self.channel], self.model),
+                                   "{0}_ref".format(self.vars_in[self.channel])]
 
     def make_test_dataset_iterator(self):
         """
@@ -428,6 +427,7 @@ class Postprocess(TrainModel):
         # initialize datasets
         eval_metric_ds = Postprocess.init_metric_ds(self.fcst_products, self.eval_metrics, self.vars_in[self.channel],
                                                     nsamples, self.future_length)
+        cond_quantiple_ds = None
 
         while sample_ind < self.num_samples_per_epoch:
             # get normalized and denormalized input data
@@ -465,12 +465,13 @@ class Postprocess(TrainModel):
             # write evaluation metric to corresponding dataset and sa
             eval_metric_ds = self.populate_eval_metric_ds(eval_metric_ds, batch_ds, sample_ind,
                                                           self.vars_in[self.channel])
-            Postprocess.accumulate_netcdf_with_ds(batch_ds, self.acc_vars, self.data_acc_tmp_fl)
+            cond_quantiple_ds = Postprocess.append_ds(batch_ds, cond_quantiple_ds, self.cond_quantile_vars, "init_time")
             # ... and increment sample_ind
             sample_ind += self.batch_size
             # end of while-loop for samples
         # safe dataset with evaluation metrics for later use
         self.eval_metrics_ds = eval_metric_ds
+        self.cond_quantiple_ds = cond_quantiple_ds
         #self.add_ensemble_dim()
 
     # all methods of the run factory
@@ -923,34 +924,46 @@ class Postprocess(TrainModel):
             raise err
 
     @staticmethod
-    def accumulate_netcdf_with_ds(ds : xr.Dataset, acc_vars: list, nc_fname: str):
+    def append_ds(ds_in: xr.Dataset, ds_preexist: xr.Dataset, varnames: list, dim2append: str):
         """
-        Accumulate data in netCDF-file by appending
-        :param ds: the complete dataset
-        :param acc_vars: the variables in the dataset which should be accumulated in the netCDF-file
-        :param nc_fname: path to the netCDF-file that holds the accumulated data
-        :return: created or appended netCDF-file on disk
+        Append existing datset with subset of dataset based on selected variables
+        :param ds_in: the input dataset from which variables should be retrieved
+        :param ds_preexist: the accumulator datsaet to be appended (can be initialized with None)
+        :param dim2append:
+        :param varnames: List of variables that should be retrieved from ds_in and that are appended to ds_preexist
+        :return: appended version of ds_preexist
         """
-        method = Postprocess.accumulate_netcdf_with_ds.__name__
+        method = Postprocess.append_ds.__name__
 
-        if not nc_fname.endswith(".nc"):
-            raise ValueError("nc_fname-argument must be a netCDF-filename.".format(method))
+        varnames_str = ",".join(varnames)
+        # sanity checks
+        if not isinstance(ds_in, xr.Dataset):
+            raise ValueError("%{0}: ds_in must be a xarray dataset, but is of type {1}".format(method, type(ds_in)))
 
-        write_mode = "a"
-        if not os.path.isfile(nc_fname):
-            write_mode = "w"
+        if not np.all(varnames in ds_in.data_vars):
+            raise ValueError("%{0}: Could not find all variables ({1}) in input dataset ds_in.".format(method,
+                                                                                                       varnames_str))
+
+        if ds_preexist is None:
+            ds_preexist = ds_in[varnames].copy(deep=True)
+            return ds_preexist
+        else:
+            if not isinstance(ds_preexist, xr.Dataset):
+                raise ValueError("%{0}: ds_preexist must be a xarray dataset, but is of type {1}"
+                                 .format(method, type(ds_preexist)))
+            if not np.all(varnames in ds_preexist.data_vars):
+                raise ValueError("%{0}: Could not find all varibales ({1}) in pre-existing dataset ds_preexist"
+                                 .format(method, varnames_str))
 
         try:
-            ds_subset = ds[acc_vars]
+            ds_preexist = xr.concat([ds_preexist, ds_in[varnames]], dim2append)
         except Exception as err:
-            print("%{0}: Failed to receive all variables from dataset.".format(method))
+            print("%{0}: Failed to concat datsets along dimension {1}.".format(method, dim2append))
+            print(ds_in)
+            print(ds_preexist)
             raise err
 
-        try:
-            ds_subset.to_netcdf(nc_fname, mode=write_mode)
-        except Exception as err:
-            print("%{0}: Failed to write data to netCDF-file {1} (mode: '{2}')".format(method, nc_fname, write_mode))
-            raise err
+        return ds_preexist
 
     def plot_example_forecasts(self, metric="mse", channel=0):
         """
@@ -972,7 +985,7 @@ class Postprocess(TrainModel):
         quantiles = np.arange(0., 1.01, .1)
         quantiles_val = metric_mean.quantile(quantiles, interpolation="nearest")
         quantiles_inds = self.get_matching_indices(metric_mean.values, quantiles_val)
-        print(metric_mean.coords["init_time"])
+
         for i, ifcst in enumerate(quantiles_inds):
             date_init = pd.to_datetime(metric_mean.coords["init_time"][ifcst].data)
             nc_fname = os.path.join(self.results_dir, "vfp_date_{0}_sample_ind_{1:d}.nc"
