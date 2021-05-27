@@ -1,4 +1,11 @@
-from typing import Union, Tuple, Dict, List
+"""
+Collection of auxiliary functions for statistical evaluation and class for Score-functions
+"""
+
+__email__ = "b.gong@fz-juelich.de"
+__author__ = "Michael Langguth"
+__date__ = "2021-05-xx"
+
 import numpy as np
 import xarray as xr
 import pandas as pd
