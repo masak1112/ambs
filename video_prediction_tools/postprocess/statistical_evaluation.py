@@ -22,7 +22,14 @@ da_or_ds = Union[xr.DataArray, xr.Dataset]
 
 def calculate_cond_quantiles(data_fcst: xr.DataArray, data_ref: xr.DataArray, factorization="calibration_refinement",
                              quantiles=(0.05, 0.5, 0.95)):
-
+    """
+    Calculate conditional quantiles of forecast and observation/reference data with selected factorization
+    :param data_fcst: forecast data array
+    :param data_ref: observational/reference data array
+    :param factorization: factorization: "likelihood-base_rate" p(m|o) or "calibration_refinement" p(o|m)-> default
+    :param quantiles: conditional quantiles
+    :return quantile_panel: conditional quantiles of p(m|o) or p(o|m)
+    """
     method = calculate_cond_quantiles.__name__
 
     # sanity checks
@@ -63,6 +70,8 @@ def calculate_cond_quantiles(data_fcst: xr.DataArray, data_ref: xr.DataArray, fa
         data_cropped = data_tar.where(np.logical_and(data_cond >= bins[i], data_cond < bins[i + 1]))
         # quantile-calculation
         quantile_panel.loc[dict(bin_center=bins_c[i])] = data_cropped.quantile(quantiles)
+
+    return quantile_panel, data_cond
 
 def avg_metrics(metric: da_or_ds, dim_name: str):
     """
