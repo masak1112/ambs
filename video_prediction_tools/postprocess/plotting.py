@@ -83,7 +83,7 @@ def plot_avg_eval_metrics(eval_ds, eval_metrics, fcst_prod_dict, varname, out_di
     return True
 
 
-def create_plot(data, data_diff, varname, plt_fname):
+def create_geo_contour_plot(data, data_diff, varname, plt_fname):
     """
     Creates filled contour plot of forecast data and also draws contours for differences.
     ML: So far, only plotting of the 2m temperature is supported (with 12 predicted hours/frames)
@@ -93,7 +93,7 @@ def create_plot(data, data_diff, varname, plt_fname):
     :param plt_fname: the filename to the store the plot
     :return: -
     """
-    method = create_plot.__name__
+    method = create_geo_contour_plot.__name__
 
     try:
         coords = data.coords

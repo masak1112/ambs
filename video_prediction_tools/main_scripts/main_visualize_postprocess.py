@@ -25,7 +25,7 @@ from main_scripts.main_train_models import *
 from data_preprocess.preprocess_data_step2 import *
 from model_modules.video_prediction import datasets, models, metrics
 from statistical_evaluation import perform_block_bootstrap_metric, avg_metrics, Scores
-from plotting import plot_avg_eval_metrics, create_plot
+from plotting import plot_avg_eval_metrics, create_geo_contour_plot
 
 
 class Postprocess(TrainModel):
@@ -669,7 +669,7 @@ class Postprocess(TrainModel):
         # forecast and into the the reference sequences (which can be compared to the forecast)
         # as where the persistence forecast is containing NaNs (must be generated later)
         data_in_dict = dict([("{0}_in".format(var), input_seq.isel(fcst_hour=slice(None, self.context_frames),
-                                                                   varname=ivar) \
+                                                                   varname=ivar)
                                                              .rename({"fcst_hour": "in_hour"})
                                                              .reset_coords(names="varname", drop=True))
                              for ivar, var in enumerate(self.vars_in)])
@@ -689,7 +689,7 @@ class Postprocess(TrainModel):
 
         # fill persistence forecast variables with dummy data (to be populated later)
         data_pfcst_dict = dict([("{0}_persistence_fcst".format(var), (["init_time", "fcst_hour", "lat", "lon"],
-                                                                       np.full(shape_fcst, np.nan)))
+                                                                      np.full(shape_fcst, np.nan)))
                                 for ivar, var in enumerate(self.vars_in)])
 
         # create the dataset
@@ -1050,7 +1050,7 @@ class Postprocess(TrainModel):
                                               .format(varname, date_init.strftime("%Y%m%dT%H00"), metric,
                                                       int(quantiles[i]*100.)))
 
-                create_plot(data_fcst, data_diff, varname, plt_fname_base)
+                create_geo_contour_plot(data_fcst, data_diff, varname, plt_fname_base)
 
     @staticmethod
     def init_metric_ds(fcst_products, eval_metrics, varname, nsamples, nlead_steps):
