@@ -83,7 +83,6 @@ def plot_avg_eval_metrics(eval_ds, eval_metrics, fcst_prod_dict, varname, out_di
     return True
 
 
-
 def create_plot(data, data_diff, varname, plt_fname):
     """
     Creates filled contour plot of forecast data and also draws contours for differences.
