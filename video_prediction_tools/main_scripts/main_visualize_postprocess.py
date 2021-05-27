@@ -33,28 +33,24 @@ from statistical_evaluation import perform_block_bootstrap_metric, avg_metrics, 
 
 class Postprocess(TrainModel):
     def __init__(self, results_dir=None, checkpoint=None, mode="test", batch_size=None, num_stochastic_samples=1,
-                 stochastic_plot_id=0, gpu_mem_frac=None, seed=None, channel=0,  args=None, run_mode="deterministic",
+                 stochastic_plot_id=0, gpu_mem_frac=None, seed=None, channel=0, args=None, run_mode="deterministic",
                  eval_metrics=None):
         """
-        The function for inference, generate results and images
-        results_dir   :str, The output directory to save results
-        checkpoint    :str, The directory point to the checkpoints
-        mode          :str, Default is test, could be "train","val", and "test"
-        batch_size    :int, The batch size used for generating test samples for each iteration
-        num_stochastic_samples: int, for the stochastic models such as SAVP, VAE, it is used for generate a number of
-                                     ensemble for each prediction.
-                                     For deterministic model such as convLSTM, it is default setup to 1
-        stochastic_plot_id :int, the index for stochastically generated images to plot
-        gpu_mem_frac       :int, GPU memory fraction to be used
-        seed               :seed for control test samples
-        run_mode           :str, if "deterministic" then the model running for deterministic forecasting,  other string values, it will go for stochastic forecasting
-
-        Side notes : other important varialbes in the class:
-        self.ts               : list, contains the sequence_length timestamps
-        self.gen_images_      :  the length of generate images by model is sequence_length - 1
-        self.persistent_image : the length of persistent images is sequence_length - 1
-        self.input_images     : the length of inputs images is sequence length
-
+        Initialization of the class instance for postprocessing (generation of forecasts from trained model +
+        basic evauation).
+        :param results_dir: output directory to save results
+        :param checkpoint: directory point to the model checkpoints
+        :param mode: mode of dataset to be processed ("train", "val" or "test"), default: "test"
+        :param batch_size: mini-batch size for generating forecasts from trained model
+        :param num_stochastic_samples: number of ensemble members for variational models (SAVP, VAE), default: 1
+                                       not supported yet!!!
+        :param stochastic_plot_id: not supported yet!
+        :param gpu_mem_frac: fraction of GPU memory to be pre-allocated
+        :param seed: Integer controlling randomization
+        :param channel: Channel of interest for statistical evaluation
+        :param args: namespace of parsed arguments
+        :param run_mode: "deterministic" or "stochastic", default: "deterministic", "stochastic is not supported yet!!!
+        :param eval_metrics: metrics used to evaluate the trained model
         """
         # copy over attributes from parsed argument
         self.results_dir = self.output_dir = os.path.normpath(results_dir)
@@ -459,12 +455,10 @@ class Postprocess(TrainModel):
         # init the session and restore the trained model
         self.init_session()
         self.restore(self.sess, self.checkpoint)
-
         # init sample index for looping
         sample_ind = 0
         nsamples = self.num_samples_per_epoch
-
-        # initialize datasets
+        # initialize xarray datasets
         eval_metric_ds = Postprocess.init_metric_ds(self.fcst_products, self.eval_metrics, self.vars_in[self.channel],
                                                     nsamples, self.future_length)
         cond_quantiple_ds = None
@@ -648,7 +642,6 @@ class Postprocess(TrainModel):
         :param ts_ini: initial time of forecast (=last time step of effective input sequence)
         :return data_ds: above mentioned data in a nicely formatted dataset
         """
-
         method = Postprocess.create_dataset.__name__
 
         # auxiliary variables for temporal dimensions
@@ -904,7 +897,7 @@ class Postprocess(TrainModel):
 
             # Retrieve starting index
             ind_first_m = list(time_pickle_first).index(np.array(t_persistence_first_m[0]))
-            #print("time_pickle_second:", time_pickle_second)
+            # print("time_pickle_second:", time_pickle_second)
             ind_second_m = list(time_pickle_second).index(np.array(t_persistence_second_m[0]))
 
             # append the sequence of the second month to the first month
@@ -1083,7 +1076,6 @@ class Postprocess(TrainModel):
 
         return eval_metric_ds
 
-
     @staticmethod
     def get_matching_indices(big_array, subset):
         """
@@ -1254,10 +1246,10 @@ def main():
                         help='mode for dataset, val or test.')
     parser.add_argument("--batch_size", type=int, default=8, help="number of samples in batch")
     parser.add_argument("--num_stochastic_samples", type=int, default=1)
-    parser.add_argument("--stochastic_plot_id", type=int, default=0,
-                        help="The stochastic generate images index to plot")
     parser.add_argument("--gpu_mem_frac", type=float, default=0.95, help="fraction of gpu memory to use")
     parser.add_argument("--seed", type=int, default=7)
+    parser.add_argument("--evaluation_metrics", "-eval_metrics", dest="eval_metrics", args="+", default=["mse, psnr"],
+                        help="Metrics to be evaluate the trained model. Must be known metrics, see Scores-class.")
     args = parser.parse_args()
 
     print('----------------------------------- Options ------------------------------------')
@@ -1265,16 +1257,15 @@ def main():
         print(k, "=", v)
     print('------------------------------------- End --------------------------------------')
 
-    # ML: test_instance is a bit misleading here
-    test_instance = Postprocess(results_dir=args.results_dir, checkpoint=args.checkpoint, mode="test",
-                                batch_size=args.batch_size, num_stochastic_samples=args.num_stochastic_samples,
-                                gpu_mem_frac=args.gpu_mem_frac, seed=args.seed,
-                                stochastic_plot_id=args.stochastic_plot_id, args=args)
-
-    test_instance()
-    test_instance.run()
-    test_instance.handle_eval_metrics()
-    test_instance.plot_example_forecasts(metric="mse")
+    # initialize postprocessing instance
+    postproc_instance = Postprocess(results_dir=args.results_dir, checkpoint=args.checkpoint, mode="test",
+                                    batch_size=args.batch_size, num_stochastic_samples=args.num_stochastic_samples,
+                                    gpu_mem_frac=args.gpu_mem_frac, seed=args.seed, args=args,
+                                    eval_metrics=args.eval_metrics)
+    # run the postprocessing
+    postproc_instance.run()
+    postproc_instance.handle_eval_metrics()
+    postproc_instance.plot_example_forecasts(metric=args.eval_metrics[0])
 
 
 if __name__ == '__main__':
