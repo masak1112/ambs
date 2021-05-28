@@ -7,6 +7,7 @@ Provides:   * get_unique_vars
             * check_str_in_list
             * check_dir
             * provide_default
+            * get_era5_atts
 """
 
 # import modules
@@ -177,6 +178,12 @@ def provide_default(dict_in, keyname, default=None, required=False):
 
 
 def get_era5_varatts(data_arr: xr.DataArray, name):
+    """
+    Writes longname and unit to data arrays given their name is known
+    :param data_arr: the data array
+    :param name: the name of the variable
+    :return: data array with added attributes 'longname' and 'unit' if they are known
+    """
 
     era5_varname_map = {"2t": "2m temperature", "t_850": "850 hPa temperature", "tcc": "total cloud cover",
                         "msl": "mean sealevel pressure", "10u": "10m u-wind", "10v": "10m v-wind"}
