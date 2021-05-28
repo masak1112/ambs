@@ -774,9 +774,7 @@ class Postprocess(TrainModel):
         # release some memory
         Postprocess.clean_obj_attribute(self, "eval_metrics_ds")
 
-
-        cond_quantile_vars = ["{0}_{1}_fcst".format(self.vars_in[self.channel], self.model),
-                              "{0}_ref".format(self.vars_in[self.channel])]
+        # the variables for conditional quantile plot
         var_fcst = "{0}_{1}_fcst".format(self.vars_in[self.channel], self.model)
         var_ref = "{0}_ref".format(self.vars_in[self.channel])
 
@@ -1178,6 +1176,7 @@ def main():
     postproc_instance.run()
     postproc_instance.handle_eval_metrics()
     postproc_instance.plot_example_forecasts(metric=args.eval_metrics[0], channel=args.channel)
+    postproc_instance.plot_conditional_quantiles()
 
 
 if __name__ == '__main__':
