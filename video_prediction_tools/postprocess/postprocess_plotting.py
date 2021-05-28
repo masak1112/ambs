@@ -15,6 +15,7 @@ import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 from mpl_toolkits.basemap import Basemap
+from general_utils import provide_default
 
 
 def plot_cond_quantile(quantile_panel: xr.DataArray, data_marginal: xr.DataArray, plt_fname: str, opt: dict):
@@ -39,18 +40,20 @@ def plot_cond_quantile(quantile_panel: xr.DataArray, data_marginal: xr.DataArray
         raise ValueError("%{0}: The coordinates of quantile_panel must be ['bin_center', 'quantile']".format(method))
 
     bins_c = quantile_panel["bin_center"]
-    bins = np.arange(bins_c[0]-0.5, bins_c+0.5+1.)
+    bin_width = bins_c[1] - bins_c[0]
+    bins = np.arange(bins_c[0]-bin_width/2., bins_c+1.5*bin_width/2, bin_width)
     quantiles = quantile_panel["quantile"]
     nquantiles = len(quantiles)
     if nquantiles%2 != 1:
         raise ValueError("%{0}: Number of quantiles must be odd.".format(method))
 
     ls_all = get_ls_mirrored(int(nquantiles/2))
-    lw_all = list(np.full(nquantiles), 2.)
+    lw_all = list(np.full(nquantiles, 2.))
     lw_all[int(nquantiles/2)] = 1.5
 
     # start plotting
-    fig, ax = plt.subplots(figsize=(12, 6))
+    figsize = provide_default(opt, "figsize", (12, 6))
+    fig, ax = plt.subplots(figsize=figsize)
 
     # plot reference line
     ax.plot(bins_c, bins_c, color='k', label='reference 1:1', linewidth=1.)
@@ -63,10 +66,17 @@ def plot_cond_quantile(quantile_panel: xr.DataArray, data_marginal: xr.DataArray
     xr.plot.hist(data_marginal, ax=ax2, bins=bins, color="k", alpha=0.3)
     ax2.set_yscale("log")
 
-    ax.set_ylabel("2m temperature from ERA5 [°C]", fontsize=16)
-    ax.set_xlabel("Predicted 2m temperature from SAVP [°C]", fontsize=16)
+    ylabel = "{0} [{1}]".format(provide_default(quantile_panel.attr, "data_cond_longname", "conditiong variable"),
+                                provide_default(quantile_panel.attr, "data_cond_unit", "unknown"))
+    xlabel = "{0} [{1}]".format(provide_default(quantile_panel.attr, "data_cond_longname", "target variable"),
+                                provide_default(quantile_panel.attr, "data_cond_unit", "unknown"))
+
+    ax.set_ylabel(ylabel, fontsize=16)
+    ax2.set_ylabel("counts", fontsize=16)
+    ax.set_xlabel(xlabel, fontsize=16)
 
     ax.tick_params(axis="both", labelsize=14)
+    ax2.tick_params(axis="both", labelsize=14)
 
     fig.savefig(plt_fname)
     plt.close("all")
