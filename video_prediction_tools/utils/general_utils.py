@@ -13,6 +13,7 @@ Provides:   * get_unique_vars
 import os
 import sys
 import numpy as np
+import xarray as xr
 
 # routines
 def get_unique_vars(varnames):
@@ -173,4 +174,34 @@ def provide_default(dict_in, keyname, default=None, required=False):
         return default
     else:
         return dict_in[keyname]
+
+
+def get_era5_varatts(data_arr: xr.DataArray, name):
+
+    era5_varname_map = {"2t": "2m temperature", "t_850": "850 hPa temperature", "tcc": "total cloud cover",
+                        "msl": "mean sealevel pressure", "10u": "10m u-wind", "10v": "10m v-wind"}
+    era5_varunit_map = {"2t": "K", "t_850": "K", "tcc": "%",
+                        "msl": "Pa", "10u": "m/s", "10v": "m/s"}
+
+    name_splitted = name.split("_")
+    if "fcst" in name:
+        addstr = "from {0} model".format(name_splitted[1])
+    elif "ref" in name:
+        addstr = "from ERA5 reanalysis"
+    else:
+        addstr = ""
+
+    longname = provide_default(era5_varname_map, name_splitted[0], None)
+    if longname is None:
+        pass
+    else:
+        data_arr["longname"] = "{0} {1}".format(longname, addstr)
+
+    unit = provide_default(era5_varunit_map, name_splitted[0], None)
+    if unit is None:
+        pass
+    else:
+        data_arr["unit"] = unit
+
+    return data_arr
 
