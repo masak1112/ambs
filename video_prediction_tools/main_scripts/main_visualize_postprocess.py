@@ -65,10 +65,12 @@ class Postprocess(TrainModel):
         self.run_mode = run_mode
         self.mode = mode
         self.channel = channel
+        # Attributes set during runtime
+        self.norm_cls = None
         # configuration of basic evaluation
         self.eval_metrics = eval_metrics
         self.nboots_block = 1000
-        self.block_length = 7 * 24  # this corresponds to a block length of 7 days in case of hourly forecasts
+        self.block_length = 5 #* 24  # this corresponds to a block length of 7 days in case of hourly forecasts
 
         # initialize evrything to get an executable Postprocess instance
         self.save_args_to_option_json()     # create options.json-in results directory
@@ -88,8 +90,10 @@ class Postprocess(TrainModel):
         self.lats, self.lons = md_instance.get_coord_array()
         # get statistics JSON-file
         self.stat_fl = self.set_stat_file()
+        self.cond_quantile_vars = self.init_cond_quantile_vars()
         # setup test dataset and model
         self.test_dataset, self.num_samples_per_epoch = self.setup_test_dataset()
+        self.num_samples_per_epoch = 100
         self.sequence_length, self.context_frames, self.future_length = self.get_data_params()
         self.inputs, self.input_ts = self.make_test_dataset_iterator()
         # set-up model, its graph and do GPU-configuration (from TrainModel)
@@ -109,10 +113,10 @@ class Postprocess(TrainModel):
         if not hasattr(self, "input_dir_tfr"):
             raise AttributeError("Attribute input_dir_tfr is still missing.".format(method))
 
-        _ = check_dir(self.input_dir_pkl)
+        _ = check_dir(self.input_dir_tfr)
 
         input_dir = os.path.dirname(self.input_dir_tfr.rstrip("/"))
-        input_dir_pkl = os.path.join(self.input_dir, "pickle")
+        input_dir_pkl = os.path.join(input_dir, "pickle")
 
         _ = check_dir(input_dir_pkl)
 
@@ -596,7 +600,13 @@ class Postprocess(TrainModel):
         known_eval_metrics = {"mse": Scores("mse", dims), "psnr": Scores("psnr", dims)}
 
         # generate list of functions that calculate requested evaluation metrics
-        if set(self.eval_metrics).issubset(known_eval_metrics):
+        for i in self.eval_metrics:
+            print(i)
+
+        print(set(self.eval_metrics).issubset(known_eval_metrics.keys()))
+        print(known_eval_metrics.keys())
+
+        if set(self.eval_metrics).issubset(known_eval_metrics.keys()):
             eval_metrics_func = [known_eval_metrics[metric].score_func for metric in self.eval_metrics]
         else:
             misses = list(set(self.eval_metrics) - known_eval_metrics.keys())
@@ -1156,7 +1166,7 @@ def main():
     parser.add_argument("--num_stochastic_samples", type=int, default=1)
     parser.add_argument("--gpu_mem_frac", type=float, default=0.95, help="fraction of gpu memory to use")
     parser.add_argument("--seed", type=int, default=7)
-    parser.add_argument("--evaluation_metrics", "-eval_metrics", dest="eval_metrics", args="+", default=["mse, psnr"],
+    parser.add_argument("--evaluation_metrics", "-eval_metrics", dest="eval_metrics", nargs="+", default=("mse", "psnr"),
                         help="Metrics to be evaluate the trained model. Must be known metrics, see Scores-class.")
     parser.add_argument("--channel", "-channel", dest="channel", type=int, default=0,
                         help="Channel which is used for evaluation.")
