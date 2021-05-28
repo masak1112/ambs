@@ -263,7 +263,7 @@ class MetaData:
         """
         method = MetaData.get_coord_array.__name__
 
-        if not hasattr(self.lat) or not hasattr(self.lon):
+        if not hasattr(self, "lat") or not hasattr(self, "lon"):
             raise AttributeError("%{0}: lat and lon are still not set.".format(method))
 
         lats_da = xr.DataArray(self.lat, coords={"lat": self.lat}, dims="lat",
