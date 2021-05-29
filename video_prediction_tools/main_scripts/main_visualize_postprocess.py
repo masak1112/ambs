@@ -58,7 +58,7 @@ class Postprocess(TrainModel):
         self.input_dir_tfr = None
         self.input_dir_pkl = None
         # forecast products and evaluation metrics to be handled in postprocessing
-        self.eval_metrics = ["mse", "psnr", "ssim"]
+        self.eval_metrics = ["mse", "psnr", "ssim", "acc"]
         self.fcst_products = {"persistence": "pfcst", "model": "mfcst"}
         # initialize dataset to track evaluation metrics and configure bootstrapping procedure
         self.eval_metrics_ds = None
@@ -437,6 +437,7 @@ class Postprocess(TrainModel):
             for i in np.arange(nbs):
                 # work-around to make use of get_persistence_forecast_per_sample-method
                 times_seq = (pd.date_range(times_0[i], periods=int(self.sequence_length), freq="h")).to_pydatetime()
+                print('times_seq: ',times_seq)
                 # get persistence forecast for sequences at hand and write to dataset
                 persistence_seq, _ = Postprocess.get_persistence(times_seq, self.input_dir_pkl)
                 for ivar, var in enumerate(self.vars_in):
@@ -449,6 +450,7 @@ class Postprocess(TrainModel):
                 self.save_ds_to_netcdf(batch_ds.isel(init_time=i), nc_fname)
                 # end of batch-loop
             # write evaluation metric to corresponding dataset...
+            print('batch_ds: ',batch_ds)
             eval_metric_ds = self.populate_eval_metric_ds(eval_metric_ds, batch_ds, sample_ind,
                                                           self.vars_in[self.channel])
             # ... and increment sample_ind
@@ -530,7 +532,7 @@ class Postprocess(TrainModel):
 
         # dictionary of implemented evaluation metrics
         dims = ["lat", "lon"]
-        known_eval_metrics = {"mse": Scores("mse", dims), "psnr": Scores("psnr", dims),"ssim": Scores("ssim",dims)}
+        known_eval_metrics = {"mse": Scores("mse", dims), "psnr": Scores("psnr", dims),"ssim": Scores("ssim",dims), "acc": Scores("acc",dims)}
 
         # generate list of functions that calculate requested evaluation metrics
         if set(self.eval_metrics).issubset(known_eval_metrics):
@@ -552,8 +554,18 @@ class Postprocess(TrainModel):
                 metric_name = "{0}_{1}_{2}".format(varname, fcst_prod, eval_metric)
                 varname_fcst = "{0}_{1}_fcst".format(varname, fcst_prod)
                 dict_ind = dict(init_time=data_ds["init_time"])
+                print('metric_name: ',metric_name)
+                print('varname_fcst: ',varname_fcst)
+                print('varname_ref: ',varname_ref)
+                print('dict_ind: ',dict_ind)
+                print('fcst_prod: ',fcst_prod)
+                print('imetric: ',imetric)
+                print('eval_metric: ',eval_metric)
                 metric_ds[metric_name].loc[dict_ind] = eval_metrics_func[imetric](data_ds[varname_fcst],
-                                                                                  data_ds[varname_ref])
+                                                                                  data_ds[varname_ref]
+                                                                                  #data_clim,
+                                                                                 )
+                print('data_ds[varname_fcst] shape: ',data_ds[varname_fcst].shape)
             # end of metric-loop
         # end of forecast product-loop
         

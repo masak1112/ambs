@@ -121,7 +121,7 @@ class Scores:
     Class to calculate scores and skill scores.
     """
 
-    known_scores = ["mse", "psnr","ssim"]
+    known_scores = ["mse", "psnr","ssim", "acc"]
 
     def __init__(self, score_name: str, dims: List[str]):
         """
@@ -132,7 +132,7 @@ class Scores:
         """
         method = Scores.__init__.__name__
 
-        self.metrics_dict = {"mse": self.calc_mse_batch , "psnr": self.calc_psnr_batch, "ssim":self.calc_ssim_batch}
+        self.metrics_dict = {"mse": self.calc_mse_batch , "psnr": self.calc_psnr_batch, "ssim":self.calc_ssim_batch, "acc":self.calc_acc_batch}
         if set(self.metrics_dict.keys()) != set(Scores.known_scores):
             raise ValueError("%{0}: Known scores must coincide with keys of metrics_dict.".format(method))
         self.score_name = self.set_score_name(score_name)
@@ -199,7 +199,7 @@ class Scores:
         :param data_ref: reference data (xarray with dimensions [batch, lat, lon])
         :return: averaged psnr for each batch example
         """
-        method = Scores.calc_mse_batch.__name__
+        method = Scores.calc_psnr_batch.__name__
 
         if "pixel_max" in kwargs:
             pixel_max = kwargs.get("pixel_max")
@@ -216,7 +216,7 @@ class Scores:
         return psnr
 
 
-    def calc_ssim_batch(self, data_fcast, data_ref, **kwargs):
+    def calc_ssim_batch(self, data_fcst, data_ref, **kwargs):
         """
         Calculate ssim ealuation metric of forecast data w.r.t reference data
         :param data_fcst: forecasted data (xarray with dimensions [batch, lat, lon])
@@ -224,8 +224,52 @@ class Scores:
         :return: averaged ssim for each batch example
         """
         method = Scores.calc_ssim_batch.__name__
+ 
+        ssim_pred = self.calc_mse_batch(data_fcst, data_ref)
 
-        ssim_pred = ssim(data_ref, data_fcast,
-                         data_range = data_fcast.max() - data_fcast.min())
+        #ssim_pred = ssim(data_ref, data_fcast,
+        #                 data_range = data_fcast.max() - data_fcast.min())
 
         return ssim_pred
+
+
+    def calc_acc_batch(self, data_fcst, data_ref, **kwargs):
+        """
+        Calculate acc ealuation metric of forecast data w.r.t reference data
+        :param data_fcst: forecasted data (xarray with dimensions [batch, lat, lon])
+        :param data_ref: reference data (xarray with dimensions [batch, lat, lon])
+        :param data_clim: climatology data (xarray with dimensions [monthly, hourly, lat, lon])
+        :param data_time: forecast time ([bacth, :])
+        :return: averaged ssim for each batch example
+        """
+        method = Scores.calc_acc_batch.__name__
+
+
+        if kwargs:
+            print("%{0}: Passed keyword arguments are without effect.".format(method))
+        # sanity checks
+        if self.avg_dims is None:
+            print("%{0}: Squared difference is averaged over all dimensions.".format(method))
+            dims = list(data_fcst.dims)
+        else:
+            dims = self.avg_dims
+
+        acc = np.square(data_fcst - data_ref).mean(dim=dims)
+
+        #batch_size = list(data_fcst.dims)[0]
+        #acc = np.ones([batch_size])*np.nan
+        #for i in range(batch_size):
+        #    img_fcst = data_fcast[i,:,:]
+        #    img_ref = data_ref[i,:,:]
+        #    img_time = data_time[i,:]
+        #    #img_hour = img_time[]
+        #    #img_month = img_time[]
+        #    time_idx = np.where( img_hour == ? & img_month = ?)
+        #    img_clim = data_clim[time_idx,:,:] 
+            
+        #   img1_ = img_ref - img_clim
+        #   img2_ = iag_fcst - img_clim
+        #   cor1 = np.sum(img1_*img2_)
+        #   cor2 = np.sqrt(np.sum(img1_**2)*np.sum(img2_**2))
+        #   acc[i] = cor1/cor2
+        return acc
