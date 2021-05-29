@@ -198,14 +198,14 @@ def get_era5_varatts(data_arr: xr.DataArray, name):
     else:
         addstr = ""
 
-    longname = provide_default(era5_varname_map, name_splitted[0], None)
-    if longname is None:
+    longname = provide_default(era5_varname_map, name_splitted[0], -1)
+    if longname == -1:
         pass
     else:
         data_arr["longname"] = "{0} {1}".format(longname, addstr)
 
-    unit = provide_default(era5_varunit_map, name_splitted[0], None)
-    if unit is None:
+    unit = provide_default(era5_varunit_map, name_splitted[0], -1)
+    if unit == -1:
         pass
     else:
         data_arr["unit"] = unit
