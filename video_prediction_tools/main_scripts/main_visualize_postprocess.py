@@ -786,26 +786,28 @@ class Postprocess(TrainModel):
         get_era5_varatts(self.cond_quantiple_ds[var_fcst], self.cond_quantiple_ds[var_fcst].name)
 
         # create plots
-        # calibration refinement factorization
-        plt_fname_cf = os.path.join(self.results_dir, "cond_quantile_{0}_{1}_calibration_refinement.png"
-                                    .format(self.vars_in[self.channel], self.model))
+        data_fcst, data_ref = self.cond_quantiple_ds[var_fcst], self.cond_quantiple_ds[var_ref]
+        fhhs = data_fcst.coords["fcst_hour"]
+        for hh in fhhs:
+            # calibration refinement factorization
+            plt_fname_cf = os.path.join(self.results_dir, "cond_quantile_{0}_{1}_fh{2:0d}_calibration_refinement.png"
+                                        .format(self.vars_in[self.channel], self.model, int(hh)))
 
-        quantile_panel_cf, cond_variable_cf = calculate_cond_quantiles(self.cond_quantiple_ds[var_fcst],
-                                                                       self.cond_quantiple_ds[var_ref],
-                                                                       factorization="calibration_refinement",
-                                                                       quantiles=(0.05, 0.5, 0.95))
+            quantile_panel_cf, cond_variable_cf = calculate_cond_quantiles(data_fcst.sel(fcst_hour=hh),
+                                                                           data_ref.sel(fcst_hour=hh),
+                                                                           factorization="calibration_refinement",
+                                                                           quantiles=(0.05, 0.5, 0.95))
 
-        plot_cond_quantile(quantile_panel_cf, cond_variable_cf, plt_fname_cf)
+            plot_cond_quantile(quantile_panel_cf, cond_variable_cf, plt_fname_cf)
 
-        # likelihood-base rate factorization
-        plt_fname_lbr = plt_fname_cf.replace("calibration_refinement", "likelihood-base_rate")
-        quantile_panel_lbr, cond_variable_lbr = calculate_cond_quantiles(self.cond_quantiple_ds[var_fcst],
-                                                                       self.cond_quantiple_ds[var_ref],
-                                                                       factorization="likelihood-base_rate",
-                                                                       quantiles=(0.05, 0.5, 0.95))
+            # likelihood-base rate factorization
+            plt_fname_lbr = plt_fname_cf.replace("calibration_refinement", "likelihood-base_rate")
+            quantile_panel_lbr, cond_variable_lbr = calculate_cond_quantiles(data_fcst.sel(fcst_hour=hh),
+                                                                             data_ref.sel(fcst_hour=hh),
+                                                                             factorization="likelihood-base_rate",
+                                                                             quantiles=(0.05, 0.5, 0.95))
 
-        plot_cond_quantile(quantile_panel_lbr, cond_variable_lbr, plt_fname_lbr)
-
+            plot_cond_quantile(quantile_panel_lbr, cond_variable_lbr, plt_fname_lbr)
 
     @staticmethod
     def clean_obj_attribute(obj, attr_name, lremove=False):
