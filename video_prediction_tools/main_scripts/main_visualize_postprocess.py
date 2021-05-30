@@ -70,7 +70,7 @@ class Postprocess(TrainModel):
         # configuration of basic evaluation
         self.eval_metrics = eval_metrics
         self.nboots_block = 1000
-        self.block_length = 5 #* 24  # this corresponds to a block length of 7 days in case of hourly forecasts
+        self.block_length = 7 * 24  # this corresponds to a block length of 7 days in case of hourly forecasts
 
         # initialize evrything to get an executable Postprocess instance
         self.save_args_to_option_json()     # create options.json-in results directory
@@ -93,7 +93,7 @@ class Postprocess(TrainModel):
         self.cond_quantile_vars = self.init_cond_quantile_vars()
         # setup test dataset and model
         self.test_dataset, self.num_samples_per_epoch = self.setup_test_dataset()
-        self.num_samples_per_epoch = 100
+        # self.num_samples_per_epoch = 100              # reduced number of epoch samples -> useful for testing
         self.sequence_length, self.context_frames, self.future_length = self.get_data_params()
         self.inputs, self.input_ts = self.make_test_dataset_iterator()
         # set-up model, its graph and do GPU-configuration (from TrainModel)
