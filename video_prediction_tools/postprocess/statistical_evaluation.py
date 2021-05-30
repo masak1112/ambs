@@ -1,4 +1,5 @@
-
+import datetime
+import pandas as pd
 import numpy as np
 import xarray as xr
 from typing import Union, List
@@ -170,7 +171,7 @@ class Scores:
                 print("* {0}".format(score))
             raise ValueError("%{0}: The selected score '{1}' cannot be selected.".format(method, score_name))
 
-    def calc_mse_batch(self, data_fcst, data_ref, **kwargs):
+    def calc_mse_batch(self, data_fcst, data_ref, data_clim, **kwargs):
         """
         Calculate mse of forecast data w.r.t. reference data
         :param data_fcst: forecasted data (xarray with dimensions [batch, lat, lon])
@@ -192,7 +193,7 @@ class Scores:
 
         return mse
 
-    def calc_psnr_batch(self, data_fcst, data_ref, **kwargs):
+    def calc_psnr_batch(self, data_fcst, data_ref, data_clim,**kwargs):
         """
         Calculate psnr of forecast data w.r.t. reference data
         :param data_fcst: forecasted data (xarray with dimensions [batch, lat, lon])
@@ -206,7 +207,7 @@ class Scores:
         else:
             pixel_max = 1.
 
-        mse = self.calc_mse_batch(data_fcst, data_ref)
+        mse = self.calc_mse_batch(data_fcst, data_ref, data_clim)
         if np.count_nonzero(mse) == 0:
             psnr = mse
             psnr[...] = 100.
@@ -216,7 +217,7 @@ class Scores:
         return psnr
 
 
-    def calc_ssim_batch(self, data_fcst, data_ref, **kwargs):
+    def calc_ssim_batch(self, data_fcst, data_ref, data_clim, **kwargs):
         """
         Calculate ssim ealuation metric of forecast data w.r.t reference data
         :param data_fcst: forecasted data (xarray with dimensions [batch, lat, lon])
@@ -225,7 +226,7 @@ class Scores:
         """
         method = Scores.calc_ssim_batch.__name__
  
-        ssim_pred = self.calc_mse_batch(data_fcst, data_ref)
+        ssim_pred = self.calc_mse_batch(data_fcst, data_ref, data_clim)
 
         #ssim_pred = ssim(data_ref, data_fcast,
         #                 data_range = data_fcast.max() - data_fcast.min())
@@ -233,43 +234,42 @@ class Scores:
         return ssim_pred
 
 
-    def calc_acc_batch(self, data_fcst, data_ref, **kwargs):
+    def calc_acc_batch(self, data_fcst, data_ref, data_clim, **kwargs):
         """
         Calculate acc ealuation metric of forecast data w.r.t reference data
-        :param data_fcst: forecasted data (xarray with dimensions [batch, lat, lon])
-        :param data_ref: reference data (xarray with dimensions [batch, lat, lon])
-        :param data_clim: climatology data (xarray with dimensions [monthly, hourly, lat, lon])
-        :param data_time: forecast time ([bacth, :])
-        :return: averaged ssim for each batch example
+        :param data_fcst: forecasted data (xarray with dimensions [batch, fore_hours, lat, lon])
+        :param data_ref: reference data (xarray with dimensions [batch, fore_hours, lat, lon])
+        :param data_clim: climatology data (xarray with dimensions [monthly*hourly, lat, lon])
+        :return: averaged acc for each batch example [batch, fore_hours]
         """
         method = Scores.calc_acc_batch.__name__
 
+        #acc = np.square(data_fcst - data_ref).mean(dim=dims)
 
-        if kwargs:
-            print("%{0}: Passed keyword arguments are without effect.".format(method))
-        # sanity checks
-        if self.avg_dims is None:
-            print("%{0}: Squared difference is averaged over all dimensions.".format(method))
-            dims = list(data_fcst.dims)
-        else:
-            dims = self.avg_dims
-
-        acc = np.square(data_fcst - data_ref).mean(dim=dims)
-
-        #batch_size = list(data_fcst.dims)[0]
-        #acc = np.ones([batch_size])*np.nan
-        #for i in range(batch_size):
-        #    img_fcst = data_fcast[i,:,:]
-        #    img_ref = data_ref[i,:,:]
-        #    img_time = data_time[i,:]
-        #    #img_hour = img_time[]
-        #    #img_month = img_time[]
-        #    time_idx = np.where( img_hour == ? & img_month = ?)
-        #    img_clim = data_clim[time_idx,:,:] 
+        #print(data_fcst)
+        print('data_clim shape: ',data_clim.shape)
+        batch_size = data_fcst.shape[0]
+        fore_hours = data_fcst.shape[1]
+        #print('batch_size: ',batch_size)
+        #print('fore_hours: ',fore_hours)
+        acc = np.ones([batch_size,fore_hours])*np.nan
+        for i in range(batch_size):
+            for j in range(fore_hours):
+                img_fcst = data_fcst[i,j,:,:]
+                img_ref = data_ref[i,j,:,:]
+                # get the forecast time
+                print('img_fcst.init_time: ',img_fcst.init_time)
+                fcst_time = xr.Dataset({'time': pd.to_datetime(img_fcst.init_time.data) + datetime.timedelta(hours=j)})
+                print('fcst_time: ',fcst_time.time)
+                img_month = fcst_time.time.dt.month
+                img_hour = fcst_time.time.dt.hour
             
-        #   img1_ = img_ref - img_clim
-        #   img2_ = iag_fcst - img_clim
-        #   cor1 = np.sum(img1_*img2_)
-        #   cor2 = np.sqrt(np.sum(img1_**2)*np.sum(img2_**2))
-        #   acc[i] = cor1/cor2
+                time_idx = (img_month-1)*24+img_hour
+                img_clim = data_clim[time_idx,:,:] 
+           
+                img1_ = img_ref - img_clim
+                img2_ = img_fcst - img_clim
+                cor1 = np.sum(img1_*img2_)
+                cor2 = np.sqrt(np.sum(img1_**2)*np.sum(img2_**2))
+                acc[i,j] = cor1/cor2
         return acc

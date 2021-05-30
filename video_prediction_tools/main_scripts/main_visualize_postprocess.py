@@ -29,7 +29,7 @@ from statistical_evaluation import perform_block_bootstrap_metric, avg_metrics, 
 
 
 class Postprocess(TrainModel):
-    def __init__(self, results_dir=None, checkpoint=None, mode="test", batch_size=None, num_stochastic_samples=1,
+    def __init__(self, results_dir=None, checkpoint=None, clim_path="/p/scratch/deepacf/video_prediction_shared_folder/preprocessedData/T2monthly",mode="test", batch_size=None, num_stochastic_samples=1,
                  stochastic_plot_id=0, gpu_mem_frac=None, seed=None, args=None, run_mode="deterministic"):
         """
         The function for inference, generate results and images
@@ -80,6 +80,7 @@ class Postprocess(TrainModel):
         self.stochastic_plot_id = stochastic_plot_id
         self.args = args
         self.checkpoint = checkpoint
+        self.clim_path = clim_path
         self.run_mode = run_mode
         self.mode = mode
         if self.checkpoint is None:
@@ -94,6 +95,7 @@ class Postprocess(TrainModel):
         self.copy_data_model_json()
         self.load_jsons()
         self.get_metadata()
+        self.load_climdata()
         self.setup_test_dataset()
         self.setup_model()
         self.get_data_params()
@@ -214,6 +216,35 @@ class Postprocess(TrainModel):
                                      attrs={"units": "degrees_east"})
         self.lons = xr.DataArray(md_instance.lon, coords={"lon": md_instance.lon}, dims="lon",
                                      attrs={"units": "degrees_north"})
+        #print('self.lats: ',self.lats)
+
+    def load_climdata(self):
+        """
+        load climate data, but have to improve !!!!!
+        """
+        data_clim_path = os.path.join(self.clim_path, "climatology_t2m_1991-2020.nc")
+        data = xr.open_dataset(data_clim_path)
+        data_clim = data.load()
+        clim_lon = data_clim['lon'].data
+        clim_lat = data_clim['lat'].data
+        #print('clim_lat: ',clim_lat) 
+       
+        meta_lon_loc = np.zeros((len(clim_lon)), dtype=bool)
+        for i in range(len(clim_lon)):
+           # print('np.round(clim_lat[i]*10)/10: ',np.round(clim_lon[i]*10)/10)
+            #print('self.lons: ',self.lons)
+            if np.round(clim_lon[i]*10)/10 in self.lons.data:
+                meta_lon_loc[i] = True
+
+        meta_lat_loc = np.zeros((len(clim_lat)), dtype=bool)
+        for i in range(len(clim_lat)):
+            if np.round(clim_lat[i]*10)/10 in self.lats.data:
+                #print('np.round(clim_lat[i]*10)/10: ',np.round(clim_lat[i]*10)/10)
+                meta_lat_loc[i] = True
+
+        clim = data_clim['T2M']
+        self.data_clim = clim[dict(lon=meta_lon_loc,lat=meta_lat_loc)]
+        print('self.data_clim shape: ',self.data_clim.shape)
 
     def setup_test_dataset(self):
         """
@@ -562,10 +593,12 @@ class Postprocess(TrainModel):
                 print('imetric: ',imetric)
                 print('eval_metric: ',eval_metric)
                 metric_ds[metric_name].loc[dict_ind] = eval_metrics_func[imetric](data_ds[varname_fcst],
-                                                                                  data_ds[varname_ref]
-                                                                                  #data_clim,
+                                                                                  data_ds[varname_ref],
+                                                                                  self.data_clim,
                                                                                  )
                 print('data_ds[varname_fcst] shape: ',data_ds[varname_fcst].shape)
+                print('metric_ds[metric_name].loc[dict_ind] shape: ',metric_ds[metric_name].loc[dict_ind].shape)
+                print('metric_ds[metric_name].loc[dict_ind]: ',metric_ds[metric_name].loc[dict_ind])
             # end of metric-loop
         # end of forecast product-loop
         
