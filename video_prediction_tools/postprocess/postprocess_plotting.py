@@ -74,9 +74,9 @@ def plot_cond_quantile(quantile_panel: xr.DataArray, data_marginal: xr.DataArray
     xr.plot.hist(data_marginal, ax=ax2, bins=bins, color="k", alpha=0.3)
     ax2.set_yscale("log")
 
-    ylabel = "{0} [{1}]".format(provide_default(quantile_panel.attrs, "cond_var_name", "conditiong variable"),
+    xlabel = "{0} [{1}]".format(provide_default(quantile_panel.attrs, "cond_var_name", "conditiong variable"),
                                 provide_default(quantile_panel.attrs, "cond_var_unit", "unknown"))
-    xlabel = "{0} [{1}]".format(provide_default(quantile_panel.attrs, "tar_var_name", "target variable"),
+    ylabel = "{0} [{1}]".format(provide_default(quantile_panel.attrs, "tar_var_name", "target variable"),
                                 provide_default(quantile_panel.attrs, "tar_var_unit", "unknown"))
 
     ax.set_ylabel(ylabel, fontsize=fs_title)
