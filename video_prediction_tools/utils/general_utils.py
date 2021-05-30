@@ -202,13 +202,13 @@ def get_era5_varatts(data_arr: xr.DataArray, name):
     if longname == -1:
         pass
     else:
-        data_arr["longname"] = "{0} {1}".format(longname, addstr)
+        data_arr.attrs["longname"] = "{0} {1}".format(longname, addstr)
 
     unit = provide_default(era5_varunit_map, name_splitted[0], -1)
     if unit == -1:
         pass
     else:
-        data_arr["unit"] = unit
+        data_arr.attrs["unit"] = unit
 
     return data_arr
 
