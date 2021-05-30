@@ -42,9 +42,11 @@ def plot_cond_quantile(quantile_panel: xr.DataArray, data_marginal: xr.DataArray
     if opt is None:
         opt = {}
 
+    print("%{0}: Start creating conditional quantile plot in file '{1}'".format(method, plt_fname))
+
     bins_c = quantile_panel["bin_center"]
     bin_width = bins_c[1] - bins_c[0]
-    bins = np.arange(bins_c[0]-bin_width/2., bins_c+1.5*bin_width/2, bin_width)
+    bins = np.arange(bins_c[0]-bin_width/2., bins_c[-1]+1.5*bin_width/2, bin_width)
     quantiles = quantile_panel["quantile"]
     nquantiles = len(quantiles)
     if nquantiles%2 != 1:
@@ -71,10 +73,10 @@ def plot_cond_quantile(quantile_panel: xr.DataArray, data_marginal: xr.DataArray
     xr.plot.hist(data_marginal, ax=ax2, bins=bins, color="k", alpha=0.3)
     ax2.set_yscale("log")
 
-    ylabel = "{0} [{1}]".format(provide_default(quantile_panel.attr, "data_cond_longname", "conditiong variable"),
-                                provide_default(quantile_panel.attr, "data_cond_unit", "unknown"))
-    xlabel = "{0} [{1}]".format(provide_default(quantile_panel.attr, "data_cond_longname", "target variable"),
-                                provide_default(quantile_panel.attr, "data_cond_unit", "unknown"))
+    ylabel = "{0} [{1}]".format(provide_default(quantile_panel.attrs, "data_cond_longname", "conditiong variable"),
+                                provide_default(quantile_panel.attrs, "data_cond_unit", "unknown"))
+    xlabel = "{0} [{1}]".format(provide_default(quantile_panel.attrs, "data_cond_longname", "target variable"),
+                                provide_default(quantile_panel.attrs, "data_cond_unit", "unknown"))
 
     ax.set_ylabel(ylabel, fontsize=fs_title)
     ax2.set_ylabel("counts", fontsize=fs_title)
