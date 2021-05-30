@@ -782,11 +782,10 @@ class Postprocess(TrainModel):
         var_fcst = "{0}_{1}_fcst".format(self.vars_in[self.channel], self.model)
         var_ref = "{0}_ref".format(self.vars_in[self.channel])
 
-        get_era5_varatts(self.cond_quantiple_ds[var_fcst], self.cond_quantiple_ds[var_fcst].name)
-        get_era5_varatts(self.cond_quantiple_ds[var_fcst], self.cond_quantiple_ds[var_fcst].name)
+        data_fcst = get_era5_varatts(self.cond_quantiple_ds[var_fcst], self.cond_quantiple_ds[var_fcst].name)
+        data_ref = get_era5_varatts(self.cond_quantiple_ds[var_ref], self.cond_quantiple_ds[var_ref].name)
 
         # create plots
-        data_fcst, data_ref = self.cond_quantiple_ds[var_fcst], self.cond_quantiple_ds[var_ref]
         fhhs = data_fcst.coords["fcst_hour"]
         for hh in fhhs:
             # calibration refinement factorization
