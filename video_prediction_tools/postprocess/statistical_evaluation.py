@@ -40,7 +40,7 @@ def calculate_cond_quantiles(data_fcst: xr.DataArray, data_ref: xr.DataArray, fa
     if not isinstance(data_ref, xr.DataArray):
         raise ValueError("%{0}: data_ref must be a DataArray.".format(method))
 
-    if not (data_fcst.coords == data_ref.coords and data_fcst.dims == data_ref.dims):
+    if not (list(data_fcst.coords) == list(data_ref.coords) and list(data_fcst.dims) == list(data_ref.dims)):
         raise ValueError("%{0}: Coordinates and dimensions of data_fcst and data_ref must be the same".format(method))
 
     nquantiles = len(quantiles)
@@ -58,11 +58,12 @@ def calculate_cond_quantiles(data_fcst: xr.DataArray, data_ref: xr.DataArray, fa
                          .format(method))
 
     # get and set some basic attributes
-    data_cond_longname = provide_default(data_cond.attr, "longname", "conditioning_variable")
-    data_cond_unit = provide_default(data_cond.attr, "unit", "unknown")
+    print(data_cond) 
+    data_cond_longname = provide_default(data_cond.attrs, "longname", "conditioning_variable")
+    data_cond_unit = provide_default(data_cond.attrs, "unit", "unknown")
 
-    data_tar_longname = provide_default(data_tar.attr, "longname", "target_variable")
-    data_tar_unit = provide_default(data_cond.attr, "unit", "unknown")
+    data_tar_longname = provide_default(data_tar.attrs, "longname", "target_variable")
+    data_tar_unit = provide_default(data_cond.attrs, "unit", "unknown")
 
     # get bins for conditioning
     data_cond_min, data_cond_max = np.floor(np.min(data_cond)), np.ceil(np.max(data_cond))
@@ -71,9 +72,11 @@ def calculate_cond_quantiles(data_fcst: xr.DataArray, data_ref: xr.DataArray, fa
     nbins = len(bins) - 1
     # initialize quantile data array
     quantile_panel = xr.DataArray(np.full((nbins, nquantiles), np.nan),
-                                  coords={"bin_center": bins_c, "quantile": quantiles}, dims=["bin_center", "quantile"],
+                                  coords={"bin_center": bins_c, "quantile": list(quantiles)}, dims=["bin_center", "quantile"],
                                   attrs={"cond_var_name": data_cond_longname, "cond_var_unit": data_cond_unit,
                                          "tar_var_name": data_tar_longname, "tar_var_unit": data_tar_unit})
+    
+    print("%{0}: Start caclulating conditional quantiles for all {1:d} bins.".format(method, nbins))
     # fill the quantile data array
     for i in np.arange(nbins):
         # conditioning of ground truth based on forecast
