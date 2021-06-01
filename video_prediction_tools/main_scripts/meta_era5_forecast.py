@@ -9,15 +9,21 @@ import json
 
 ##########################################################
 # forecast_path = "/p/project/deepacf/deeprain/video_prediction_shared_folder/results/era5-Y2007-2019M01to12-80x48-3960N0180E-2t_tcc_t_850_langguth1/savp/20210505T131220_mache1_karim_savp_smreg_cv3_3"
-forecast_path = "/p/scratch/deepacf/ji4/results/era5-Y2007-2019M01to12-92x56-3840N0000E-tp_tcc_clwc_925/savp/20210520T233729_ji4_prcp"
-with xr.open_dataset(os.path.join(forecast_path,'vfp_date_2016123021_sample_ind_2086.nc')) as dfiles:
+# forecast_path = "/p/scratch/deepacf/ji4/results/era5-Y2007-2019M01to12-92x56-3840N0000E-tp_tcc_clwc_925/savp/20210520T233729_ji4_prcp"
+forecast_path = "/p/project/deepacf/deeprain/video_prediction_shared_folder/results/gzprcp_data/convLSTM/20210515T105520_ji4_ji0"
+with xr.open_dataset(os.path.join(forecast_path,'vfp_sampleind_1499.nc')) as dfiles:
     data = dfiles.load()
+
+mask_path = "/p/scratch/deepacf/video_prediction_shared_folder/extractedData/guizhou_prcp"
+with xr.open_dataset(os.path.join(mask_path,'mask.nc')) as dfiles:
+    mask = dfiles.load()
 
 ##########################################################
 # forecast_path = "/p/project/deepacf/deeprain/video_prediction_shared_folder/results/era5-Y2007-2019M01to12-80x48-3960N0180E-2t_tcc_t_850_langguth1/savp/20210505T131220_mache1_karim_savp_smreg_cv3_3"
-forecast_path = "/p/scratch/deepacf/ji4/results/era5-Y2007-2019M01to12-92x56-3840N0000E-tp_tcc_clwc_925/savp/20210520T233729_ji4_prcp"
+# forecast_path = "/p/scratch/deepacf/ji4/results/era5-Y2007-2019M01to12-92x56-3840N0000E-tp_tcc_clwc_925/savp/20210520T233729_ji4_prcp"
+forecast_path = "/p/project/deepacf/deeprain/video_prediction_shared_folder/results/gzprcp_data/convLSTM/20210515T105520_ji4_ji0"
 # file_name = 'vfp_date_*_sample_ind_10[0-9][0-9].nc'
-file_name = 'vfp_date_*_sample_ind_*.nc'
+file_name = 'vfp_sampleind_*.nc'
 file_path = os.path.join(forecast_path,file_name)
 
 def non_intetst_vars(ds):
@@ -26,25 +32,29 @@ def non_intetst_vars(ds):
 
 lead_hour = 0
 def get_relevant_vars(ds,lead_hour=lead_hour):
-    return ds.drop(non_intetst_vars(ds)).isel(fcst_hour=lead_hour)
+    return ds.drop(non_intetst_vars(ds)).isel(time_forecast=lead_hour)
+    #return ds.drop(non_intetst_vars(ds)).isel(fcst_hour=lead_hour)
 
 # vars2proc = ['2t_ref','2t_savp_fcst']
-vars2proc = ['tp_ref','tp_savp_fcst']
+# vars2proc = ['tp_ref','tp_savp_fcst']
+vars2proc = ['2t_ref','2t_fcst']
 time0 = time.time()
-with xr.open_mfdataset(file_path,decode_cf=True,concat_dim=["init_time"],compat="broadcast_equals",preprocess=get_relevant_vars) as dfiles:
+# with xr.open_mfdataset(file_path,decode_cf=True,concat_dim=["init_time"],compat="broadcast_equals",preprocess=get_relevant_vars) as dfiles:
+with xr.open_mfdataset(file_path,decode_cf=True,concat_dim=["time_forecast"],compat="broadcast_equals",preprocess=get_relevant_vars) as dfiles:
     data = dfiles.load()
     print("Redistering forecast data took {:.2f} seconds".format(time.time()-time0))
 
 # ref,savp_fcst = data['2t_ref'], data['2t_savp_fcst']
-ref,savp_fcst = data['tp_ref'], data['tp_savp_fcst']
-
-### simpliy compute forecast time (lead_time<24)
-fcst_time = np.array(data.init_time.dt.hour+lead_hour)
-for i in range(len(fcst_time)): 
-    if fcst_time[i] > 23:
-        fcst_time[i] = fcst_time[i]-24
+# ref,savp_fcst = data['tp_ref'], data['tp_savp_fcst']
+ref,fcst = data['2t_ref'], data['2t_fcst']
 
 ##########################################################
+### simpliy compute forecast time (lead_time<24)
+#fcst_time = np.array(data.init_time.dt.hour+lead_hour)
+#for i in range(len(fcst_time)):
+#    if fcst_time[i] > 23:
+#        fcst_time[i] = fcst_time[i]-24
+
 ### load global climate t2m data, year1980~2019
 #t2m_monthly_dir = '/p/scratch/deepacf/video_prediction_shared_folder/preprocessedData/T2monthly'
 #t2m_monthly_filename = '*_t2m.nc'
@@ -93,8 +103,8 @@ def compute_rmse(ref,fcst):
     rmse = np.sqrt(np.mean((ref-fcst)**2))
     return rmse
 
-rmse_savp = compute_rmse(ref,savp_fcst)
-print('RMSE of savp model is: ', rmse_savp)
+rmse = compute_rmse(ref,fcst)
+print('RMSE of model is: ', rmse)
 
 def compute_rmse_metric(ref,fcst):
     '''
@@ -107,7 +117,7 @@ def compute_rmse_metric(ref,fcst):
         for j in range(ny):
             rmse[i,j] = np.sqrt(np.mean((ref[:,i,j]-fcst[:,i,j])**2))
 
-RMSE_savp = compute_rmse_metric(ref,savp_fcst)
+RMSE = compute_rmse_metric(ref,fcst)
 
 ##########################################################
 def compute_acc(ref,fcst,clim):
@@ -131,7 +141,7 @@ def compute_csi(ref,fcst,th0,th1):
             misses = misses + 1
         elif ((ref[i]<=th0) | (ref[i]>th1)) & ((fcst[i]>th0) & (fcst[i]<=th1)):
             false_alarms = false_alarms + 1
-        elif ((ref[i]<=th0) | (ref[i]>th1)) & ((fcst[i]<=th0) & (fcst[i]>th1)):
+        elif ((ref[i]<=th0) | (ref[i]>th1)) & ((fcst[i]<=th0) | (fcst[i]>th1)):
             correct_negatives = correct_negatives + 1
     csi = hits/(hits+false_alarms+misses)
     pod = misses/(hits+misses)
