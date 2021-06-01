@@ -17,7 +17,6 @@ import pickle
 import datetime as dt
 import json
 import matplotlib
-
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 from mpl_toolkits.basemap import Basemap
@@ -59,7 +58,7 @@ class Postprocess(TrainModel):
         self.input_dir_tfr = None
         self.input_dir_pkl = None
         # forecast products and evaluation metrics to be handled in postprocessing
-        self.eval_metrics = ["mse", "psnr"]
+        self.eval_metrics = ["mse", "psnr", "ssim"]
         self.fcst_products = {"persistence": "pfcst", "model": "mfcst"}
         # initialize dataset to track evaluation metrics and configure bootstrapping procedure
         self.eval_metrics_ds = None
@@ -394,7 +393,7 @@ class Postprocess(TrainModel):
         self.stochastic_loss_all_batches = np.mean(np.array(self.stochastic_loss_all_batches), axis=0)
         assert len(np.array(self.persistent_loss_all_batches).shape) == 1
         assert np.array(self.persistent_loss_all_batches).shape[0] == self.future_length
-        print("Bug here:", np.array(self.stochastic_loss_all_batches).shape)
+
         assert len(np.array(self.stochastic_loss_all_batches).shape) == 2
         assert np.array(self.stochastic_loss_all_batches).shape[0] == self.num_stochastic_samples
 
@@ -531,7 +530,7 @@ class Postprocess(TrainModel):
 
         # dictionary of implemented evaluation metrics
         dims = ["lat", "lon"]
-        known_eval_metrics = {"mse": Scores("mse", dims), "psnr": Scores("psnr", dims)}
+        known_eval_metrics = {"mse": Scores("mse", dims), "psnr": Scores("psnr", dims),"ssim": Scores("ssim",dims)}
 
         # generate list of functions that calculate requested evaluation metrics
         if set(self.eval_metrics).issubset(known_eval_metrics):
