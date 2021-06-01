@@ -225,12 +225,7 @@ class Scores:
         :return: averaged ssim for each batch example
         """
         method = Scores.calc_ssim_batch.__name__
- 
-        ssim_pred = self.calc_mse_batch(data_fcst, data_ref, data_clim)
-
-        #ssim_pred = ssim(data_ref, data_fcast,
-        #                 data_range = data_fcast.max() - data_fcast.min())
-
+        ssim_pred = ssim(data_ref[0,0,:,:], data_fcast[0,0,:,:])
         return ssim_pred
 
 
