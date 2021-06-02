@@ -20,7 +20,7 @@ from model_modules.video_prediction.datasets import ERA5Dataset
 
 
 class ERA5Pkl2Tfrecords(ERA5Dataset):
-    def __init__(self, input_dir=None, dest_dir=None,  sequence_length=20, sequences_per_file=128, norm="minmax"):
+    def __init__(self, input_dir=None, dest_dir=None,  sequence_length=20, sequences_per_file=128, norm="cbnorm"):
         """
         This class is used for converting pkl files to tfrecords
         args:
@@ -42,7 +42,7 @@ class ERA5Pkl2Tfrecords(ERA5Dataset):
         self.get_metadata(MetaData(json_file=self.metadata_fl))
         # Get the data split informaiton
         self.sequence_length = sequence_length
-        if norm == "minmax" or norm == "znorm":
+        if norm == "minmax" or norm == "znorm" or norm == "cbnorm":
             self.norm = norm
         else:
             raise ValueError("norm should be either 'minmax' or 'znorm'")

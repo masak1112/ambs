@@ -16,7 +16,7 @@
 
 # default value for base directory
 # base_data_dir_default=/p/project/deepacf/deeprain/video_prediction_shared_folder/
-base_data_dir_default=/p/project/deepacf/deeprain/ji4/ambs/
+base_data_dir_default=/p/scratch/deepacf/ji4/
 # some further directory paths
 CURR_DIR_FULL=`pwd`
 CURR_DIR="$(basename "$CURR_DIR_FULL")"
