@@ -12,7 +12,6 @@ Provides:   * get_unique_vars
 
 # import modules
 import os
-import sys
 import numpy as np
 import xarray as xr
 
@@ -138,7 +137,7 @@ def check_dir(path2dir: str, lcreate=False):
     if (path2dir is None) or not isinstance(path2dir, str):
         raise ValueError("%{0}: path2dir must be a string defining a pat to a directory.".format(method))
 
-    if os.path.isdir(path2dir):
+    elif os.path.isdir(path2dir):
         return True
     else:
         if lcreate:
@@ -177,7 +176,7 @@ def provide_default(dict_in, keyname, default=None, required=False):
         return dict_in[keyname]
 
 
-def get_era5_varatts(data_arr: xr.DataArray, name):
+def get_era5_varatts(data_arr: xr.DataArray, name: str):
     """
     Writes longname and unit to data arrays given their name is known
     :param data_arr: the data array
