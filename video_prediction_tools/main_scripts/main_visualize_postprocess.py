@@ -58,7 +58,7 @@ class Postprocess(TrainModel):
         self.input_dir_tfr = None
         self.input_dir_pkl = None
         # forecast products and evaluation metrics to be handled in postprocessing
-        self.eval_metrics = ["mse", "psnr", "ssim", "acc"]
+        self.eval_metrics = ["mse", "psnr", "ssim"]
         self.fcst_products = {"persistence": "pfcst", "model": "mfcst"}
         # initialize dataset to track evaluation metrics and configure bootstrapping procedure
         self.eval_metrics_ds = None
@@ -218,33 +218,31 @@ class Postprocess(TrainModel):
                                      attrs={"units": "degrees_north"})
         #print('self.lats: ',self.lats)
 
-    def load_climdata(self):
+    def load_climdata(self,clim_path="/p/scratch/deepacf/video_prediction_shared_folder/preprocessedData/T2monthly",
+                            var="T2M",climatology_fl="climatology_t2m_1991-2020.nc"):
         """
-        load climate data, but have to improve !!!!!
+        params:climatology_fl: str, the full path to the climatology file
+        params:var           : str, the variable name 
+        
         """
-        data_clim_path = os.path.join(self.clim_path, "climatology_t2m_1991-2020.nc")
+        data_clim_path = os.path.join(clim_path,climatology_fl)
         data = xr.open_dataset(data_clim_path)
         data_clim = data.load()
         clim_lon = data_clim['lon'].data
         clim_lat = data_clim['lat'].data
-        #print('clim_lat: ',clim_lat) 
-       
+        
         meta_lon_loc = np.zeros((len(clim_lon)), dtype=bool)
         for i in range(len(clim_lon)):
-           # print('np.round(clim_lat[i]*10)/10: ',np.round(clim_lon[i]*10)/10)
-            #print('self.lons: ',self.lons)
-            if np.round(clim_lon[i]*10)/10 in self.lons.data:
+            if np.round(clim_lon[i],1) in self.lons.data:
                 meta_lon_loc[i] = True
 
         meta_lat_loc = np.zeros((len(clim_lat)), dtype=bool)
         for i in range(len(clim_lat)):
-            if np.round(clim_lat[i]*10)/10 in self.lats.data:
-                #print('np.round(clim_lat[i]*10)/10: ',np.round(clim_lat[i]*10)/10)
+            if np.round(clim_lat[i],1) in self.lats.data:
                 meta_lat_loc[i] = True
 
-        clim = data_clim['T2M']
+        clim = data_clim[var]
         self.data_clim = clim[dict(lon=meta_lon_loc,lat=meta_lat_loc)]
-        print('self.data_clim shape: ',self.data_clim.shape)
 
     def setup_test_dataset(self):
         """
@@ -563,8 +561,7 @@ class Postprocess(TrainModel):
 
         # dictionary of implemented evaluation metrics
         dims = ["lat", "lon"]
-        known_eval_metrics = {"mse": Scores("mse", dims), "psnr": Scores("psnr", dims),"ssim": Scores("ssim",dims), "acc": Scores("acc",dims)}
-
+        known_eval_metrics = {key : Scores (key,dims) for key in self.eval_metrics}
         # generate list of functions that calculate requested evaluation metrics
         if set(self.eval_metrics).issubset(known_eval_metrics):
             eval_metrics_func = [known_eval_metrics[metric].score_func for metric in self.eval_metrics]
@@ -594,7 +591,6 @@ class Postprocess(TrainModel):
                 print('eval_metric: ',eval_metric)
                 metric_ds[metric_name].loc[dict_ind] = eval_metrics_func[imetric](data_ds[varname_fcst],
                                                                                   data_ds[varname_ref],
-                                                                                  self.data_clim,
                                                                                  )
                 print('data_ds[varname_fcst] shape: ',data_ds[varname_fcst].shape)
                 print('metric_ds[metric_name].loc[dict_ind] shape: ',metric_ds[metric_name].loc[dict_ind].shape)

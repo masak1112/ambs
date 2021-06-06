@@ -171,12 +171,12 @@ class Scores:
                 print("* {0}".format(score))
             raise ValueError("%{0}: The selected score '{1}' cannot be selected.".format(method, score_name))
 
-    def calc_mse_batch(self, data_fcst, data_ref, data_clim, **kwargs):
+    def calc_mse_batch(self, data_fcst, data_ref, **kwargs):
         """
         Calculate mse of forecast data w.r.t. reference data
         :param data_fcst: forecasted data (xarray with dimensions [batch, lat, lon])
         :param data_ref: reference data (xarray with dimensions [batch, lat, lon])
-        :return: averaged mse for each batch example
+        :return: averaged mse for each batch example, [batch,fore_hours]
         """
         method = Scores.calc_mse_batch.__name__
 
@@ -193,12 +193,12 @@ class Scores:
 
         return mse
 
-    def calc_psnr_batch(self, data_fcst, data_ref, data_clim,**kwargs):
+    def calc_psnr_batch(self, data_fcst, data_ref, **kwargs):
         """
         Calculate psnr of forecast data w.r.t. reference data
-        :param data_fcst: forecasted data (xarray with dimensions [batch, lat, lon])
-        :param data_ref: reference data (xarray with dimensions [batch, lat, lon])
-        :return: averaged psnr for each batch example
+        :param data_fcst: forecasted data (xarray with dimensions [batch,fore_hours, lat, lon])
+        :param data_ref: reference data (xarray with dimensions [batch, fore_hours, lat, lon])
+        :return: averaged psnr for each batch example [batch, fore_hours]
         """
         method = Scores.calc_psnr_batch.__name__
 
@@ -207,7 +207,7 @@ class Scores:
         else:
             pixel_max = 1.
 
-        mse = self.calc_mse_batch(data_fcst, data_ref, data_clim)
+        mse = self.calc_mse_batch(data_fcst, data_ref)
         if np.count_nonzero(mse) == 0:
             psnr = mse
             psnr[...] = 100.
@@ -217,19 +217,22 @@ class Scores:
         return psnr
 
 
-    def calc_ssim_batch(self, data_fcst, data_ref, data_clim, **kwargs):
+    def calc_ssim_batch(self, data_fcst, data_ref, **kwargs):
         """
         Calculate ssim ealuation metric of forecast data w.r.t reference data
-        :param data_fcst: forecasted data (xarray with dimensions [batch, lat, lon])
-        :param data_ref: reference data (xarray with dimensions [batch, lat, lon])
+        :param data_fcst: forecasted data (xarray with dimensions [batch, fore_hours, lat, lon])
+        :param data_ref: reference data (xarray with dimensions [batch, fore_hours, lat, lon])
         :return: averaged ssim for each batch example
         """
         method = Scores.calc_ssim_batch.__name__
-        ssim_pred = ssim(data_ref[0,0,:,:], data_fcast[0,0,:,:])
+        batch_size = np.array(data_ref).shape[0]
+        fore_hours = np.array(data_fcst).shape[1]
+        ssim_pred = [ssim(data_ref[i,j,:,:],data_fcst[i,j,:,:]) for i in range(batch_size) for j in range(fore_hours) ]
+        ssim_pred = ssim(data_ref[0,0,:,:], data_fcst[0,0,:,:])
         return ssim_pred
 
 
-    def calc_acc_batch(self, data_fcst, data_ref, data_clim, **kwargs):
+    def calc_acc_batch(self, data_fcst, data_ref,  **kwargs):
         """
         Calculate acc ealuation metric of forecast data w.r.t reference data
         :param data_fcst: forecasted data (xarray with dimensions [batch, fore_hours, lat, lon])
@@ -237,6 +240,9 @@ class Scores:
         :param data_clim: climatology data (xarray with dimensions [monthly*hourly, lat, lon])
         :return: averaged acc for each batch example [batch, fore_hours]
         """
+        if "data_clim" in kwargs:
+            data_clim = kwargs["data_clim"]
+        
         method = Scores.calc_acc_batch.__name__
 
         #acc = np.square(data_fcst - data_ref).mean(dim=dims)
