@@ -58,7 +58,7 @@ class Postprocess(TrainModel):
         self.input_dir_tfr = None
         self.input_dir_pkl = None
         # forecast products and evaluation metrics to be handled in postprocessing
-        self.eval_metrics = ["mse", "psnr", "ssim"]
+        self.eval_metrics = ["mse", "psnr", "ssim","acc"]
         self.fcst_products = {"persistence": "pfcst", "model": "mfcst"}
         # initialize dataset to track evaluation metrics and configure bootstrapping procedure
         self.eval_metrics_ds = None
@@ -77,6 +77,7 @@ class Postprocess(TrainModel):
         self.gpu_mem_frac = gpu_mem_frac
         self.seed = seed
         self.num_stochastic_samples = num_stochastic_samples
+        self.num_samples_per_epoch = 20 # reduce number of epoch samples  
         self.stochastic_plot_id = stochastic_plot_id
         self.args = args
         self.checkpoint = checkpoint
@@ -100,6 +101,7 @@ class Postprocess(TrainModel):
         self.setup_model()
         self.get_data_params()
         self.setup_num_samples_per_epoch()
+        self.num_samples_per_epoch = 2000 # reduce number of epoch samples  
         self.get_stat_file()
         self.make_test_dataset_iterator()
         self.check_stochastic_samples_ind_based_on_model()
@@ -476,7 +478,12 @@ class Postprocess(TrainModel):
                 # save sequences to netcdf-file and track initial time
                 nc_fname = os.path.join(self.results_dir, "vfp_date_{0}_sample_ind_{1:d}.nc"
                                         .format(pd.to_datetime(init_times[i]).strftime("%Y%m%d%H"), sample_ind + i))
-                self.save_ds_to_netcdf(batch_ds.isel(init_time=i), nc_fname)
+                
+                if os.path.exists(nc_fname):
+                    print("The file {} exist".format(nc_fname))
+                else:
+                    self.save_ds_to_netcdf(batch_ds.isel(init_time=i), nc_fname)
+
                 # end of batch-loop
             # write evaluation metric to corresponding dataset...
             print('batch_ds: ',batch_ds)
@@ -589,9 +596,9 @@ class Postprocess(TrainModel):
                 print('fcst_prod: ',fcst_prod)
                 print('imetric: ',imetric)
                 print('eval_metric: ',eval_metric)
-                metric_ds[metric_name].loc[dict_ind] = eval_metrics_func[imetric](data_ds[varname_fcst],
-                                                                                  data_ds[varname_ref],
-                                                                                 )
+                metric_ds[metric_name].loc[dict_ind] = eval_metrics_func[imetric](data_fcst=data_ds[varname_fcst],
+                                                                                  data_ref=data_ds[varname_ref],
+                                                                                  data_clim=self.data_clim)
                 print('data_ds[varname_fcst] shape: ',data_ds[varname_fcst].shape)
                 print('metric_ds[metric_name].loc[dict_ind] shape: ',metric_ds[metric_name].loc[dict_ind].shape)
                 print('metric_ds[metric_name].loc[dict_ind]: ',metric_ds[metric_name].loc[dict_ind])

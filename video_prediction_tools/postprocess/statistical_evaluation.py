@@ -228,7 +228,6 @@ class Scores:
         batch_size = np.array(data_ref).shape[0]
         fore_hours = np.array(data_fcst).shape[1]
         ssim_pred = [ssim(data_ref[i,j,:,:],data_fcst[i,j,:,:]) for i in range(batch_size) for j in range(fore_hours) ]
-        ssim_pred = ssim(data_ref[0,0,:,:], data_fcst[0,0,:,:])
         return ssim_pred
 
 
@@ -242,7 +241,7 @@ class Scores:
         """
         if "data_clim" in kwargs:
             data_clim = kwargs["data_clim"]
-        
+      
         method = Scores.calc_acc_batch.__name__
 
         #acc = np.square(data_fcst - data_ref).mean(dim=dims)
