@@ -31,6 +31,7 @@ class GZprcp(object):
         self.mode = mode 
         print('mdoe: ',mode)
         self.seed = seed
+        self.sequence_length = None 
         if self.mode not in ('train', 'val', 'test'):
             raise ValueError('Invalid mode %s' % self.mode)
         if not os.path.exists(self.input_dir):
@@ -104,7 +105,6 @@ class GZprcp(object):
             nz=16,
             max_epochs=4,
             context_frames=20,
-            sequence_length=40
         )
         return hparams
 
@@ -123,7 +123,6 @@ class GZprcp(object):
         """
         hparams = dict(
             context_frames=20,
-            sequence_length=40,
             max_epochs = 8,
             batch_size = 4,
             lr = 0.001,
@@ -187,6 +186,7 @@ class GZprcp(object):
         feature = dict_message['features']['feature']
         print("features in dataset:",feature.keys())
         self.video_shape = tuple(int(feature[key]['int64List']['value'][0]) for key in ['sequence_length','height', 'width', 'channels'])
+        self.sequence_length = self.video_shape[0]
         self.image_shape = self.video_shape[1:]
 
 

@@ -140,12 +140,10 @@ class TrainModel(object):
         Simultaneously, sequence_length is attached to the hyperparameter dictionary.
         """
         VideoDataset = datasets.get_dataset_class(self.dataset)
-        print(self.dataset)
-        print(VideoDataset)
-        self.train_dataset = VideoDataset(input_dir=self.input_dir,mode='train',datasplit_config=self.datasplit_dict,hparams_dict_config=self.model_hparams_dict)
-        self.val_dataset = VideoDataset(input_dir=self.input_dir, mode='val',datasplit_config=self.datasplit_dict,hparams_dict_config=self.model_hparams_dict)
-        #self.variable_scope = tf.get_variable_scope()
-        #self.variable_scope.set_use_resource(True)
+        self.train_dataset = VideoDataset(input_dir=self.input_dir,mode='train',datasplit_config=self.datasplit_dict)
+        self.val_dataset = VideoDataset(input_dir=self.input_dir, mode='val',datasplit_config=self.datasplit_dict)
+
+        self.model_hparams_dict_load.update({"sequence_length": self.train_dataset.sequence_length})
 
     def setup_model(self):
         """
@@ -177,11 +175,6 @@ class TrainModel(object):
         self.iterator = tf.data.Iterator.from_string_handle(
             self.train_handle, self.train_tf_dataset.output_types, self.train_tf_dataset.output_shapes)
         self.inputs = self.iterator.get_next()
-        #since era5 tfrecords include T_start, we need to remove it from the tfrecord when we train the model,
-        # otherwise the model will raise error
-        if self.dataset == "era5" and self.model == "savp":
-           del self.inputs["T_start"]
-
 
     def save_dataset_model_params_to_checkpoint_dir(self, dataset, video_model):
         """
