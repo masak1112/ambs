@@ -779,8 +779,8 @@ class Postprocess(TrainModel):
         Postprocess.clean_obj_attribute(self, "eval_metrics_ds")
 
         # the variables for conditional quantile plot
-        var_fcst = "{0}_{1}_fcst".format(self.vars_in[self.channel], self.model)
-        var_ref = "{0}_ref".format(self.vars_in[self.channel])
+        var_fcst = self.cond_quantile_vars[0]
+        var_ref = self.cond_quantile_vars[1]
 
         data_fcst = get_era5_varatts(self.cond_quantiple_ds[var_fcst], self.cond_quantiple_ds[var_fcst].name)
         data_ref = get_era5_varatts(self.cond_quantiple_ds[var_ref], self.cond_quantiple_ds[var_ref].name)
@@ -1091,7 +1091,7 @@ class Postprocess(TrainModel):
         if not set(varnames).issubset(ds_in.data_vars):
             raise ValueError("%{0}: Could not find all variables ({1}) in input dataset ds_in.".format(method,
                                                                                                        varnames_str))
-
+        #Bing : why using dtype as an aurument since it seems you only want ton configure dtype as np.double
         if dtype is None:
             dtype = np.double
         else:
