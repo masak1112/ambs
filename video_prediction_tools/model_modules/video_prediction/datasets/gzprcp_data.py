@@ -27,7 +27,9 @@ class GZprcp(object):
         :return None
         """
         self.input_dir = input_dir
+        print('input_dir: ',input_dir)
         self.mode = mode 
+        print('mdoe: ',mode)
         self.seed = seed
         if self.mode not in ('train', 'val', 'test'):
             raise ValueError('Invalid mode %s' % self.mode)
@@ -36,8 +38,11 @@ class GZprcp(object):
         self.datasplit_dict_path = datasplit_config
         self.data_dict = self.get_datasplit()
         self.hparams_dict_config = hparams_dict_config
+        print('hparams_dict_config: ',hparams_dict_config)
         self.hparams_dict = self.get_model_hparams_dict()
+        print('self.hparams_dict: ',self.hparams_dict)
         self.hparams = self.parse_hparams()
+        print('self.hparams: ',self.hparams)
         self.get_tfrecords_filename_base_datasplit()
         self.get_example_info()
 
@@ -46,30 +51,64 @@ class GZprcp(object):
         Get the datasplit json file
         """
         with open(self.datasplit_dict_path) as f:
-            self.d = json.load(f)
-        return self.d
+            d = json.load(f)
+        return d
 
     def get_model_hparams_dict(self):
         """
         Get model_hparams_dict from json file
         """
-        self.model_hparams_dict_load = {}
+        model_hparams_dict_load = {}
         if self.hparams_dict_config:
             with open(self.hparams_dict_config) as f:
-                self.model_hparams_dict_load.update(json.loads(f.read()))
-        return self.model_hparams_dict_load
+                model_hparams_dict_load.update(json.loads(f.read()))
+        return model_hparams_dict_load
                     
     def parse_hparams(self):
         """
         Parse the hparams setting to ovoerride the default ones
         """
         parsed_hparams = self.get_default_hparams().override_from_dict(self.hparams_dict or {})
+        #parsed_hparams = self.hparams_dict
         return parsed_hparams
 
     def get_default_hparams(self):
-        return HParams(**self.get_default_hparams_dict())
+        return HParams(**self.get_default_hparams_dict_savp())
 
-    def get_default_hparams_dict(self):
+    def get_default_hparams_dict_savp(self):
+
+        """
+        The function that contains default hparams
+        Returns:
+            A dict with the following hyperparameters.
+            context_frames  : the number of ground-truth frames to pass in at start.
+            sequence_length : the number of frames in the video sequence 
+            max_epochs      : the number of epochs to train model
+            lr              : learning rate
+            loss_fun        : the loss function
+        :return:
+        """
+        hparams = dict(
+            batch_size=4,
+            lr=0.0002,
+            beta1=0.5,
+            beta2=0.999,
+            l1_weight=100.0,
+            l2_weight=0.0,
+            kl_weight=0.01,
+            video_sn_vae_gan_weight=0.1,
+            video_sn_gan_weight=0.1,
+            vae_gan_feature_cdist_weight=10.0,
+            gan_feature_cdist_weight=0.0,
+            state_weight=0.0,
+            nz=16,
+            max_epochs=4,
+            context_frames=20,
+            sequence_length=40
+        )
+        return hparams
+
+    def get_default_hparams_dict_convlstm(self):
 
         """
         The function that contains default hparams
@@ -85,7 +124,7 @@ class GZprcp(object):
         hparams = dict(
             context_frames=20,
             sequence_length=40,
-            max_epochs = 20,
+            max_epochs = 8,
             batch_size = 4,
             lr = 0.001,
             loss_fun = "rmse",
@@ -97,18 +136,30 @@ class GZprcp(object):
        """
        Get obsoluate .tfrecords names based on the data splits patterns
        """
+       self.tf_names = []
        self.filenames = []
        self.data_mode = self.data_dict[self.mode]
-       self.all_filenames = glob.glob(os.path.join(self.input_dir,"*.tfrecords"))
-       print("self.all_files",self.all_filenames)
-       for indice_group, index in self.data_mode.items():
-           fs = [GZprcp.string_filter(max_value=index[1], min_value=index[0], string=s) for s in self.all_filenames]
-           self.tf_names = [self.all_filenames[fs_index] for fs_index in range(len(fs)) if fs[fs_index]==True]
-           print("tf_names:",self.tf_names)
-           print("tf_length",len(self.tf_names))
-       # look for tfrecords in input_dir and input_dir/mode directories
+       for var,year in self.data_mode.items():
+           print('year',year)
+           tf_files = glob.glob(os.path.join(self.input_dir,"*{}*.tfrecords".format(year)))
+           self.tf_names.append(tf_files)
+           #print('self.tf_names: ',self.tf_names[0])
+       #print('self.tf_names length: ',len(self.tf_names))
        for files in self.tf_names:
-            self.filenames.extend(glob.glob(os.path.join(self.input_dir, files)))
+           self.filenames.extend(files)
+       print('self.filenames: ',self.filenames[0])
+       print('self.filenames length: ',len(self.filenames)) 
+
+       #print("tf_names:",self.filenames)
+       #print("tf_length",len(self.filenames))
+       #for indice_group, index in self.data_mode.items():
+       #    fs = [GZprcp.string_filter(max_value=index[1], min_value=index[0], string=s) for s in self.all_filenames]
+       #    self.tf_names = [self.all_filenames[fs_index] for fs_index in range(len(fs)) if fs[fs_index]==True]
+       #    print("tf_names:",self.tf_names)
+       #    print("tf_length",len(self.tf_names))
+       # look for tfrecords in input_dir and input_dir/mode directories
+       #for files in self.tf_names:
+       #     self.filenames.extend(glob.glob(os.path.join(self.input_dir, files)))
        if self.filenames:
            self.filenames = sorted(self.filenames)  # ensures order is the same across systems
        if not self.filenames:
@@ -170,17 +221,20 @@ class GZprcp(object):
                  'height': tf.FixedLenFeature([], tf.int64),
                  'sequence_length': tf.FixedLenFeature([], tf.int64),
                  'channels': tf.FixedLenFeature([],tf.int64),
-                 't_start': tf.FixedLenFeature([],tf.int64),
+                 't_start':  tf.VarLenFeature(tf.int64),
                  'images/encoded': tf.VarLenFeature(tf.float32)
              }
             parsed_features = tf.parse_single_example(serialized_example, keys_to_features)
             seq = tf.sparse_tensor_to_dense(parsed_features["images/encoded"])
+            T_start = tf.sparse_tensor_to_dense(parsed_features["t_start"])
+            images = []
             print("Image shape {}, {},{},{}".format(self.video_shape[0],self.image_shape[0],self.image_shape[1], self.image_shape[2]))
             images = tf.reshape(seq, [self.video_shape[0],self.image_shape[0],self.image_shape[1], self.image_shape[2]], name = "reshape_new")
             seqs["images"] = images
+            seqs["T_start"] = T_start
             return seqs
         filenames = self.filenames
-        shuffle = self.mode == 'train' or (self.mode == 'val' and self.hparams.shuffle_on_val)
+        shuffle = self.mode == 'train' or (self.mode == 'val')
         print("number of epochs",self.num_epochs)
         if shuffle:
             random.shuffle(filenames)
@@ -189,7 +243,7 @@ class GZprcp(object):
             dataset = dataset.apply(tf.contrib.data.shuffle_and_repeat(buffer_size =1024, count=self.num_epochs))
         else:
             dataset = dataset.repeat(self.num_epochs)
-        if self.mode == "val": dataset = dataset.repeat(110)
+        if self.mode == "val": dataset = dataset.repeat(20)
         num_parallel_calls = None if shuffle else 1
         dataset = dataset.apply(tf.contrib.data.map_and_batch(
             parser, batch_size, drop_remainder=True, num_parallel_calls=num_parallel_calls))

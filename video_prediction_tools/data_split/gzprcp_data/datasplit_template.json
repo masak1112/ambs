@@ -7,14 +7,14 @@
 #              Be aware that this is a prue data file, i.e. do not make use of any Python-functions such as np.range or similar here!
 {
     "train":{ 
-             "index1":[0,100]
+             "year":[2017]
              },
      "val":
              {
-             "index1":[110,149]
+             "year":[2018]
              },
       "test":
              {
-	     "index1":[150,200]
+	     "year":[2019]
              }
  }

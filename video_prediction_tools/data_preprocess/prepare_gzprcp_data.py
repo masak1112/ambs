@@ -5,7 +5,7 @@ __email__ = "y.ji@fz-juelich.de"
 __author__ = "Yan Ji, Bing Gong"
 __date__ = "2021_05_09"
 
-
+import datetime
 import os
 import numpy as np
 import tensorflow as tf
@@ -16,7 +16,7 @@ from model_modules.video_prediction.datasets.gzprcp_data import GZprcp
 
 class GZprcp2Tfrecords(GZprcp):
 
-    def __init__(self, input_dir=None, dest_dir=None, sequences_per_file=10):
+    def __init__(self, input_dir=None, target_year=2019,dest_dir=None, sequences_per_file=10):
         """
         This class is used for converting .nc files to tfrecords
 
@@ -27,6 +27,7 @@ class GZprcp2Tfrecords(GZprcp):
         """
         self.input_dir = input_dir
         self.output_dir = dest_dir
+        self.target_year = target_year
         os.makedirs(self.output_dir, exist_ok = True)
         self.sequences_per_file = sequences_per_file
         self.write_sequence_file()
@@ -40,7 +41,7 @@ class GZprcp2Tfrecords(GZprcp):
         self.save_nc_to_tfrecords()
 
     def read_nc_file(self):
-        data_temp = nc.Dataset(os.path.join(self.input_dir, "guizhou_prcp.nc"))
+        data_temp = nc.Dataset(os.path.join(self.input_dir,str(self.target_year),"rainy","guizhou_prcp.nc"))
         prcp_temp = np.transpose(data_temp['prcp'],[3,2,1,0])
         prcp_temp[np.isnan(prcp_temp)] = 0
         self.data = prcp_temp
@@ -67,20 +68,36 @@ class GZprcp2Tfrecords(GZprcp):
 
         self.data = self.data.astype(np.float32)
         # self.data/= 255.0  # normalize RGB codes by dividing it to the max RGB value
+        
+        ############# normalization ############
+        self.data = self.data**1./3 # cubic normalization
+        ############# normalization ############
+        
         while idx < num_samples - self.sequences_per_file:
             sequences = self.data[idx:idx+self.sequences_per_file, :, :, :, :]
-            t_start = self.time[idx,0,4]+self.time[idx,0,3]*100+self.time[idx,0,2]*10000+self.time[idx,0,1]*1000000+self.time[idx,0,0]*100000000
-            output_fname = 'sequence_index_{}_to_{}.tfrecords'.format(idx, idx + self.sequences_per_file-1)
+
+            t_start = self.time[idx:idx+self.sequences_per_file,19,4]+self.time[idx:idx+self.sequences_per_file,19,3]*100+self.time[idx:idx+self.sequences_per_file,19,2]*10000+self.time[idx:idx+self.sequences_per_file,19,1]*1000000+self.time[idx:idx+self.sequences_per_file,19,0]*100000000
+
+            # t_start = self.time[idx:idx+self.sequences_per_file,:,:]
+
+            output_fname = 'sequence_Y_{}_index_{}_to_{}.tfrecords'.format(self.target_year, idx, idx + self.sequences_per_file-1)
             output_fname = os.path.join(self.output_dir, output_fname)
             GZprcp2Tfrecords.save_tf_record(output_fname, sequences, t_start)
             idx = idx + self.sequences_per_file
         return None
 
     @staticmethod
-    def save_tf_record(output_fname, sequences, t_start):
+    def save_tf_record(output_fname, sequences, t_start_points):
         with tf.python_io.TFRecordWriter(output_fname) as writer:
             for i in range(np.array(sequences).shape[0]):
                 sequence = sequences[i, :, :, :, :]
+                
+                ############### time class ##############
+                # t_start = datetime.datetime(int(t_start_points[i,19,0]),int(t_start_points[i,19,1]),int(t_start_points[i,19,2]),int(t_start_points[i,19,3]),int(t_start_points[i,19,4])).strftime("%Y%m%d%H%M")
+                
+                t_start = int(t_start_points[i])
+                ############### time class ##############
+
                 num_frames = len(sequence)
                 height, width = sequence[0, :, :, 0].shape
                 encoded_sequence = np.array([list(image) for image in sequence])
@@ -89,7 +106,7 @@ class GZprcp2Tfrecords(GZprcp):
                     'height': _int64_feature(height),
                     'width': _int64_feature(width),
                     'channels': _int64_feature(1),
-                    't_start': _int64_feature(int(t_start)),
+                    't_start': _int64_feature(t_start),
                     'images/encoded': _floats_feature(encoded_sequence.flatten()),
                 })
                 example = tf.train.Example(features = features)
@@ -124,11 +141,12 @@ def _int64_feature(value):
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("-source_dir", type=str, help="The input directory that contains the zgprcp_data nc file", default="/p/scratch/deepacf/video_prediction_shared_folder/extractedData/guizhou_prcp")
-    parser.add_argument("-dest_dir", type=str,default="/p/project/deepacf/deeprain/video_prediction_shared_folder/preprocessedData/gzprcp_data/tfrecords_seq_len_40")
+    parser.add_argument("-source_dir", type=str, help="The input directory that contains the zgprcp_data nc file", default="/p/scratch/deepacf/ji4/extractedData/guizhou_prcpdata/prcp_squence/")
+    parser.add_argument("-target_year", type=int,default=2019)
+    parser.add_argument("-dest_dir", type=str,default="/p/scratch/deepacf/ji4/preprocessedData/guizhou_prcpdata/tfrecords_seq_len_40")
     parser.add_argument("-sequences_per_file", type=int, default=10)
     args = parser.parse_args()
-    inst = GZprcp2Tfrecords(args.source_dir, args.dest_dir, args.sequences_per_file)
+    inst = GZprcp2Tfrecords(args.source_dir, args.target_year, args.dest_dir, args.sequences_per_file)
     inst()
 
 
