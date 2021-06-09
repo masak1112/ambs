@@ -76,7 +76,7 @@ def calculate_cond_quantiles(data_fcst: xr.DataArray, data_ref: xr.DataArray, fa
     bins_all = list(np.arange(int(data_all_min), int(data_all_max) + 1))
     bins_c_all = 0.5 * (np.asarray(bins_all[0:-1]) + np.asarray(bins_all[1:]))
     # initialize quantile data array
-    quantile_panel = xr.DataArray(np.full((nbins, nquantiles), np.nan),
+    quantile_panel = xr.DataArray(np.full((nbins_all, nquantiles), np.nan),
                                   coords={"bin_center": bins_c_all, "quantile": list(quantiles)},
                                   dims=["bin_center", "quantile"],
                                   attrs={"cond_var_name": data_cond_longname, "cond_var_unit": data_cond_unit,
