@@ -229,7 +229,8 @@ class Postprocess(TrainModel):
         """
         data_clim_path = os.path.join(clim_path,climatology_fl)
         data = xr.open_dataset(data_clim_path)
-        data_clim = data.load()
+        data_clim = data[var]
+
         clim_lon = data_clim['lon'].data
         clim_lat = data_clim['lat'].data
         
@@ -243,8 +244,20 @@ class Postprocess(TrainModel):
             if np.round(clim_lat[i],1) in self.lats.data:
                 meta_lat_loc[i] = True
 
-        clim = data_clim[var]
-        self.data_clim = clim[dict(lon=meta_lon_loc,lat=meta_lat_loc)]
+        # get the coordinates of the data after running CDO
+        coords = data_clim.coords
+        # modify it our needs
+        coords_new = dict(coords)
+        coords_new.pop("time")
+        coords_new["month"] = np.arange(1, 13) 
+        coords_new["hour"] = np.arange(0, 24)
+        # initialize a new data array with explicit dimensions for month and hour
+        data_clim_new = xr.DataArray(np.full((12, 24, nlat, nlon), np.nan), coords=coords_new, dims=["month", "hour", "lat", "lon"])
+        # do the reorganization
+        for month in np.arange(1, 13): 
+            data_clim_new.loc[dict(month=month)]=data_clim.sel(time=data_clim["time.month"]==month)
+
+        self.data_clim = data_clim_new[dict(lon=meta_lon_loc,lat=meta_lat_loc)]
 
     def setup_test_dataset(self):
         """

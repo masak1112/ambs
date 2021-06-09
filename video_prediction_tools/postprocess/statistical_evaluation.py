@@ -236,18 +236,17 @@ class Scores:
         Calculate acc ealuation metric of forecast data w.r.t reference data
         :param data_fcst: forecasted data (xarray with dimensions [batch, fore_hours, lat, lon])
         :param data_ref: reference data (xarray with dimensions [batch, fore_hours, lat, lon])
-        :param data_clim: climatology data (xarray with dimensions [monthly*hourly, lat, lon])
+        :param data_clim: climatology data (xarray with dimensions [monthly, hourly, lat, lon])
         :return: averaged acc for each batch example [batch, fore_hours]
         """
+        method = Scores.calc_acc_batch.__name__
         if "data_clim" in kwargs:
             data_clim = kwargs["data_clim"]
-      
-        method = Scores.calc_acc_batch.__name__
-
-        #acc = np.square(data_fcst - data_ref).mean(dim=dims)
+        else:
+            raise KeyError("%{0}: climatological data must be parsed to calculate the ACC.".format(method)        
 
         #print(data_fcst)
-        print('data_clim shape: ',data_clim.shape)
+        #print('data_clim shape: ',data_clim.shape)
         batch_size = data_fcst.shape[0]
         fore_hours = data_fcst.shape[1]
         #print('batch_size: ',batch_size)
@@ -263,9 +262,11 @@ class Scores:
                 print('fcst_time: ',fcst_time.time)
                 img_month = fcst_time.time.dt.month
                 img_hour = fcst_time.time.dt.hour
-            
-                time_idx = (img_month-1)*24+img_hour
-                img_clim = data_clim[time_idx,:,:] 
+                img_clim = data_clim.sel(month=img_month, hour=img_hour)               
+ 
+                ### HAVE TO SELECT FORM CLIMATE DATA DIRECTLY; done
+                #time_idx = (img_month-1)*24+img_hour
+                #img_clim = data_clim[time_idx,:,:] 
            
                 img1_ = img_ref - img_clim
                 img2_ = img_fcst - img_clim
