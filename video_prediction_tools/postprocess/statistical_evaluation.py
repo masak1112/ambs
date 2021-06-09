@@ -58,7 +58,6 @@ def calculate_cond_quantiles(data_fcst: xr.DataArray, data_ref: xr.DataArray, fa
                          .format(method))
 
     # get and set some basic attributes
-    print(data_cond) 
     data_cond_longname = provide_default(data_cond.attrs, "longname", "conditioning_variable")
     data_cond_unit = provide_default(data_cond.attrs, "unit", "unknown")
 
@@ -70,9 +69,16 @@ def calculate_cond_quantiles(data_fcst: xr.DataArray, data_ref: xr.DataArray, fa
     bins = list(np.arange(int(data_cond_min), int(data_cond_max) + 1))
     bins_c = 0.5 * (np.asarray(bins[0:-1]) + np.asarray(bins[1:]))
     nbins = len(bins) - 1
+
+    # get all possible bins from target and conditioning variable
+    data_all_min, data_all_max = np.minimum(data_cond_min, np.floor(np.min(data_tar))),\
+                                 np.maximum(data_cond_max, np.ceil(np.max(data_tar)))
+    bins_all = list(np.arange(int(data_all_min), int(data_all_max) + 1))
+    bins_c_all = 0.5 * (np.asarray(bins_all[0:-1]) + np.asarray(bins_all[1:]))
     # initialize quantile data array
     quantile_panel = xr.DataArray(np.full((nbins, nquantiles), np.nan),
-                                  coords={"bin_center": bins_c, "quantile": list(quantiles)}, dims=["bin_center", "quantile"],
+                                  coords={"bin_center": bins_c_all, "quantile": list(quantiles)},
+                                  dims=["bin_center", "quantile"],
                                   attrs={"cond_var_name": data_cond_longname, "cond_var_unit": data_cond_unit,
                                          "tar_var_name": data_tar_longname, "tar_var_unit": data_tar_unit})
     
