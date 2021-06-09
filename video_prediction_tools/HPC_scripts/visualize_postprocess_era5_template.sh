@@ -4,11 +4,11 @@
 #SBATCH --ntasks=1
 ##SBATCH --ntasks-per-node=1
 #SBATCH --cpus-per-task=1
-#SBATCH --output=generate_era5-out.%j
-#SBATCH --error=generate_era5-err.%j
-#SBATCH --time=00:20:00
+#SBATCH --output=postprocess_era5-out.%j
+#SBATCH --error=postprocess_era5-err.%j
+#SBATCH --time=01:00:00
 #SBATCH --gres=gpu:1
-#SBATCH --partition=develgpus
+#SBATCH --partition=gpus
 #SBATCH --mail-type=ALL
 #SBATCH --mail-user=b.gong@fz-juelich.de
 ##jutil env activate -p cjjsc42
@@ -45,6 +45,6 @@ model=convLSTM
 
 # run postprocessing/generation of model results including evaluation metrics
 srun python -u ../main_scripts/main_visualize_postprocess.py --checkpoint  ${checkpoint_dir} --mode test  \
-                                                             --results_dir ${results_dir} --batch_size 2 \
-                                                             --num_samples 20 --num_stochastic_samples 2  \
-                                                               > generate_era5-out.out
+                                                             --results_dir ${results_dir} --batch_size 4 \
+                                                             --num_stochastic_samples 1  \
+                                                               > postprocess_era5-out_all.${SLURM_JOB_ID}

@@ -8,7 +8,7 @@ __date__ = "2021-01-27"
 import os, glob
 import subprocess as sp
 import time
-from config_utils import Config_runscript_base    # import parent class
+from runscript_generator.config_utils import Config_runscript_base    # import parent class
 
 class Config_Extraction(Config_runscript_base):
 

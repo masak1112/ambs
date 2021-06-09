@@ -1,45 +1,59 @@
-'''
+"""
 Code for processing staged ERA5 data, this is used for the DataPreprocessing step 1 of the workflow
-'''
+
+reviewed by Michael Langguth: 2021-03-21
+"""
 
 __email__ = "b.gong@fz-juelich.de"
-__author__ = "Bing Gong, Scarlet Stadtler,Michael Langguth"
+__author__ = "Michael Langguth, Bing Gong, Scarlet Stadtler"
 
-import os
-from netCDF4 import Dataset,num2date
-import pickle
+import sys, os
 import fnmatch
-from statistics import Calc_data_stat
+import pickle
 import numpy as np
+import xarray as xr
+import datetime as dt
+from netcdf_datahandling import GeoSubdomain
+from statistics import Calc_data_stat
 
 class PreprocessNcToPkl(object):
 
-    def __init__(self,src_dir=None, target_dir=None, job_name=None, year=None, slices=None, vars=("T2","MSL","gph500")):
+    def __init__(self, src_dir, target_dir, year, job_id, target_dom, variables=("2t", "msl", "t_850")):
         """
-        Function that to process .nc file to pickle file
+        Function to process data from netCDF file to pickle file
         args:
             src_dir    : string, directory based on year  where netCDF-files are stored to be processed
             target_dir : base-directory where data is stored (files are stored under [target_dir]/pickle/[year]/)
-            job_name   : job_id with range "01"-"12" (organized by PyStager) job_name also corresponds to the month
+            job_id     : job_id with range "01"-"12" (organized by PyStager) job_name also corresponds to the month
             year       : year of data to be processed
-            slices     : dictionary e.g.  {'lat_e': 202, 'lat_s': 74, 'lon_e': 710, 'lon_s': 550},
-                         indices defining geographical region of interest
+            target_dom : class instance of GeoSubdomain which defines target domain
             vars       : variables to be processed
         """
         # directory_to_process is month-based directory
-        if int(job_name) > 12 or int(job_name) < 1 or not isinstance(job_name, str):
+        self.directory_to_process=os.path.join(src_dir,str(year), str(job_id))
+        # sanity checks
+        if int(job_id) > 12 or int(job_id) < 1 or not isinstance(job_id, str):
             raise ValueError("job_name should be int type between 1 to 12")
-        self.directory_to_process=os.path.join(src_dir,str(year), str(job_name))
+
         if not os.path.exists(self.directory_to_process):
             raise NotADirectoryError("The directory_to_process '"+self.directory_to_process+"' does not exist")
+
+        if not isinstance(target_dom, GeoSubdomain):
+            raise ValueError("target_dom must be a {0}-instance.".format(GeoSubdomain.__name__))
+
         self.target_dir = os.path.join(target_dir, "pickle", str(year))      # preprocessed data to pickle-subdirectory
         if not os.path.exists(self.target_dir):
-            os.makedirs(self.target_dir,exist_ok=True)
-        self.job_name = job_name
-        self.slices = slices
+            os.mkdir(self.target_dir)
+        self.job_id = job_id
+        self.tar_dom = target_dom
         # target file name needs to be saved
-        self.target_file = os.path.join(self.target_dir, 'X_' + str(self.job_name) + '.pkl')
-        self.vars = vars
+        self.target_file = os.path.join(self.target_dir, 'X_' + str(self.job_id) + '.pkl')
+        self.vars = list(variables)
+        self.nvars = len(variables)
+        # attributes to set during call of class instance
+        self.imageList = None
+        self.stat_obj = None
+        self.data = None
 
     def __call__(self):
         """
@@ -50,111 +64,158 @@ class PreprocessNcToPkl(object):
             print(self.target_file, " file exists in the directory ", self.target_dir)
         else:
             print ("==========Processing files in directory {} =============== ".format(self.directory_to_process))
-            self.get_images_list()
-            self.initia_list_and_stat()
-            self.process_images_to_list_by_month()
-            self.save_images_to_pickle_by_month()
+            self.imageList = self.get_images_list()
+            self.stat_obj = self.init_stat()
+            self.data = self.process_era5_data()
+            self.save_data_to_pickle()
             self.save_stat_info()
-            self.save_temp_to_pickle_by_month()
-      
+    # ------------------------------------------------------------------------------------------------------------------
    
-    def get_images_list(self):
+    def get_images_list(self, patt="ecmwf_era5_[0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9].nc"):
         """
         Get the images list from the directory_to_process and sort them by date names
+        :param patt: The string pattern to filter for (otional)
+        :return filelist_filt: filtered list of files whose names match patt
         """
-        self.imageList_total = list(os.walk(self.directory_to_process, topdown = False))[-1][-1]
-        self.filter_not_match_pattern_files()
-        self.imageList = sorted(self.imageList)
-        return self.imageList
-   
-    def filter_not_match_pattern_files(self):
-        """
-        filter the names of netcdf files with the patterns, if any file does not match the file pattern will removed
-        from the imageList
-        for the pattern symbol:^ match start at beginning of the string,[0-9] match a single character in the range 0-9;
-        +matches one or more of the preceding character (greedy match); $ match start at end of the string
-        file example :ecmwf_era5_17010219.nc
-        """
-        patt = "ecmwf_era5_[0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9].nc"
-        #self.imageList = self.imageList_total
-        #self.imageList = [fnmatch.fnmatch(n, patt) for n in self.imageList_total]
-        self.imageList = fnmatch.filter(self.imageList_total, patt)
-        return self.imageList
+        method = "{0} of class {1}".format(PreprocessNcToPkl.get_images_list.__name__, PreprocessNcToPkl.__name__)
 
-    def initia_list_and_stat(self):
-        """
-        Inits the empty list for store the images and tempral information, and intialise the 
-        """
-        self.EU_stack_list = [0] * (len(self.imageList))
-        self.temporal_list = [0] * (len(self.imageList))
-        self.nvars =  len(self.vars)
-        self.stat_obj = Calc_data_stat(self.nvars)
+        filelist_all = list(os.walk(self.directory_to_process, topdown = False))[-1][-1]
+        filelist_filt = fnmatch.filter(filelist_all, patt)
+        filelist_filt = sorted(filelist_filt)
+        # sanity check
+        if len(filelist_filt) == 0:
+            raise FileNotFoundError("%{0}: Could not find ERA5 netCDf-files under '{1}'"
+                                    .format(method, self.directory_to_process))
 
-    def process_images_to_list_by_month(self):
+        return filelist_filt
+
+    # ------------------------------------------------------------------------------------------------------------------
+
+    def init_stat(self):
+        """
+        Initializes the statistics instance
+        """
+        method = "{0} of class {1}".format(PreprocessNcToPkl.init_stat.__name__, PreprocessNcToPkl.__name__)
+        # sanity check
+        if self.nvars <= 0:
+            raise AttributeError("%{0}: At least one variable must be tracked from the statistic object."
+                                 .format(method))
+
+        stat_obj = Calc_data_stat(self.nvars)
+
+        return stat_obj
+
+    # ------------------------------------------------------------------------------------------------------------------
+
+    def process_era5_data(self):
         """
         Get the selected variables from netCDF file, and concanate all the variables from all the images in the
         directiory_to_process into a list EU_stack_list
         EU_stack_list dimension should be [numer_of_images,height, width,number_of_variables] 
         temporal_list is 1-dim list with timestamp data type, contains all the timestamps of netCDF files.
         """
-        counter = 0 
-        for j, im_file in enumerate(self.imageList):
+        method = "{0} of class {1}".format(PreprocessNcToPkl.process_era5_data.__name__,
+                                           PreprocessNcToPkl.__name__)
+
+        tar_dom = self.tar_dom
+        for j, nc_fname in enumerate(self.imageList):
+            nc_fname_full = os.path.join(self.directory_to_process, nc_fname)
             try:
-                im_path = os.path.join(self.directory_to_process, im_file)
-                vars_list = []
-                with Dataset(im_path,'r') as data_file:
-                    times = data_file.variables['time']
-                    time = num2date(times[:],units=times.units,calendar=times.calendar)
-                    for i in range(self.nvars):
-                        print("the n vars",i)
-                        v = np.squeeze(np.array(data_file.variables[self.vars[i]]))
-                        var1 = v[self.slices["lat_s"]:self.slices["lat_e"], self.slices["lon_s"]:self.slices["lon_e"]]
-                        self.stat_obj.acc_stat_loc(i,var1)
-                        vars_list.append(var1)
-                EU_stack = np.stack(vars_list, axis=2)
-                self.EU_stack_list[j] =list(EU_stack)
-                self.temporal_list[j] = list(time)
-                print('Open following dataset: '+im_path + "was successfully processed")
-            except Exception as err:
-                #if the error occurs at the first nc file, we will skip it
-                if counter == 0:
-                    print("Counter:",counter)
+                data_curr = tar_dom.get_data_dom(nc_fname_full, self.vars)
+                if j == 0:
+                    data_all = data_curr.copy(deep=True)
                 else:
-                    im_path = os.path.join(self.directory_to_process, im_file)
-                    print("*************ERROR*************", err)
-                    print("Error message {} from file {}".format(err,im_file))
-                    self.EU_stack_list[j] = list(EU_stack)  # use the previous image as replacement, we can investigate
-                                                            # further how to deal with the missing values
-                counter += 1
-                continue
+                    data_all = xr.concat([data_all, data_curr], dim="time")
+                # feed statistics-instance (ML, 2021-03-21: This is kind of slow and could be optimized by using
+                # the data_all-dataset directly at the end. However, we keep the former approach for now.)
+                for i, var in enumerate(self.vars):
+                    self.stat_obj.acc_stat_loc(i, np.squeeze(data_curr[var].values))
+            except Exception as err:
+                print("%{0}: ERROR in job {1}: Could not handle data from netCDf-file '{2}'".format(method, self.job_id,
+                                                                                                    nc_fname_full))
+                #print("%{0}: The related error is: {1}".format(method, str(err)))
+                raise err # would better catched by Pystager
 
-    def save_images_to_pickle_by_month(self):
-        """
-        save list of variables from all the images to pickle file
-        """
-        X = np.array(self.EU_stack_list)
-        target_file = os.path.join(self.target_dir, 'X_' + str(self.job_name) + '.pkl')
-        with open(target_file, "wb") as data_file:
-            pickle.dump(X,data_file)
-        return True
+        return data_all
 
-    def save_temp_to_pickle_by_month(self):
+    # ------------------------------------------------------------------------------------------------------------------
+
+    def save_data_to_pickle(self):
+        method = "{0} of class {1}".format(PreprocessNcToPkl.save_data_to_pickle.__name__,
+                                           PreprocessNcToPkl.__name__)
+        # saity check
+        if self.data is None:
+            raise AttributeError("%{0}: Class instance does not contain any data".format(method))
+        
+        # construct pickle filenames
+        tar_fdata = os.path.join(self.target_dir, "X_{0}.pkl".format(self.job_id))
+        tar_ftimes = os.path.join(self.target_dir, "T_{0}.pkl".format(self.job_id))
+        
+        # write data to pickle-file
+        data_arr = self.convert_ds_to_np()
+        try:
+            with open(tar_fdata, "wb") as pkl_file:
+                pickle.dump(data_arr, pkl_file)
+        except Exception as err:
+            print("%{0}: ERROR in job {1}: could not write data to pickle-file '{2}'".format(method, self.job_id,
+                                                                                             tar_fdata))
+            # print("%{0}: The related error is: {1}".format(method, str(err)))
+            raise err                      # would better catched by Pystager
+
+        # write times to pickle-file incl. conversion to datetime-object
+        try:
+            time = self.data.coords["time"]
+            time = np.array([dt.datetime.strptime(np.datetime_as_string(date, "m"), "%Y-%m-%dT%H:%M") for date in time])
+            with open(tar_ftimes, "wb") as tpkl_file:
+                pickle.dump(time, tpkl_file)
+        except Exception as err:
+            print("%{0}: ERROR in job {1}: could not write times to pickle-file '{2}'".format(method, self.job_id,
+                                                                                              tar_ftimes))
+            # print("%{0}: The related error is: {1}".format(method, str(err)))
+            raise err                      # would better catched by Pystager
+
+    # ------------------------------------------------------------------------------------------------------------------
+
+    def convert_ds_to_np(self):
         """
-        save the temporal information to pickle file
+        Converts given dataset to numpy-array that is ready to be pickled
+        :return data_arr: The numpy-array which can be pickled
         """
-        temporal_info = np.array(self.temporal_list)
-        temporal_file = os.path.join(self.target_dir, 'T_' + str(self.job_name) + '.pkl')
-        with open(temporal_file,"wb") as ftemp:
-            pickle.dump(temporal_info,ftemp)
-    
+        method = "{0} of class {1}".format(PreprocessNcToPkl.convert_ds_to_np.__name__,
+                                           PreprocessNcToPkl.__name__)
+
+        if self.data is None:
+            raise AttributeError("%{0}: Class instance still does not contain any data.".format(method))
+
+        # write some attributes to local variables for conveninece
+        data = self.data
+        tar_dom = self.tar_dom
+        # roll data if domain crosses zero-meridian (to get spatially coherent data-arrays)
+        if tar_dom.lon_slices[0] > tar_dom.lon_slices[1]:
+            nroll_lon = tar_dom.nlon - tar_dom.lon_slices[0]
+            data = data.roll(lon=nroll_lon, roll_coords=True)
+
+        # init resulting numpy-array...
+        print("data[self.vars[0]] shape is: ",data[self.vars[0]].shape)
+        dshape = list(np.shape(np.squeeze(data[self.vars[0]]))) + [self.nvars]
+        print("dshape is: ",dshape)
+        data_arr = np.full(dshape, np.nan)
+        print("data_arr shape is: ",data_arr.shape)
+        # ... and populate the data in it
+        for ivar, var in enumerate(self.vars):
+            data_arr[..., ivar] = np.squeeze(data[var].values)
+
+        return data_arr
+
+
     def save_stat_info(self):
         """
         save the stat information to the target dir
         """
         self.stat_obj.finalize_stat_loc(self.vars)
-        self.stat_obj.write_stat_json(self.target_dir,file_id=self.job_name)
+        self.stat_obj.write_stat_json(self.target_dir, file_id=self.job_id)
        
-
+    # -------------------------------------------- end of class --------------------------------------------------------
         
     
 
