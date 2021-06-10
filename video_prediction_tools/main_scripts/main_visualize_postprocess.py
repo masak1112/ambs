@@ -18,9 +18,8 @@ import datetime as dt
 import json
 from typing import Union, List
 # own modules
-from general_utils import get_era5_varatts
 from normalization import Norm_data
-from general_utils import check_dir
+from general_utils import get_era5_varatts, check_dir
 from metadata import MetaData as MetaData
 from main_scripts.main_train_models import *
 from data_preprocess.preprocess_data_step2 import *
@@ -30,9 +29,10 @@ from postprocess_plotting import plot_avg_eval_metrics, plot_cond_quantile, crea
 
 
 class Postprocess(TrainModel):
-    def __init__(self, results_dir=None, checkpoint=None, mode="test", batch_size=None, num_stochastic_samples=1,
-                 stochastic_plot_id=0, gpu_mem_frac=None, seed=None, channel=0, args=None, run_mode="deterministic",
-                 eval_metrics=None):
+    def __init__(self, results_dir: str = None, checkpoint: str= None, mode: str = "test", batch_size: int = None,
+                 num_stochastic_samples: int = 1, stochastic_plot_id: int = 0, gpu_mem_frac: float = None,
+                 seed: int = None, channel: int = 0, args=None, run_mode: str = "deterministic",
+                 eval_metrics: List = ("mse", "psnr", "ssim")):
         """
         Initialization of the class instance for postprocessing (generation of forecasts from trained model +
         basic evauation).
@@ -443,7 +443,7 @@ class Postprocess(TrainModel):
         self.stochastic_loss_all_batches = np.mean(np.array(self.stochastic_loss_all_batches), axis=0)
         assert len(np.array(self.persistent_loss_all_batches).shape) == 1
         assert np.array(self.persistent_loss_all_batches).shape[0] == self.future_length
-        print("Bug here:", np.array(self.stochastic_loss_all_batches).shape)
+
         assert len(np.array(self.stochastic_loss_all_batches).shape) == 2
         assert np.array(self.stochastic_loss_all_batches).shape[0] == self.num_stochastic_samples
 
@@ -597,7 +597,7 @@ class Postprocess(TrainModel):
 
         # dictionary of implemented evaluation metrics
         dims = ["lat", "lon"]
-        known_eval_metrics = {"mse": Scores("mse", dims), "psnr": Scores("psnr", dims)}
+        known_eval_metrics = {"mse": Scores("mse", dims), "psnr": Scores("psnr", dims),"ssim": Scores("ssim",dims)}
 
         # generate list of functions that calculate requested evaluation metrics
         if set(self.eval_metrics).issubset(known_eval_metrics.keys()):

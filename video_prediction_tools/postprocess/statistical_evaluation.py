@@ -8,8 +8,9 @@ __date__ = "2021-05-xx"
 
 import numpy as np
 import xarray as xr
-import pandas as pd
 from typing import Union, List
+from skimage.measure import compare_ssim as ssim
+
 try:
     from tqdm import tqdm
     l_tqdm = True
@@ -134,7 +135,7 @@ def perform_block_bootstrap_metric(metric: da_or_ds, dim_name: str, block_length
                                    seed: int = 42):
     """
     Performs block bootstrapping on metric along given dimension (e.g. along time dimension)
-    :param metric: DataArray or dataset of metric that should be bootstrapped
+    :param metric:  DataArray or dataset of metric that should be bootstrapped
     :param dim_name: name of the dimension on which division into blocks is applied
     :param block_length: length of block (index-based)
     :param nboots_block: number of bootstrapping steps to be performed
@@ -200,18 +201,18 @@ class Scores:
     Class to calculate scores and skill scores.
     """
 
-    known_scores = ["mse", "psnr"]
+    known_scores = ["mse", "psnr","ssim"]
 
     def __init__(self, score_name: str, dims: List[str]):
         """
         Initialize score instance.
-        :param score_name: name of score taht is queried
-        :param dims: list of dimension over which the score shall operate
-        :return: Score instance
+        :param score_name:   name of score that is queried
+        :param dims:         list of dimension over which the score shall operate
+        :return:             Score instance
         """
         method = Scores.__init__.__name__
 
-        self.metrics_dict = {"mse": self.calc_mse_batch , "psnr": self.calc_psnr_batch}
+        self.metrics_dict = {"mse": self.calc_mse_batch , "psnr": self.calc_psnr_batch, "ssim":self.calc_ssim_batch}
         if set(self.metrics_dict.keys()) != set(Scores.known_scores):
             raise ValueError("%{0}: Known scores must coincide with keys of metrics_dict.".format(method))
         self.score_name = self.set_score_name(score_name)
@@ -273,10 +274,10 @@ class Scores:
 
     def calc_psnr_batch(self, data_fcst, data_ref, **kwargs):
         """
-        Calculate mse of forecast data w.r.t. reference data
+        Calculate psnr of forecast data w.r.t. reference data
         :param data_fcst: forecasted data (xarray with dimensions [batch, lat, lon])
         :param data_ref: reference data (xarray with dimensions [batch, lat, lon])
-        :return: averaged mse for each batch example
+        :return: averaged psnr for each batch example
         """
         method = Scores.calc_mse_batch.__name__
 
@@ -295,3 +296,17 @@ class Scores:
         return psnr
 
 
+    def calc_ssim_batch(self, data_fcast, data_ref, **kwargs):
+        """
+        Calculate ssim ealuation metric of forecast data w.r.t reference data
+        :param data_fcst: forecasted data (xarray with dimensions [batch, lat, lon])
+        :param data_ref: reference data (xarray with dimensions [batch, lat, lon])
+        :return: averaged ssim for each batch example
+        """
+        method = Scores.calc_ssim_batch.__name__
+        print("shape of data_ref:",np.array(data_ref).shape)
+        print("shape of data_fcast:",np.array(data_fcast).shape)
+        print("max values of data forecast",data_fcast.max())
+        print("min value of data forecadst",data_fcast.min())
+        ssim_pred = ssim(data_ref[0,0,:,:], data_fcast[0,0,:,:])
+        return ssim_pred
