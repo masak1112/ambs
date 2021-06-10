@@ -10,7 +10,8 @@ import numpy as np
 import xarray as xr
 from typing import Union, List
 from skimage.measure import compare_ssim as ssim
-
+import datetime
+import pandas as pd
 try:
     from tqdm import tqdm
     l_tqdm = True
@@ -201,7 +202,7 @@ class Scores:
     Class to calculate scores and skill scores.
     """
 
-    known_scores = ["mse", "psnr", "ssim"]
+    known_scores = ["mse", "psnr","ssim", "acc"]
 
     def __init__(self, score_name: str, dims: List[str]):
         """
@@ -211,8 +212,7 @@ class Scores:
         :return: Score instance
         """
         method = Scores.__init__.__name__
-
-        self.metrics_dict = {"mse": self.calc_mse_batch, "psnr": self.calc_psnr_batch, "ssim": self.calc_ssim_batch}
+        self.metrics_dict = {"mse": self.calc_mse_batch , "psnr": self.calc_psnr_batch, "ssim":self.calc_ssim_batch, "acc":self.calc_acc_batch}
         if set(self.metrics_dict.keys()) != set(Scores.known_scores):
             raise ValueError("%{0}: Known scores must coincide with keys of metrics_dict.".format(method))
         self.score_name = self.set_score_name(score_name)
@@ -257,7 +257,7 @@ class Scores:
         Calculate mse of forecast data w.r.t. reference data
         :param data_fcst: forecasted data (xarray with dimensions [batch, lat, lon])
         :param data_ref: reference data (xarray with dimensions [batch, lat, lon])
-        :return: averaged mse for each batch example
+        :return: averaged mse for each batch example, [batch,fore_hours]
         """
         method = Scores.calc_mse_batch.__name__
 
@@ -277,11 +277,11 @@ class Scores:
     def calc_psnr_batch(self, data_fcst, data_ref, **kwargs):
         """
         Calculate psnr of forecast data w.r.t. reference data
-        :param data_fcst: forecasted data (xarray with dimensions [batch, lat, lon])
-        :param data_ref: reference data (xarray with dimensions [batch, lat, lon])
-        :return: averaged psnr for each batch example
+        :param data_fcst: forecasted data (xarray with dimensions [batch,fore_hours, lat, lon])
+        :param data_ref: reference data (xarray with dimensions [batch, fore_hours, lat, lon])
+        :return: averaged psnr for each batch example [batch, fore_hours]
         """
-        method = Scores.calc_mse_batch.__name__
+        method = Scores.calc_psnr_batch.__name__
 
         if "pixel_max" in kwargs:
             pixel_max = kwargs.get("pixel_max")
@@ -300,12 +300,57 @@ class Scores:
     def calc_ssim_batch(self, data_fcst, data_ref, **kwargs):
         """
         Calculate ssim ealuation metric of forecast data w.r.t reference data
-        :param data_fcst: forecasted data (xarray with dimensions [batch, lat, lon])
-        :param data_ref: reference data (xarray with dimensions [batch, lat, lon])
-        :return: averaged ssim for each batch example
+        :param data_fcst: forecasted data (xarray with dimensions [batch, fore_hours, lat, lon])
+        :param data_ref: reference data (xarray with dimensions [batch, fore_hours, lat, lon])
+        :return: averaged ssim for each batch example, shape is [batch,fore_hours]
         """
         method = Scores.calc_ssim_batch.__name__
-
-        ssim_pred = ssim(data_ref[0,0,:,:], data_fcst[0,0,:,:])
-
+        batch_size = np.array(data_ref).shape[0]
+        fore_hours = np.array(data_fcst).shape[1]
+        ssim_pred = [[ssim(data_ref[i,j,:,:],data_fcst[i,j,:,:]) for j in range(fore_hours)] for i in range(batch_size)]
         return ssim_pred
+
+
+    def calc_acc_batch(self, data_fcst, data_ref,  **kwargs):
+        """
+        Calculate acc ealuation metric of forecast data w.r.t reference data
+        :param data_fcst: forecasted data (xarray with dimensions [batch, fore_hours, lat, lon])
+        :param data_ref: reference data (xarray with dimensions [batch, fore_hours, lat, lon])
+        :param data_clim: climatology data (xarray with dimensions [monthly, hourly, lat, lon])
+        :return: averaged acc for each batch example [batch, fore_hours]
+        """
+        method = Scores.calc_acc_batch.__name__
+        if "data_clim" in kwargs:
+            data_clim = kwargs["data_clim"]
+        else:
+            raise KeyError("%{0}: climatological data must be parsed to calculate the ACC.".format(method))        
+
+        #print(data_fcst)
+        #print('data_clim shape: ',data_clim.shape)
+        batch_size = data_fcst.shape[0]
+        fore_hours = data_fcst.shape[1]
+        #print('batch_size: ',batch_size)
+        #print('fore_hours: ',fore_hours)
+        acc = np.ones([batch_size,fore_hours])*np.nan
+        for i in range(batch_size):
+            for j in range(fore_hours):
+                img_fcst = data_fcst[i,j,:,:]
+                img_ref = data_ref[i,j,:,:]
+                # get the forecast time
+                print('img_fcst.init_time: ',img_fcst.init_time)
+                fcst_time = xr.Dataset({'time': pd.to_datetime(img_fcst.init_time.data) + datetime.timedelta(hours=j)})
+                print('fcst_time: ',fcst_time.time)
+                img_month = fcst_time.time.dt.month
+                img_hour = fcst_time.time.dt.hour
+                img_clim = data_clim.sel(month=img_month, hour=img_hour)               
+ 
+                ### HAVE TO SELECT FORM CLIMATE DATA DIRECTLY; done
+                #time_idx = (img_month-1)*24+img_hour
+                #img_clim = data_clim[time_idx,:,:] 
+           
+                img1_ = img_ref - img_clim
+                img2_ = img_fcst - img_clim
+                cor1 = np.sum(img1_*img2_)
+                cor2 = np.sqrt(np.sum(img1_**2)*np.sum(img2_**2))
+                acc[i,j] = cor1/cor2
+        return acc

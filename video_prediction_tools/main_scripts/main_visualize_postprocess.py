@@ -32,7 +32,7 @@ class Postprocess(TrainModel):
     def __init__(self, results_dir: str = None, checkpoint: str= None, mode: str = "test", batch_size: int = None,
                  num_stochastic_samples: int = 1, stochastic_plot_id: int = 0, gpu_mem_frac: float = None,
                  seed: int = None, channel: int = 0, args=None, run_mode: str = "deterministic",
-                 eval_metrics: List = ("mse", "psnr", "ssim")):
+                 eval_metrics: List = ("mse", "psnr", "ssim","acc"), clim_path: str ="/p/scratch/deepacf/video_prediction_shared_folder/preprocessedData/T2monthly"):
         """
         Initialization of the class instance for postprocessing (generation of forecasts from trained model +
         basic evauation).
@@ -49,6 +49,7 @@ class Postprocess(TrainModel):
         :param args: namespace of parsed arguments
         :param run_mode: "deterministic" or "stochastic", default: "deterministic", "stochastic is not supported yet!!!
         :param eval_metrics: metrics used to evaluate the trained model
+        :param clim_path:  the path to the climatology nc file
         """
         # copy over attributes from parsed argument
         self.results_dir = self.output_dir = os.path.normpath(results_dir)
@@ -58,9 +59,11 @@ class Postprocess(TrainModel):
         self.seed = seed
         self.set_seed()
         self.num_stochastic_samples = num_stochastic_samples
+        #self.num_samples_per_epoch = 20 # reduce number of epoch samples  
         self.stochastic_plot_id = stochastic_plot_id
         self.args = args
         self.checkpoint = checkpoint
+        self.clim_path = clim_path
         _ = check_dir(self.checkpoint)
         self.run_mode = run_mode
         self.mode = mode
@@ -71,7 +74,6 @@ class Postprocess(TrainModel):
         self.eval_metrics = eval_metrics
         self.nboots_block = 1000
         self.block_length = 7 * 24  # this corresponds to a block length of 7 days in case of hourly forecasts
-
         # initialize evrything to get an executable Postprocess instance
         self.save_args_to_option_json()     # create options.json-in results directory
         self.copy_data_model_json()         # copy over JSON-files from model directory
@@ -100,7 +102,7 @@ class Postprocess(TrainModel):
         self.setup_model()
         self.setup_graph()
         self.setup_gpu_config()
-
+        self.load_climdata()
     # Methods that are called during initialization
     def get_input_dirs(self):
         """
@@ -224,8 +226,58 @@ class Postprocess(TrainModel):
             print("%{0}: Something went wrong when getting metadata from file '{1}'".format(method_name, metadata_fl))
             raise err
 
+        # when the metadat is loaded without problems, the follwoing will work
+        self.height, self.width = md_instance.ny, md_instance.nx
+        self.vars_in = md_instance.variables
+
+        self.lats = xr.DataArray(md_instance.lat, coords={"lat": md_instance.lat}, dims="lat",
+                                     attrs={"units": "degrees_east"})
+        self.lons = xr.DataArray(md_instance.lon, coords={"lon": md_instance.lon}, dims="lon",
+                                     attrs={"units": "degrees_north"})
+        #print('self.lats: ',self.lats)
         return md_instance
 
+    def load_climdata(self,clim_path="/p/scratch/deepacf/video_prediction_shared_folder/preprocessedData/T2monthly",
+                            var="T2M",climatology_fl="climatology_t2m_1991-2020.nc"):
+        """
+        params:climatology_fl: str, the full path to the climatology file
+        params:var           : str, the variable name 
+        
+        """
+        data_clim_path = os.path.join(clim_path,climatology_fl)
+        data = xr.open_dataset(data_clim_path)
+        dt_clim = data[var]
+
+        clim_lon = dt_clim['lon'].data
+        clim_lat = dt_clim['lat'].data
+        
+        meta_lon_loc = np.zeros((len(clim_lon)), dtype=bool)
+        for i in range(len(clim_lon)):
+            if np.round(clim_lon[i],1) in self.lons.data:
+                meta_lon_loc[i] = True
+
+        meta_lat_loc = np.zeros((len(clim_lat)), dtype=bool)
+        for i in range(len(clim_lat)):
+            if np.round(clim_lat[i],1) in self.lats.data:
+                meta_lat_loc[i] = True
+
+        # get the coordinates of the data after running CDO
+        coords = dt_clim.coords
+        nlat, nlon = len(coords["lat"]), len(coords["lon"])
+        # modify it our needs
+        coords_new = dict(coords)
+        coords_new.pop("time")
+        coords_new["month"] = np.arange(1, 13) 
+        coords_new["hour"] = np.arange(0, 24)
+        # initialize a new data array with explicit dimensions for month and hour
+        data_clim_new = xr.DataArray(np.full((12, 24, nlat, nlon), np.nan), coords=coords_new, dims=["month", "hour", "lat", "lon"])
+        # do the reorganization
+        for month in np.arange(1, 13): 
+            data_clim_new.loc[dict(month=month)]=dt_clim.sel(time=dt_clim["time.month"]==month)
+
+        self.data_clim = data_clim_new[dict(lon=meta_lon_loc,lat=meta_lat_loc)]
+        print("self.data_clim",self.data_clim) 
+         
     def setup_test_dataset(self):
         """
         setup the test dataset instance
@@ -487,6 +539,7 @@ class Postprocess(TrainModel):
             for i in np.arange(nbs):
                 # work-around to make use of get_persistence_forecast_per_sample-method
                 times_seq = (pd.date_range(times_0[i], periods=int(self.sequence_length), freq="h")).to_pydatetime()
+                print('times_seq: ',times_seq)
                 # get persistence forecast for sequences at hand and write to dataset
                 persistence_seq, _ = Postprocess.get_persistence(times_seq, self.input_dir_pkl)
                 for ivar, var in enumerate(self.vars_in):
@@ -496,7 +549,12 @@ class Postprocess(TrainModel):
                 # save sequences to netcdf-file and track initial time
                 nc_fname = os.path.join(self.results_dir, "vfp_date_{0}_sample_ind_{1:d}.nc"
                                         .format(pd.to_datetime(init_times[i]).strftime("%Y%m%d%H"), sample_ind + i))
-                self.save_ds_to_netcdf(batch_ds.isel(init_time=i), nc_fname)
+                
+                if os.path.exists(nc_fname):
+                    print("The file {} exist".format(nc_fname))
+                else:
+                    self.save_ds_to_netcdf(batch_ds.isel(init_time=i), nc_fname)
+
                 # end of batch-loop
             # write evaluation metric to corresponding dataset and sa
             eval_metric_ds = self.populate_eval_metric_ds(eval_metric_ds, batch_ds, sample_ind,
@@ -597,30 +655,33 @@ class Postprocess(TrainModel):
 
         # dictionary of implemented evaluation metrics
         dims = ["lat", "lon"]
-        known_eval_metrics = {"mse": Scores("mse", dims), "psnr": Scores("psnr", dims),"ssim": Scores("ssim",dims)}
-
-        # generate list of functions that calculate requested evaluation metrics
-        if set(self.eval_metrics).issubset(known_eval_metrics.keys()):
-            eval_metrics_func = [known_eval_metrics[metric].score_func for metric in self.eval_metrics]
-        else:
-            misses = list(set(self.eval_metrics) - known_eval_metrics.keys())
-            raise NotImplementedError("%{0}: The following requested evaluation metrics are not implemented yet: "
-                                      .format(method, ", ".join(misses)))
-
+        eval_metrics_func = [Scores(metric,dims).score_func for metric in self.eval_metrics]
         varname_ref = "{0}_ref".format(varname)
         # reset init-time coordinate of metric_ds in place and get indices for slicing
         ind_end = np.minimum(ind_start + self.batch_size, self.num_samples_per_epoch)
         init_times_metric = metric_ds["init_time"].values
         init_times_metric[ind_start:ind_end] = data_ds["init_time"]
         metric_ds = metric_ds.assign_coords(init_time=init_times_metric)
+        print("metric_ds",metric_ds)
         # populate metric_ds
         for fcst_prod in self.fcst_products.keys():
             for imetric, eval_metric in enumerate(self.eval_metrics):
                 metric_name = "{0}_{1}_{2}".format(varname, fcst_prod, eval_metric)
                 varname_fcst = "{0}_{1}_fcst".format(varname, fcst_prod)
                 dict_ind = dict(init_time=data_ds["init_time"])
-                metric_ds[metric_name].loc[dict_ind] = eval_metrics_func[imetric](data_ds[varname_fcst],
-                                                                                  data_ds[varname_ref])
+                print('metric_name: ',metric_name)
+                print('varname_fcst: ',varname_fcst)
+                print('varname_ref: ',varname_ref)
+                print('dict_ind: ',dict_ind)
+                print('fcst_prod: ',fcst_prod)
+                print('imetric: ',imetric)
+                print('eval_metric: ',eval_metric)
+                metric_ds[metric_name].loc[dict_ind] = eval_metrics_func[imetric](data_fcst=data_ds[varname_fcst],
+                                                                                  data_ref=data_ds[varname_ref],
+                                                                                  data_clim=self.data_clim)
+                print('data_ds[varname_fcst] shape: ',data_ds[varname_fcst].shape)
+                print('metric_ds[metric_name].loc[dict_ind] shape: ',metric_ds[metric_name].loc[dict_ind].shape)
+                print('metric_ds[metric_name].loc[dict_ind]: ',metric_ds[metric_name].loc[dict_ind])
             # end of metric-loop
         # end of forecast product-loop
         
