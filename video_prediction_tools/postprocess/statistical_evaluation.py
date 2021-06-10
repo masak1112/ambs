@@ -1,3 +1,10 @@
+"""
+Collection of auxiliary functions for statistical evaluation and class for Score-functions
+"""
+
+__email__ = "b.gong@fz-juelich.de"
+__author__ = "Michael Langguth"
+__date__ = "2021-05-xx"
 
 import numpy as np
 import xarray as xr
@@ -9,9 +16,82 @@ try:
     l_tqdm = True
 except:
     l_tqdm = False
+from general_utils import provide_default
 
 # basic data types
 da_or_ds = Union[xr.DataArray, xr.Dataset]
+
+
+def calculate_cond_quantiles(data_fcst: xr.DataArray, data_ref: xr.DataArray, factorization="calibration_refinement",
+                             quantiles=(0.05, 0.5, 0.95)):
+    """
+    Calculate conditional quantiles of forecast and observation/reference data with selected factorization
+    :param data_fcst: forecast data array
+    :param data_ref: observational/reference data array
+    :param factorization: factorization: "likelihood-base_rate" p(m|o) or "calibration_refinement" p(o|m)-> default
+    :param quantiles: conditional quantiles
+    :return quantile_panel: conditional quantiles of p(m|o) or p(o|m)
+    """
+    method = calculate_cond_quantiles.__name__
+
+    # sanity checks
+    if not isinstance(data_fcst, xr.DataArray):
+        raise ValueError("%{0}: data_fcst must be a DataArray.".format(method))
+
+    if not isinstance(data_ref, xr.DataArray):
+        raise ValueError("%{0}: data_ref must be a DataArray.".format(method))
+
+    if not (list(data_fcst.coords) == list(data_ref.coords) and list(data_fcst.dims) == list(data_ref.dims)):
+        raise ValueError("%{0}: Coordinates and dimensions of data_fcst and data_ref must be the same".format(method))
+
+    nquantiles = len(quantiles)
+    if not nquantiles >= 3:
+        raise ValueError("%{0}: quantiles must be a list/tuple of at least three float values ([0..1])".format(method))
+
+    if factorization == "calibration_refinement":
+        data_cond = data_fcst
+        data_tar = data_ref
+    elif factorization == "likelihood-base_rate":
+        data_cond = data_ref
+        data_tar = data_fcst
+    else:
+        raise ValueError("%{0}: Choose either 'calibration_refinement' or 'likelihood-base_rate' for factorization"
+                         .format(method))
+
+    # get and set some basic attributes
+    data_cond_longname = provide_default(data_cond.attrs, "longname", "conditioning_variable")
+    data_cond_unit = provide_default(data_cond.attrs, "unit", "unknown")
+
+    data_tar_longname = provide_default(data_tar.attrs, "longname", "target_variable")
+    data_tar_unit = provide_default(data_cond.attrs, "unit", "unknown")
+
+    # get bins for conditioning
+    data_cond_min, data_cond_max = np.floor(np.min(data_cond)), np.ceil(np.max(data_cond))
+    bins = list(np.arange(int(data_cond_min), int(data_cond_max) + 1))
+    bins_c = 0.5 * (np.asarray(bins[0:-1]) + np.asarray(bins[1:]))
+    nbins = len(bins) - 1
+
+    # get all possible bins from target and conditioning variable
+    data_all_min, data_all_max = np.minimum(data_cond_min, np.floor(np.min(data_tar))),\
+                                 np.maximum(data_cond_max, np.ceil(np.max(data_tar)))
+    bins_all = list(np.arange(int(data_all_min), int(data_all_max) + 1))
+    bins_c_all = 0.5 * (np.asarray(bins_all[0:-1]) + np.asarray(bins_all[1:]))
+    # initialize quantile data array
+    quantile_panel = xr.DataArray(np.full((len(bins_c_all), nquantiles), np.nan),
+                                  coords={"bin_center": bins_c_all, "quantile": list(quantiles)},
+                                  dims=["bin_center", "quantile"],
+                                  attrs={"cond_var_name": data_cond_longname, "cond_var_unit": data_cond_unit,
+                                         "tar_var_name": data_tar_longname, "tar_var_unit": data_tar_unit})
+    
+    print("%{0}: Start caclulating conditional quantiles for all {1:d} bins.".format(method, nbins))
+    # fill the quantile data array
+    for i in np.arange(nbins):
+        # conditioning of ground truth based on forecast
+        data_cropped = data_tar.where(np.logical_and(data_cond >= bins[i], data_cond < bins[i + 1]))
+        # quantile-calculation
+        quantile_panel.loc[dict(bin_center=bins_c[i])] = data_cropped.quantile(quantiles)
+
+    return quantile_panel, data_cond
 
 
 def avg_metrics(metric: da_or_ds, dim_name: str):
