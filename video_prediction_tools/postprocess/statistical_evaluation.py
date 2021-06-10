@@ -135,7 +135,7 @@ def perform_block_bootstrap_metric(metric: da_or_ds, dim_name: str, block_length
                                    seed: int = 42):
     """
     Performs block bootstrapping on metric along given dimension (e.g. along time dimension)
-    :param metric:  DataArray or dataset of metric that should be bootstrapped
+    :param metric: DataArray or dataset of metric that should be bootstrapped
     :param dim_name: name of the dimension on which division into blocks is applied
     :param block_length: length of block (index-based)
     :param nboots_block: number of bootstrapping steps to be performed
@@ -201,18 +201,18 @@ class Scores:
     Class to calculate scores and skill scores.
     """
 
-    known_scores = ["mse", "psnr","ssim"]
+    known_scores = ["mse", "psnr", "ssim"]
 
     def __init__(self, score_name: str, dims: List[str]):
         """
         Initialize score instance.
-        :param score_name:   name of score that is queried
-        :param dims:         list of dimension over which the score shall operate
-        :return:             Score instance
+        :param score_name: name of score that is queried
+        :param dims: list of dimension over which the score shall operate
+        :return: Score instance
         """
         method = Scores.__init__.__name__
 
-        self.metrics_dict = {"mse": self.calc_mse_batch , "psnr": self.calc_psnr_batch, "ssim":self.calc_ssim_batch}
+        self.metrics_dict = {"mse": self.calc_mse_batch, "psnr": self.calc_psnr_batch, "ssim": self.calc_ssim_batch}
         if set(self.metrics_dict.keys()) != set(Scores.known_scores):
             raise ValueError("%{0}: Known scores must coincide with keys of metrics_dict.".format(method))
         self.score_name = self.set_score_name(score_name)
@@ -220,23 +220,25 @@ class Scores:
         # attributes set when run_calculation is called
         self.avg_dims = dims
 
-    def run_calculation(self, model_data, ref_data, dims2avg=None, **kwargs):
-
-        method = Scores.run_calculation.__name__
-
-        model_data, ref_data = Scores.set_model_and_ref_data(model_data, ref_data, dims2avg=dims2avg)
-
-        try:
-            if self.avg_dims is None:
-                result = self.score_func(model_data, ref_data, **kwargs)
-            else:
-                result = self.score_func(model_data, ref_data, **kwargs)
-        except Exception as err:
-            print("%{0}: Calculation of '{1}' was not successful. Inspect error message!".format(method,
-                                                                                                 self.score_name))
-            raise err
-
-        return result
+    # ML 2021-06-10: The following method is not runnable and yet, it is unclear if it is needed at all.
+    # Thus, it is commented out for potential later use (in case that it won't be discarded).
+    # def run_calculation(self, model_data, ref_data, dims2avg=None, **kwargs):
+    #
+    #     method = Scores.run_calculation.__name__
+    #
+    #     model_data, ref_data = Scores.set_model_and_ref_data(model_data, ref_data, dims2avg=dims2avg)
+    #
+    #     try:
+    #         # if self.avg_dims is None:
+    #         result = self.score_func(model_data, ref_data, **kwargs)
+    #         # else:
+    #         #    result = self.score_func(model_data, ref_data, **kwargs)
+    #     except Exception as err:
+    #         print("%{0}: Calculation of '{1}' was not successful. Inspect error message!".format(method,
+    #                                                                                              self.score_name))
+    #         raise err
+    #
+    #     return result
 
     def set_score_name(self, score_name):
 
@@ -295,8 +297,7 @@ class Scores:
 
         return psnr
 
-
-    def calc_ssim_batch(self, data_fcast, data_ref, **kwargs):
+    def calc_ssim_batch(self, data_fcst, data_ref, **kwargs):
         """
         Calculate ssim ealuation metric of forecast data w.r.t reference data
         :param data_fcst: forecasted data (xarray with dimensions [batch, lat, lon])
@@ -304,9 +305,7 @@ class Scores:
         :return: averaged ssim for each batch example
         """
         method = Scores.calc_ssim_batch.__name__
-        print("shape of data_ref:",np.array(data_ref).shape)
-        print("shape of data_fcast:",np.array(data_fcast).shape)
-        print("max values of data forecast",data_fcast.max())
-        print("min value of data forecadst",data_fcast.min())
-        ssim_pred = ssim(data_ref[0,0,:,:], data_fcast[0,0,:,:])
+
+        ssim_pred = ssim(data_ref[0,0,:,:], data_fcst[0,0,:,:])
+
         return ssim_pred
