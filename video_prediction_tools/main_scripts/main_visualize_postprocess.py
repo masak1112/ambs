@@ -63,7 +63,7 @@ class Postprocess(TrainModel):
         # initialize dataset to track evaluation metrics and configure bootstrapping procedure
         self.eval_metrics_ds = None
         self.nboots_block = 1000
-        self.block_length = 7 * 24    # this corresponds to a block length of 7 days when forecasts are produced every hour
+        self.block_length =  7 * 24    # this corresponds to a block length of 7 days when forecasts are produced every hour
         # other attributes
         self.stat_fl = None
         self.norm_cls = None            # placeholder for normalization instance
@@ -77,7 +77,7 @@ class Postprocess(TrainModel):
         self.gpu_mem_frac = gpu_mem_frac
         self.seed = seed
         self.num_stochastic_samples = num_stochastic_samples
-        self.num_samples_per_epoch = 20 # reduce number of epoch samples  
+        #self.num_samples_per_epoch = 20 # reduce number of epoch samples  
         self.stochastic_plot_id = stochastic_plot_id
         self.args = args
         self.checkpoint = checkpoint
@@ -101,7 +101,7 @@ class Postprocess(TrainModel):
         self.setup_model()
         self.get_data_params()
         self.setup_num_samples_per_epoch()
-        self.num_samples_per_epoch = 2000 # reduce number of epoch samples  
+        self.num_samples_per_epoch = 400 # reduce number of epoch samples  
         self.get_stat_file()
         self.make_test_dataset_iterator()
         self.check_stochastic_samples_ind_based_on_model()
@@ -229,11 +229,13 @@ class Postprocess(TrainModel):
         """
         data_clim_path = os.path.join(clim_path,climatology_fl)
         data = xr.open_dataset(data_clim_path)
-        data_clim = data[var]
+        dt_clim = data[var]
 
-        clim_lon = data_clim['lon'].data
-        clim_lat = data_clim['lat'].data
+        clim_lon = dt_clim['lon'].data
+        clim_lat = dt_clim['lat'].data
         
+
+     
         meta_lon_loc = np.zeros((len(clim_lon)), dtype=bool)
         for i in range(len(clim_lon)):
             if np.round(clim_lon[i],1) in self.lons.data:
@@ -245,7 +247,8 @@ class Postprocess(TrainModel):
                 meta_lat_loc[i] = True
 
         # get the coordinates of the data after running CDO
-        coords = data_clim.coords
+        coords = dt_clim.coords
+        nlat, nlon = len(coords["lat"]), len(coords["lon"])
         # modify it our needs
         coords_new = dict(coords)
         coords_new.pop("time")
@@ -255,10 +258,11 @@ class Postprocess(TrainModel):
         data_clim_new = xr.DataArray(np.full((12, 24, nlat, nlon), np.nan), coords=coords_new, dims=["month", "hour", "lat", "lon"])
         # do the reorganization
         for month in np.arange(1, 13): 
-            data_clim_new.loc[dict(month=month)]=data_clim.sel(time=data_clim["time.month"]==month)
+            data_clim_new.loc[dict(month=month)]=dt_clim.sel(time=dt_clim["time.month"]==month)
 
         self.data_clim = data_clim_new[dict(lon=meta_lon_loc,lat=meta_lat_loc)]
-
+        print("self.data_clim",self.data_clim) 
+         
     def setup_test_dataset(self):
         """
         setup the test dataset instance
@@ -581,21 +585,15 @@ class Postprocess(TrainModel):
 
         # dictionary of implemented evaluation metrics
         dims = ["lat", "lon"]
-        known_eval_metrics = {key : Scores (key,dims) for key in self.eval_metrics}
-        # generate list of functions that calculate requested evaluation metrics
-        if set(self.eval_metrics).issubset(known_eval_metrics):
-            eval_metrics_func = [known_eval_metrics[metric].score_func for metric in self.eval_metrics]
-        else:
-            misses = list(set(self.eval_metrics) - known_eval_metrics.keys())
-            raise NotImplementedError("%{0}: The following requested evaluation metrics are not implemented yet: "
-                                      .format(method, ", ".join(misses)))
-
+        #known_eval_metrics = {key : Scores (key,dims) for key in self.eval_metrics}
+        eval_metrics_func = [Scores(metric,dims).score_func for metric in self.eval_metrics]
         varname_ref = "{0}_ref".format(varname)
         # reset init-time coordinate of metric_ds in place and get indices for slicing
         ind_end = np.minimum(ind_start + self.batch_size, self.num_samples_per_epoch)
         init_times_metric = metric_ds["init_time"].values
         init_times_metric[ind_start:ind_end] = data_ds["init_time"]
         metric_ds = metric_ds.assign_coords(init_time=init_times_metric)
+        print("metric_ds",metric_ds)
         # populate metric_ds
         for fcst_prod in self.fcst_products.keys():
             for imetric, eval_metric in enumerate(self.eval_metrics):

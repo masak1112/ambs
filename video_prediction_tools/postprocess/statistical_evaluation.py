@@ -222,12 +222,13 @@ class Scores:
         Calculate ssim ealuation metric of forecast data w.r.t reference data
         :param data_fcst: forecasted data (xarray with dimensions [batch, fore_hours, lat, lon])
         :param data_ref: reference data (xarray with dimensions [batch, fore_hours, lat, lon])
-        :return: averaged ssim for each batch example
+        :return: averaged ssim for each batch example, shape is [batch,fore_hours]
         """
         method = Scores.calc_ssim_batch.__name__
         batch_size = np.array(data_ref).shape[0]
         fore_hours = np.array(data_fcst).shape[1]
-        ssim_pred = [ssim(data_ref[i,j,:,:],data_fcst[i,j,:,:]) for i in range(batch_size) for j in range(fore_hours) ]
+        ssim_pred = [[ssim(data_ref[i,j,:,:],data_fcst[i,j,:,:]) for j in range(fore_hours)] for i in range(batch_size)]
+        print("ssim_pred shape:",np.array(ssim_pred).shape)
         return ssim_pred
 
 
@@ -243,7 +244,7 @@ class Scores:
         if "data_clim" in kwargs:
             data_clim = kwargs["data_clim"]
         else:
-            raise KeyError("%{0}: climatological data must be parsed to calculate the ACC.".format(method)        
+            raise KeyError("%{0}: climatological data must be parsed to calculate the ACC.".format(method))        
 
         #print(data_fcst)
         #print('data_clim shape: ',data_clim.shape)
