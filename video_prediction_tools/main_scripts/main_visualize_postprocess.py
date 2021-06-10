@@ -102,7 +102,7 @@ class Postprocess(TrainModel):
         self.setup_model()
         self.setup_graph()
         self.setup_gpu_config()
-
+        self.load_climdata()
     # Methods that are called during initialization
     def get_input_dirs(self):
         """
@@ -251,8 +251,6 @@ class Postprocess(TrainModel):
         clim_lon = dt_clim['lon'].data
         clim_lat = dt_clim['lat'].data
         
-
-     
         meta_lon_loc = np.zeros((len(clim_lon)), dtype=bool)
         for i in range(len(clim_lon)):
             if np.round(clim_lon[i],1) in self.lons.data:

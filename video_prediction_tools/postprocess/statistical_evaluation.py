@@ -212,9 +212,8 @@ class Scores:
         :return: Score instance
         """
         method = Scores.__init__.__name__
-
         self.metrics_dict = {"mse": self.calc_mse_batch , "psnr": self.calc_psnr_batch, "ssim":self.calc_ssim_batch, "acc":self.calc_acc_batch}
-	if set(self.metrics_dict.keys()) != set(Scores.known_scores):
+        if set(self.metrics_dict.keys()) != set(Scores.known_scores):
             raise ValueError("%{0}: Known scores must coincide with keys of metrics_dict.".format(method))
         self.score_name = self.set_score_name(score_name)
         self.score_func = self.metrics_dict[score_name]
