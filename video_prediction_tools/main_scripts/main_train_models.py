@@ -233,11 +233,16 @@ class TrainModel(object):
         self.total_steps = self.steps_per_epoch * max_epochs
         print("Batch size is {} ; max_epochs is {}; num_samples per epoch is {}; steps_per_epoch is {}, total steps is {}".format(batch_size,max_epochs, self.num_examples,self.steps_per_epoch,self.total_steps))
 
-    def restore(self,sess, checkpoints, restore_to_checkpoint_mapping=None):
+    def restore(self, sess, checkpoints, restore_to_checkpoint_mapping=None):
         """
         Restore the models checkpoints if the checkpoints is given
         """
-        if checkpoints:
+  
+        if checkpoints is None:
+            print ("Checkpoint is empty!!")
+        elif os.path.isdir(checkpoints) and (not os.path.exists(os.path.join(checkpoints,"checkpoint"))):
+            print("There is not checkpoints in the dir {}".format(checkpoints))
+        else:
            var_list = self.video_model.saveable_variables
            # possibly restore from multiple checkpoints. useful if subset of weights
            # (e.g. generator or discriminator) are on different checkpoints.
@@ -259,13 +264,14 @@ class TrainModel(object):
         """
         Restore the train and validation losses in the pickle file if checkpoint is given 
         """
-        if not os.path.exists(os.path.join(self.output_dir,"checkpoint")):
-            train_losses = []
-            val_losses = []
+        if self.checkpoint is None:
+            train_losses, val_losses = [], []
+        elif os.path.isdir(self.checkpoint) and (not os.path.exists(os.path.join(self.output_dir,"checkpoint"))):
+            train_losses,val_losses = [], []
         else:
-            with open(os.path.join(self.checkpoint,"train_losses.pkl"),"rb") as f:
+            with open(os.path.join(self.output_dir,"train_losses.pkl"),"rb") as f:
                 train_losses = pkl.load(f)
-            with open(os.path.join(self.checkpoint,"val_losses.pkl"),"rb") as f:
+            with open(os.path.join(self.output_dir,"val_losses.pkl"),"rb") as f:
                 val_losses = pkl.load(f)
         return train_losses,val_losses
 
@@ -278,8 +284,7 @@ class TrainModel(object):
             print("parameter_count =", sess.run(self.parameter_count))
             sess.run(tf.global_variables_initializer())
             sess.run(tf.local_variables_initializer())
-            if os.path.exists(os.path.join(self.output_dir,"checkpoint")):
-                self.restore(sess, self.checkpoint)
+            self.restore(sess, self.checkpoint)
             #sess.graph.finalize()
             self.start_step = sess.run(self.global_step)
             print("start_step", self.start_step)
@@ -294,15 +299,11 @@ class TrainModel(object):
                 self.create_fetches_for_train()             # In addition to the loss, we fetch the optimizer
                 self.results = sess.run(self.fetches)       # ...and run it here!
                 train_losses.append(self.results["total_loss"])
-                print("t_start for training",self.results["inputs"]["T_start"])
-                print("len of t_start per iteration",len(self.results["inputs"]["T_start"]))
                 #Run and fetch losses for validation data
                 val_handle_eval = sess.run(self.val_handle)
                 self.create_fetches_for_val()
                 self.val_results = sess.run(self.val_fetches,feed_dict={self.train_handle: val_handle_eval})
                 val_losses.append(self.val_results["total_loss"])
-                print("t_start for validation",self.val_results["inputs"]["T_start"])
-                print("len of t_start per iteration",len(self.val_results["inputs"]["T_start"]))
                 self.write_to_summary()
                 self.print_results(step,self.results)
                 timeit_end = time.time()
