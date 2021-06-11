@@ -50,5 +50,4 @@ dataset=era5
 
 # run training
 srun python ../main_scripts/main_train_models.py --input_dir  ${source_dir} --datasplit_dict ${datasplit_dict} \
- --dataset ${dataset}  --model ${model} --model_hparams_dict ${model_hparams} --output_dir ${destination_dir} --checkpoint_dir  ${destination_dir}
- 
+ --dataset ${dataset}  --model ${model} --model_hparams_dict ${model_hparams} --output_dir ${destination_dir} --checkpoint ${destination_dir} 
