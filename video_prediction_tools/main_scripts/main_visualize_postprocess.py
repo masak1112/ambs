@@ -1229,7 +1229,7 @@ def main():
     parser.add_argument("--num_stochastic_samples", type=int, default=1)
     parser.add_argument("--gpu_mem_frac", type=float, default=0.95, help="fraction of gpu memory to use")
     parser.add_argument("--seed", type=int, default=7)
-    parser.add_argument("--evaluation_metrics", "-eval_metrics", dest="eval_metrics", nargs="+", default=("mse", "psnr"),
+    parser.add_argument("--evaluation_metrics", "-eval_metrics", dest="eval_metrics", nargs="+", default=("mse", "psnr", "ssim","acc"),
                         help="Metrics to be evaluate the trained model. Must be known metrics, see Scores-class.")
     parser.add_argument("--channel", "-channel", dest="channel", type=int, default=0,
                         help="Channel which is used for evaluation.")
