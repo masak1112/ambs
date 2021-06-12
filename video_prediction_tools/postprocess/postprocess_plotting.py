@@ -148,12 +148,12 @@ def plot_avg_eval_metrics(eval_ds, eval_metrics, fcst_prod_dict, varname, out_di
         plt.xticks(hours)
         # automatic y-limits for PSNR wich can be negative and positive
         if metric != "psnr": ax.set_ylim(0., None)
-        legend = ax.legend(loc="upper right", bbox_to_anchor=(1.15, 1))
+        legend = ax.legend(loc="upper right", bbox_to_anchor=(1.35, 1))
         ax.set_xlabel("Lead time [hours]")
         ax.set_ylabel(metric.upper())
         plt_fname = os.path.join(out_dir, "evaluation_{0}".format(metric))
         print("Saving basic evaluation plot in terms of {1} to '{2}'".format(method, metric, plt_fname))
-        plt.savefig(plt_fname)
+        plt.savefig(plt_fname,bbox_inches="tight")
 
     plt.close()
 
