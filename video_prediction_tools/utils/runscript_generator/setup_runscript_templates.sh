@@ -16,6 +16,7 @@
 
 # default value for base directory
 base_data_dir_default=/p/project/deepacf/deeprain/video_prediction_shared_folder/
+# base_data_dir_default=/p/scratch/deepacf/ji4/
 # some further directory paths
 CURR_DIR_FULL="$( cd "$( dirname "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )"   # retrieves the location of this script
 BASE_DIR="$(dirname "$(dirname "${CURR_DIR_FULL}")")"

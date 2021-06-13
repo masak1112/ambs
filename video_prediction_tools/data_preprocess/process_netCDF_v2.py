@@ -196,8 +196,11 @@ class PreprocessNcToPkl(object):
             data = data.roll(lon=nroll_lon, roll_coords=True)
 
         # init resulting numpy-array...
-        dshape = list(np.shape(data[self.vars[0]])) + [self.nvars]
+        print("data[self.vars[0]] shape is: ",data[self.vars[0]].shape)
+        dshape = list(np.shape(np.squeeze(data[self.vars[0]]))) + [self.nvars]
+        print("dshape is: ",dshape)
         data_arr = np.full(dshape, np.nan)
+        print("data_arr shape is: ",data_arr.shape)
         # ... and populate the data in it
         for ivar, var in enumerate(self.vars):
             data_arr[..., ivar] = np.squeeze(data[var].values)
