@@ -279,14 +279,6 @@ class TrainModel(object):
         """
         Start session and train the model
         """
-
-        method = TrainModel.train_model.__name__
-
-        # print some info to stdout
-        if self.rank_glob == 0:
-            print("%{0}: Number of GPUs for training: {1:d}".format(method, self.ngpus))
-        print("%{0}: Global rank: {1:d}, local rank:".format(method, self.rank_glob, self.rank_loc))
-        # for initilizing model at the coorect stage (i.e. from scratch or from pre-trained model)
         self.global_step = tf.train.get_or_create_global_step()
         with tf.Session(config=self.config) as sess:
             print("parameter_count =", sess.run(self.parameter_count))
@@ -324,22 +316,17 @@ class TrainModel(object):
                     TrainModel.save_results_to_pkl(train_losses,val_losses,self.output_dir)
                     TrainModel.plot_train(train_losses,val_losses,step,self.output_dir)
 
-            # barrier to ensure that the follwoing is done at the very end
-            # tip following the user 'ppwwyxx' in the github-post under
-            # https://github.com/horovod/horovod/issues/159 from 21st November 2018
-            barrier = hvd.allreduce(tf.random_normal(shape=[1]))
-            if self.rank_glob == 0:
-                # track time (save to pickle-files)
-                train_time = time.time() - run_start_time   #Total train time over all the iterations
-
-                avg_samples = int(1600/self.ngpus)
-                TrainModel.save_timing_to_pkl(self, train_time, time_per_iteration)
-                print("%{0}: Training loss decreased from {1:.6f} to {2:.6f}:"
-                      .format(method, np.mean(train_losses[0:10]), np.mean(train_losses[-avg_samples:])))
-                print("%{0}: Validation loss decreased from {1:.6f} to {2:.6f}:"
-                      .format(method, np.mean(val_losses[0:10]), np.mean(val_losses[-avg_samples:])))
-                print("%{0}: Training finsished".format(method))
-                print("%{0}: Total training time: {1:.2f} min".format(method, train_time/60.))
+            #Totally train time over all the iterations
+            train_time = time.time() - run_start_time
+            results_dict = {"train_time":train_time,
+                            "total_steps":self.total_steps}
+            TrainModel.save_results_to_dict(results_dict,self.output_dir)
+            print("train_losses:",train_losses)
+            print("val_losses:",val_losses) 
+            print("Done")
+            print("Total training time:", train_time/60., "min")
+            return train_time, time_per_iteration
+            
  
     def create_fetches_for_train(self):
        """
