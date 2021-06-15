@@ -4,7 +4,7 @@
     "lr": 0.001,
     "nz":16,
     "max_epochs":2,
-    "context_frames":10,
+    "context_frames":12,
     "weight_recon":1,
     "loss_fun": "rmse",
     "shuffle_on_val": true
