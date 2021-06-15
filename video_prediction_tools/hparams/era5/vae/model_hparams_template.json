@@ -7,7 +7,7 @@
     "context_frames":10,
     "weight_recon":1,
     "loss_fun": "rmse",
-    "shuffle_on_val": false
+    "shuffle_on_val": true
 }
 
 
