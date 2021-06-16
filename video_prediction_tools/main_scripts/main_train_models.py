@@ -25,27 +25,24 @@ from model_modules.video_prediction.utils import tf_utils
 
 
 class TrainModel(object):
-    def __init__(self, input_dir=None, output_dir=None, datasplit_dict=None,
-                 model_hparams_dict=None, model=None, checkpoint=None, dataset=None,
-                 gpu_mem_frac=None, seed=None, args=None, save_diag_intv=100, save_model_intv=100):
-        
+    def __init__(self, input_dir: str = None, output_dir: str = None, datasplit_dict: str = None,
+                 model_hparams_dict: str = None, model: str = None, checkpoint: str = None, dataset: str = None,
+                 gpu_mem_frac: float = None, seed: int = None, args=None, save_diag_intv: int = 100,
+                 niter_loss_avg: int = 10000):
         """
-        This class aims to train the models
-        args:
-            input_dir            : str, the path to the PreprocessData directory which is parent directory of "Pickle" and "tfrecords" files directiory. 
-            output_dir           : str, directory where json files, summary, model, gifs, etc are saved. "
-                                             "default is logs_dir/model_fname, where model_fname consists of "
-                                             "information from model and model_hparams
-            datasplit_dict       : str, the path pointing to the datasplit_config json file
-            model_hparams_dict   : str, a json file of model hyperparameters
-            checkpoint           : str, directory with checkpoint or checkpoint name (e.g. checkpoint_dir/model-200000)
-            dataset              : str, dataset class name
-            model                : str, model class name
-            gpu_mem_frac         : float, fraction of gpu memory to use
-            save_diag_intv    : int, interval of iteration steps for which the loss is saved and for which a new
-                                   loss curve is plotted
-            save_model_intv      : int, interval of iteration for which the model is checkpointed
-        """ 
+        Class instance for training the models
+        :param input_dir: parent directory under which "pickle" and "tfrecords" files directiory are located
+        :param output_dir: directory where all the output is saved (e.g. model, JSON-files, training curves etc.)
+        :param datasplit_dict: JSON-file for defining data splitting
+        :param model_hparams_dict: JSON-file of model hyperparameters
+        :param model: model class name
+        :param checkpoint: checkpoint directory (pre-trained models)
+        :param dataset: dataset class name
+        :param gpu_mem_frac: fraction of GPU memory to be preallocated
+        :param seed: seed of the randomizers
+        :param args: list of arguments passed
+        :param save_diag_intv: interval of iteration steps for which diagnostic plot and optional model saving is done
+        """
         self.input_dir = os.path.normpath(input_dir)
         self.output_dir = os.path.normpath(output_dir)
         self.datasplit_dict = datasplit_dict
@@ -58,7 +55,7 @@ class TrainModel(object):
         self.args = args
         # for diagnozing and saving the model during training
         self.save_diag_intv = save_diag_intv
-        self.save_model_intv = save_model_intv
+        self.niter_loss_avg = niter_loss_avg
 
     def setup(self):
         self.set_seed()
@@ -319,12 +316,11 @@ class TrainModel(object):
                 time_iter = time.time() - timeit_start
                 time_per_iteration.append(time_iter)
                 print("time needed for this step {0:.3f}s".format(time_iter))
-                if step % self.save_model_intv == 0:
-                    lsave, val_loss_min = TrainModel.set_model_saver_flag(val_losses, val_loss_min, 10000)
+                if step % self.save_diag_intv == 0:
+                    lsave, val_loss_min = TrainModel.set_model_saver_flag(val_losses, val_loss_min, self.niter_loss_avg)
                     if lsave:
                         self.saver.save(sess, os.path.join(self.output_dir, "model"), global_step=step)
-                if step % self.save_diag_intv == 0:
-                    # pickle file and plots are created inside the loop in case the training process does not finish
+                    # pickle file and plots are always created
                     TrainModel.save_results_to_pkl(train_losses,val_losses,self.output_dir)
                     TrainModel.plot_train(train_losses,val_losses,step,self.output_dir)
 
