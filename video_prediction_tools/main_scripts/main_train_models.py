@@ -7,7 +7,7 @@ We took the code implementation from https://github.com/alexlee-gk/video_predict
 """
 
 __email__ = "b.gong@fz-juelich.de"
-__author__ = "Bing Gong"
+__author__ = "Bing Gong, Michael Langguth"
 __date__ = "2020-10-22"
 
 import argparse
@@ -18,9 +18,11 @@ import random
 import time
 import numpy as np
 import tensorflow as tf
-from model_modules.video_prediction import datasets, models
+# from typing import Union, List
 import matplotlib.pyplot as plt
 import pickle as pkl
+# own modules
+from model_modules.video_prediction import datasets, models
 from model_modules.video_prediction.utils import tf_utils
 
 
@@ -84,13 +86,14 @@ class TrainModel(object):
         """
         Checks if output directory is existing.
         """
-        if self.output_dir is None:
-            raise ValueError("Output_dir-argument is empty. Please define a proper output_dir")
-        elif not os.path.isdir(self.output_dir):
-            raise NotADirectoryError("Base output_dir {0} does not exist. Please pass a proper output_dir and "+\
-                                     "make use of config_train.py.")
+        method = TrainModel.check_output_dir.__name__
 
-            
+        if self.output_dir is None:
+            raise ValueError("%{0}: Output_dir-argument is empty. Please define a proper output_dir".format(method))
+        elif not os.path.isdir(self.output_dir):
+            raise NotADirectoryError("Base output_dir {0} does not exist. Pass a proper output_dir".format(method) +
+                                     " and make use of env_setup/generate_runscript.py.")
+
     def get_model_hparams_dict(self):
         """
         Get and read model_hparams_dict from json file to dictionary 
@@ -101,7 +104,6 @@ class TrainModel(object):
                 self.model_hparams_dict_load.update(json.loads(f.read()))
         return self.model_hparams_dict_load
 
-
     def load_params_from_checkpoints_dir(self):
         """
         If checkpoint is none, load and read the json files of datasplit_config, and hparam_config,
@@ -109,6 +111,8 @@ class TrainModel(object):
         If the checkpoint is given, the configuration of dataset, model and options in the checkpoint dir will be
         restored and used for continue training.
         """
+        method = TrainModel.load_params_from_checkpoints_dir.__name__
+
         if self.checkpoint:
             self.checkpoint_dir = os.path.normpath(self.checkpoint)
             if not os.path.isdir(self.checkpoint):
@@ -118,18 +122,18 @@ class TrainModel(object):
             # read and overwrite dataset and model from checkpoint
             try:
                 with open(os.path.join(self.checkpoint_dir, "options.json")) as f:
-                    print("loading options from checkpoint %s" % self.checkpoint)
+                    print("%{0}: Loading options from checkpoint {1}".format(method, self.checkpoint))
                     self.options = json.loads(f.read())
                     self.dataset = self.dataset or self.options['dataset']
                     self.model = self.model or self.options['model']
             except FileNotFoundError:
-                print("options.json was not loaded because it does not exist in {0}".format(self.checkpoint_dir))
+                print("%{0}: options.json does not exist in {1}".format(method, self.checkpoint_dir))
             # loading hyperparameters from checkpoint
             try:
                 with open(os.path.join(self.checkpoint_dir, "model_hparams.json")) as f:
                     self.model_hparams_dict_load.update(json.loads(f.read()))
             except FileNotFoundError:
-                print("model_hparams.json was not loaded because it does not exist in {0}".format(self.checkpoint_dir))
+                print("%{0}: model_hparams.json does not exist in {1}".format(method, self.checkpoint_dir))
                 
     def setup_dataset(self):
         """
@@ -140,8 +144,8 @@ class TrainModel(object):
                                           hparams_dict_config=self.model_hparams_dict)
         self.val_dataset = VideoDataset(input_dir=self.input_dir, mode='val', datasplit_config=self.datasplit_dict,
                                         hparams_dict_config=self.model_hparams_dict)
-        # ML/BG 2021-06-15: Is the following needed?
-        # self.model_hparams_dict_load.update({"sequence_length": self.train_dataset.sequence_length})
+        # Retrieve sequence length from dataset
+        self.model_hparams_dict_load.update({"sequence_length": self.train_dataset.sequence_length})
 
     def setup_model(self):
         """
@@ -156,7 +160,6 @@ class TrainModel(object):
         """
         self.video_model.build_graph(self.inputs)
 
-        
     def make_dataset_iterator(self):
         """
         Prepare the dataset interator for training and validation
@@ -173,12 +176,10 @@ class TrainModel(object):
         self.iterator = tf.data.Iterator.from_string_handle(
             self.train_handle, self.train_tf_dataset.output_types, self.train_tf_dataset.output_shapes)
         self.inputs = self.iterator.get_next()
-        #since era5 tfrecords include T_start, we need to remove it from the tfrecord when we train the model,
-        # otherwise the model will raise error
-        
+        # since era5 tfrecords include T_start, we need to remove it from the tfrecord when we train SAVP
+        # Otherwise an error will be risen by SAVP
         if self.dataset == "era5" and self.model == "savp":
-           del self.inputs["T_start"]
-
+            del self.inputs["T_start"]
 
     def save_dataset_model_params_to_checkpoint_dir(self, dataset, video_model):
         """
@@ -193,16 +194,14 @@ class TrainModel(object):
         with open(os.path.join(self.output_dir, "data_dict.json"), "w") as f:
             f.write(json.dumps(dataset.data_dict, sort_keys=True, indent=4))
 
-
     def count_parameters(self):
         """
         Count the paramteres of the model
         """ 
         with tf.name_scope("parameter_count"):
-            # exclude trainable variables that are replicas (used in multi-gpu setting)
+            # exclude trainable variables that are replicates (used in multi-gpu setting)
             self.trainable_variables = set(tf.trainable_variables()) & set(self.video_model.saveable_variables)
             self.parameter_count = tf.reduce_sum([tf.reduce_prod(tf.shape(v)) for v in self.trainable_variables])
-
 
     def create_saver_and_writer(self):
         """
@@ -341,23 +340,29 @@ class TrainModel(object):
             print("%{0}: Total training time: {1:.2f} min".format(method, train_time/60.))
 
             return train_time, time_per_iteration
-            
- 
+
     def create_fetches_for_train(self):
-       """
-       Fetch variables in the graph, this can be custermized based on models and also the needs of users
-       """
-       #This is the base fetch that for all the  models
-       self.fetches = {"train_op": self.video_model.train_op}         # fetching the optimizer!
-       self.fetches["summary"] = self.video_model.summary_op
-       self.fetches["global_step"] = self.global_step
-       if self.video_model.__class__.__name__ == "McNetVideoPredictionModel": self.fetches_for_train_mcnet()
-       if self.video_model.__class__.__name__ == "VanillaConvLstmVideoPredictionModel": self.fetches_for_train_convLSTM()
-       if self.video_model.__class__.__name__ == "SAVPVideoPredictionModel": self.fetches_for_train_savp()
-       if self.video_model.__class__.__name__ == "VanillaVAEVideoPredictionModel": self.fetches_for_train_vae()
-       if self.video_model.__class__.__name__ == "VanillaGANVideoPredictionModel":self.fetches_for_train_gan()
-       if self.video_model.__class__.__name__ == "ConvLstmGANVideoPredictionModel":self.fetches_for_train_convLSTM()
-       return self.fetches     
+        """
+        Fetch variables in the graph, this can be custermized based on models and also the needs of users
+        """
+        # This is the basic fetch for all the models
+        self.fetches = {"train_op": self.video_model.train_op}         # includes fetching the optimizer!
+        self.fetches["summary"] = self.video_model.summary_op
+        self.fetches["global_step"] = self.global_step
+        # append fetching depending on model to be trained
+        if self.video_model.__class__.__name__ == "McNetVideoPredictionModel":
+           self.fetches_for_train_mcnet()
+        if self.video_model.__class__.__name__ == "VanillaConvLstmVideoPredictionModel":
+           self.fetches_for_train_convLSTM()
+        if self.video_model.__class__.__name__ == "SAVPVideoPredictionModel":
+           self.fetches_for_train_savp()
+        if self.video_model.__class__.__name__ == "VanillaVAEVideoPredictionModel":
+           self.fetches_for_train_vae()
+        if self.video_model.__class__.__name__ == "VanillaGANVideoPredictionModel":
+           self.fetches_for_train_gan()
+        if self.video_model.__class__.__name__ == "ConvLstmGANVideoPredictionModel":self.fetches_for_train_convLSTM()
+
+        return self.fetches
     
     def fetches_for_train_convLSTM(self):
         """
@@ -366,7 +371,6 @@ class TrainModel(object):
         self.fetches["total_loss"] = self.video_model.total_loss
         self.fetches["inputs"] = self.video_model.inputs
 
- 
     def fetches_for_train_savp(self):
         """
         Fetch variables in the graph for savp model, this can be custermized based on models and the needs of users
@@ -377,7 +381,6 @@ class TrainModel(object):
         self.fetches["g_loss"] = self.video_model.g_loss
         self.fetches["total_loss"] = self.video_model.g_loss
         self.fetches["inputs"] = self.video_model.inputs
-
 
     def fetches_for_train_mcnet(self):
         """
@@ -437,10 +440,9 @@ class TrainModel(object):
                                                                             results["recon_loss"]))
         else:
             print("%{0}: WARNING: The model name does not exist".format(method))
-    
 
     @staticmethod
-    def set_model_saver_flag(losses: list, old_min_loss: float, niter_steps: int = 100):
+    def set_model_saver_flag(losses: List, old_min_loss: float, niter_steps: int = 100):
         """
         Sets flag to save the model given that a new minimum in the loss is readched
         :param losses: list of losses over iteration steps
@@ -449,7 +451,6 @@ class TrainModel(object):
         :return flag: True if model should be saved
         :return loss_avg: updated minimum loss
         """
-
         save_flag = False
         if len(losses) <= niter_steps*2:
             loss_avg = old_min_loss
@@ -463,20 +464,20 @@ class TrainModel(object):
 
         return save_flag, loss_avg
 
-
     @staticmethod
-    def plot_train(train_losses, val_losses, step, output_dir):
+    def plot_train(train_losses: List, val_losses: List, step: int, output_dir: str):
         """
-        Function to plot training losses for train and val datasets against steps
-        params:
-            train_losses/val_losses       : list, train losses, which length should be equal to the number of training steps
-            step                          : int, current training step
-            output_dir                    : str,  the path to save the plot
+        Create plot of training and validation losses against steps
+        :param train_losses: train losses whose length should be equal to the number of training steps
+        :param val_losses: validation losses whose length should be equal to the number of training steps
+        :param step: current training step
+        :param output_dir: the path to save the plot
         """ 
-   
+        method = TrainModel.plot_train.__name__
+
         iterations = list(range(len(train_losses)))
         if len(train_losses) != len(val_losses): 
-            raise ValueError("The length of training losses must be equal to the length of val losses!")  
+            raise ValueError("%{0}: The length of training losses must be equal to the length of val losses!".format(method))
         plt.plot(iterations, train_losses, 'g', label='Training loss')
         plt.plot(iterations, val_losses, 'b', label='validation loss')
         plt.ylim(10**-5, 10**2)
@@ -485,53 +486,50 @@ class TrainModel(object):
         plt.xlabel('Iterations')
         plt.ylabel('Loss')
         plt.legend()
-        plt.savefig(os.path.join(output_dir,'plot_train.png'))
+        plt.savefig(os.path.join(output_dir, 'plot_train.png'))
         plt.close()
 
     @staticmethod
     def save_results_to_dict(results_dict,output_dir):
-        with open(os.path.join(output_dir,"results.json"),"w") as fp:
-            json.dump(results_dict,fp) 
+        with open(os.path.join(output_dir, "results.json"), "w") as fp:
+            json.dump(results_dict, fp)
 
     @staticmethod
     def save_results_to_pkl(train_losses,val_losses, output_dir):
-         with open(os.path.join(output_dir,"train_losses.pkl"),"wb") as f:
-            pkl.dump(train_losses,f)
-         with open(os.path.join(output_dir,"val_losses.pkl"),"wb") as f:
-            pkl.dump(val_losses,f) 
+        with open(os.path.join(output_dir, "train_losses.pkl"), "wb") as f:
+            pkl.dump(train_losses, f)
+        with open(os.path.join(output_dir, "val_losses.pkl"), "wb") as f:
+            pkl.dump(val_losses, f)
 
     @staticmethod
-    def save_timing_to_pkl(total_time,training_time,time_per_iteration, output_dir):
-         with open(os.path.join(output_dir,"timing_total_time.pkl"),"wb") as f:
-            pkl.dump(total_time,f)
-         with open(os.path.join(output_dir,"timing_training_time.pkl"),"wb") as f:
-            pkl.dump(training_time,f)
-         with open(os.path.join(output_dir,"timing_per_iteration_time.pkl"),"wb") as f:
-            pkl.dump(time_per_iteration,f)
+    def save_timing_to_pkl(total_time,training_time, time_per_iteration, output_dir):
+        with open(os.path.join(output_dir, "timing_total_time.pkl"), "wb") as f:
+            pkl.dump(total_time, f)
+        with open(os.path.join(output_dir, "timing_training_time.pkl"), "wb") as f:
+            pkl.dump(training_time, f)
+        with open(os.path.join(output_dir, "timing_per_iteration_time.pkl"), "wb") as f:
+            pkl.dump(time_per_iteration, f)
     
     @staticmethod        
-    def save_loss_per_iteration_to_pkl(loss_per_iteration_train,loss_per_iteration_val, output_dir):
-        with open(os.path.join(output_dir,"loss_per_iteration_train.pkl"),"wb") as f:
-            pkl.dump(loss_per_iteration_train,f)
-        with open(os.path.join(output_dir,"loss_per_iteration_val.pkl"),"wb") as f:
-            pkl.dump(loss_per_iteration_val,f)
+    def save_loss_per_iteration_to_pkl(loss_per_iteration_train, loss_per_iteration_val, output_dir):
+        with open(os.path.join(output_dir, "loss_per_iteration_train.pkl"),"wb") as f:
+            pkl.dump(loss_per_iteration_train, f)
+        with open(os.path.join(output_dir, "loss_per_iteration_val.pkl"), "wb") as f:
+            pkl.dump(loss_per_iteration_val, f)
 
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--input_dir", type=str, required=True, help="either a directory containing subdirectories "
-                                                                     "train, val, test, etc, or a directory containing "
-                                                                     "the tfrecords")
-    parser.add_argument("--output_dir", help="output directory where json files, summary, model, gifs, etc are saved. "
-                                             "default is logs_dir/model_fname, where model_fname consists of "
-                                             "information from model and model_hparams")
-    parser.add_argument("--datasplit_dict", help="json file that contains the datasplit configuration")
-    parser.add_argument("--checkpoint", help="directory with checkpoint or checkpoint name (e.g. checkpoint_dir/model-200000)")
-    parser.add_argument("--dataset", type=str, help="dataset class name")
-    parser.add_argument("--model", type=str, help="model class name")
-    parser.add_argument("--model_hparams_dict", type=str, help="a json file of model hyperparameters")
-    parser.add_argument("--gpu_mem_frac", type=float, default=0.99, help="fraction of gpu memory to use")
-    parser.add_argument("--seed",default=1234, type=int)
+    parser.add_argument("--input_dir", type=str, required=True,
+                        help="Directory where input data as TFRecord-files are stored.")
+    parser.add_argument("--output_dir", help="Output directory where JSON-files, summary, model, plots etc. are saved.")
+    parser.add_argument("--datasplit_dict", help="JSON-file that contains the datasplit configuration")
+    parser.add_argument("--checkpoint", help="Checkpoint directory or checkpoint name (e.g. <my_dir>/model-200000)")
+    parser.add_argument("--dataset", type=str, help="Dataset class name")
+    parser.add_argument("--model", type=str, help="Model class name")
+    parser.add_argument("--model_hparams_dict", type=str, help="JSON-file of model hyperparameters")
+    parser.add_argument("--gpu_mem_frac", type=float, default=0.99, help="Fraction of gpu memory to use")
+    parser.add_argument("--seed", default=1234, type=int)
     args = parser.parse_args()
     # start timing for the whole run
     timeit_start_total_time = time.time()  
