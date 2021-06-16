@@ -322,8 +322,8 @@ class TrainModel(object):
                     if lsave or step == self.total_steps - 1:
                         self.saver.save(sess, os.path.join(self.output_dir, "model"), global_step=step)
                     # pickle file and plots are always created
-                    TrainModel.save_results_to_pkl(train_losses,val_losses,self.output_dir)
-                    TrainModel.plot_train(train_losses,val_losses,step,self.output_dir)
+                    TrainModel.save_results_to_pkl(train_losses, val_losses, self.output_dir)
+                    TrainModel.plot_train(train_losses, val_losses, step, self.output_dir)
 
             # Final diagnostics
             # track time (save to pickle-files)
