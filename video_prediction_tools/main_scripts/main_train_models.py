@@ -316,9 +316,10 @@ class TrainModel(object):
                 time_iter = time.time() - timeit_start
                 time_per_iteration.append(time_iter)
                 print("time needed for this step {0:.3f}s".format(time_iter))
-                if step % self.save_diag_intv == 0:
+                if step % self.save_diag_intv == 0 or step == self.total_steps - 1:
                     lsave, val_loss_min = TrainModel.set_model_saver_flag(val_losses, val_loss_min, self.niter_loss_avg)
-                    if lsave:
+                    # save best and final model state
+                    if lsave or step == self.total_steps - 1:
                         self.saver.save(sess, os.path.join(self.output_dir, "model"), global_step=step)
                     # pickle file and plots are always created
                     TrainModel.save_results_to_pkl(train_losses,val_losses,self.output_dir)
