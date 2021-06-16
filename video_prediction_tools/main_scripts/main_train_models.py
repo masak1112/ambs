@@ -18,7 +18,7 @@ import random
 import time
 import numpy as np
 import tensorflow as tf
-# from typing import Union, List
+from typing import Union, List
 import matplotlib.pyplot as plt
 import pickle as pkl
 # own modules
