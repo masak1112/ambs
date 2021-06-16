@@ -27,7 +27,7 @@ from model_modules.video_prediction.utils import tf_utils
 class TrainModel(object):
     def __init__(self, input_dir=None, output_dir=None, datasplit_dict=None,
                  model_hparams_dict=None, model=None, checkpoint=None, dataset=None,
-                 gpu_mem_frac=None, seed=None, args=None, save_diag_intv=20, save_model_intv = 1000):
+                 gpu_mem_frac=None, seed=None, args=None, save_diag_intv=100, save_model_intv=100):
         
         """
         This class aims to train the models
@@ -221,46 +221,49 @@ class TrainModel(object):
         self.gpu_options = tf.GPUOptions(per_process_gpu_memory_fraction=self.gpu_mem_frac, allow_growth=True)
         self.config = tf.ConfigProto(gpu_options=self.gpu_options, allow_soft_placement=True)
 
-
     def calculate_samples_and_epochs(self):
         """
         Calculate the number of samples for train dataset, which is used for each epoch training
         Calculate the iterations (samples multiple by max_epochs) for training.
         """
+        method = TrainModel.calculate_samples_and_epochs.__name__
+
         batch_size = self.video_model.hparams.batch_size
-        max_epochs = self.video_model.hparams.max_epochs #the number of epochs
+        max_epochs = self.video_model.hparams.max_epochs   #the number of epochs
         self.num_examples = self.train_dataset.num_examples_per_epoch()
         self.steps_per_epoch = int(self.num_examples/batch_size)
         self.total_steps = self.steps_per_epoch * max_epochs
-        print("Batch size is {} ; max_epochs is {}; num_samples per epoch is {}; steps_per_epoch is {}, total steps is {}".format(batch_size,max_epochs, self.num_examples,self.steps_per_epoch,self.total_steps))
+        print("%{}: Batch size: {}; max_epochs: {}; num_samples per epoch: {}; steps_per_epoch: {}, total steps: {}"
+              .format(method, batch_size, max_epochs, self.num_examples, self.steps_per_epoch, self.total_steps))
 
     def restore(self, sess, checkpoints, restore_to_checkpoint_mapping=None):
         """
         Restore the models checkpoints if the checkpoints is given
         """
-  
+        method = TrainModel.restore.__name__
+
         if checkpoints is None:
-            print ("Checkpoint is empty!!")
-        elif os.path.isdir(checkpoints) and (not os.path.exists(os.path.join(checkpoints,"checkpoint"))):
-            print("There is not checkpoints in the dir {}".format(checkpoints))
+            print("%{0}: Checkpoint-variable is not set!".format(method))
+        elif os.path.isdir(checkpoints) and (not os.path.exists(os.path.join(checkpoints, "checkpoint"))):
+            print("%{0}: There are no checkpoints in the dir {1}".format(method, checkpoints))
         else:
-           var_list = self.video_model.saveable_variables
-           # possibly restore from multiple checkpoints. useful if subset of weights
-           # (e.g. generator or discriminator) are on different checkpoints.
-           if not isinstance(checkpoints, (list, tuple)):
-               checkpoints = [checkpoints]
-           # automatically skip global_step if more than one checkpoint is provided
-           skip_global_step = len(checkpoints) > 1
-           savers = []
-           for checkpoint in checkpoints:
-               print("creating restore saver from checkpoint %s" % checkpoint)
-               saver, _ = tf_utils.get_checkpoint_restore_saver(
+            var_list = self.video_model.saveable_variables
+            # possibly restore from multiple checkpoints. useful if subset of weights
+            # (e.g. generator or discriminator) are on different checkpoints.
+            if not isinstance(checkpoints, (list, tuple)):
+                checkpoints = [checkpoints]
+            # automatically skip global_step if more than one checkpoint is provided
+            skip_global_step = len(checkpoints) > 1
+            savers = []
+            for checkpoint in checkpoints:
+                print("%{0}: Creating restore saver from checkpoint {1}".format(method, checkpoint))
+                saver, _ = tf_utils.get_checkpoint_restore_saver(
                    checkpoint, var_list, skip_global_step=skip_global_step,
                    restore_to_checkpoint_mapping=restore_to_checkpoint_mapping)
-               savers.append(saver)
-           restore_op = [saver.saver_def.restore_op_name for saver in savers]
-           sess.run(restore_op)
-    
+                savers.append(saver)
+            restore_op = [saver.saver_def.restore_op_name for saver in savers]
+            sess.run(restore_op)
+
     def restore_train_val_losses(self):
         """
         Restore the train and validation losses in the pickle file if checkpoint is given 
@@ -278,54 +281,68 @@ class TrainModel(object):
 
     def train_model(self):
         """
-        Start session and train the model
+        Start session and train the model by looping over all iteration steps
         """
+        method = TrainModel.train_model.__name__
+
         self.global_step = tf.train.get_or_create_global_step()
+
         with tf.Session(config=self.config) as sess:
             print("parameter_count =", sess.run(self.parameter_count))
             sess.run(tf.global_variables_initializer())
             sess.run(tf.local_variables_initializer())
             self.restore(sess, self.checkpoint)
-            #sess.graph.finalize()
-            self.start_step = sess.run(self.global_step)
-            print("start_step", self.start_step)
+            start_step = sess.run(self.global_step)
+            print("Iteration starts at step {0}".format(start_step))
             # start at one step earlier to log everything without doing any training
             # step is relative to the start_step
             train_losses, val_losses = self.restore_train_val_losses()
+            # initialize auxiliary variables
             time_per_iteration = []
             run_start_time = time.time()
-            for step in range(self.start_step,self.total_steps):
+            val_loss_min = 999.
+            # perform iteration
+            for step in range(start_step, self.total_steps):
                 timeit_start = time.time()
-                #run for training dataset
+                # run for training dataset
                 self.create_fetches_for_train()             # In addition to the loss, we fetch the optimizer
                 self.results = sess.run(self.fetches)       # ...and run it here!
                 train_losses.append(self.results["total_loss"])
-                #Run and fetch losses for validation data
+                # run and fetch losses for validation data
                 val_handle_eval = sess.run(self.val_handle)
                 self.create_fetches_for_val()
                 self.val_results = sess.run(self.val_fetches,feed_dict={self.train_handle: val_handle_eval})
                 val_losses.append(self.val_results["total_loss"])
                 self.write_to_summary()
                 self.print_results(step,self.results)
-                timeit_end = time.time()
-                time_per_iteration.append(timeit_end - timeit_start)
-                print("time needed for this step", timeit_end - timeit_start, ' s')
+                # track iteration time
+                time_iter = time.time() - timeit_start
+                time_per_iteration.append(time_iter)
+                print("time needed for this step {0:.3f}s".format(time_iter))
                 if step % self.save_model_intv == 0:
-                    self.saver.save(sess, os.path.join(self.output_dir, "model"), global_step=step)
+                    lsave, val_loss_min = TrainModel.set_model_saver_flag(val_losses, val_loss_min, 10000)
+                    if lsave:
+                        self.saver.save(sess, os.path.join(self.output_dir, "model"), global_step=step)
                 if step % self.save_diag_intv == 0:
-                    # I save the pickle file and plot here inside the loop in case the training process cannot finished after job is done.
+                    # pickle file and plots are created inside the loop in case the training process does not finish
                     TrainModel.save_results_to_pkl(train_losses,val_losses,self.output_dir)
                     TrainModel.plot_train(train_losses,val_losses,step,self.output_dir)
 
-            #Totally train time over all the iterations
+            # Final diagnostics
+            # track time (save to pickle-files)
             train_time = time.time() - run_start_time
-            results_dict = {"train_time":train_time,
-                            "total_steps":self.total_steps}
+            results_dict = {"train_time": train_time,
+                            "total_steps": self.total_steps}
             TrainModel.save_results_to_dict(results_dict,self.output_dir)
-            print("train_losses:",train_losses)
-            print("val_losses:",val_losses) 
-            print("Done")
-            print("Total training time:", train_time/60., "min")
+
+            avg_samples = int(2000)
+            print("%{0}: Training loss decreased from {1:.6f} to {2:.6f}:"
+                  .format(method, np.mean(train_losses[0:10]), np.mean(train_losses[-avg_samples:])))
+            print("%{0}: Validation loss decreased from {1:.6f} to {2:.6f}:"
+                  .format(method, np.mean(val_losses[0:10]), np.mean(val_losses[-avg_samples:])))
+            print("%{0}: Training finsished".format(method))
+            print("%{0}: Total training time: {1:.2f} min".format(method, train_time/60.))
+
             return train_time, time_per_iteration
             
  
@@ -401,27 +418,57 @@ class TrainModel(object):
         self.summary_writer.add_summary(self.val_results["summary"],self.results["global_step"])
         self.summary_writer.flush()
 
-
-    def print_results(self,step,results):
+    def print_results(self, step, results):
         """
         Print the training results /validation results from the training step.
         """
+        method = TrainModel.print_results.__name__
+
         train_epoch = step/self.steps_per_epoch
         print("progress  global step %d  epoch %0.1f" % (step + 1, train_epoch))
         if self.video_model.__class__.__name__ == "McNetVideoPredictionModel":
-            print("Total_loss:{}; L_p_loss:{}; L_gdl:{}; L_GAN: {}".format(results["total_loss"],results["L_p"],results["L_gdl"],results["L_GAN"]))
+            print("Total_loss:{}; L_p_loss:{}; L_gdl:{}; L_GAN: {}".format(results["total_loss"],results["L_p"],
+                                                                           results["L_gdl"],results["L_GAN"]))
         elif self.video_model.__class__.__name__ == "VanillaConvLstmVideoPredictionModel":
             print ("Total_loss:{}".format(results["total_loss"]))
         elif self.video_model.__class__.__name__ == "SAVPVideoPredictionModel":
-            print("Total_loss/g_losses:{}; d_losses:{}; g_loss:{}; d_loss: {}".format(results["g_losses"],results["d_losses"],results["g_loss"],results["d_loss"]))
+            print("Total_loss/g_losses:{}; d_losses:{}; g_loss:{}; d_loss: {}"
+                  .format(results["g_losses"], results["d_losses"], results["g_loss"], results["d_loss"]))
         elif self.video_model.__class__.__name__ == "VanillaVAEVideoPredictionModel":
-            print("Total_loss:{}; latent_losses:{}; reconst_loss:{}".format(results["total_loss"],results["latent_loss"],results["recon_loss"]))
+            print("Total_loss:{}; latent_losses:{}; reconst_loss:{}".format(results["total_loss"],
+                                                                            results["latent_loss"],
+                                                                            results["recon_loss"]))
         else:
-            print ("The model name does not exist")
+            print("%{0}: WARNING: The model name does not exist".format(method))
     
-            
+
     @staticmethod
-    def plot_train(train_losses,val_losses,step,output_dir):
+    def set_model_saver_flag(losses: list, old_min_loss: float, niter_steps: int = 100):
+        """
+        Sets flag to save the model given that a new minimum in the loss is readched
+        :param losses: list of losses over iteration steps
+        :param old_min_loss: previous loss
+        :param niter_steps: number of iteration steps over which the loss is averaged
+        :return flag: True if model should be saved
+        :return loss_avg: updated minimum loss
+        """
+
+        save_flag = False
+        if len(losses) <= niter_steps*2:
+            loss_avg = old_min_loss
+            return save_flag, loss_avg
+
+        loss_avg = np.mean(losses[-niter_steps:])
+        if loss_avg < old_min_loss:
+            save_flag = True
+        else:
+            loss_avg = old_min_loss
+
+        return save_flag, loss_avg
+
+
+    @staticmethod
+    def plot_train(train_losses, val_losses, step, output_dir):
         """
         Function to plot training losses for train and val datasets against steps
         params:
