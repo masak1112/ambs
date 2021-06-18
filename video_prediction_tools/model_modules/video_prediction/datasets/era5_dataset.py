@@ -89,6 +89,7 @@ class ERA5Dataset(object):
         """
         Parse the hparams setting to ovoerride the default ones
         """
+        self.hparams_dict = reduce_dict(self.hparams_dict, self.get_default_hparams())
         parsed_hparams = self.get_default_hparams().override_from_dict(self.hparams_dict or {})
         return parsed_hparams
 

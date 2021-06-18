@@ -151,6 +151,10 @@ def check_dir(path2dir: str, lcreate=False):
         else:
             raise NotADirectoryError("%{0}: Directory '{1}' does not exist".format(method, path2dir))
 
+def reduce_dict(dict_in, dict_ref):
+
+
+
 
 def provide_default(dict_in, keyname, default=None, required=False):
     """
