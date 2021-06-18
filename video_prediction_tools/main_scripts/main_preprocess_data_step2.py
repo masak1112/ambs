@@ -32,7 +32,9 @@ def main():
     # ini. MPI
     comm = MPI.COMM_WORLD
     my_rank = comm.Get_rank()  # rank of the node
-    p = comm.Get_size()  # number of assigned nods
+    p = comm.Get_size()  # number of assigned nodes
+    if p < 2:
+        raise ValueError("Preprocessing step 2 must be assigned to at least two tasks.")
   
     if my_rank == 0:
         # retrieve final statistics first (not parallelized!)
@@ -62,9 +64,7 @@ def main():
         real_years_months = []
         for i in range(len(years)):
             year = years[i]
-            print("I am here year:", year)
             for month in years_months[i]:
-                print("I am here month", month)
                 year_month = "Y_{}_M_{}".format(year, month)
                 real_years_months.append(year_month)
  
@@ -74,7 +74,7 @@ def main():
             comm.send(broadcast_lists, dest=nodes)
            
         message_counter = 1
-        while message_counter <= 12:
+        while message_counter <= p-1:
             message_in = comm.recv()
             message_counter = message_counter + 1 
             print("Message in from slave: ", message_in)
