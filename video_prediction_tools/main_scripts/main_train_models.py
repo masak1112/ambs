@@ -30,7 +30,7 @@ class TrainModel(object):
     def __init__(self, input_dir: str = None, output_dir: str = None, datasplit_dict: str = None,
                  model_hparams_dict: str = None, model: str = None, checkpoint: str = None, dataset: str = None,
                  gpu_mem_frac: float = None, seed: int = None, args=None, save_diag_intv: int = 100,
-                 niter_loss_avg: int = 10000):
+                 niter_loss_avg: int = 100):
         """
         Class instance for training the models
         :param input_dir: parent directory under which "pickle" and "tfrecords" files directiory are located
@@ -140,6 +140,7 @@ class TrainModel(object):
         Setup train and val dataset instance with the corresponding data split configuration.
         Simultaneously, sequence_length is attached to the hyperparameter dictionary.
         """
+        VideoDataset = datasets.get_dataset_class(self.dataset)
         self.train_dataset = VideoDataset(input_dir=self.input_dir, mode='train', datasplit_config=self.datasplit_dict,
                                           hparams_dict_config=self.model_hparams_dict)
         self.val_dataset = VideoDataset(input_dir=self.input_dir, mode='val', datasplit_config=self.datasplit_dict,
