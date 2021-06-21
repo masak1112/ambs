@@ -43,7 +43,10 @@ class GZprcp2Tfrecords(GZprcp):
     def read_nc_file(self):
         data_temp = nc.Dataset(os.path.join(self.input_dir,str(self.target_year),"rainy","guizhou_prcp.nc"))
         prcp_temp = np.transpose(data_temp['prcp'],[3,2,1,0])
+        
+        ######### missing data
         prcp_temp[np.isnan(prcp_temp)] = 0
+
         self.data = prcp_temp
         self.time = np.transpose(data_temp['time'],[2,1,0])
         print("data in gzprcp_test_Seq shape", self.data.shape)
@@ -143,7 +146,7 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("-source_dir", type=str, help="The input directory that contains the zgprcp_data nc file", default="/p/scratch/deepacf/ji4/extractedData/guizhou_prcpdata/prcp_squence/")
     parser.add_argument("-target_year", type=int,default=2019)
-    parser.add_argument("-dest_dir", type=str,default="/p/scratch/deepacf/ji4/preprocessedData/guizhou_prcpdata/tfrecords_seq_len_40")
+    parser.add_argument("-dest_dir", type=str,default="/p/scratch/deepacf/ji4/preprocessedData/guizhou_prcpdata/tfrecords_seq_len")
     parser.add_argument("-sequences_per_file", type=int, default=10)
     args = parser.parse_args()
     inst = GZprcp2Tfrecords(args.source_dir, args.target_year, args.dest_dir, args.sequences_per_file)
