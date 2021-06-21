@@ -6,6 +6,7 @@ Provides:   * get_unique_vars
             * isw
             * check_str_in_list
             * check_dir
+            * reduce_dict
             * provide_default
             * get_era5_atts
 """
