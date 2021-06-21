@@ -71,7 +71,7 @@ class ERA5Pkl2Tfrecords(ERA5Dataset):
         """
         Get the corresponding statistics file
         """
-        method = ERA5Pkl2Tfrecords.get_stat_file.__name__
+        method = ERA5Pkl2Tfrecords.get_stats_file.__name__
 
         stats_file = os.path.join(os.path.dirname(self.input_dir), "statistics.json")
         print("Opening json-file: {0}".format(stats_file))
@@ -120,7 +120,7 @@ class ERA5Pkl2Tfrecords(ERA5Dataset):
         sequences = np.array(sequences)
         # sanity checks
         assert sequences.shape[0] == len(t_start_points), "%{0}: Lengths of sequence differs from length of t_start_points.".format(method)
-        assert type(t_start_points[0]) == datetime.datetime, "%{0}: Elements of t_start_points must be datetime-objects.".format(method)
+        assert isinstance(t_start_points[0], datetime.datetime), "%{0}: Elements of t_start_points must be datetime-objects.".format(method)
 
         with tf.python_io.TFRecordWriter(output_fname) as writer:
             for i in range(len(sequences)):
