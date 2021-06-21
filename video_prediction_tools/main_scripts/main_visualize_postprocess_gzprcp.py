@@ -771,8 +771,8 @@ class Postprocess(TrainModel):
 
         # auxiliary variables for temporal dimensions
         in_hours = np.arange(self.context_frames) - (self.context_frames-1)
-        fore_hours = np.arange(self.context_frames)+1
-      
+        fore_hours = np.arange(self.future_length)+1
+
         # sanity checks
         assert len(in_seq_shape) == 4, "%{0}: Number of dimensions of input and persistence sequence must be 4." \
             .format(method)
