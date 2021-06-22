@@ -56,6 +56,8 @@ class TrainModel(object):
         self.seed = seed
         self.args = args
         # for diagnozing and saving the model during training
+        self.saver_loss = None
+        self.saver_loss_name = None
         self.save_diag_intv = save_diag_intv
         self.niter_loss_avg = niter_loss_avg
 
@@ -304,12 +306,12 @@ class TrainModel(object):
                 # run for training dataset
                 self.create_fetches_for_train()             # In addition to the loss, we fetch the optimizer
                 self.results = sess.run(self.fetches)       # ...and run it here!
-                train_losses.append(self.results["total_loss"])
+                train_losses.append(self.results[self.saver_loss])
                 # run and fetch losses for validation data
                 val_handle_eval = sess.run(self.val_handle)
                 self.create_fetches_for_val()
-                self.val_results = sess.run(self.val_fetches,feed_dict={self.train_handle: val_handle_eval})
-                val_losses.append(self.val_results["total_loss"])
+                self.val_results = sess.run(self.val_fetches, feed_dict={self.train_handle: val_handle_eval})
+                val_losses.append(self.val_results[self.saver_loss])
                 self.write_to_summary()
                 self.print_results(step,self.results)
                 # track iteration time
@@ -323,7 +325,7 @@ class TrainModel(object):
                         self.saver.save(sess, os.path.join(self.output_dir, "model"), global_step=step)
                     # pickle file and plots are always created
                     TrainModel.save_results_to_pkl(train_losses, val_losses, self.output_dir)
-                    TrainModel.plot_train(train_losses, val_losses, step, self.output_dir)
+                    TrainModel.plot_train(train_losses, val_losses, self.output_dir, self.saver_loss_name)
 
             # Final diagnostics
             # track time (save to pickle-files)
@@ -371,6 +373,8 @@ class TrainModel(object):
         """
         self.fetches["total_loss"] = self.video_model.total_loss
         self.fetches["inputs"] = self.video_model.inputs
+        self.saver_loss = "total_loss"
+        self.saver_loss_name = "Total loss"
 
     def fetches_for_train_savp(self):
         """
@@ -382,6 +386,8 @@ class TrainModel(object):
         self.fetches["g_loss"] = self.video_model.g_loss
         self.fetches["total_loss"] = self.video_model.g_loss
         self.fetches["inputs"] = self.video_model.inputs
+        self.saver_loss = "g_loss"
+        self.saver_loss_name = "Generator loss"
 
     def fetches_for_train_mcnet(self):
         """
@@ -389,7 +395,9 @@ class TrainModel(object):
         """
         self.fetches["L_p"] = self.video_model.L_p
         self.fetches["L_gdl"] = self.video_model.L_gdl
-        self.fetches["L_GAN"]  = self.video_model.L_GAN        
+        self.fetches["L_GAN"] = self.video_model.L_GAN
+        self.saver_loss = "L_p"                         # ML: Is this a reasonable choice?
+        self.saver_loss_name = "Loss"
 
     def fetches_for_train_vae(self):
         """
@@ -398,9 +406,13 @@ class TrainModel(object):
         self.fetches["latent_loss"] = self.video_model.latent_loss
         self.fetches["recon_loss"] = self.video_model.recon_loss
         self.fetches["total_loss"] = self.video_model.total_loss
+        self.saver_loss = "recon_loss"
+        self.saver_loss_name = "Reconstruction loss"
 
     def fetches_for_train_gan(self):
         self.fetches["total_loss"] = self.video_model.total_loss
+        self.saver_loss = "total_loss"
+        self.saver_loss_name = "Total loss"
 
     def create_fetches_for_val(self):
         """
@@ -466,13 +478,14 @@ class TrainModel(object):
         return save_flag, loss_avg
 
     @staticmethod
-    def plot_train(train_losses: List, val_losses: List, step: int, output_dir: str):
+    def plot_train(train_losses: List, val_losses: List, output_dir: str, loss_name: str = "Loss"):
         """
         Create plot of training and validation losses against steps
         :param train_losses: train losses whose length should be equal to the number of training steps
         :param val_losses: validation losses whose length should be equal to the number of training steps
         :param step: current training step
         :param output_dir: the path to save the plot
+        :param loss_name: Name of the loss that is plotted
         """ 
         method = TrainModel.plot_train.__name__
 
@@ -485,7 +498,7 @@ class TrainModel(object):
         plt.yscale("log")
         plt.title('Training and Validation loss')
         plt.xlabel('Iterations')
-        plt.ylabel('Loss')
+        plt.ylabel("{0}".format(loss_name))
         plt.legend()
         plt.savefig(os.path.join(output_dir, 'plot_train.png'))
         plt.close()
