@@ -73,7 +73,10 @@ class GZprcp2Tfrecords(GZprcp):
         # self.data/= 255.0  # normalize RGB codes by dividing it to the max RGB value
         
         ############# normalization ############
-        self.data = self.data**1./3 # cubic normalization
+        # self.data = self.data**1./3 # cubic normalization
+        
+        k = 0.001
+        self.data = np.log(self.data+k)-np.log(k) # log
         ############# normalization ############
         
         while idx < num_samples - self.sequences_per_file:
@@ -82,7 +85,7 @@ class GZprcp2Tfrecords(GZprcp):
             t_start = self.time[idx:idx+self.sequences_per_file,19,4]+self.time[idx:idx+self.sequences_per_file,19,3]*100+self.time[idx:idx+self.sequences_per_file,19,2]*10000+self.time[idx:idx+self.sequences_per_file,19,1]*1000000+self.time[idx:idx+self.sequences_per_file,19,0]*100000000
 
             # t_start = self.time[idx:idx+self.sequences_per_file,:,:]
-
+            # print('self.target_year: ',self.target_year)
             output_fname = 'sequence_Y_{}_index_{}_to_{}.tfrecords'.format(self.target_year, idx, idx + self.sequences_per_file-1)
             output_fname = os.path.join(self.output_dir, output_fname)
             GZprcp2Tfrecords.save_tf_record(output_fname, sequences, t_start)
@@ -144,9 +147,9 @@ def _int64_feature(value):
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("-source_dir", type=str, help="The input directory that contains the zgprcp_data nc file", default="/p/scratch/deepacf/ji4/extractedData/guizhou_prcpdata/prcp_squence/")
+    parser.add_argument("-source_dir", type=str, help="The input directory that contains the gprcp_data nc file", default="/p/scratch/deepacf/ji4/extractedData/guizhou_prcpdata/prcp_squence/")
     parser.add_argument("-target_year", type=int,default=2019)
-    parser.add_argument("-dest_dir", type=str,default="/p/scratch/deepacf/ji4/preprocessedData/guizhou_prcpdata/tfrecords_seq_len")
+    parser.add_argument("-dest_dir", type=str,default="/p/scratch/deepacf/ji4/preprocessedData/gzprcp_data/tfrecords_seq_len")
     parser.add_argument("-sequences_per_file", type=int, default=10)
     args = parser.parse_args()
     inst = GZprcp2Tfrecords(args.source_dir, args.target_year, args.dest_dir, args.sequences_per_file)
