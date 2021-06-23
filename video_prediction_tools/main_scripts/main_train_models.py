@@ -56,6 +56,7 @@ class TrainModel(object):
         self.seed = seed
         self.args = args
         # for diagnozing and saving the model during training
+        self.video_model = None
         self.saver_loss = None
         self.saver_loss_name = None
         self.save_diag_intv = save_diag_intv
@@ -349,86 +350,81 @@ class TrainModel(object):
         Fetch variables in the graph, this can be custermized based on models and also the needs of users
         """
         # This is the basic fetch for all the models
-        self.fetches = {"train_op": self.video_model.train_op}         # includes fetching the optimizer!
-        self.fetches["summary"] = self.video_model.summary_op
-        self.fetches["global_step"] = self.global_step
-        # append fetching depending on model to be trained
+        fetch_list = ["train_op", "summary_op", "global_step"]
+
+        # Append fetches depending on model to be trained
         if self.video_model.__class__.__name__ == "McNetVideoPredictionModel":
-           self.fetches_for_train_mcnet()
+            fetch_list = fetch_list + ["L_p", "L_gdl", "L_GAN"]
+            self.saver_loss = "L_p"  # ML: Is this a reasonable choice?
+            self.saver_loss_name = "Loss"
         if self.video_model.__class__.__name__ == "VanillaConvLstmVideoPredictionModel":
-           self.fetches_for_train_convLSTM()
+            fetch_list = fetch_list + ["total_loss", "inputs"]
+            self.saver_loss = "total_loss"
+            self.saver_loss_name = "Total loss"
         if self.video_model.__class__.__name__ == "SAVPVideoPredictionModel":
-           self.fetches_for_train_savp()
+            fetch_list = fetch_list + ["g_losses", "d_losses", "d_loss", "g_loss", "inputs"]
+            # Add loss that is tracked
+            self.saver_loss = "g_loss"
+            self.saver_loss_name = "Generator loss"
         if self.video_model.__class__.__name__ == "VanillaVAEVideoPredictionModel":
-           self.fetches_for_train_vae()
+            fetch_list = fetch_list + ["latent_loss", "recon_loss", "total_loss"]
+            self.saver_loss = "recon_loss"
+            self.saver_loss_name = "Reconstruction loss"
         if self.video_model.__class__.__name__ == "VanillaGANVideoPredictionModel":
-           self.fetches_for_train_gan()
-        if self.video_model.__class__.__name__ == "ConvLstmGANVideoPredictionModel":self.fetches_for_train_convLSTM()
+            fetch_list = fetch_list + ["total_loss", "inputs"]
+            self.saver_loss = "total_loss"
+            self.saver_loss_name = "Total loss"
+        if self.video_model.__class__.__name__ == "ConvLstmGANVideoPredictionModel":
+            fetch_list = fetch_list + ["total_loss", "inputs"]
+            self.saver_loss = "total_loss"
+            self.saver_loss_name = "Total loss"
+
+        self.fetches = self.generate_fetches(fetch_list)
+        if self.video_model.__class__.__name__ == "SAVPVideoPredictionModel":
+            self.fetches["total_loss"] = self.fetches["g_loss"] + self.fetches["d_loss"]
 
         return self.fetches
-    
-    def fetches_for_train_convLSTM(self):
-        """
-        Fetch variables in the graph for convLSTM model, this can be custermized based on models and the needs of users
-        """
-        self.fetches["total_loss"] = self.video_model.total_loss
-        self.fetches["inputs"] = self.video_model.inputs
-        self.saver_loss = "total_loss"
-        self.saver_loss_name = "Total loss"
-
-    def fetches_for_train_savp(self):
-        """
-        Fetch variables in the graph for savp model, this can be custermized based on models and the needs of users
-        """
-        self.fetches["g_losses"] = self.video_model.g_losses
-        self.fetches["d_losses"] = self.video_model.d_losses
-        self.fetches["d_loss"] = self.video_model.d_loss
-        self.fetches["g_loss"] = self.video_model.g_loss
-        self.fetches["total_loss"] = self.video_model.g_loss
-        self.fetches["inputs"] = self.video_model.inputs
-        self.saver_loss = "g_loss"
-        self.saver_loss_name = "Generator loss"
-
-    def fetches_for_train_mcnet(self):
-        """
-        Fetch variables in the graph for mcnet model, this can be custermized based on models and  the needs of users
-        """
-        self.fetches["L_p"] = self.video_model.L_p
-        self.fetches["L_gdl"] = self.video_model.L_gdl
-        self.fetches["L_GAN"] = self.video_model.L_GAN
-        self.saver_loss = "L_p"                         # ML: Is this a reasonable choice?
-        self.saver_loss_name = "Loss"
-
-    def fetches_for_train_vae(self):
-        """
-        Fetch variables in the graph for savp model, this can be custermized based on models and based on the needs of users
-        """
-        self.fetches["latent_loss"] = self.video_model.latent_loss
-        self.fetches["recon_loss"] = self.video_model.recon_loss
-        self.fetches["total_loss"] = self.video_model.total_loss
-        self.saver_loss = "recon_loss"
-        self.saver_loss_name = "Reconstruction loss"
-
-    def fetches_for_train_gan(self):
-        self.fetches["total_loss"] = self.video_model.total_loss
-        self.saver_loss = "total_loss"
-        self.saver_loss_name = "Total loss"
 
     def create_fetches_for_val(self):
         """
-        Fetch variables in the graph for validation dataset, this can be custermized based on models and the needs of users
+        Fetch variables in the graph for validation dataset, customized depending on models and users' needs
         """
-        if self.video_model.__class__.__name__ == "SAVPVideoPredictionModel":
-            self.val_fetches = {"total_loss": self.video_model.g_loss}
-            self.val_fetches["inputs"] = self.video_model.inputs
-        else:
-            self.val_fetches = {"total_loss": self.video_model.total_loss}
-            self.val_fetches["inputs"] = self.video_model.inputs
-        self.val_fetches["summary"] = self.video_model.summary_op
+        method = TrainModel.create_fetches_for_val.__name__
+
+        if not self.saver_loss:
+            raise AttributeError("%{0}: saver_loss is still not set. create_fetches_for_train must be run in advance."
+                                 .format(method))
+        fetch_list = ["summary_op", "global_step", "inputs", self.saver_loss]
+
+        self.val_fetches = self.generate_fetches(fetch_list)
+
+        return self.val_fetches
+
+    def generate_fetches(self, fetch_list: List) -> dict:
+        """
+        Generates dictionary of fetches from video model instance
+        :param fetch_list: list of attributes of video model instance that are of particular interest
+        :return: dictionary of fetches with keys from fetch_list and values from video model instance
+        """
+        method = TrainModel.generate_fetches.__name__
+
+        if not self.video_model:
+            raise AttributeError("%{0}: video_model is still not set. setup_model must be run in advance."
+                                 .format(method))
+
+        fetches = {}
+        for fetch_req in fetch_list:
+            try:
+                fetches[fetch_req] = self.video_model[fetch_req]
+            except Exception as err:
+                print("%{0}: Failed to retrieve {1} from video_model-attribute.".format(method, fetch_req))
+                raise err
+
+        return fetches
 
     def write_to_summary(self):
-        self.summary_writer.add_summary(self.results["summary"],self.results["global_step"])
-        self.summary_writer.add_summary(self.val_results["summary"],self.results["global_step"])
+        self.summary_writer.add_summary(self.results["summary_op"], self.results["global_step"])
+        self.summary_writer.add_summary(self.val_results["summary_op"], self.results["global_step"])
         self.summary_writer.flush()
 
     def print_results(self, step, results):
