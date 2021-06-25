@@ -1,7 +1,14 @@
+# SPDX-FileCopyrightText: 2016, 2018-2019 Jane Doe <jane@example.com>
+# SPDX-FileCopyrightText: 2019 Example Company
+# SPDX-License-Identifier: GPL-3.0-or-later
+
 __email__ = "b.gong@fz-juelich.de"
 __author__ = "Bing Gong, Scarlet Stadtler,Michael Langguth"
 __date__ = "2020-11-05"
 
+"""
+This file is revised based on the project https://github.com/loliverhennigh/Convolutional-LSTM-in-Tensorflow/blob/master/BasicConvLSTMCell.py
+"""
 import collections
 import functools
 import itertools
@@ -114,6 +121,11 @@ class VanillaConvLstmVideoPredictionModel(object):
 
     @staticmethod
     def convLSTM_cell(inputs, hidden):
+        """
+        SPDX-FileCopyrightText: loliverhennigh 
+        SPDX-License-Identifier: Apache-2.0
+        The following function was revised based on the github https://github.com/loliverhennigh/Convolutional-LSTM-in-Tensorflow 
+        """
         y_0 = inputs #we only usd patch 1, but the original paper use patch 4 for the moving mnist case, but use 2 for Radar Echo Dataset
         channels = inputs.get_shape()[-1]
         # conv lstm cell
