@@ -280,11 +280,11 @@ class Config_Preprocess1(Config_runscript_base):
         check_vars = [var.strip().lower() in known_vars for var in vars_list]
         status = all(check_vars)
         if not status:
-            inds_bad = [i for i, e in enumerate(check_vars) if e]  # np.where(~np.array(check_vars))[0]
+            inds_bad = [i for i, e in enumerate(check_vars) if not e]  # np.where(~np.array(check_vars))[0]
             if not silent:
                 print("%{0}: The following comma-separated elements are unknown variables:".format(method))
                 for ind in inds_bad:
-                    print(vars_list[ind])
+                    print("* {0}".format(vars_list[ind]))
             return status
 
         if not len(check_vars) >= 1:
