@@ -2,7 +2,16 @@ import tensorflow as tf
 #import lpips_tf
 import math
 import numpy as np
-from skimage.measure import compare_ssim as ssim_ski
+try:
+    from skimage.measure import compare_ssim as ssim_ski
+except:
+    try:
+        import skimage.metrics._structural_similarity as ssmi_ski
+    except ModuleNotFoundError as err:
+        print("Could not get ssmi-function from skimage. Please check installed skimage-package.")
+        raise err
+
+
 
 def mse(a, b):
     return tf.reduce_mean(tf.squared_difference(a, b), [-3, -2, -1])
