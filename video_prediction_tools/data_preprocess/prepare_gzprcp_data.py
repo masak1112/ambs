@@ -73,16 +73,17 @@ class GZprcp2Tfrecords(GZprcp):
         # self.data/= 255.0  # normalize RGB codes by dividing it to the max RGB value
         
         ############# normalization ############
-        # self.data = self.data**1./3 # cubic normalization
+        self.data = self.data**1./3 # cubic normalization
         
-        k = 0.001
-        self.data = np.log(self.data+k)-np.log(k) # log
+        # k = 0.001
+        # self.data = np.log(self.data+k)-np.log(k) # log
         ############# normalization ############
         
         while idx < num_samples - self.sequences_per_file:
             sequences = self.data[idx:idx+self.sequences_per_file, :, :, :, :]
 
-            t_start = self.time[idx:idx+self.sequences_per_file,19,4]+self.time[idx:idx+self.sequences_per_file,19,3]*100+self.time[idx:idx+self.sequences_per_file,19,2]*10000+self.time[idx:idx+self.sequences_per_file,19,1]*1000000+self.time[idx:idx+self.sequences_per_file,19,0]*100000000
+            # use the first sequence time
+            t_start = self.time[idx:idx+self.sequences_per_file,0,4]+self.time[idx:idx+self.sequences_per_file,0,3]*100+self.time[idx:idx+self.sequences_per_file,0,2]*10000+self.time[idx:idx+self.sequences_per_file,0,1]*1000000+self.time[idx:idx+self.sequences_per_file,0,0]*100000000
 
             # t_start = self.time[idx:idx+self.sequences_per_file,:,:]
             # print('self.target_year: ',self.target_year)

@@ -51,6 +51,7 @@ class GZprcp(object):
         """
         Get the datasplit json file
         """
+        print('self.datasplit_dict_path ',self.datasplit_dict_path)
         with open(self.datasplit_dict_path) as f:
             d = json.load(f)
         return d
@@ -90,7 +91,7 @@ class GZprcp(object):
         :return:
         """
         hparams = dict(
-            batch_size=4,
+            batch_size=32,
             lr=0.0002,
             beta1=0.5,
             beta2=0.999,
@@ -138,11 +139,16 @@ class GZprcp(object):
        self.tf_names = []
        self.filenames = []
        self.data_mode = self.data_dict[self.mode]
-       for var,year in self.data_mode.items():
-           print('year',year)
-           tf_files = glob.glob(os.path.join(self.input_dir,"*{}*.tfrecords".format(year)))
-           self.tf_names.append(tf_files)
-           #print('self.tf_names: ',self.tf_names[0])
+       print('self.data_dict ', self.data_dict)
+       for var,years in self.data_mode.items():
+           for year in years:
+               print('year',year)
+               print('self.input_dir ',self.input_dir)
+               tf_files = glob.glob(os.path.join(self.input_dir,"sequence_Y_{}_index_*_to_*.tfrecords".format(year)))
+               print('tf_file ',os.path.join(self.input_dir,"sequence_Y_{}_index_*_to_*.tfrecords".format(year)))
+               print('tf_files ',tf_files)
+               self.tf_names.append(tf_files)
+               print('self.tf_names: ',self.tf_names[0])
        #print('self.tf_names length: ',len(self.tf_names))
        for files in self.tf_names:
            self.filenames.extend(files)
