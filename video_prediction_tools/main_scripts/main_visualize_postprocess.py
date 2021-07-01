@@ -19,7 +19,8 @@ import json
 from typing import Union, List
 # own modules
 from normalization import Norm_data
-from general_utils import get_era5_varatts, check_dir
+from netcdf_datahandling import get_era5_varatts
+from general_utils import check_dir
 from metadata import MetaData as MetaData
 from main_scripts.main_train_models import *
 from data_preprocess.preprocess_data_step2 import *

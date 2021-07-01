@@ -14,7 +14,7 @@ Provides:   * get_unique_vars
 # import modules
 import os
 import numpy as np
-import xarray as xr
+#import xarray as xr
 
 # routines
 def get_unique_vars(varnames):
@@ -198,39 +198,4 @@ def provide_default(dict_in, keyname, default=None, required=False):
     else:
         return dict_in[keyname]
 
-
-def get_era5_varatts(data_arr: xr.DataArray, name: str):
-    """
-    Writes longname and unit to data arrays given their name is known
-    :param data_arr: the data array
-    :param name: the name of the variable
-    :return: data array with added attributes 'longname' and 'unit' if they are known
-    """
-
-    era5_varname_map = {"2t": "2m temperature", "t_850": "850 hPa temperature", "tcc": "total cloud cover",
-                        "msl": "mean sealevel pressure", "10u": "10m u-wind", "10v": "10m v-wind"}
-    era5_varunit_map = {"2t": "K", "t_850": "K", "tcc": "%",
-                        "msl": "Pa", "10u": "m/s", "10v": "m/s"}
-
-    name_splitted = name.split("_")
-    if "fcst" in name:
-        addstr = "from {0} model".format(name_splitted[1])
-    elif "ref" in name:
-        addstr = "from ERA5 reanalysis"
-    else:
-        addstr = ""
-
-    longname = provide_default(era5_varname_map, name_splitted[0], -1)
-    if longname == -1:
-        pass
-    else:
-        data_arr.attrs["longname"] = "{0} {1}".format(longname, addstr)
-
-    unit = provide_default(era5_varunit_map, name_splitted[0], -1)
-    if unit == -1:
-        pass
-    else:
-        data_arr.attrs["unit"] = unit
-
-    return data_arr
 
