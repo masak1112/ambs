@@ -7,29 +7,28 @@ We took the code implementation from https://github.com/alexlee-gk/video_predict
 """
 
 __email__ = "b.gong@fz-juelich.de"
-__author__ = "Bing Gong, Michael Langguth"
+__author__ = "Bing Gong"
 __date__ = "2020-10-22"
 
 import argparse
 import errno
 import json
 import os
+from typing import Union, List
 import random
 import time
 import numpy as np
 import tensorflow as tf
-from typing import Union, List
+from model_modules.video_prediction import datasets, models
 import matplotlib.pyplot as plt
 import pickle as pkl
-# own modules
-from model_modules.video_prediction import datasets, models
 from model_modules.video_prediction.utils import tf_utils
 
 
 class TrainModel(object):
     def __init__(self, input_dir: str = None, output_dir: str = None, datasplit_dict: str = None,
                  model_hparams_dict: str = None, model: str = None, checkpoint: str = None, dataset: str = None,
-                 gpu_mem_frac: float = None, seed: int = None, args=None, save_diag_intv: int = 100,
+                 gpu_mem_frac: float = 1., seed: int = None, args=None, save_diag_intv: int = 100,
                  niter_loss_avg: int = 100):
         """
         Class instance for training the models
@@ -45,6 +44,7 @@ class TrainModel(object):
         :param args: list of arguments passed
         :param save_diag_intv: interval of iteration steps for which diagnostic plot and optional model saving is done
         """
+
         self.input_dir = os.path.normpath(input_dir)
         self.output_dir = os.path.normpath(output_dir)
         self.datasplit_dict = datasplit_dict
@@ -56,11 +56,11 @@ class TrainModel(object):
         self.seed = seed
         self.args = args
         # for diagnozing and saving the model during training
-        self.video_model = None
         self.saver_loss = None
         self.saver_loss_name = None
         self.save_diag_intv = save_diag_intv
         self.niter_loss_avg = niter_loss_avg
+
 
     def setup(self):
         self.set_seed()
@@ -125,7 +125,7 @@ class TrainModel(object):
             # read and overwrite dataset and model from checkpoint
             try:
                 with open(os.path.join(self.checkpoint_dir, "options.json")) as f:
-                    print("%{0}: Loading options from checkpoint {1}".format(method, self.checkpoint))
+                    print("%{0}: Loading options from checkpoint '{1}'".format(method, self.checkpoint))
                     self.options = json.loads(f.read())
                     self.dataset = self.dataset or self.options['dataset']
                     self.model = self.model or self.options['model']
@@ -163,25 +163,25 @@ class TrainModel(object):
         build model graph
         """
         self.video_model.build_graph(self.inputs)
-
+        
     def make_dataset_iterator(self):
         """
         Prepare the dataset interator for training and validation
         """
         self.batch_size = self.model_hparams_dict_load["batch_size"]
-        self.train_tf_dataset = self.train_dataset.make_dataset(self.batch_size)
-        self.train_iterator = self.train_tf_dataset.make_one_shot_iterator()
+        train_tf_dataset = self.train_dataset.make_dataset(self.batch_size)
+        train_iterator = train_tf_dataset.make_one_shot_iterator()
         # The `Iterator.string_handle()` method returns a tensor that can be evaluated
         # and used to feed the `handle` placeholder.
-        self.train_handle = self.train_iterator.string_handle()
-        self.val_tf_dataset = self.val_dataset.make_dataset(self.batch_size)
-        self.val_iterator = self.val_tf_dataset.make_one_shot_iterator()
-        self.val_handle = self.val_iterator.string_handle()
+        self.train_handle = train_iterator.string_handle()
+        val_tf_dataset = self.val_dataset.make_dataset(self.batch_size)
+        val_iterator = val_tf_dataset.make_one_shot_iterator()
+        self.val_handle = val_iterator.string_handle()
         self.iterator = tf.data.Iterator.from_string_handle(
-            self.train_handle, self.train_tf_dataset.output_types, self.train_tf_dataset.output_shapes)
+            self.train_handle, train_tf_dataset.output_types, train_tf_dataset.output_shapes)
         self.inputs = self.iterator.get_next()
         # since era5 tfrecords include T_start, we need to remove it from the tfrecord when we train SAVP
-        # Otherwise an error will be risen by SAVP
+        # Otherwise an error will be risen by SAVP 
         if self.dataset == "era5" and self.model == "savp":
             del self.inputs["T_start"]
 
@@ -195,8 +195,8 @@ class TrainModel(object):
             f.write(json.dumps(dataset.hparams.values(), sort_keys=True, indent=4))
         with open(os.path.join(self.output_dir, "model_hparams.json"), "w") as f:
             f.write(json.dumps(video_model.hparams.values(), sort_keys=True, indent=4))
-        with open(os.path.join(self.output_dir, "data_dict.json"), "w") as f:
-            f.write(json.dumps(dataset.data_dict, sort_keys=True, indent=4))
+        #with open(os.path.join(self.output_dir, "data_dict.json"), "w") as f:
+        #   f.write(json.dumps(dataset.data_dict, sort_keys=True, indent=4))
 
     def count_parameters(self):
         """
@@ -226,15 +226,15 @@ class TrainModel(object):
         Calculate the number of samples for train dataset, which is used for each epoch training
         Calculate the iterations (samples multiple by max_epochs) for training.
         """
-        method = TrainModel.calculate_samples_and_epochs.__name__
+        method = TrainModel.calculate_samples_and_epochs.__name__        
 
         batch_size = self.video_model.hparams.batch_size
-        max_epochs = self.video_model.hparams.max_epochs   #the number of epochs
+        max_epochs = self.video_model.hparams.max_epochs # the number of epochs
         self.num_examples = self.train_dataset.num_examples_per_epoch()
         self.steps_per_epoch = int(self.num_examples/batch_size)
         self.total_steps = self.steps_per_epoch * max_epochs
         print("%{}: Batch size: {}; max_epochs: {}; num_samples per epoch: {}; steps_per_epoch: {}, total steps: {}"
-              .format(method, batch_size, max_epochs, self.num_examples, self.steps_per_epoch, self.total_steps))
+              .format(method, batch_size,max_epochs, self.num_examples,self.steps_per_epoch,self.total_steps))
 
     def restore(self, sess, checkpoints, restore_to_checkpoint_mapping=None):
         """
@@ -243,7 +243,7 @@ class TrainModel(object):
         method = TrainModel.restore.__name__
 
         if checkpoints is None:
-            print("%{0}: Checkpoint-variable is not set!".format(method))
+            print("%{0}: Checkpoint is None!".format(method))
         elif os.path.isdir(checkpoints) and (not os.path.exists(os.path.join(checkpoints, "checkpoint"))):
             print("%{0}: There are no checkpoints in the dir {1}".format(method, checkpoints))
         else:
@@ -256,26 +256,26 @@ class TrainModel(object):
             skip_global_step = len(checkpoints) > 1
             savers = []
             for checkpoint in checkpoints:
-                print("%{0}: Creating restore saver from checkpoint {1}".format(method, checkpoint))
-                saver, _ = tf_utils.get_checkpoint_restore_saver(
-                   checkpoint, var_list, skip_global_step=skip_global_step,
-                   restore_to_checkpoint_mapping=restore_to_checkpoint_mapping)
+                print("%{0}: creating restore saver from checkpoint {1}".format(method, checkpoint))
+                saver, _ = tf_utils.get_checkpoint_restore_saver(checkpoint, var_list,
+                                                                 skip_global_step=skip_global_step,
+                                                                 restore_to_checkpoint_mapping=restore_to_checkpoint_mapping)
                 savers.append(saver)
             restore_op = [saver.saver_def.restore_op_name for saver in savers]
             sess.run(restore_op)
-
+    
     def restore_train_val_losses(self):
         """
         Restore the train and validation losses in the pickle file if checkpoint is given 
         """
         if self.checkpoint is None:
             train_losses, val_losses = [], []
-        elif os.path.isdir(self.checkpoint) and (not os.path.exists(os.path.join(self.output_dir,"checkpoint"))):
+        elif os.path.isdir(self.checkpoint) and (not os.path.exists(os.path.join(self.output_dir, "checkpoint"))):
             train_losses,val_losses = [], []
         else:
-            with open(os.path.join(self.output_dir,"train_losses.pkl"),"rb") as f:
+            with open(os.path.join(self.output_dir, "train_losses.pkl"), "rb") as f:
                 train_losses = pkl.load(f)
-            with open(os.path.join(self.output_dir,"val_losses.pkl"),"rb") as f:
+            with open(os.path.join(self.output_dir, "val_losses.pkl"), "rb") as f:
                 val_losses = pkl.load(f)
         return train_losses,val_losses
 
@@ -286,14 +286,13 @@ class TrainModel(object):
         method = TrainModel.train_model.__name__
 
         self.global_step = tf.train.get_or_create_global_step()
-
         with tf.Session(config=self.config) as sess:
             print("parameter_count =", sess.run(self.parameter_count))
             sess.run(tf.global_variables_initializer())
             sess.run(tf.local_variables_initializer())
             self.restore(sess, self.checkpoint)
             start_step = sess.run(self.global_step)
-            print("Iteration starts at step {0}".format(start_step))
+            print("%{0}: Iteration starts at step {1}".format(method, start_step))
             # start at one step earlier to log everything without doing any training
             # step is relative to the start_step
             train_losses, val_losses = self.restore_train_val_losses()
@@ -304,22 +303,22 @@ class TrainModel(object):
             # perform iteration
             for step in range(start_step, self.total_steps):
                 timeit_start = time.time()
-                # run for training dataset
+                # Run training data
                 self.create_fetches_for_train()             # In addition to the loss, we fetch the optimizer
                 self.results = sess.run(self.fetches)       # ...and run it here!
                 train_losses.append(self.results[self.saver_loss])
-                # run and fetch losses for validation data
+                # Run and fetch losses for validation data
                 val_handle_eval = sess.run(self.val_handle)
                 self.create_fetches_for_val()
                 self.val_results = sess.run(self.val_fetches, feed_dict={self.train_handle: val_handle_eval})
                 val_losses.append(self.val_results[self.saver_loss])
                 self.write_to_summary()
-                self.print_results(step,self.results)
+                self.print_results(step, self.results)
                 # track iteration time
                 time_iter = time.time() - timeit_start
                 time_per_iteration.append(time_iter)
-                print("time needed for this step {0:.3f}s".format(time_iter))
-                if step % self.save_diag_intv == 0 or step == self.total_steps - 1:
+                print("%{0}: time needed for this step {1:.3f}s".format(method, time_iter))
+                if step > self.save_diag_intv and (step % self.save_diag_intv == 0 or step == self.total_steps - 1):
                     lsave, val_loss_min = TrainModel.set_model_saver_flag(val_losses, val_loss_min, self.niter_loss_avg)
                     # save best and final model state
                     if lsave or step == self.total_steps - 1:
@@ -334,7 +333,6 @@ class TrainModel(object):
             results_dict = {"train_time": train_time,
                             "total_steps": self.total_steps}
             TrainModel.save_results_to_dict(results_dict,self.output_dir)
-
             avg_samples = int(2000)
             print("%{0}: Training loss decreased from {1:.6f} to {2:.6f}:"
                   .format(method, np.mean(train_losses[0:10]), np.mean(train_losses[-avg_samples:])))
@@ -344,7 +342,7 @@ class TrainModel(object):
             print("%{0}: Total training time: {1:.2f} min".format(method, train_time/60.))
 
             return train_time, time_per_iteration
-
+ 
     def create_fetches_for_train(self):
         """
         Fetch variables in the graph, this can be custermized based on models and also the needs of users
@@ -362,7 +360,7 @@ class TrainModel(object):
             self.saver_loss = "total_loss"
             self.saver_loss_name = "Total loss"
         if self.video_model.__class__.__name__ == "SAVPVideoPredictionModel":
-            fetch_list = fetch_list + ["g_losses", "d_losses", "d_loss", "g_loss", "inputs"]
+            fetch_list = fetch_list + ["g_losses", "d_losses", "d_loss", "g_loss"]
             # Add loss that is tracked
             self.saver_loss = "g_loss"
             self.saver_loss_name = "Generator loss"
@@ -380,8 +378,6 @@ class TrainModel(object):
             self.saver_loss_name = "Total loss"
 
         self.fetches = self.generate_fetches(fetch_list)
-        if self.video_model.__class__.__name__ == "SAVPVideoPredictionModel":
-            self.fetches["total_loss"] = self.fetches["g_loss"] + self.fetches["d_loss"]
 
         return self.fetches
 
@@ -394,13 +390,13 @@ class TrainModel(object):
         if not self.saver_loss:
             raise AttributeError("%{0}: saver_loss is still not set. create_fetches_for_train must be run in advance."
                                  .format(method))
-        fetch_list = ["summary_op", "global_step", "inputs", self.saver_loss]
+        fetch_list = ["summary_op", self.saver_loss]
 
         self.val_fetches = self.generate_fetches(fetch_list)
 
         return self.val_fetches
 
-    def generate_fetches(self, fetch_list: List) -> dict:
+    def generate_fetches(self, fetch_list):
         """
         Generates dictionary of fetches from video model instance
         :param fetch_list: list of attributes of video model instance that are of particular interest
@@ -416,18 +412,18 @@ class TrainModel(object):
         for fetch_req in fetch_list:
             try:
                 fetches[fetch_req] = getattr(self.video_model, fetch_req)
-                #fetches[fetch_req] = self.video_model.__dict__[fetch_req]
             except Exception as err:
-                print(self.video_model.__dict__)
                 print("%{0}: Failed to retrieve {1} from video_model-attribute.".format(method, fetch_req))
                 raise err
 
         return fetches
 
+    
     def write_to_summary(self):
         self.summary_writer.add_summary(self.results["summary_op"], self.results["global_step"])
         self.summary_writer.add_summary(self.val_results["summary_op"], self.results["global_step"])
         self.summary_writer.flush()
+
 
     def print_results(self, step, results):
         """
@@ -436,22 +432,20 @@ class TrainModel(object):
         method = TrainModel.print_results.__name__
 
         train_epoch = step/self.steps_per_epoch
-        print("progress  global step %d  epoch %0.1f" % (step + 1, train_epoch))
+        print("%{0}: Progress global step {1:d}  epoch {2:.1f}".format(method, step + 1, train_epoch))
         if self.video_model.__class__.__name__ == "McNetVideoPredictionModel":
-            print("Total_loss:{}; L_p_loss:{}; L_gdl:{}; L_GAN: {}".format(results["total_loss"],results["L_p"],
+            print("Total_loss:{}; L_p_loss:{}; L_gdl:{}; L_GAN: {}".format(results["total_loss"], results["L_p"],
                                                                            results["L_gdl"],results["L_GAN"]))
         elif self.video_model.__class__.__name__ == "VanillaConvLstmVideoPredictionModel":
             print ("Total_loss:{}".format(results["total_loss"]))
         elif self.video_model.__class__.__name__ == "SAVPVideoPredictionModel":
             print("Total_loss/g_losses:{}; d_losses:{}; g_loss:{}; d_loss: {}"
-                  .format(results["g_losses"], results["d_losses"], results["g_loss"], results["d_loss"]))
+                  .format(results["g_losses"],results["d_losses"],results["g_loss"],results["d_loss"]))
         elif self.video_model.__class__.__name__ == "VanillaVAEVideoPredictionModel":
-            print("Total_loss:{}; latent_losses:{}; reconst_loss:{}".format(results["total_loss"],
-                                                                            results["latent_loss"],
-                                                                            results["recon_loss"]))
+            print("Total_loss:{}; latent_losses:{}; reconst_loss:{}".format(results["total_loss"],results["latent_loss"],results["recon_loss"]))
         else:
-            print("%{0}: WARNING: The model name does not exist".format(method))
-
+            print("%{0}: Printing results of the model {1} is not implemented yet".format(method, self.video_model.__class__.__name__))
+    
     @staticmethod
     def set_model_saver_flag(losses: List, old_min_loss: float, niter_steps: int = 100):
         """
@@ -476,58 +470,56 @@ class TrainModel(object):
         return save_flag, loss_avg
 
     @staticmethod
-    def plot_train(train_losses: List, val_losses: List, output_dir: str, loss_name: str = "Loss"):
+    def plot_train(train_losses,val_losses,step,output_dir):
         """
-        Create plot of training and validation losses against steps
-        :param train_losses: train losses whose length should be equal to the number of training steps
-        :param val_losses: validation losses whose length should be equal to the number of training steps
-        :param step: current training step
-        :param output_dir: the path to save the plot
-        :param loss_name: Name of the loss that is plotted
+        Function to plot training losses for train and val datasets against steps
+        params:
+            train_losses/val_losses       : list, train losses, which length should be equal to the number of training steps
+            step                          : int, current training step
+            output_dir                    : str,  the path to save the plot
         """ 
-        method = TrainModel.plot_train.__name__
-
+   
         iterations = list(range(len(train_losses)))
         if len(train_losses) != len(val_losses): 
-            raise ValueError("%{0}: The length of training losses must be equal to the length of val losses!".format(method))
+            raise ValueError("The length of training losses must be equal to the length of val losses!")  
         plt.plot(iterations, train_losses, 'g', label='Training loss')
         plt.plot(iterations, val_losses, 'b', label='validation loss')
         plt.ylim(10**-5, 10**2)
         plt.yscale("log")
         plt.title('Training and Validation loss')
         plt.xlabel('Iterations')
-        plt.ylabel("{0}".format(loss_name))
+        plt.ylabel('Loss')
         plt.legend()
-        plt.savefig(os.path.join(output_dir, 'plot_train.png'))
+        plt.savefig(os.path.join(output_dir,'plot_train.png'))
         plt.close()
 
     @staticmethod
     def save_results_to_dict(results_dict,output_dir):
-        with open(os.path.join(output_dir, "results.json"), "w") as fp:
-            json.dump(results_dict, fp)
+        with open(os.path.join(output_dir,"results.json"),"w") as fp:
+            json.dump(results_dict,fp) 
 
     @staticmethod
     def save_results_to_pkl(train_losses,val_losses, output_dir):
-        with open(os.path.join(output_dir, "train_losses.pkl"), "wb") as f:
-            pkl.dump(train_losses, f)
-        with open(os.path.join(output_dir, "val_losses.pkl"), "wb") as f:
-            pkl.dump(val_losses, f)
+         with open(os.path.join(output_dir,"train_losses.pkl"),"wb") as f:
+            pkl.dump(train_losses,f)
+         with open(os.path.join(output_dir,"val_losses.pkl"),"wb") as f:
+            pkl.dump(val_losses,f) 
 
     @staticmethod
-    def save_timing_to_pkl(total_time,training_time, time_per_iteration, output_dir):
-        with open(os.path.join(output_dir, "timing_total_time.pkl"), "wb") as f:
-            pkl.dump(total_time, f)
-        with open(os.path.join(output_dir, "timing_training_time.pkl"), "wb") as f:
-            pkl.dump(training_time, f)
-        with open(os.path.join(output_dir, "timing_per_iteration_time.pkl"), "wb") as f:
-            pkl.dump(time_per_iteration, f)
+    def save_timing_to_pkl(total_time,training_time,time_per_iteration, output_dir):
+         with open(os.path.join(output_dir,"timing_total_time.pkl"),"wb") as f:
+            pkl.dump(total_time,f)
+         with open(os.path.join(output_dir,"timing_training_time.pkl"),"wb") as f:
+            pkl.dump(training_time,f)
+         with open(os.path.join(output_dir,"timing_per_iteration_time.pkl"),"wb") as f:
+            pkl.dump(time_per_iteration,f)
     
     @staticmethod        
-    def save_loss_per_iteration_to_pkl(loss_per_iteration_train, loss_per_iteration_val, output_dir):
-        with open(os.path.join(output_dir, "loss_per_iteration_train.pkl"),"wb") as f:
-            pkl.dump(loss_per_iteration_train, f)
-        with open(os.path.join(output_dir, "loss_per_iteration_val.pkl"), "wb") as f:
-            pkl.dump(loss_per_iteration_val, f)
+    def save_loss_per_iteration_to_pkl(loss_per_iteration_train,loss_per_iteration_val, output_dir):
+        with open(os.path.join(output_dir,"loss_per_iteration_train.pkl"),"wb") as f:
+            pkl.dump(loss_per_iteration_train,f)
+        with open(os.path.join(output_dir,"loss_per_iteration_val.pkl"),"wb") as f:
+            pkl.dump(loss_per_iteration_val,f)
 
 
 def main():
@@ -542,6 +534,7 @@ def main():
     parser.add_argument("--model_hparams_dict", type=str, help="JSON-file of model hyperparameters")
     parser.add_argument("--gpu_mem_frac", type=float, default=0.99, help="Fraction of gpu memory to use")
     parser.add_argument("--seed", default=1234, type=int)
+
     args = parser.parse_args()
     # start timing for the whole run
     timeit_start_total_time = time.time()  
