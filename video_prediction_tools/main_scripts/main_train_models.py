@@ -326,7 +326,7 @@ class TrainModel(object):
                         self.saver.save(sess, os.path.join(self.output_dir, "model"), global_step=step)
                     # pickle file and plots are always created
                     TrainModel.save_results_to_pkl(train_losses, val_losses, self.output_dir)
-                    TrainModel.plot_train(train_losses, val_losses, self.output_dir, self.saver_loss_name)
+                    TrainModel.plot_train(train_losses, val_losses, self.saver_loss_name, self.output_dir)
 
             # Final diagnostics
             # track time (save to pickle-files)
@@ -418,12 +418,10 @@ class TrainModel(object):
 
         return fetches
 
-    
     def write_to_summary(self):
         self.summary_writer.add_summary(self.results["summary_op"], self.results["global_step"])
         self.summary_writer.add_summary(self.val_results["summary_op"], self.results["global_step"])
         self.summary_writer.flush()
-
 
     def print_results(self, step, results):
         """
@@ -470,7 +468,7 @@ class TrainModel(object):
         return save_flag, loss_avg
 
     @staticmethod
-    def plot_train(train_losses,val_losses,step,output_dir):
+    def plot_train(train_losses, val_losses, loss_name, output_dir):
         """
         Function to plot training losses for train and val datasets against steps
         params:
@@ -488,7 +486,7 @@ class TrainModel(object):
         plt.yscale("log")
         plt.title('Training and Validation loss')
         plt.xlabel('Iterations')
-        plt.ylabel('Loss')
+        plt.ylabel(loss_name)
         plt.legend()
         plt.savefig(os.path.join(output_dir,'plot_train.png'))
         plt.close()
