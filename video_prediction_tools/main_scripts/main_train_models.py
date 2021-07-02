@@ -28,8 +28,7 @@ from model_modules.video_prediction.utils import tf_utils
 class TrainModel(object):
     def __init__(self, input_dir: str = None, output_dir: str = None, datasplit_dict: str = None,
                  model_hparams_dict: str = None, model: str = None, checkpoint: str = None, dataset: str = None,
-                 gpu_mem_frac: float = 1., seed: int = None, args=None, save_diag_intv: int = 100,
-                 niter_loss_avg: int = 100):
+                 gpu_mem_frac: float = 1., seed: int = None, args=None, diag_intv_frac: float = 0.01):
         """
         Class instance for training the models
         :param input_dir: parent directory under which "pickle" and "tfrecords" files directiory are located
@@ -42,9 +41,11 @@ class TrainModel(object):
         :param gpu_mem_frac: fraction of GPU memory to be preallocated
         :param seed: seed of the randomizers
         :param args: list of arguments passed
-        :param save_diag_intv: interval of iteration steps for which diagnostic plot and optional model saving is done
+        :param diag_intv_frac: interval for diagnozing and saving model; the fraction with respect to the number of
+                               steps per epoch is denoted here, e.g. 0.01 with 1000 iteration steps per epoch results
+                               into a diagnozing intreval of 10 iteration steps (= interval over which validation loss
+                               is averaged to identify best model performance)
         """
-
         self.input_dir = os.path.normpath(input_dir)
         self.output_dir = os.path.normpath(output_dir)
         self.datasplit_dict = datasplit_dict
@@ -55,12 +56,11 @@ class TrainModel(object):
         self.gpu_mem_frac = gpu_mem_frac
         self.seed = seed
         self.args = args
+        self.diag_intv_frac = diag_intv_frac
         # for diagnozing and saving the model during training
-        self.saver_loss = None
-        self.saver_loss_name = None
-        self.save_diag_intv = save_diag_intv
-        self.niter_loss_avg = niter_loss_avg
-
+        self.saver_loss = None         # set in create_fetches_for_train-method
+        self.saver_loss_name = None    # set in create_fetches_for_train-method
+        self.diag_intv_step = None     # set in calculate_samples_and_epochs-method
 
     def setup(self):
         self.set_seed()
@@ -232,6 +232,7 @@ class TrainModel(object):
         max_epochs = self.video_model.hparams.max_epochs # the number of epochs
         self.num_examples = self.train_dataset.num_examples_per_epoch()
         self.steps_per_epoch = int(self.num_examples/batch_size)
+        self.diag_intv_step = int(self.diag_intv_frac*self.steps_per_epoch)
         self.total_steps = self.steps_per_epoch * max_epochs
         print("%{}: Batch size: {}; max_epochs: {}; num_samples per epoch: {}; steps_per_epoch: {}, total steps: {}"
               .format(method, batch_size,max_epochs, self.num_examples,self.steps_per_epoch,self.total_steps))
@@ -318,8 +319,8 @@ class TrainModel(object):
                 time_iter = time.time() - timeit_start
                 time_per_iteration.append(time_iter)
                 print("%{0}: time needed for this step {1:.3f}s".format(method, time_iter))
-                if step > self.save_diag_intv and (step % self.save_diag_intv == 0 or step == self.total_steps - 1):
-                    lsave, val_loss_min = TrainModel.set_model_saver_flag(val_losses, val_loss_min, self.niter_loss_avg)
+                if step > self.diag_intv_step and (step % self.diag_intv_step == 0 or step == self.total_steps - 1):
+                    lsave, val_loss_min = TrainModel.set_model_saver_flag(val_losses, val_loss_min, self.diag_intv_step)
                     # save best and final model state
                     if lsave or step == self.total_steps - 1:
                         self.saver.save(sess, os.path.join(self.output_dir, "model"), global_step=step)
@@ -333,11 +334,10 @@ class TrainModel(object):
             results_dict = {"train_time": train_time,
                             "total_steps": self.total_steps}
             TrainModel.save_results_to_dict(results_dict,self.output_dir)
-            avg_samples = int(2000)
             print("%{0}: Training loss decreased from {1:.6f} to {2:.6f}:"
-                  .format(method, np.mean(train_losses[0:10]), np.mean(train_losses[-avg_samples:])))
+                  .format(method, np.mean(train_losses[0:10]), np.mean(train_losses[-self.diag_intv_step:])))
             print("%{0}: Validation loss decreased from {1:.6f} to {2:.6f}:"
-                  .format(method, np.mean(val_losses[0:10]), np.mean(val_losses[-avg_samples:])))
+                  .format(method, np.mean(val_losses[0:10]), np.mean(val_losses[-self.diag_intv_step:])))
             print("%{0}: Training finsished".format(method))
             print("%{0}: Total training time: {1:.2f} min".format(method, train_time/60.))
 
