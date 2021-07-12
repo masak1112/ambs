@@ -143,7 +143,7 @@ class Postprocess(TrainModel):
         model_opt_js = os.path.join(self.checkpoint, "options.json")
         model_ds_js = os.path.join(self.checkpoint, "dataset_hparams.json")
         model_hp_js = os.path.join(self.checkpoint, "model_hparams.json")
-        model_dd_js = os.path.join(self.checkpoint, "data_dict.json")
+        model_dd_js = os.path.join(self.checkpoint, "data_split.json")
 
         if os.path.isfile(model_opt_js):
             shutil.copy(model_opt_js, os.path.join(self.results_dir, "options_checkpoints.json"))
@@ -161,7 +161,7 @@ class Postprocess(TrainModel):
             raise FileNotFoundError("%{0}: The file {1} does not exist".format(method_name, model_hp_js))
 
         if os.path.isfile(model_dd_js):
-            shutil.copy(model_dd_js, os.path.join(self.results_dir, "data_dict.json"))
+            shutil.copy(model_dd_js, os.path.join(self.results_dir, "data_split.json"))
         else:
             raise FileNotFoundError("%{0}: The file {1} does not exist".format(method_name, model_dd_js))
 
@@ -177,13 +177,13 @@ class Postprocess(TrainModel):
         """
         method_name = Postprocess.load_jsons.__name__
 
-        datasplit_dict = os.path.join(self.results_dir, "data_dict.json")
+        datasplit_dict = os.path.join(self.results_dir, "data_split.json")
         model_hparams_dict = os.path.join(self.results_dir, "model_hparams.json")
         checkpoint_opt_dict = os.path.join(self.results_dir, "options_checkpoints.json")
 
         # sanity checks on the JSON-files
         if not os.path.isfile(datasplit_dict):
-            raise FileNotFoundError("%{0}: The file data_dict.json is missing in {1}".format(method_name,
+            raise FileNotFoundError("%{0}: The file data_split.json is missing in {1}".format(method_name,
                                                                                              self.results_dir))
 
         if not os.path.isfile(model_hparams_dict):
