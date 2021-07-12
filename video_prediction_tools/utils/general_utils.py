@@ -8,7 +8,6 @@ Provides:   * get_unique_vars
             * check_dir
             * reduce_dict
             * provide_default
-            * get_era5_atts
 """
 
 # import modules
