@@ -308,7 +308,7 @@ class TrainModel(object):
                 self.create_fetches_for_train()             # In addition to the loss, we fetch the optimizer
                 self.results = sess.run(self.fetches)       # ...and run it here!
                 train_losses.append(self.results[self.saver_loss])
-                # Run and fetch losses for validation data
+                # run and fetch losses for validation data
                 val_handle_eval = sess.run(self.val_handle)
                 self.create_fetches_for_val()
                 self.val_results = sess.run(self.val_fetches, feed_dict={self.train_handle: val_handle_eval})
@@ -323,7 +323,8 @@ class TrainModel(object):
                     lsave, val_loss_min = TrainModel.set_model_saver_flag(val_losses, val_loss_min, self.diag_intv_step)
                     # save best and final model state
                     if lsave or step == self.total_steps - 1:
-                        self.saver.save(sess, os.path.join(self.output_dir, "model"), global_step=step)
+                        self.saver.save(sess, os.path.join(self.output_dir, "model_best" if lsave else "model_last"),
+                                        global_step=step)
                     # pickle file and plots are always created
                     TrainModel.save_results_to_pkl(train_losses, val_losses, self.output_dir)
                     TrainModel.plot_train(train_losses, val_losses, self.saver_loss_name, self.output_dir)
