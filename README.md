@@ -3,17 +3,15 @@
 **A**tmopsheric **M**achine learning **B**enchmarking **S**ystem (AMBS)
  aims to provide state-of-the-art video prediction methods applied to the meteorological domain.
 In the scope of the current application, the hourly evolution of the 2m temperature
-over a used-defined region is the target application.
-Different Deep Learning video prediction architectures such as convLSTM, MCnet or SAVP
-are trained with ERA5 reanalysis to perform a 10 hour prediction based on the previous 10 hours.
-In addition to the 2m temperature, additional meteorological variables like the mean sealevel pressure
-and the 500 hPa geopotential are fed to the underlying neural networks
-in order to enhance the model's capability to capture the atmospheric state
-and its (expected) evolution over time.<br>
+over a used-defined region is focused. <br>
+Different Deep Learning video prediction architectures such as convLSTM and SAVP
+are trained with ERA5 reanalysis to perform a prediction for 12 hours based on the previous 12 hours.
+In addition to the 2m temperature (t2m) itself, other variables can be fed to the video frame prediction models to enhance their capability to learn the complex physical processes driving the diurnal cycle of temperature.
+Currently, the recommended additional meteorological variables are the 850 hPa temperature (t850) and the total cloud cover (tcc).
 Besides, training on other standard video frame prediction datasets (such as MovingMNIST) can be prerformed.
 
-The project is currently developed by Amirpasha Mozafarri, Michael Langguth,
-Bing Gong and Scarlet Stadtler.
+The project is currently developed by Bing Gong, Michael Langguth, Amirpasha Mozafarri, Yan Ji and Karim Mache.<br>
+Former code developers are Scarlet Stadtler and Severin Hussmann.
 
 
 ### Prerequisites
@@ -21,13 +19,14 @@ Bing Gong and Scarlet Stadtler.
 - Python 3
 - CPU or NVIDIA GPU + CUDA CuDNN
 - MPI
-- Tensorflow 1.13.1 or CUDA-enabled NVIDIA TensorFlow 1.15 within a singularity container (on Juwels Booster)
+- Tensorflow 1.13.1 or CUDA-enabled NVIDIA TensorFlow 1.15 within a singularity container 
+- CDO >= 1.9.5
 
 ### Installation 
 
 Clone this repo by typing the following command in your personal target dirctory:
 ```bash 
-git clone https://gitlab.version.fz-juelich.de/toar/ambs.git
+git clone https://gitlab.jsc.fz-juelich.de/esde/machine-learning/ambs.git
 ```
 This will create a directory called `ambs` under which this README-file and 
 two subdirectories are placed. The subdirectory `[...]/ambs/test/` contains unittest-scripts for
@@ -43,8 +42,7 @@ cd ambs/video_preditcion_tools/
 ### Set-up environment on Jülich's HPC systems or other computing systems
 
 The following commands will setup a customized virtual environment
-either on a known HPC-system (Juwels, Juwels Booster or HDF-ML) or on a generalized computing system 
-(e.g. zam347 or your personal computer). 
+either on a known HPC-system at JSC (Juwels, Juwels Booster or HDF-ML). Setting up a virtual environment on other computing systems, e.g. the personal computer, is currently not supported, but targeted for the future. 
 The script `create_env.sh` automatically detects on which machine it is executed and loads/installs
 all required Python (binary) modules and packages.
 The virtual environment is set up in the top-level directory (`[...]/ambs/video_prediction_tools`)
@@ -54,50 +52,58 @@ under a subdirectory which gets the name of the virtual environment.
 cd env_setup
 source create_env.sh <env_name> 
 ```
+This also already sets up the runscript templates for you. By default, the runscript templates make use of the standard target base directory `/p/project/deepacf/deeprain/video_prediction_shared_folder/`. In case that you want to deviate from this, you may call `create_env.sh` as follows:
+```bash
+source create_env.sh <env_name> -base_dir=<my_target_dir>
+```
+Note that suifficient read-write permissions and a reasonable amount of memory space is mandatory for your alternative standard output directory.
 
 ### Run the workflow
 
 Depending on the computing system you are working on, the workflow steps will be invoked
 by dedicated runscripts either from the directory `HPC_scripts/` (on known HPC-systems, see above) or from
-the directory `nonHPC_scripts/` (else).<br>
+the directory `nonHPC_scripts/` (else, but not implemented yet).<br>
 Each runscript can be set up conveniently with the help of the Python-script `generate_runscript.py`.
 Its usage as well the workflow runscripts are described subsequently.
 
 #### Preparation 
 
-Change to the directory `config_runscripts` where the above mentioned runscript-generator script can be found.
+In case that a virtual environment has already been set up beforehand, the script `create_env.sh` can also be used for activating it. For this, simply do 
 ```bash
-cd config_runscripts
+cd env_setup
+source create_env.sh <env_name> 
 ```
-Before customized workflow runscripts can be set up properly, the templates have to be adjusted with the help of 
-the script `setup_runscript_templates.sh`. This script creates a bundle of user-defined templates under 
-`HPC_scripts/` and `nonHPC_scripts/` from which the target base directory can be retrieved. 
-This is the directory where the preprocessed data, the trained model and the postprocessing products will be saved
-and thus, it should be placed on a dic with sufficient memory capacity. The path to this place is passed as an 
-argument to the setup-script.
-```bash 
-source setup_runscript_templates.sh <base_target_dir>
-```     
-If called without script arguments, the default directory on the Jülich Storage Cluster (JUST) is set up,
-that is `/p/project/deepacf/deeprain/video_prediction_shared_folder/`.
+similarly to the creation process of the virtual environment (see above). Note that this also loads some modules on the HPC-systems that are required for the runscript generator (see below). <br>
+**Remark:** In case you want to change the target base directory _after_ having created the virtual environment, 
+you may run `setup_runscript_templates.sh` manually (the `script create_env.sh` does this internally):
+```bash
+source <top_level_dir>/utils/runscript_generator/setup_runscript_templates.sh <my_target_dir>
+```
 
 #### Create specific runscripts
 
 Specific runscripts for each workfow substep (see below) are generated conventiently by keyboard interaction.
-The respective Python-script thereby has to be executed in an activated virtual environment (see above)!
+The interactive Python-script thereby has to be executed in an activated virtual environment with some addiional modules!
 After prompting 
 ```bash
 python generate_runscript.py
 ```
-you will be asked first which workflow runscript shall be generated. You can chose one of the workflow step name: extract, preprocess1, preprocess2, train, and postprocess The subsequent keyboard interactions allow then
-the user to make individual settings to the workflow step at hand. Note that the runscript creation of later 
-workflow substeps depends on the preceding steps (i.e. by checking the arguments from keyboard interaction).
-Thus, they should be created sequentially instead of all at once at the beginning.
+you will be asked first which workflow runscript shall be generated. You can chose one of the workflow step name: 
+- extract
+- preprocess1
+- preprocess2
+- train
+- postprocess 
+
+The subsequent keyboard interactions then allow  the user to make individual settings to the workflow step at hand. 
+By pressing simply Enter, the user may receive some guidance for the keyboard interaction. <br>
+Note that the runscript creation of later workflow substeps depends on the preceding steps (i.e. by checking the arguments from keyboard interaction).
+Thus, they should be created sequentially instead of all at once at the beginning. 
 
 #### Running the workflow substeps 
 Having created the runscript by keyboard interaction, the workflow substeps can be run sequentially.
 Depending on the machine you are working on, change either to `HPC_scripts/` (on Juwels, Juwels Booster or HDF-ML) or to 
-`nonHPC347_scripts/`.
+`nonHPC347_scripts/` (not implemented yet).
 There, the respective runscripts for all steps of the workflow are located 
 whose order is as follows. Note that `[sbatch]` only has to precede on one of the HPC systems.
 Besides data extraction and preprocessing step 1 are onyl mandatory when ERA5 data is subject to the application.
@@ -140,7 +146,9 @@ Note that the `exp_id` is generated automatically when running `generate_runscri
     [sbatch] ./visualize_postprocess_moving_mnist_<exp_id>.sh
     ```
 
-### Notes for Juwels Booster ###
+### Running the training in NVIDIA's TF1.15 singularity containers ###
+
+**The following documentation is deprecated and must be updated.** <br><br>
 
 The computionally expensive training of the Deep Learning video prediction architectures is supposed to benefit from the Booster module which is installed at JSC in autumn 2020. In order to test the potential speed-up on this state-of-the-art HPC system, optimized for massively parallel workloads, we selected the convLSTM-architecture as a test candidate in the scope of the Juwels Booster Early Access program.
 
