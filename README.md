@@ -108,7 +108,7 @@ There, the respective runscripts for all steps of the workflow are located
 whose order is as follows. Note that `[sbatch]` only has to precede on one of the HPC systems.
 Besides data extraction and preprocessing step 1 are onyl mandatory when ERA5 data is subject to the application.
 
-1. Data Extraction: Retrieve ERA5 reanalysis data for one year. For multiple years, execute the runscript sequentially.    
+1. Data Extraction: This script retrieves the demanded variables for user-defined years from complete ERA% reanalysis grib-files and stors the data into netCDF-files.
 ```bash
 [sbatch] ./data_extraction_era5.sh
 ```
