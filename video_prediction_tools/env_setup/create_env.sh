@@ -137,6 +137,7 @@ if [[ "$ENV_EXIST" == 0 ]]; then
     # unset PYTHONPATH on every other machine that is not a known HPC-system	
     unset PYTHONPATH
   fi
+fi
 
 ## set up virtual environment
 if [[ "$ENV_EXIST" == 0 ]]; then
@@ -209,6 +210,7 @@ fi
 
 echo "Set up runscript template for user ${USER}..."
 if [[ -z "${base_dir}" ]]; then
+  shift
   source "${WORKING_DIR}"/utils/runscript_generator/setup_runscript_templates.sh
 else
   source "${WORKING_DIR}"/utils/runscript_generator/setup_runscript_templates.sh ${base_dir}
