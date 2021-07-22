@@ -501,8 +501,14 @@ class Postprocess(TrainModel):
                              .format(method))
         for i, t_start in enumerate(t_starts):
             try:
-                seq_ts = pd.date_range(dt.datetime.strptime(str(t_start), "%Y%m%d%H%M"), periods=self.context_frames,
+                #seq_ts = pd.date_range(dt.datetime.strptime(str(t_start), "%Y%m%d%H%M"), periods=self.context_frames,
+                #                      freq="10min")
+                print('t_start: ',t_start)
+                t0 = pd.date_range(dt.datetime.strptime(str(t_start), "%Y%m%d%H%M"), periods=3,
+                                       freq="-6min")
+                t1 = pd.date_range(dt.datetime.strptime(str(t_start), "%Y%m%d%H%M"),periods=self.context_frames-2,
                                        freq="6min")
+                seq_ts = t0.append(t1)[1:]
             except Exception as err:
                 print("%{0}: Could not convert {1} to datetime object. Ensure that the date-string format is 'Y%m%d%H'".
                       format(method, str(t_start)))
