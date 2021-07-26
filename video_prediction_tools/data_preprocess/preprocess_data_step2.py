@@ -152,10 +152,10 @@ class ERA5Pkl2Tfrecords(ERA5Dataset):
         self.norm_cls.check_and_set_norm(self.stats, self.norm)
 
     def transform_log(self,x,s=0.01):
-        return np.log(x+s)
+        return np.log(x+s) - np.log(s)
         
     def intransform_log(self,x,s=0.01):
-        return np.exp(x)-s
+        return np.exp(x+np.log(s))-s
 
     def normalize_vars_per_seq(self, sequences):
         """
