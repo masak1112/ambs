@@ -1,5 +1,5 @@
 {
-    "batch_size": 4,
+    "batch_size": 32,
     "lr": 0.0002,
     "beta1": 0.5,
     "beta2": 0.999,
@@ -13,7 +13,7 @@
     "state_weight": 0.0,
     "nz": 16,
     "max_epochs":2,
-    "context_frames":10
+    "context_frames":12
 }
 
 

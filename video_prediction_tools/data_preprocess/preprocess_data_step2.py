@@ -20,7 +20,7 @@ from model_modules.video_prediction.datasets import ERA5Dataset
 
 
 class ERA5Pkl2Tfrecords(ERA5Dataset):
-    def __init__(self, input_dir=None, dest_dir=None,  sequence_length=20, sequences_per_file=128, norm="cbnorm"):
+    def __init__(self, input_dir=None, dest_dir=None,  sequence_length=20, sequences_per_file=128, norm="minmax"):
         """
         This class is used for converting pkl files to tfrecords
         args:
@@ -151,6 +151,12 @@ class ERA5Pkl2Tfrecords(ERA5Dataset):
         # open statistics file and feed it to norm-instance
         self.norm_cls.check_and_set_norm(self.stats, self.norm)
 
+    def transform_log(self,x,s=0.01):
+        return np.log(x+s)
+        
+    def intransform_log(self,x,s=0.01):
+        return np.exp(x)-s
+
     def normalize_vars_per_seq(self, sequences):
         """
         Normalize all the variables for the sequences
@@ -165,6 +171,9 @@ class ERA5Pkl2Tfrecords(ERA5Dataset):
         sequences = np.array(sequences)
         # normalization
         for i in range(self.nvars):
+            if self.vars_in[i] == 'tp':
+                sequences[..., i] = sequences[..., i]*1000 # units: mm
+                sequences[..., i] = self.transform_log(sequences[..., i])
             sequences[..., i] = self.norm_cls.norm_var(sequences[..., i], self.vars_in[i], self.norm)
         return sequences
 
