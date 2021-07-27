@@ -75,9 +75,10 @@ class GZprcp2Tfrecords(GZprcp):
         ############# normalization ############
         self.data = self.data**1./3 # cubic normalization
         
-        # k = 0.001
-        # self.data = np.log(self.data+k)-np.log(k) # log
-        ############# normalization ############
+        #k = 0.001
+        #self.data = np.log(self.data+k)-np.log(k) # log
+
+        #######################################
         
         while idx < num_samples - self.sequences_per_file:
             sequences = self.data[idx:idx+self.sequences_per_file, :, :, :, :]
