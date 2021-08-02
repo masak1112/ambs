@@ -18,7 +18,7 @@ from statistics import Calc_data_stat
 
 class PreprocessNcToPkl(object):
 
-    def __init__(self, src_dir, target_dir, year, job_id, target_dom, variables=("2t", "msl", "t_850")):
+    def __init__(self, src_dir, target_dir, year, job_id, target_dom, variables=("2t", "msl", "t_850"), shuffle_pi=0, shuffle_channel=0):
         """
         Function to process data from netCDF file to pickle file
         args:
@@ -50,6 +50,8 @@ class PreprocessNcToPkl(object):
         self.target_file = os.path.join(self.target_dir, 'X_' + str(self.job_id) + '.pkl')
         self.vars = list(variables)
         self.nvars = len(variables)
+        self.shuffle_pi = shuffle_pi
+        self.shuffle_channel = shuffle_channel
         # attributes to set during call of class instance
         self.imageList = None
         self.stat_obj = None
@@ -205,6 +207,12 @@ class PreprocessNcToPkl(object):
         for ivar, var in enumerate(self.vars):
             data_arr[..., ivar] = np.squeeze(data[var].values)
 
+        # do shuffling in a sing varibale for permutation importance
+        if self.shuffle_pi == 1:
+            perm = np.arange(data_arr.shape[0])
+            np.random.shuffle(perm)
+            data_arr[:,:,:,self.shuffle_channel] = data_arr[perm,:,:,self.shuffle_channel]
+         
         return data_arr
 
 

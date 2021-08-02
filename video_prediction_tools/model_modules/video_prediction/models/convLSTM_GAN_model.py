@@ -256,8 +256,6 @@ class ConvLstmGANVideoPredictionModel(object):
     def get_gen_loss(self):
         """
         Param:
-	    num_images: the number of images the generator should produce, which is also the lenght of the real image
-            z_dim     : the dimension of the noise vector, a scalar
         Return the loss of generator given inputs
         """
         real_labels = tf.ones_like(self.D_fake)
