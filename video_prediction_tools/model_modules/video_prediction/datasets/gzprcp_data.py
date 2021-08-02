@@ -14,6 +14,7 @@ import tensorflow as tf
 from tensorflow.contrib.training import HParams
 from collections import OrderedDict
 from google.protobuf.json_format import MessageToDict
+from general_utils import reduce_dict
 
 class GZprcp(object):
     def __init__(self, input_dir=None, datasplit_config=None, hparams_dict_config=None, mode="train",seed=None):
@@ -70,6 +71,7 @@ class GZprcp(object):
         """
         Parse the hparams setting to ovoerride the default ones
         """
+        self.hparams_dict = reduce_dict(self.hparams_dict, self.get_default_hparams().values())
         parsed_hparams = self.get_default_hparams().override_from_dict(self.hparams_dict or {})
         #parsed_hparams = self.hparams_dict
         return parsed_hparams

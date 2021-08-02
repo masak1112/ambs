@@ -289,6 +289,10 @@ class TrainModel(object):
             train_losses, val_losses = self.restore_train_val_losses()
             time_per_iteration = []
             run_start_time = time.time()
+            # for transfor learning which has small dataset
+            if self.start_step > self.total_steps:
+                self.start_step = 0
+            #better be total_steps = total_steps+start_step
             for step in range(self.start_step,self.total_steps):
                 timeit_start = time.time()
                 #run for training dataset
