@@ -180,8 +180,10 @@ class ERA5Pkl2Tfrecords(ERA5Dataset):
         for i in range(self.nvars):
             if self.vars_in[i] == 'tp':
                 sequences[..., i] = sequences[..., i]*1000 # units: mm
-                sequences[..., i] = self.transform_log(sequences[..., i])
-            sequences[..., i] = self.norm_cls.norm_var(sequences[..., i], self.vars_in[i], self.norm)
+                sequences[..., i] = np.power(equences[..., i],1./3)
+                #sequences[..., i] = self.transform_log(sequences[..., i])
+            else:
+                sequences[..., i] = self.norm_cls.norm_var(sequences[..., i], self.vars_in[i], self.norm)
         return sequences
 
     def read_pkl_and_save_tfrecords(self, year, month):
