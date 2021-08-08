@@ -505,10 +505,11 @@ class Postprocess(TrainModel):
                 #                      freq="10min")
                 print('t_start: ',t_start)
                 t0 = pd.date_range(dt.datetime.strptime(str(t_start), "%Y%m%d%H%M"), periods=3,
-                                       freq="-6min")
+                                       freq="-10min")
                 t1 = pd.date_range(dt.datetime.strptime(str(t_start), "%Y%m%d%H%M"),periods=self.context_frames-2,
-                                       freq="6min")
+                                       freq="10min")
                 seq_ts = t0.append(t1)[1:]
+                print('seq_ts: ',seq_ts)
             except Exception as err:
                 print("%{0}: Could not convert {1} to datetime object. Ensure that the date-string format is 'Y%m%d%H'".
                       format(method, str(t_start)))
@@ -726,7 +727,7 @@ class Postprocess(TrainModel):
         return input_images_denorm
 
     @staticmethod
-    def denorm_images(input_images, norm, var_dict, norm_method="minmax"):
+    def denorm_images(input_images, norm, var_dict, norm_method="cbnorm"):
         """
         Denormalize one channel of images
         :param input_images: list/array [batch, seq, lat, lon, channel]
