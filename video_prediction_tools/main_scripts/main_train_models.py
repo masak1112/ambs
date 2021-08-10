@@ -147,12 +147,12 @@ class TrainModel(object):
         # ML/BG 2021-06-15: Is the following needed?
         self.model_hparams_dict_load.update({"sequence_length": self.train_dataset.sequence_length})
 
-    def setup_model(self):
+    def setup_model(self,mode='train'):
         """
         Set up model instance for the given model names
         """
         VideoPredictionModel = models.get_model_class(self.model)
-        self.video_model = VideoPredictionModel(hparams_dict=self.model_hparams_dict_load)
+        self.video_model = VideoPredictionModel(hparams_dict=self.model_hparams_dict_load,mode=mode)
 
     def setup_graph(self):
         """

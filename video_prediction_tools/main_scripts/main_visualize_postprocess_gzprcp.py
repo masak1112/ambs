@@ -95,7 +95,7 @@ class Postprocess(TrainModel):
         self.load_jsons()
         self.get_metadata()
         self.setup_test_dataset()
-        self.setup_model()
+        self.setup_model(self.mode)
         self.get_data_params()
         self.setup_num_samples_per_epoch()
         self.get_stat_file()

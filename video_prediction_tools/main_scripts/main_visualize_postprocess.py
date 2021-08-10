@@ -100,7 +100,7 @@ class Postprocess(TrainModel):
         self.sequence_length, self.context_frames, self.future_length = self.get_data_params()
         self.inputs, self.input_ts = self.make_test_dataset_iterator()
         # set-up model, its graph and do GPU-configuration (from TrainModel)
-        self.setup_model()
+        self.setup_model(mode='test')
         self.setup_graph()
         self.setup_gpu_config()
         self.load_climdata()

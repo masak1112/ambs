@@ -73,8 +73,6 @@ class GZprcp2Tfrecords(GZprcp):
         # self.data/= 255.0  # normalize RGB codes by dividing it to the max RGB value
         
         ############# normalization ############
-        self.data = self.data**1./3 # cubic normalization
-        
         #k = 0.001
         #self.data = np.log(self.data+k)-np.log(k) # log
 

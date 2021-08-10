@@ -75,7 +75,8 @@ class Norm_data:
         elif norm == "znorm":
             return ((data[...] - getattr(self, varname + "avg")) / getattr(self, varname + "sigma") ** 2)
         elif norm == "cbnorm":
-            return (data[...] ** (1./3))
+            return data[...]
+            # return (data[...] ** (1./3))
         elif norm == "lognorm":
             return (np.log(data[...]+0.001)-np.log(0.001))
 
@@ -102,7 +103,8 @@ class Norm_data:
             return (data[...] * getattr(self, varname + "sigma") ** 2 + getattr(self, varname + "avg"))
 
         elif norm == "cbnorm":
-            return (data[...] ** 3)
+            return data[...]
+            # return (data[...] ** 3)
 
         elif norm == "lognorm":
             return (np.round(np.exp(data[...]+np.log(0.001))-0.001,4))
