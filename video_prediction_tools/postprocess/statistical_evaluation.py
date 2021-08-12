@@ -103,7 +103,7 @@ def avg_metrics(metric: da_or_ds, dim_name: str):
     :return: DataArray or Dataset of metric averaged over given dimension. If a Dataset is passed, the averaged metrics
              carry the suffix "_avg" in their variable names.
     """
-    method = perform_block_bootstrap_metric.__name__
+    method = avg_metrics.__name__
 
     if not isinstance(metric, da_or_ds.__args__):
         raise ValueError("%{0}: Input metric must be a xarray DataArray or Dataset and not {1}".format(method,
@@ -196,13 +196,62 @@ def perform_block_bootstrap_metric(metric: da_or_ds, dim_name: str, block_length
 
     return metric_boot
 
+def calc_geo_spatial_diff(scalar_field: xr.DataArray, order=1, r_e=6371.e3)
+    """
+    Calculates the amplitude of the gradient (order=1) or the Laplacian (order=2) of a scalar field given on a regular, 
+    geographical grid (i.e. dlambda = dphi = const.)
+    :param scalar_field: scalar field as data array with latitude and longitude as coordinates
+    :param order: order of spatial differential operator
+    :param r_e: radius of the sphere 
+    :return: the averaged amplitude of the gradient/laplacian over the domain
+    """
+    method = calc_geo_spatial_diff.__name__
+
+    # sanity checks
+    assert isinstance(scalar_field, xr.DataArray), "%{0}: scalar_field must be a xarray DataArray."\
+                                                    .format(method)
+    assert order in [1,2], "%{0}: Order must be either 1 or 2.".format(method)
+
+    dims = list(scalar_field.dims)
+    lat_dims = ["lat", "latitude"]
+    lon_dims = ["lon", "longitude"]
+
+    def check_for_coords(coord_names_data, coord_names_expected):
+        for coord_name_expected in coord_names_expected:
+
+        check_coord = [check_str_in_list(coord_name, coord_names_data) for coord_name in coord_names_expected]
+        if np.any(check_coord):
+            ind_coord = np.ind(check_coord)
+            coord_name = coord_names_data[ind_coord]
+        else:
+            raise ValueError("%{0}: Could not find dimension {1}.".format(method))
+
+    check_lat = [check_str_in_list(lat_dim, lat_dims) for lat_dim in lat_dims]
+    check_lon = [check_str_in_list(lon_dim, lon_dims) for lon_dim in lon_dims]
+
+    if np.any(check_lon):
+        ind_lon = np.ind(check_lon)
+        lon_name = dims[ind_lon]
+    else:
+        raise ValueError("%{0}: scalar_field does not have any longitude dimension.".format(method))
+
+    if np.any(check_lat):
+        ind_lat = np.ind(check_lat)
+        lat_name = dims[ind_lat]
+    else:
+        raise ValueError("%{0}: scalar_field does not have any latitude dimension.".format(method))
+
+    lat, lon = scalar_field[lat_name], scalar_field[lon_name]
+
+
+
 
 class Scores:
     """
     Class to calculate scores and skill scores.
     """
 
-    known_scores = ["mse", "psnr","ssim", "acc"]
+    known_scores = ["mse", "psnr", "ssim", "acc"]
 
     def __init__(self, score_name: str, dims: List[str]):
         """
