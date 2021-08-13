@@ -174,6 +174,30 @@ def reduce_dict(dict_in: dict, dict_ref: dict):
     return dict_reduced
 
 
+def find_key(dict_in: dict, key: str):
+    """
+    Searchs through nested dictionaries for key.
+    :param dict_in: input dictionary (cas also be an OrderedDictionary)
+    :param key: key to be retrieved
+    :return: value of the key in dict_in
+    """
+    method = finditem.__name__
+    # sanity check
+    if not isinstance(dict_in, dict):
+        raise TypeError("%{0}: dict_in must be a dictionary instance, but is of type '{1}'"
+                        .format(method, type(dict_in)))
+    # check for key
+    if key in dict_in:
+        return dict_in[key]
+    for k, v in dict_in.items():
+        if isinstance(v,dict):
+            item = finditem(v, key)
+            if item is not None:
+                return item
+
+    raise ValueError("%{0}: {1} could not be found in dict_in".format(method, key))
+
+
 def provide_default(dict_in, keyname, default=None, required=False):
     """
     Returns values of key from input dictionary or alternatively its default
