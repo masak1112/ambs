@@ -42,7 +42,7 @@ class TrainModel(object):
             dataset              : str, dataset class name
             model                : str, model class name
             gpu_mem_frac         : float, fraction of gpu memory to use
-            save_diag_intv    : int, interval of iteration steps for which the loss is saved and for which a new
+            save_diag_intv       : int, interval of iteration steps for which the loss is saved and for which a new
                                    loss curve is plotted
             save_model_intv      : int, interval of iteration for which the model is checkpointed
         """ 
@@ -147,12 +147,13 @@ class TrainModel(object):
         # ML/BG 2021-06-15: Is the following needed?
         self.model_hparams_dict_load.update({"sequence_length": self.train_dataset.sequence_length})
 
-    def setup_model(self):
+    def setup_model(self, mode="train"):
         """
         Set up model instance for the given model names
+        :param mode: "train" used the model graph in train process;  "test" for postprocessing step
         """
         VideoPredictionModel = models.get_model_class(self.model)
-        self.video_model = VideoPredictionModel(hparams_dict=self.model_hparams_dict_load)
+        self.video_model = VideoPredictionModel(hparams_dict=self.model_hparams_dict_load, mode=mode)
 
     def setup_graph(self):
         """
