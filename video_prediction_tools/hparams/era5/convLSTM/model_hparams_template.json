@@ -5,7 +5,7 @@
     "max_epochs":20,
     "context_frames":12,
     "loss_fun":"mse",
-    "opt_var": 0,
+    "opt_var": "0",
     "shuffle_on_val":true
 }
 

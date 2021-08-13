@@ -65,7 +65,7 @@ class VanillaConvLstmVideoPredictionModel(object):
             max_epochs      : the number of epochs to train model
             lr              : learning rate
             loss_fun        : the loss function
-            opt_var        : the target vars/channel to be optimize, int, or "all", if "all" means optimize all the variables/channels
+            opt_var         : the target vars/channel to be optimize, string: "0","1",..."n", or "all", if "all" means optimize all the variables/channels
         """
         hparams = dict(
             context_frames=10,
@@ -91,14 +91,17 @@ class VanillaConvLstmVideoPredictionModel(object):
         #This is the loss function (MSE):
 
         #Optimize all target variables/channels
-        if self.opt_vars == "all":
+        if self.opt_var == "all":
             x = self.x[:, self.context_frames:, :, :, :]
             x_hat = self.x_hat_predict_frames[:, :, :, :, :]
-        elif isinstance(self.opt_var, int):
+
+        elif self.opt_var != "all" and isinstance(self.opt_var, str):
+            self.opt_var = int(self.opt_var)
             x = self.x[:, self.context_frames:, :, :, self.opt_var]
             x_hat = self.x_hat_predict_frames[:, :, :, :, self.opt_var]
         else:
-            raise ValueError("The opt var in the hyperparameters setup should be int or 'all'")
+            raise ValueError("The opt var in the hyperparameters setup should be '0','1','2' indicate the index of target variable to be optimised or 'all' indicating optimize all the variables")
+
         if self.loss_fun == "mse":
             self.total_loss = tf.reduce_mean(tf.square(x - x_hat))
         elif self.loss_fun == "cross_entropy":

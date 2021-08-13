@@ -742,7 +742,7 @@ class VideoPredictionModel(BaseVideoPredictionModel):
         if opt_var == "all":
             gen_images = outputs.get("gen_images_enc", outputs["gen_images"])
             target_images = inputs["images"][1:]
-        elif isinstance(opt_var, int):
+        elif opt_var != "all" and isinstance(opt_var,str):
             gen_images = outputs.get("gen_images_enc", outputs["gen_images"])[:, :, :, :, opt_var:opt_var+1]
             target_images = inputs["images"][1:][:, :, :, :, opt_var:opt_var+1]
         else:

@@ -14,7 +14,7 @@
     "nz": 16,
     "max_epochs":2,
     "context_frames": 12,
-    "opt_var": 0
+    "opt_var": "0"
 }
 
 
