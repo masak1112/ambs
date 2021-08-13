@@ -100,10 +100,12 @@ class Postprocess(TrainModel):
         self.sequence_length, self.context_frames, self.future_length = self.get_data_params()
         self.inputs, self.input_ts = self.make_test_dataset_iterator()
         # set-up model, its graph and do GPU-configuration (from TrainModel)
-        self.setup_model()
+        self.setup_model(mode=self.mode)
         self.setup_graph()
         self.setup_gpu_config()
         self.load_climdata()
+
+
     # Methods that are called during initialization
     def get_input_dirs(self):
         """
@@ -560,7 +562,7 @@ class Postprocess(TrainModel):
             # write evaluation metric to corresponding dataset and sa
             eval_metric_ds = self.populate_eval_metric_ds(eval_metric_ds, batch_ds, sample_ind,
                                                           self.vars_in[self.channel])
-            cond_quantiple_ds = Postprocess.append_ds(batch_ds, cond_quantiple_ds, self.cond_quantile_vars, "init_time", dtype=np.float16)
+            cond_quantiple_ds = Postprocess.append_ds(batch_ds, cond_quantiple_ds, self.cond_quantile_vars, "init_time",dtype=np.float16)
             # ... and increment sample_ind
             sample_ind += self.batch_size
             # end of while-loop for samples
