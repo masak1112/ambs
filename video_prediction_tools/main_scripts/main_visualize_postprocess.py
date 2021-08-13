@@ -530,6 +530,8 @@ class Postprocess(TrainModel):
             # get normalized and denormalized input data
             input_results, input_images_denorm, t_starts = self.get_input_data_per_batch(self.inputs)
             # feed and run the trained model; returned array has the shape [batchsize, seq_len, lat, lon, channel]
+            print("%{0}: Start generating {1:d} predictions at current sample index {2:d}".format(method, self.batch_size,
+                                                                                                  sample_ind))
             feed_dict = {input_ph: input_results[name] for name, input_ph in self.inputs.items()}
             gen_images = self.sess.run(self.video_model.outputs['gen_images'], feed_dict=feed_dict)
 
@@ -546,6 +548,7 @@ class Postprocess(TrainModel):
             batch_ds = batch_ds.isel(init_time=slice(0, nbs))
 
             for i in np.arange(nbs):
+                print("%{0}: Process mini-batch sample {1:d}/{2:d}".format(method, i+1, nbs))
                 # work-around to make use of get_persistence_forecast_per_sample-method
                 times_seq = (pd.date_range(times_0[i], periods=int(self.sequence_length), freq="h")).to_pydatetime()
                 # get persistence forecast for sequences at hand and write to dataset
@@ -1057,7 +1060,6 @@ class Postprocess(TrainModel):
 
             # Retrieve starting index
             ind_first_m = list(time_pickle_first).index(np.array(t_persistence_first_m[0]))
-            # print("time_pickle_second:", time_pickle_second)
             ind_second_m = list(time_pickle_second).index(np.array(t_persistence_second_m[0]))
 
             # append the sequence of the second month to the first month
