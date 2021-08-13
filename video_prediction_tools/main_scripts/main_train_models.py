@@ -296,7 +296,7 @@ class TrainModel(object):
             train_losses, val_losses = self.restore_train_val_losses()
             time_per_iteration = []
             run_start_time = time.time()
-            for step in range(self.start_step,self.total_steps):
+            for step in range(self.start_step, self.total_steps):
                 timeit_start = time.time()
                 #run for training dataset
                 self.create_fetches_for_train()             # In addition to the loss, we fetch the optimizer
@@ -305,10 +305,10 @@ class TrainModel(object):
                 #Run and fetch losses for validation data
                 val_handle_eval = sess.run(self.val_handle)
                 self.create_fetches_for_val()
-                self.val_results = sess.run(self.val_fetches,feed_dict={self.train_handle: val_handle_eval})
+                self.val_results = sess.run(self.val_fetches, feed_dict={self.train_handle: val_handle_eval})
                 val_losses.append(self.val_results["total_loss"])
                 self.write_to_summary()
-                self.print_results(step,self.results)
+                self.print_results(step, self.results)
                 timeit_end = time.time()
                 time_per_iteration.append(timeit_end - timeit_start)
                 print("time needed for this step", timeit_end - timeit_start, ' s')
@@ -316,16 +316,16 @@ class TrainModel(object):
                     self.saver.save(sess, os.path.join(self.output_dir, "model"), global_step=step)
                 if step % self.save_diag_intv == 0:
                     # I save the pickle file and plot here inside the loop in case the training process cannot finished after job is done.
-                    TrainModel.save_results_to_pkl(train_losses,val_losses,self.output_dir)
-                    TrainModel.plot_train(train_losses,val_losses,step,self.output_dir)
+                    TrainModel.save_results_to_pkl(train_losses, val_losses, self.output_dir)
+                    TrainModel.plot_train(train_losses, val_losses, step, self.output_dir)
 
             #Totally train time over all the iterations
             train_time = time.time() - run_start_time
-            results_dict = {"train_time":train_time,
-                            "total_steps":self.total_steps}
-            TrainModel.save_results_to_dict(results_dict,self.output_dir)
-            print("train_losses:",train_losses)
-            print("val_losses:",val_losses) 
+            results_dict = {"train_time": train_time,
+                            "total_steps": self.total_steps}
+            TrainModel.save_results_to_dict(results_dict, self.output_dir)
+            print("train_losses:", train_losses)
+            print("val_losses:", val_losses)
             print("Done")
             print("Total training time:", train_time/60., "min")
             return train_time, time_per_iteration
@@ -363,7 +363,7 @@ class TrainModel(object):
         self.fetches["d_losses"] = self.video_model.d_losses
         self.fetches["d_loss"] = self.video_model.d_loss
         self.fetches["g_loss"] = self.video_model.g_loss
-        self.fetches["total_loss"] = self.video_model.g_loss
+        self.fetches["total_loss"] = self.video_model.g_losses["gen_l1_loss"]
         self.fetches["inputs"] = self.video_model.inputs
 
 
