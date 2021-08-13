@@ -15,19 +15,32 @@ class VanillaConvLstmVideoPredictionModel(object):
         """
         This is class for building convLSTM architecture by using updated hparameters
         args:
-             mode   :str, "train" or "val", side note: mode may not be used in the convLSTM, but this will be a useful argument for the GAN-based model
-             hparams_dict: dict, the dictionary contains the hparaemters names and values
+             mode          :str, "train" or "val", side note: mode may not be used in the convLSTM, but this will be a useful argument for the GAN-based model
+             hparams_dict : dict, the dictionary contains the hparaemters names and values
         """
         self.mode = mode
         self.hparams_dict = hparams_dict
         self.hparams = self.parse_hparams()        
         self.learning_rate = self.hparams.lr
-        self.total_loss = None
         self.context_frames = self.hparams.context_frames
         self.sequence_length = self.hparams.sequence_length
         self.predict_frames = set_and_check_pred_frames(self.sequence_length, self.context_frames)
         self.max_epochs = self.hparams.max_epochs
         self.loss_fun = self.hparams.loss_fun
+        self.opt_var = self.hparams.opt_var
+        # Attributes set during runtime
+        self.loss_summary = None
+        self.total_loss = None
+        self.outputs = {}
+        self.train_op = None
+        self.summary_op = None
+        self.x = None
+        self.inputs = None
+        self.global_step = None
+        self.saveable_variables = None
+        self.is_build_graph = None
+        self.x_hat = None
+        self.x_hat_predict_frames = None
 
 
     def get_default_hparams(self):
@@ -52,6 +65,7 @@ class VanillaConvLstmVideoPredictionModel(object):
             max_epochs      : the number of epochs to train model
             lr              : learning rate
             loss_fun        : the loss function
+            opt_var        : the target vars/channel to be optimize, int, or "all", if "all" means optimize all the variables/channels
         """
         hparams = dict(
             context_frames=10,
@@ -61,6 +75,7 @@ class VanillaConvLstmVideoPredictionModel(object):
             lr=0.001,
             loss_fun="cross_entropy",
             shuffle_on_val=True,
+            opt_var=0,
         )
         return hparams
 
@@ -71,18 +86,26 @@ class VanillaConvLstmVideoPredictionModel(object):
         self.x = x["images"]
         self.global_step = tf.train.get_or_create_global_step()
         original_global_variables = tf.global_variables()
-        # ARCHITECTURE
+
         self.convLSTM_network()
-        #This is the loss function (RMSE):
-        #This is loss function only for 1 channel (temperature RMSE)
-        if self.loss_fun == "rmse":
-            self.total_loss = tf.reduce_mean(
-                tf.square(self.x[:, self.context_frames:,:,:,0] - self.x_hat_predict_frames[:,:,:,:,0]))
+        #This is the loss function (MSE):
+
+        #Optimize all target variables/channels
+        if self.opt_vars == "all":
+            x = self.x[:, self.context_frames:, :, :, :]
+            x_hat = self.x_hat_predict_frames[:, :, :, :, :]
+        elif isinstance(self.opt_var, int):
+            x = self.x[:, self.context_frames:, :, :, self.opt_var]
+            x_hat = self.x_hat_predict_frames[:, :, :, :, self.opt_var]
+        else:
+            raise ValueError("The opt var in the hyperparameters setup should be int or 'all'")
+        if self.loss_fun == "mse":
+            self.total_loss = tf.reduce_mean(tf.square(x - x_hat))
         elif self.loss_fun == "cross_entropy":
-            x_flatten = tf.reshape(self.x[:, self.context_frames:,:,:,0],[-1])
-            x_hat_predict_frames_flatten = tf.reshape(self.x_hat_predict_frames[:,:,:,:,0],[-1])
+            x_flatten = tf.reshape(x, [-1])
+            x_hat_predict_frames_flatten = tf.reshape(x_hat, [-1])
             bce = tf.keras.losses.BinaryCrossentropy()
-            self.total_loss = bce(x_flatten,x_hat_predict_frames_flatten)  
+            self.total_loss = bce(x_flatten, x_hat_predict_frames_flatten)
         else:
             raise ValueError("Loss function is not selected properly, you should chose either 'rmse' or 'cross_entropy'")
 
@@ -92,7 +115,7 @@ class VanillaConvLstmVideoPredictionModel(object):
  
         self.train_op = tf.train.AdamOptimizer(
             learning_rate = self.learning_rate).minimize(self.total_loss, global_step = self.global_step)
-        self.outputs = {}
+
         self.outputs["gen_images"] = self.x_hat
         # Summary op
         self.loss_summary = tf.summary.scalar("total_loss", self.total_loss)
@@ -119,8 +142,8 @@ class VanillaConvLstmVideoPredictionModel(object):
 
         # pack them all together
         x_hat = tf.stack(x_hat)
-        self.x_hat= tf.transpose(x_hat, [1, 0, 2, 3, 4])  # change first dim with sec dim
-        self.x_hat_predict_frames = self.x_hat[:,self.context_frames-1:,:,:,:]
+        self.x_hat = tf.transpose(x_hat, [1, 0, 2, 3, 4])  # change first dim with sec dim
+        self.x_hat_predict_frames = self.x_hat[:, self.context_frames-1:, :, :, :]
 
     @staticmethod
     def convLSTM_cell(inputs, hidden):

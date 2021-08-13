@@ -13,7 +13,8 @@
     "state_weight": 0.0,
     "nz": 16,
     "max_epochs":2,
-    "context_frames": 12
+    "context_frames": 12,
+    "opt_var": 0
 }
 
 
