@@ -75,7 +75,7 @@ class VanillaConvLstmVideoPredictionModel(object):
             lr=0.001,
             loss_fun="cross_entropy",
             shuffle_on_val=True,
-            opt_var=0,
+            opt_var="0",
         )
         return hparams
 
@@ -94,9 +94,10 @@ class VanillaConvLstmVideoPredictionModel(object):
         if self.opt_var == "all":
             x = self.x[:, self.context_frames:, :, :, :]
             x_hat = self.x_hat_predict_frames[:, :, :, :, :]
-
+            print ("The model is optimzied on all the variables in the loss function")
         elif self.opt_var != "all" and isinstance(self.opt_var, str):
             self.opt_var = int(self.opt_var)
+            print ("The model is optimized on the {} variable in the loss function".format(self.opt_var))
             x = self.x[:, self.context_frames:, :, :, self.opt_var]
             x_hat = self.x_hat_predict_frames[:, :, :, :, self.opt_var]
         else:

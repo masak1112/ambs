@@ -86,14 +86,14 @@ class BaseVideoPredictionModel(object):
                 `sequence_length - context_frames` future frames. Must be
                 specified during instantiation.
             repeat: the number of repeat actions (if applicable).
-            opt_var :int or  "all", the target variable to be optimized in the loss function, if "all" means optimize all the variables and channels
+            opt_var :string: "0","1",..."n", or "all", the target variable to be optimized in the loss function, if "all" means optimize all the variables and channels
 
         """
         hparams = dict(
             context_frames=-1,
             sequence_length=-1,
             repeat=1,
-            opt_var=0,
+            opt_var="0"
         )
         return hparams
 
@@ -742,7 +742,10 @@ class VideoPredictionModel(BaseVideoPredictionModel):
         if opt_var == "all":
             gen_images = outputs.get("gen_images_enc", outputs["gen_images"])
             target_images = inputs["images"][1:]
+            print("The model is optimized on all variables/channels in the loss function")
         elif opt_var != "all" and isinstance(opt_var,str):
+            opt_var = int(opt_var)
+            print("The model is optimized on the {} variable/channel in the loss function".format(opt_var))
             gen_images = outputs.get("gen_images_enc", outputs["gen_images"])[:, :, :, :, opt_var:opt_var+1]
             target_images = inputs["images"][1:][:, :, :, :, opt_var:opt_var+1]
         else:
