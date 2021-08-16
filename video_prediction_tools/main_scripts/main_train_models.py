@@ -440,8 +440,8 @@ class TrainModel(object):
         elif self.video_model.__class__.__name__ == "VanillaConvLstmVideoPredictionModel":
             print ("Total_loss:{}".format(results["total_loss"]))
         elif self.video_model.__class__.__name__ == "SAVPVideoPredictionModel":
-            print("Total_loss/g_losses:{}; d_losses:{}; g_loss:{}; d_loss: {}"
-                  .format(results["g_losses"],results["d_losses"],results["g_loss"],results["d_loss"]))
+            print("Total_loss/g_losses:{}; d_losses:{}; g_loss:{}; d_loss: {}, gen_l1_loss: {}"
+                  .format(results["g_losses"],results["d_losses"],results["g_loss"],results["d_loss"],results["gen_l1_loss"]))
         elif self.video_model.__class__.__name__ == "VanillaVAEVideoPredictionModel":
             print("Total_loss:{}; latent_losses:{}; reconst_loss:{}".format(results["total_loss"],results["latent_loss"],results["recon_loss"]))
         else:
