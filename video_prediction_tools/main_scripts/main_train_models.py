@@ -23,6 +23,7 @@ from model_modules.video_prediction import datasets, models
 import matplotlib.pyplot as plt
 import pickle as pkl
 from model_modules.video_prediction.utils import tf_utils
+from general_utils import *
 
 
 class TrainModel(object):
@@ -413,7 +414,7 @@ class TrainModel(object):
         fetches = {}
         for fetch_req in fetch_list:
             try:
-                fetches[fetch_req] = tf_utils.find_key(self.video_model, fetch_req)
+                fetches[fetch_req] = find_key(self.video_model, fetch_req)
 
             except Exception as err:
                 print("%{0}: Failed to retrieve {1} from video_model-attribute.".format(method, fetch_req))
