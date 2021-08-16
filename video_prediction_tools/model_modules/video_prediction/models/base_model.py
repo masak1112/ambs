@@ -755,9 +755,7 @@ class VideoPredictionModel(BaseVideoPredictionModel):
         else:
             raise ValueError("The opt_var in the hyper-parameters setting should be int or 'all'")
 
-        if hparams.l1_weight or hparams.l2_weight or hparams.vgg_cdist_weight:
-            gen_images = outputs.get('gen_images_enc', outputs['gen_images'])
-            target_images = inputs['images'][1:]
+
         if hparams.l1_weight:
             gen_l1_loss = vp.losses.l1_loss(gen_images, target_images)
             gen_losses["gen_l1_loss"] = (gen_l1_loss, hparams.l1_weight)
