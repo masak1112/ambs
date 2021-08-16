@@ -24,14 +24,12 @@ from model_modules.video_prediction.layers.BasicConvLSTMCell import BasicConvLST
 from tensorflow.contrib.training import HParams
 
 class TestModelVideoPredictionModel(object):
-    def __init__(self, mode='train', hparams_dict=None):
+    def __init__(self, hparams_dict=None, **kwargs):
         """
         This is class for building convLSTM architecture by using updated hparameters
         args:
-             mode   :str, "train" or "val", side note: mode may not be used in the convLSTM, but this will be a useful argument for the GAN-based model
              hparams_dict: dict, the dictionary contains the hparaemters names and values
         """
-        self.mode = mode
         self.hparams_dict = hparams_dict
         self.hparams = self.parse_hparams()        
         self.learning_rate = self.hparams.lr
@@ -90,7 +88,7 @@ class TestModelVideoPredictionModel(object):
             learning_rate = self.learning_rate).minimize(self.total_loss, global_step = self.global_step)
         
         self.outputs = {}
-        self.outputs["gen_images"] = self.x[:,1:,:,:,:]
+        self.outputs["gen_images"] = self.x[:, 1:, :, :, :]
         # Summary op
         self.loss_summary = tf.summary.scalar("total_loss", self.total_loss)
         self.summary_op = tf.summary.merge_all()
@@ -106,7 +104,7 @@ class TestModelVideoPredictionModel(object):
         """
         x_data = np.random.rand(100).astype(np.float)
         self.y_data = x_data * 0.1 + 0.3
-        weights = tf.Variable(tf.random_uniform([1],-1,1.0),name="weights")
-        biases = tf.Variable(tf.zeros([1]),name="biases")
+        weights = tf.Variable(tf.random_uniform([1],-1,1.0), name="weights")
+        biases = tf.Variable(tf.zeros([1]), name="biases")
         self.y = x_data * weights + biases
         

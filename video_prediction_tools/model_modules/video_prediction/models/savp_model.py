@@ -701,9 +701,6 @@ def generator_given_z_fn(inputs, mode, hparams):
 
 def generator_fn(inputs, mode, hparams):
     batch_size = tf.shape(inputs['images'])[1]
-    print("2********mode*****",mode)
-    print("3*******hparams",hparams)
-
 
     if hparams.nz == 0:
         # no zs is given in inputs
