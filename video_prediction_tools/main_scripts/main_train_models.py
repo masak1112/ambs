@@ -362,10 +362,10 @@ class TrainModel(object):
             self.saver_loss = "total_loss"
             self.saver_loss_name = "Total loss"
         if self.video_model.__class__.__name__ == "SAVPVideoPredictionModel":
-            fetch_list = fetch_list + ["g_losses", "d_losses", "d_loss", "g_loss"]
+            fetch_list = fetch_list + ["g_losses", "d_losses", "d_loss", "g_loss","gen_l1_loss"]
             # Add loss that is tracked
-            self.saver_loss = "g_loss"
-            self.saver_loss_name = "Generator loss"
+            self.saver_loss = "gen_l1_loss"
+            self.saver_loss_name = "Generator L1 loss"
         if self.video_model.__class__.__name__ == "VanillaVAEVideoPredictionModel":
             fetch_list = fetch_list + ["latent_loss", "recon_loss", "total_loss"]
             self.saver_loss = "recon_loss"
@@ -413,7 +413,8 @@ class TrainModel(object):
         fetches = {}
         for fetch_req in fetch_list:
             try:
-                fetches[fetch_req] = getattr(self.video_model, fetch_req)
+                fetches[fetch_req] = tf_utils.find_key(self.video_model, fetch_req)
+
             except Exception as err:
                 print("%{0}: Failed to retrieve {1} from video_model-attribute.".format(method, fetch_req))
                 raise err

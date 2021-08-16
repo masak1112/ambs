@@ -15,7 +15,6 @@ class VanillaConvLstmVideoPredictionModel(object):
         """
         This is class for building convLSTM architecture by using updated hparameters
         args:
-             mode          :str, "train" or "val", side note: mode may not be used in the convLSTM, but this will be a useful argument for the GAN-based model
              hparams_dict : dict, the dictionary contains the hparaemters names and values
         """
         self.hparams_dict = hparams_dict
