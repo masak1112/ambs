@@ -17,7 +17,7 @@ try:
     l_tqdm = True
 except:
     l_tqdm = False
-from general_utils import provide_default
+from general_utils import provide_default, check_str_in_list
 
 # basic data types
 da_or_ds = Union[xr.DataArray, xr.Dataset]
@@ -196,54 +196,53 @@ def perform_block_bootstrap_metric(metric: da_or_ds, dim_name: str, block_length
 
     return metric_boot
 
-def calc_geo_spatial_diff(scalar_field: xr.DataArray, order=1, r_e=6371.e3)
+
+def calc_geo_spatial_diff(scalar_field: xr.DataArray, order=1, r_e=6371.e3):
     """
     Calculates the amplitude of the gradient (order=1) or the Laplacian (order=2) of a scalar field given on a regular, 
-    geographical grid (i.e. dlambda = dphi = const.)
+    geographical grid (i.e. dlambda = const. and dphi=const.)
     :param scalar_field: scalar field as data array with latitude and longitude as coordinates
     :param order: order of spatial differential operator
     :param r_e: radius of the sphere 
-    :return: the averaged amplitude of the gradient/laplacian over the domain
+    :return: the amplitude of the gradient/laplacian over the domain
     """
     method = calc_geo_spatial_diff.__name__
 
     # sanity checks
     assert isinstance(scalar_field, xr.DataArray), "%{0}: scalar_field must be a xarray DataArray."\
-                                                    .format(method)
-    assert order in [1,2], "%{0}: Order must be either 1 or 2.".format(method)
+                                                   .format(method)
+    assert order in [1, 2], "%{0}: Order must be either 1 or 2.".format(method)
 
     dims = list(scalar_field.dims)
     lat_dims = ["lat", "latitude"]
     lon_dims = ["lon", "longitude"]
 
     def check_for_coords(coord_names_data, coord_names_expected):
-        for coord_name_expected in coord_names_expected:
+        for coord in coord_names_expected:
+            stat, ind_coord = check_str_in_list(coord_names_data, coord)
+            if stat:
+                return ind_coord, coord_names_data[ind_coord]
 
-        check_coord = [check_str_in_list(coord_name, coord_names_data) for coord_name in coord_names_expected]
-        if np.any(check_coord):
-            ind_coord = np.ind(check_coord)
-            coord_name = coord_names_data[ind_coord]
-        else:
-            raise ValueError("%{0}: Could not find dimension {1}.".format(method))
+        raise ValueError("%{0}: Could not find one of the following coordinates in the passed dictionary."
+                         .format(method, ",".join(coord_names_expected)))
 
-    check_lat = [check_str_in_list(lat_dim, lat_dims) for lat_dim in lat_dims]
-    check_lon = [check_str_in_list(lon_dim, lon_dims) for lon_dim in lon_dims]
+    lat_ind, lat_name = check_for_coords(dims, lat_dims)
+    lon_ind, lon_name = check_for_coords(dims, lon_dims)
 
-    if np.any(check_lon):
-        ind_lon = np.ind(check_lon)
-        lon_name = dims[ind_lon]
+    lat, lon = np.deg2rad(scalar_field[lat_name]), np.deg2rad(scalar_field[lon_name])
+
+    dphi, dlambda = lat[1].values - lat[0].values, lon[1].values - lon[0].values
+
+    if order == 1:
+        dvar_dlambda = 1./(r_e*np.cos(lat)*np.deg2rad(dlambda))*scalar_field.differentiate(lon_name)
+        dvar_dphi = 1./(r_e*np.deg2rad(dphi))*scalar_field.differentiate(lat_name)
+        dvar_dlambda = dvar_dlambda.transpose(*scalar_field.dims)    # ensure that dimension ordering remains constant
+
+        var_diff_amplitude = np.sqrt(dvar_dlambda**2 + dvar_dphi**2)
     else:
-        raise ValueError("%{0}: scalar_field does not have any longitude dimension.".format(method))
+        raise ValueError("%{0}: Second-order differentation is not implemenetd yet.".format(method))
 
-    if np.any(check_lat):
-        ind_lat = np.ind(check_lat)
-        lat_name = dims[ind_lat]
-    else:
-        raise ValueError("%{0}: scalar_field does not have any latitude dimension.".format(method))
-
-    lat, lon = scalar_field[lat_name], scalar_field[lon_name]
-
-
+    return var_diff_amplitude
 
 
 class Scores:
