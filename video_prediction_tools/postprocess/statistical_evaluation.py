@@ -197,61 +197,10 @@ def perform_block_bootstrap_metric(metric: da_or_ds, dim_name: str, block_length
     return metric_boot
 
 
-def calc_geo_spatial_diff(scalar_field: xr.DataArray, order=1, r_e=6371.e3):
-    """
-    Calculates the amplitude of the gradient (order=1) or the Laplacian (order=2) of a scalar field given on a regular, 
-    geographical grid (i.e. dlambda = const. and dphi=const.)
-    :param scalar_field: scalar field as data array with latitude and longitude as coordinates
-    :param order: order of spatial differential operator
-    :param r_e: radius of the sphere 
-    :return: the amplitude of the gradient/laplacian over the domain
-    """
-    method = calc_geo_spatial_diff.__name__
-
-    # sanity checks
-    assert isinstance(scalar_field, xr.DataArray), "%{0}: scalar_field must be a xarray DataArray."\
-                                                   .format(method)
-    assert order in [1, 2], "%{0}: Order must be either 1 or 2.".format(method)
-
-    dims = list(scalar_field.dims)
-    lat_dims = ["lat", "latitude"]
-    lon_dims = ["lon", "longitude"]
-
-    def check_for_coords(coord_names_data, coord_names_expected):
-        for coord in coord_names_expected:
-            stat, ind_coord = check_str_in_list(coord_names_data, coord)
-            if stat:
-                return ind_coord, coord_names_data[ind_coord]
-
-        raise ValueError("%{0}: Could not find one of the following coordinates in the passed dictionary."
-                         .format(method, ",".join(coord_names_expected)))
-
-    lat_ind, lat_name = check_for_coords(dims, lat_dims)
-    lon_ind, lon_name = check_for_coords(dims, lon_dims)
-
-    lat, lon = np.deg2rad(scalar_field[lat_name]), np.deg2rad(scalar_field[lon_name])
-
-    dphi, dlambda = lat[1].values - lat[0].values, lon[1].values - lon[0].values
-
-    if order == 1:
-        dvar_dlambda = 1./(r_e*np.cos(lat)*np.deg2rad(dlambda))*scalar_field.differentiate(lon_name)
-        dvar_dphi = 1./(r_e*np.deg2rad(dphi))*scalar_field.differentiate(lat_name)
-        dvar_dlambda = dvar_dlambda.transpose(*scalar_field.dims)    # ensure that dimension ordering remains constant
-
-        var_diff_amplitude = np.sqrt(dvar_dlambda**2 + dvar_dphi**2)
-    else:
-        raise ValueError("%{0}: Second-order differentation is not implemenetd yet.".format(method))
-
-    return var_diff_amplitude
-
-
 class Scores:
     """
     Class to calculate scores and skill scores.
     """
-
-    known_scores = ["mse", "psnr", "ssim", "acc"]
-
     def __init__(self, score_name: str, dims: List[str]):
         """
         Initialize score instance.
@@ -260,33 +209,13 @@ class Scores:
         :return: Score instance
         """
         method = Scores.__init__.__name__
-        self.metrics_dict = {"mse": self.calc_mse_batch , "psnr": self.calc_psnr_batch, "ssim":self.calc_ssim_batch, "acc":self.calc_acc_batch}
-        if set(self.metrics_dict.keys()) != set(Scores.known_scores):
-            raise ValueError("%{0}: Known scores must coincide with keys of metrics_dict.".format(method))
+        self.metrics_dict = {"mse": self.calc_mse_batch , "psnr": self.calc_psnr_batch,
+                             "ssim": self.calc_ssim_batch, "acc": self.calc_acc_batch,
+                             "texture": self.calc_texture}
         self.score_name = self.set_score_name(score_name)
         self.score_func = self.metrics_dict[score_name]
         # attributes set when run_calculation is called
         self.avg_dims = dims
-
-    # ML 2021-06-10: The following method is not runnable and yet, it is unclear if it is needed at all.
-    # Thus, it is commented out for potential later use (in case that it won't be discarded).
-    # def run_calculation(self, model_data, ref_data, dims2avg=None, **kwargs):
-    #
-    #     method = Scores.run_calculation.__name__
-    #
-    #     model_data, ref_data = Scores.set_model_and_ref_data(model_data, ref_data, dims2avg=dims2avg)
-    #
-    #     try:
-    #         # if self.avg_dims is None:
-    #         result = self.score_func(model_data, ref_data, **kwargs)
-    #         # else:
-    #         #    result = self.score_func(model_data, ref_data, **kwargs)
-    #     except Exception as err:
-    #         print("%{0}: Calculation of '{1}' was not successful. Inspect error message!".format(method,
-    #                                                                                              self.score_name))
-    #         raise err
-    #
-    #     return result
 
     def set_score_name(self, score_name):
 
@@ -358,7 +287,6 @@ class Scores:
         ssim_pred = [[ssim(data_ref[i,j,:,:],data_fcst[i,j,:,:]) for j in range(fore_hours)] for i in range(batch_size)]
         return ssim_pred
 
-
     def calc_acc_batch(self, data_fcst, data_ref,  **kwargs):
         """
         Calculate acc ealuation metric of forecast data w.r.t reference data
@@ -402,3 +330,88 @@ class Scores:
                 cor2 = np.sqrt(np.sum(img1_**2)*np.sum(img2_**2))
                 acc[i,j] = cor1/cor2
         return acc
+
+    def calc_spatial_variability(self, data_fcst, data_ref, **kwargs):
+        """
+        Calculates the ratio between the spatial variability of differental operator with order 1 (or 2) forecast and
+        reference data
+        :param data_fcst: data_fcst: forecasted data (xarray with dimensions [batch, fore_hours, lat, lon])
+        :param data_ref: reference data (xarray with dimensions [batch, fore_hours, lat, lon])
+        :param kwargs: order to control the order of spatial differential operator, 'non_spatial_avg_dims' to perform
+                       averaging
+        :return: the ratio between spatial variabilty in the forecast and reference data field
+        """
+
+        method = Scores.calc_spatial_variability.__name__
+
+        if self.avg_dims is None:
+            pass
+        else:
+            print("%{0}: Passed dimensions to Scores-object instance are ignored.".format(method) +
+                  "Make use of 'non_spatial_avg_dims' to pass a list over dimensions for averaging")
+
+        if "order" in kwargs:
+            order = kwargs.get("order")
+        else:
+            order = 1
+
+        fcst_grad = Scores.calc_geo_spatial_diff(data_fcst, order=order)
+        ref_grd = Scores.calc_geo_spatial_diff(data_ref, order=order)
+
+        ratio_spat_variability = ref_grd/fcst_grad
+
+        if "non_spatial_avg_dims" in kwargs:
+            ratio_spat_variability = ratio_spat_variability.mean(dims=kwargs.get("non_spatial_avg_dims"))
+
+        return ratio_spat_variability
+
+    @staticmethod
+    def calc_geo_spatial_diff(scalar_field: xr.DataArray, order: int = 1, r_e: float = 6371.e3, avg_dom: bool = True):
+        """
+        Calculates the amplitude of the gradient (order=1) or the Laplacian (order=2) of a scalar field given on a regular,
+        geographical grid (i.e. dlambda = const. and dphi=const.)
+        :param scalar_field: scalar field as data array with latitude and longitude as coordinates
+        :param order: order of spatial differential operator
+        :param r_e: radius of the sphere
+        :param avg_dom: flag if amplitude is averaged over the domain
+        :return: the amplitude of the gradient/laplacian at each grid point or over the whole domain (see avg_dom)
+        """
+        method = Scores.calc_geo_spatial_diff.__name__
+
+        # sanity checks
+        assert isinstance(scalar_field, xr.DataArray), "%{0}: scalar_field must be a xarray DataArray."\
+                                                       .format(method)
+        assert order in [1, 2], "%{0}: Order must be either 1 or 2.".format(method)
+
+        dims = list(scalar_field.dims)
+        lat_dims = ["lat", "latitude"]
+        lon_dims = ["lon", "longitude"]
+
+        def check_for_coords(coord_names_data, coord_names_expected):
+            for coord in coord_names_expected:
+                stat, ind_coord = check_str_in_list(coord_names_data, coord)
+                if stat:
+                    return ind_coord, coord_names_data[ind_coord]
+
+            raise ValueError("%{0}: Could not find one of the following coordinates in the passed dictionary."
+                             .format(method, ",".join(coord_names_expected)))
+
+        lat_ind, lat_name = check_for_coords(dims, lat_dims)
+        lon_ind, lon_name = check_for_coords(dims, lon_dims)
+
+        lat, lon = np.deg2rad(scalar_field[lat_name]), np.deg2rad(scalar_field[lon_name])
+
+        dphi, dlambda = lat[1].values - lat[0].values, lon[1].values - lon[0].values
+
+        if order == 1:
+            dvar_dlambda = 1./(r_e*np.cos(lat)*np.deg2rad(dlambda))*scalar_field.differentiate(lon_name)
+            dvar_dphi = 1./(r_e*np.deg2rad(dphi))*scalar_field.differentiate(lat_name)
+            dvar_dlambda = dvar_dlambda.transpose(*scalar_field.dims)    # ensure that dimension ordering remains constant
+
+            var_diff_amplitude = np.sqrt(dvar_dlambda**2 + dvar_dphi**2)
+            if avg_dom: var_diff_amplitude = var_diff_amplitude.mean(dim=[lat_name, lon_name])
+        else:
+            raise ValueError("%{0}: Second-order differentation is not implemenetd yet.".format(method))
+
+        return var_diff_amplitude
+

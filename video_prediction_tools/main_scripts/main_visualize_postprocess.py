@@ -658,7 +658,7 @@ class Postprocess(TrainModel):
 
         # dictionary of implemented evaluation metrics
         dims = ["lat", "lon"]
-        eval_metrics_func = [Scores(metric,dims).score_func for metric in self.eval_metrics]
+        eval_metrics_func = [Scores(metric, dims).score_func for metric in self.eval_metrics]
         varname_ref = "{0}_ref".format(varname)
         # reset init-time coordinate of metric_ds in place and get indices for slicing
         ind_end = np.minimum(ind_start + self.batch_size, self.num_samples_per_epoch)
