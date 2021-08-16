@@ -181,7 +181,7 @@ def find_key(dict_in: dict, key: str):
     :param key: key to be retrieved
     :return: value of the key in dict_in
     """
-    method = finditem.__name__
+    method = find_key.__name__
     # sanity check
     if not isinstance(dict_in, dict):
         raise TypeError("%{0}: dict_in must be a dictionary instance, but is of type '{1}'"
@@ -191,7 +191,7 @@ def find_key(dict_in: dict, key: str):
         return dict_in[key]
     for k, v in dict_in.items():
         if isinstance(v,dict):
-            item = finditem(v, key)
+            item = find_key(v, key)
             if item is not None:
                 return item
 

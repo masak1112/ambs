@@ -414,8 +414,10 @@ class TrainModel(object):
         fetches = {}
         for fetch_req in fetch_list:
             try:
-                fetches[fetch_req] = find_key(self.video_model, fetch_req)
-
+                if hasattr(self.video_model,fetch_req):
+                    fetches[fetch_req] = getattr(self.video_model, fetch_req)
+                elif hasattr(self.video_model,"g_losses"):
+                    fetches[fetch_req] = self.video_model.g_losses[fetch_req]            
             except Exception as err:
                 print("%{0}: Failed to retrieve {1} from video_model-attribute.".format(method, fetch_req))
                 raise err
