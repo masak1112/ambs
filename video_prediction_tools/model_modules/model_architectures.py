@@ -13,6 +13,7 @@ def known_models():
         'convLSTM_gan': "ConvLstmGANVideoPredictionModel",
         'ours_vae_l1': 'SAVPVideoPredictionModel',
         'ours_gan': 'SAVPVideoPredictionModel',
-    }
+        'precrnn_v2': 'PredRNNv2VideoPredictionModel'
+        }
 
     return model_mappings

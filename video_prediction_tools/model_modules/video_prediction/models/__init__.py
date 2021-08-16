@@ -10,7 +10,7 @@ from .mcnet_model import McNetVideoPredictionModel
 from .test_model import TestModelVideoPredictionModel
 from model_modules.model_architectures import known_models
 from .convLSTM_GAN_model import ConvLstmGANVideoPredictionModel
-
+#from .vanilla_predrnnv2 import PredRNNv2VideoPredictionModel
 
 
 def get_model_class(model):

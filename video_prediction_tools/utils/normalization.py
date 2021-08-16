@@ -13,6 +13,8 @@ class Norm_data:
     known_norms = {}
     known_norms["minmax"] = ["min", "max"]
     known_norms["znorm"] = ["avg", "sigma"]
+    known_norms["cbnorm"] = []
+    known_norms["lognorm"] = []
 
     def __init__(self, varnames):
         """Initialize the instance by setting the variable names to be handled and the status (for sanity checks only) as attributes."""
@@ -72,6 +74,11 @@ class Norm_data:
                         getattr(self, varname + "max") - getattr(self, varname + "min")))
         elif norm == "znorm":
             return ((data[...] - getattr(self, varname + "avg")) / getattr(self, varname + "sigma") ** 2)
+        elif norm == "cbnorm":
+            return data[...]
+            # return (data[...] ** (1./3))
+        elif norm == "lognorm":
+            return (np.log(data[...]+0.001)-np.log(0.001))
 
     def denorm_var(self, data, varname, norm):
         """
@@ -94,3 +101,11 @@ class Norm_data:
                                                                                                             varname + "min"))
         elif norm == "znorm":
             return (data[...] * getattr(self, varname + "sigma") ** 2 + getattr(self, varname + "avg"))
+
+        elif norm == "cbnorm":
+            return data[...]
+            # return (data[...] ** 3)
+
+        elif norm == "lognorm":
+            return (np.round(np.exp(data[...]+np.log(0.001))-0.001,4))
+

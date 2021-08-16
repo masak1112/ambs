@@ -21,7 +21,7 @@ class Config_Train(Config_runscript_base):
     # !!! Important note !!!
     # As long as we don't have runscript templates for all the datasets listed in known_datasets
     # or a generic template runscript, we need the following manual list
-    allowed_datasets = ["era5", "moving_mnist"]  # known_datasets().keys
+    allowed_datasets = ["era5", "moving_mnist", "gzprcp_data"]  # known_datasets().keys
 
     basename_tfdirs = "tfrecords_seq_len_"
 
@@ -88,12 +88,16 @@ class Config_Train(Config_runscript_base):
 
         # split up directory path in order to retrieve exp_dir used for setting up the destination directory
         exp_dir_split = Config_Train.path_rec_split(self.source_dir)
+        print(exp_dir_split)
+        print(self.dataset)
         index = [idx for idx, s in enumerate(exp_dir_split) if self.dataset in s]
         if not index:
             raise ValueError(
                     "%{0}: tfrecords found under '{1}', but directory does not seem to reflect naming convention."
                     .format(method_name, self.source_dir))
         exp_dir = exp_dir_split[index[0]]
+        #exp_dir = exp_dir_split[-2]
+        print(exp_dir)
 
         # get the model to train
         model_req_str = "Enter the name of the model you want to train:"

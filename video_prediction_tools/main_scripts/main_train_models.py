@@ -178,12 +178,6 @@ class TrainModel(object):
         self.iterator = tf.data.Iterator.from_string_handle(
             self.train_handle, self.train_tf_dataset.output_types, self.train_tf_dataset.output_shapes)
         self.inputs = self.iterator.get_next()
-        #since era5 tfrecords include T_start, we need to remove it from the tfrecord when we train the model,
-        # otherwise the model will raise error
-        
-        if self.dataset == "era5" and self.model == "savp":
-           del self.inputs["T_start"]
-
 
     def save_dataset_model_params_to_checkpoint_dir(self, dataset, video_model):
         """
@@ -296,6 +290,10 @@ class TrainModel(object):
             train_losses, val_losses = self.restore_train_val_losses()
             time_per_iteration = []
             run_start_time = time.time()
+            # for transfor learning which has small dataset
+            if self.start_step > self.total_steps:
+                self.start_step = 0
+            #better be total_steps = total_steps+start_step
             for step in range(self.start_step,self.total_steps):
                 timeit_start = time.time()
                 #run for training dataset
@@ -353,7 +351,6 @@ class TrainModel(object):
         """
         self.fetches["total_loss"] = self.video_model.total_loss
         self.fetches["inputs"] = self.video_model.inputs
-
  
     def fetches_for_train_savp(self):
         """
