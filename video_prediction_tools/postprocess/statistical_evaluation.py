@@ -211,7 +211,7 @@ class Scores:
         method = Scores.__init__.__name__
         self.metrics_dict = {"mse": self.calc_mse_batch , "psnr": self.calc_psnr_batch,
                              "ssim": self.calc_ssim_batch, "acc": self.calc_acc_batch,
-                             "texture": self.calc_texture}
+                             "texture": self.calc_spatial_variability}
         self.score_name = self.set_score_name(score_name)
         self.score_func = self.metrics_dict[score_name]
         # attributes set when run_calculation is called
