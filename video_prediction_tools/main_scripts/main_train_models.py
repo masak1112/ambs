@@ -405,7 +405,7 @@ class TrainModel(object):
 
         return self.val_fetches
 
-    def generate_fetches(self, fetch_list, nest_element=None):
+    def generate_fetches(self, fetch_list):
         """
         Generates dictionary of fetches from video model instance
         :param fetch_list: list of attributes of video model instance that are of particular interest; 
