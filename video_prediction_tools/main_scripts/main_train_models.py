@@ -363,9 +363,9 @@ class TrainModel(object):
             self.saver_loss = "total_loss"
             self.saver_loss_name = "Total loss"
         if self.video_model.__class__.__name__ == "SAVPVideoPredictionModel":
-            fetch_list = fetch_list + ["g_losses", "d_losses", "d_loss", "g_loss","gen_l1_loss"]
+            fetch_list = fetch_list + ["g_losses", "d_losses", "d_loss", "g_loss", ("g_losses", "gen_l1_loss")]
             # Add loss that is tracked
-            self.saver_loss = "gen_l1_loss"
+            self.saver_loss = ("g_losses", "gen_l1_loss")
             self.saver_loss_name = "Generator L1 loss"
         if self.video_model.__class__.__name__ == "VanillaVAEVideoPredictionModel":
             fetch_list = fetch_list + ["latent_loss", "recon_loss", "total_loss"]
@@ -399,7 +399,7 @@ class TrainModel(object):
 
         return self.val_fetches
 
-    def generate_fetches(self, fetch_list):
+    def generate_fetches(self, fetch_list, nest_element=None):
         """
         Generates dictionary of fetches from video model instance
         :param fetch_list: list of attributes of video model instance that are of particular interest
@@ -414,10 +414,10 @@ class TrainModel(object):
         fetches = {}
         for fetch_req in fetch_list:
             try:
-                if hasattr(self.video_model,fetch_req):
+                if isinstance(fetch_req, tuple):
+                    fetches[fetch_req[1]] = getattr(self.video_model, fetch_req[0])[fetch_req[1]]
+                else:
                     fetches[fetch_req] = getattr(self.video_model, fetch_req)
-                elif hasattr(self.video_model,"g_losses"):
-                    fetches[fetch_req] = self.video_model.g_losses[fetch_req]            
             except Exception as err:
                 print("%{0}: Failed to retrieve {1} from video_model-attribute.".format(method, fetch_req))
                 raise err
