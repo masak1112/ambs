@@ -284,7 +284,8 @@ class Scores:
         method = Scores.calc_ssim_batch.__name__
         batch_size = np.array(data_ref).shape[0]
         fore_hours = np.array(data_fcst).shape[1]
-        ssim_pred = [[ssim(data_ref[i,j,:,:],data_fcst[i,j,:,:]) for j in range(fore_hours)] for i in range(batch_size)]
+        ssim_pred = [[ssim(data_ref[i,j, ...],data_fcst[i,j,...]) for j in range(fore_hours)]
+                     for i in range(batch_size)]
         return ssim_pred
 
     def calc_acc_batch(self, data_fcst, data_ref,  **kwargs):
@@ -301,17 +302,13 @@ class Scores:
         else:
             raise KeyError("%{0}: climatological data must be parsed to calculate the ACC.".format(method))        
 
-        #print(data_fcst)
-        #print('data_clim shape: ',data_clim.shape)
         batch_size = data_fcst.shape[0]
         fore_hours = data_fcst.shape[1]
-        #print('batch_size: ',batch_size)
-        #print('fore_hours: ',fore_hours)
         acc = np.ones([batch_size,fore_hours])*np.nan
         for i in range(batch_size):
             for j in range(fore_hours):
-                img_fcst = data_fcst[i,j,:,:]
-                img_ref = data_ref[i,j,:,:]
+                img_fcst = data_fcst[i, j, ...]
+                img_ref = data_ref[i, j, ...]
                 # get the forecast time
                 print('img_fcst.init_time: ',img_fcst.init_time)
                 fcst_time = xr.Dataset({'time': pd.to_datetime(img_fcst.init_time.data) + datetime.timedelta(hours=j)})
@@ -328,7 +325,7 @@ class Scores:
                 img2_ = img_fcst - img_clim
                 cor1 = np.sum(img1_*img2_)
                 cor2 = np.sqrt(np.sum(img1_**2)*np.sum(img2_**2))
-                acc[i,j] = cor1/cor2
+                acc[i, j] = cor1/cor2
         return acc
 
     def calc_spatial_variability(self, data_fcst, data_ref, **kwargs):
@@ -405,7 +402,7 @@ class Scores:
         if order == 1:
             dvar_dlambda = 1./(r_e*np.cos(lat)*np.deg2rad(dlambda))*scalar_field.differentiate(lon_name)
             dvar_dphi = 1./(r_e*np.deg2rad(dphi))*scalar_field.differentiate(lat_name)
-            dvar_dlambda = dvar_dlambda.transpose(*scalar_field.dims)    # ensure that dimension ordering remains constant
+            dvar_dlambda = dvar_dlambda.transpose(*scalar_field.dims)    # ensure that dimension ordering is not changed
 
             var_diff_amplitude = np.sqrt(dvar_dlambda**2 + dvar_dphi**2)
             if avg_dom: var_diff_amplitude = var_diff_amplitude.mean(dim=[lat_name, lon_name])
