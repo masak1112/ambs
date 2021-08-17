@@ -378,7 +378,7 @@ class TrainModel(object):
             self.saver_loss = fetch_list[-1]
             self.saver_loss_name = "Total loss"
         if self.video_model.__class__.__name__ == "ConvLstmGANVideoPredictionModel":
-            fetch_list = fetch_list + [inputs, "total_loss", "inputs"]
+            fetch_list = fetch_list + ["inputs", "total_loss"]
             self.saver_loss = fetch_list[-1]
             self.saver_loss_name = "Total loss"
 
