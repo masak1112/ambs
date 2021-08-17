@@ -60,7 +60,8 @@ class TrainModel(object):
         self.diag_intv_frac = diag_intv_frac
         # for diagnozing and saving the model during training
         self.saver_loss = None         # set in create_fetches_for_train-method
-        self.saver_loss_name = None    # set in create_fetches_for_train-method
+        self.saver_loss_name = None    # set in create_fetches_for_train-method 
+        self.saver_loss_dict = None    # set in create_fetches_for_train-method if loss of interest is nested 
         self.diag_intv_step = None     # set in calculate_samples_and_epochs-method
 
     def setup(self):
@@ -356,28 +357,29 @@ class TrainModel(object):
         # Append fetches depending on model to be trained
         if self.video_model.__class__.__name__ == "McNetVideoPredictionModel":
             fetch_list = fetch_list + ["L_p", "L_gdl", "L_GAN"]
-            self.saver_loss = "L_p"  # ML: Is this a reasonable choice?
+            self.saver_loss = fetch_list[-3]  # ML: Is this a reasonable choice?
             self.saver_loss_name = "Loss"
         if self.video_model.__class__.__name__ == "VanillaConvLstmVideoPredictionModel":
-            fetch_list = fetch_list + ["total_loss", "inputs"]
-            self.saver_loss = "total_loss"
+            fetch_list = fetch_list + ["inputs", "total_loss"]
+            self.saver_loss = fetch_list[-1]
             self.saver_loss_name = "Total loss"
         if self.video_model.__class__.__name__ == "SAVPVideoPredictionModel":
             fetch_list = fetch_list + ["g_losses", "d_losses", "d_loss", "g_loss", ("g_losses", "gen_l1_loss")]
             # Add loss that is tracked
-            self.saver_loss = ("g_losses", "gen_l1_loss")
+            self.saver_loss = fetch_list[-1][1]                
+            self.saver_loss_dict = fetch_list[-1][0]
             self.saver_loss_name = "Generator L1 loss"
         if self.video_model.__class__.__name__ == "VanillaVAEVideoPredictionModel":
             fetch_list = fetch_list + ["latent_loss", "recon_loss", "total_loss"]
-            self.saver_loss = "recon_loss"
+            self.saver_loss = fetch_list[-2]
             self.saver_loss_name = "Reconstruction loss"
         if self.video_model.__class__.__name__ == "VanillaGANVideoPredictionModel":
-            fetch_list = fetch_list + ["total_loss", "inputs"]
-            self.saver_loss = "total_loss"
+            fetch_list = fetch_list + ["inputs", "total_loss"]
+            self.saver_loss = fetch_list[-1]
             self.saver_loss_name = "Total loss"
         if self.video_model.__class__.__name__ == "ConvLstmGANVideoPredictionModel":
-            fetch_list = fetch_list + ["total_loss", "inputs"]
-            self.saver_loss = "total_loss"
+            fetch_list = fetch_list + [inputs, "total_loss", "inputs"]
+            self.saver_loss = fetch_list[-1]
             self.saver_loss_name = "Total loss"
 
         self.fetches = self.generate_fetches(fetch_list)
@@ -393,7 +395,11 @@ class TrainModel(object):
         if not self.saver_loss:
             raise AttributeError("%{0}: saver_loss is still not set. create_fetches_for_train must be run in advance."
                                  .format(method))
-        fetch_list = ["summary_op", self.saver_loss]
+        
+        if self.saver_loss_dict:
+            fetch_list = ["summary_op", (self.saver_loss_dict, self.saver_loss)]
+        else:
+            fetch_list= ["summary_op", self.saver_loss]
 
         self.val_fetches = self.generate_fetches(fetch_list)
 
@@ -402,7 +408,8 @@ class TrainModel(object):
     def generate_fetches(self, fetch_list, nest_element=None):
         """
         Generates dictionary of fetches from video model instance
-        :param fetch_list: list of attributes of video model instance that are of particular interest
+        :param fetch_list: list of attributes of video model instance that are of particular interest; 
+                           can also handle tuples as list-elements to get attributes nested in a dictionary
         :return: dictionary of fetches with keys from fetch_list and values from video model instance
         """
         method = TrainModel.generate_fetches.__name__
