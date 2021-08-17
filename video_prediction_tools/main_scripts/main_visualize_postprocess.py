@@ -33,7 +33,8 @@ class Postprocess(TrainModel):
     def __init__(self, results_dir: str = None, checkpoint: str= None, mode: str = "test", batch_size: int = None,
                  num_stochastic_samples: int = 1, stochastic_plot_id: int = 0, gpu_mem_frac: float = None,
                  seed: int = None, channel: int = 0, args=None, run_mode: str = "deterministic",
-                 eval_metrics: List = ("mse", "psnr", "ssim","acc"), clim_path: str ="/p/scratch/deepacf/video_prediction_shared_folder/preprocessedData/T2monthly"):
+                 eval_metrics: List = ("mse", "psnr", "ssim", "acc", "texture"),
+                 clim_path: str = "/p/scratch/deepacf/video_prediction_shared_folder/preprocessedData/T2monthly"):
         """
         Initialization of the class instance for postprocessing (generation of forecasts from trained model +
         basic evauation).
@@ -50,7 +51,7 @@ class Postprocess(TrainModel):
         :param args: namespace of parsed arguments
         :param run_mode: "deterministic" or "stochastic", default: "deterministic", "stochastic is not supported yet!!!
         :param eval_metrics: metrics used to evaluate the trained model
-        :param clim_path:  the path to the climatology nc file
+        :param clim_path: the path to the climatology nc file
         """
         # copy over attributes from parsed argument
         self.results_dir = self.output_dir = os.path.normpath(results_dir)
@@ -104,7 +105,6 @@ class Postprocess(TrainModel):
         self.setup_graph()
         self.setup_gpu_config()
         self.load_climdata()
-
 
     # Methods that are called during initialization
     def get_input_dirs(self):
@@ -273,13 +273,13 @@ class Postprocess(TrainModel):
         coords_new["month"] = np.arange(1, 13) 
         coords_new["hour"] = np.arange(0, 24)
         # initialize a new data array with explicit dimensions for month and hour
-        data_clim_new = xr.DataArray(np.full((12, 24, nlat, nlon), np.nan), coords=coords_new, dims=["month", "hour", "lat", "lon"])
+        data_clim_new = xr.DataArray(np.full((12, 24, nlat, nlon), np.nan), coords=coords_new,
+                                     dims=["month", "hour", "lat", "lon"])
         # do the reorganization
         for month in np.arange(1, 13): 
             data_clim_new.loc[dict(month=month)]=dt_clim.sel(time=dt_clim["time.month"]==month)
 
         self.data_clim = data_clim_new[dict(lon=meta_lon_loc,lat=meta_lat_loc)]
-        print("self.data_clim",self.data_clim) 
          
     def setup_test_dataset(self):
         """
@@ -569,7 +569,6 @@ class Postprocess(TrainModel):
         # safe dataset with evaluation metrics for later use
         self.eval_metrics_ds = eval_metric_ds
         self.cond_quantiple_ds = cond_quantiple_ds
-        #self.add_ensemble_dim()
 
     # all methods of the run factory
     def init_session(self):
@@ -665,26 +664,15 @@ class Postprocess(TrainModel):
         init_times_metric = metric_ds["init_time"].values
         init_times_metric[ind_start:ind_end] = data_ds["init_time"]
         metric_ds = metric_ds.assign_coords(init_time=init_times_metric)
-        print("metric_ds",metric_ds)
         # populate metric_ds
         for fcst_prod in self.fcst_products.keys():
             for imetric, eval_metric in enumerate(self.eval_metrics):
                 metric_name = "{0}_{1}_{2}".format(varname, fcst_prod, eval_metric)
                 varname_fcst = "{0}_{1}_fcst".format(varname, fcst_prod)
                 dict_ind = dict(init_time=data_ds["init_time"])
-                print('metric_name: ',metric_name)
-                print('varname_fcst: ',varname_fcst)
-                print('varname_ref: ',varname_ref)
-                print('dict_ind: ',dict_ind)
-                print('fcst_prod: ',fcst_prod)
-                print('imetric: ',imetric)
-                print('eval_metric: ',eval_metric)
                 metric_ds[metric_name].loc[dict_ind] = eval_metrics_func[imetric](data_fcst=data_ds[varname_fcst],
                                                                                   data_ref=data_ds[varname_ref],
                                                                                   data_clim=self.data_clim)
-                print('data_ds[varname_fcst] shape: ',data_ds[varname_fcst].shape)
-                print('metric_ds[metric_name].loc[dict_ind] shape: ',metric_ds[metric_name].loc[dict_ind].shape)
-                print('metric_ds[metric_name].loc[dict_ind]: ',metric_ds[metric_name].loc[dict_ind])
             # end of metric-loop
         # end of forecast product-loop
         
@@ -1232,7 +1220,8 @@ def main():
     parser.add_argument("--num_stochastic_samples", type=int, default=1)
     parser.add_argument("--gpu_mem_frac", type=float, default=0.95, help="fraction of gpu memory to use")
     parser.add_argument("--seed", type=int, default=7)
-    parser.add_argument("--evaluation_metrics", "-eval_metrics", dest="eval_metrics", nargs="+", default=("mse", "psnr", "ssim","acc"),
+    parser.add_argument("--evaluation_metrics", "-eval_metrics", dest="eval_metrics", nargs="+",
+                        default=("mse", "psnr", "ssim", "acc", "texture"),
                         help="Metrics to be evaluate the trained model. Must be known metrics, see Scores-class.")
     parser.add_argument("--channel", "-channel", dest="channel", type=int, default=0,
                         help="Channel which is used for evaluation.")
