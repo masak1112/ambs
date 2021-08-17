@@ -69,6 +69,8 @@ class BaseVideoPredictionModel(object):
         self.accum_eval_metrics = None
         self.saveable_variables = None
         self.post_init_ops = None
+        # ML 2021-06-23: Do not hide global step in self.saveable_variables
+        self.global_step = None
 
     def get_default_hparams_dict(self):
         """
@@ -471,6 +473,8 @@ class VideoPredictionModel(BaseVideoPredictionModel):
         BaseVideoPredictionModel.build_graph(self, inputs)
 
         global_step = tf.train.get_or_create_global_step()
+        # ML 2021-06-23: Do not hide global step in self.saveable_variables
+        self.global_step = global_step
         # Capture the variables created from here until the train_op for the
         # saveable_variables. Note that if variables are being reused (e.g.
         # they were created by a previously built model), those variables won't
