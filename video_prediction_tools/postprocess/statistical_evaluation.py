@@ -360,8 +360,7 @@ class Scores:
 
         ratio_spat_variability = ref_grd/fcst_grad
 
-        if "non_spatial_avg_dims" in kwargs:
-            ratio_spat_variability = ratio_spat_variability.mean(dims=kwargs.get("non_spatial_avg_dims"))
+        ratio_spat_variability = ratio_spat_variability.mean(dims=self.avg_dims)
 
         return ratio_spat_variability
 
