@@ -318,6 +318,7 @@ class TrainModel(object):
                 self.create_fetches_for_val()
                 self.val_results = sess.run(self.val_fetches, feed_dict={self.train_handle: val_handle_eval})
                 val_losses.append(self.val_results[list(self.saver_loss)[0]])
+                print(val_losses)
                 self.write_to_summary()
                 self.print_results(step, self.results)
                 # track iteration time
