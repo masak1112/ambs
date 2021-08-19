@@ -60,7 +60,6 @@ class Postprocess(TrainModel):
         self.seed = seed
         self.set_seed()
         self.num_stochastic_samples = num_stochastic_samples
-        #self.num_samples_per_epoch = 20 # reduce number of epoch samples  
         self.stochastic_plot_id = stochastic_plot_id
         self.args = args
         self.checkpoint = checkpoint
@@ -237,7 +236,6 @@ class Postprocess(TrainModel):
                                      attrs={"units": "degrees_east"})
         self.lons = xr.DataArray(md_instance.lon, coords={"lon": md_instance.lon}, dims="lon",
                                      attrs={"units": "degrees_north"})
-        #print('self.lats: ',self.lats)
         return md_instance
 
     def load_climdata(self,clim_path="/p/scratch/deepacf/video_prediction_shared_folder/preprocessedData/T2monthly",
@@ -279,7 +277,6 @@ class Postprocess(TrainModel):
             data_clim_new.loc[dict(month=month)]=dt_clim.sel(time=dt_clim["time.month"]==month)
 
         self.data_clim = data_clim_new[dict(lon=meta_lon_loc,lat=meta_lat_loc)]
-        print("self.data_clim",self.data_clim) 
          
     def setup_test_dataset(self):
         """
@@ -542,7 +539,6 @@ class Postprocess(TrainModel):
             for i in np.arange(nbs):
                 # work-around to make use of get_persistence_forecast_per_sample-method
                 times_seq = (pd.date_range(times_0[i], periods=int(self.sequence_length), freq="h")).to_pydatetime()
-                print('times_seq: ',times_seq)
                 # get persistence forecast for sequences at hand and write to dataset
                 persistence_seq, _ = Postprocess.get_persistence(times_seq, self.input_dir_pkl)
                 for ivar, var in enumerate(self.vars_in):
@@ -554,7 +550,7 @@ class Postprocess(TrainModel):
                                         .format(pd.to_datetime(init_times[i]).strftime("%Y%m%d%H"), sample_ind + i))
                 
                 if os.path.exists(nc_fname):
-                    print("The file {} exist".format(nc_fname))
+                    print("%{0}: The file '{1}' already exists and is therefore skipped".format(method, nc_fname))
                 else:
                     self.save_ds_to_netcdf(batch_ds.isel(init_time=i), nc_fname)
 
@@ -665,26 +661,15 @@ class Postprocess(TrainModel):
         init_times_metric = metric_ds["init_time"].values
         init_times_metric[ind_start:ind_end] = data_ds["init_time"]
         metric_ds = metric_ds.assign_coords(init_time=init_times_metric)
-        print("metric_ds",metric_ds)
         # populate metric_ds
         for fcst_prod in self.fcst_products.keys():
             for imetric, eval_metric in enumerate(self.eval_metrics):
                 metric_name = "{0}_{1}_{2}".format(varname, fcst_prod, eval_metric)
                 varname_fcst = "{0}_{1}_fcst".format(varname, fcst_prod)
                 dict_ind = dict(init_time=data_ds["init_time"])
-                print('metric_name: ',metric_name)
-                print('varname_fcst: ',varname_fcst)
-                print('varname_ref: ',varname_ref)
-                print('dict_ind: ',dict_ind)
-                print('fcst_prod: ',fcst_prod)
-                print('imetric: ',imetric)
-                print('eval_metric: ',eval_metric)
                 metric_ds[metric_name].loc[dict_ind] = eval_metrics_func[imetric](data_fcst=data_ds[varname_fcst],
                                                                                   data_ref=data_ds[varname_ref],
                                                                                   data_clim=self.data_clim)
-                print('data_ds[varname_fcst] shape: ',data_ds[varname_fcst].shape)
-                print('metric_ds[metric_name].loc[dict_ind] shape: ',metric_ds[metric_name].loc[dict_ind].shape)
-                print('metric_ds[metric_name].loc[dict_ind]: ',metric_ds[metric_name].loc[dict_ind])
             # end of metric-loop
         # end of forecast product-loop
         
@@ -1011,7 +996,6 @@ class Postprocess(TrainModel):
         year_start = t_persistence_start.year
         month_start = t_persistence_start.month
         month_end = t_persistence_end.month
-        print("start year:", year_start)
         # only one pickle file is needed (all hours during the same month)
         if month_start == month_end:
             # Open files to search for the indizes of the corresponding time
