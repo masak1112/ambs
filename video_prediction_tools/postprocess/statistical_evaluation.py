@@ -357,7 +357,7 @@ class Scores:
 
         ratio_spat_variability = ref_grd/fcst_grad
 
-        ratio_spat_variability = ratio_spat_variability.mean(dims=self.avg_dims)
+        ratio_spat_variability = ratio_spat_variability.mean(dim=self.avg_dims)
 
         return ratio_spat_variability
 
