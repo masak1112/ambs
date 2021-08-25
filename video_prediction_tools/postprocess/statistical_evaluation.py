@@ -385,9 +385,9 @@ class Scores:
 
         def check_for_coords(coord_names_data, coord_names_expected):
             for coord in coord_names_expected:
-                stat, ind_coord = check_str_in_list(coord_names_data, coord)
+                stat, ind_coord = check_str_in_list(coord_names_data, coord, return_ind=True)
                 if stat:
-                    return ind_coord, coord_names_data[ind_coord]
+                    return ind_coord[0], coord_names_data[ind_coord[0]] # just take the first value
 
             raise ValueError("%{0}: Could not find one of the following coordinates in the passed dictionary."
                              .format(method, ",".join(coord_names_expected)))
