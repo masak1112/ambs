@@ -230,6 +230,8 @@ class BaseVideoPredictionModel(object):
         return eval_outputs, eval_metrics
 
     def restore(self, sess, checkpoints, restore_to_checkpoint_mapping=None):
+        
+        method = BaseVideoPredictionModel.restore.__name__
         if checkpoints:
             var_list = self.saveable_variables
             # possibly restore from multiple checkpoints. useful if subset of weights
@@ -240,7 +242,7 @@ class BaseVideoPredictionModel(object):
             skip_global_step = len(checkpoints) > 1
             savers = []
             for checkpoint in checkpoints:
-                print("creating restore saver from checkpoint %s" % checkpoint)
+                print("%{0}: Creating restore saver from checkpoint '{1}'".format(method, checkpoint))
                 saver, _ = tf_utils.get_checkpoint_restore_saver(
                     checkpoint, var_list, skip_global_step=skip_global_step,
                     restore_to_checkpoint_mapping=restore_to_checkpoint_mapping)
