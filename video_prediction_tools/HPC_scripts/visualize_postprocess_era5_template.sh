@@ -39,6 +39,7 @@ fi
 source_dir=/my/source/dir/
 checkpoint_dir=/my/trained/model/dir
 results_dir=/my/results/dir
+lquick=""
 
 # name of model
 model=convLSTM

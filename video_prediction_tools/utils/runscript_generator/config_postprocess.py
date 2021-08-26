@@ -29,8 +29,9 @@ class Config_Postprocess(Config_runscript_base):
         self.model = None
         self.checkpoint_dir = None
         self.results_dir = None
+        self.lquick = None
         # list of variables to be written to runscript
-        self.list_batch_vars = ["VIRT_ENV_NAME", "results_dir", "checkpoint_dir", "model"]
+        self.list_batch_vars = ["VIRT_ENV_NAME", "results_dir", "checkpoint_dir", "model", "lquick"]
         # copy over method for keyboard interaction
         self.run_config = Config_Postprocess.run_postprocess
     #
@@ -87,8 +88,22 @@ class Config_Postprocess(Config_runscript_base):
         base_dir, exp_dir_base, exp_dir = "/"+os.path.join(*cp_dir_split[:-4]), cp_dir_split[-3], cp_dir_split[-1]
         self.runscript_target = self.rscrpt_tmpl_prefix + self.dataset + "_" + exp_dir + ".sh"
 
-        # finally, set results_dir
+        # Set results_dir
         self.results_dir = os.path.join(base_dir, "results", exp_dir_base, self.model, exp_dir)
+
+        return
+        # Decide if quick evaluation should be performed
+        quick_req_str = "Should a reduced, quick evalutaion be performed (yes/no):"
+        quick_err = ValueError("Pass either True or False")
+
+        self.lquick = Config_Postprocess.keyboard_interaction(quick_req_str, Config_Postprocess.check_quick,
+                                                              quick_err, ntries=2)
+        if self.lquick.lower() == "yes":
+            self.lquick = "-lquick"
+            ### TO BE ADDDED ###
+            # * SELECTION OF EVALUATED MODEL
+        else:
+            self.lquick = " "
     #
     # -----------------------------------------------------------------------------------
     #
@@ -193,4 +208,24 @@ class Config_Postprocess(Config_runscript_base):
                     print("{0} does not contain any model parameter files (model-*.meta).".format(checkpoint_dir))
         else:
             if not silent: print("Passed directory '{0}' does not exist!".format(checkpoint_dir))
+        return status
+    #
+    # -----------------------------------------------------------------------------------
+    #
+    @staticmethod
+    def check_quick(decision, silent=False):
+        """
+        Checks if decision corresponds either to yes or no (both can be capitalized)
+        :param decision: yes-/no-decision from keyboard interaction
+        :param silent: flag if print-statement are executed
+        :return: status with True confirming success
+        """
+        status = False
+        valid_decisions = ["yes", "no"]
+        if decision.lower() in valid_decisions:
+            status = True
+        else:
+            if not silent:
+                print("{0} is not a valid entry. Pass either yes or no.".format(str(decision))
+
         return status
