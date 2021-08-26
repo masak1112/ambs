@@ -349,13 +349,18 @@ class Scores:
             order = kwargs.get("order")
         else:
             order = 1
+         
+        if "non_spatial_avg_dims" in kwargs:
+            add_avg_dims = kwargs.get("non_spatial_avg_dims")
+        else:
+            add_avg_dims = None
 
         fcst_grad = Scores.calc_geo_spatial_diff(data_fcst, order=order)
         ref_grd = Scores.calc_geo_spatial_diff(data_ref, order=order)
 
-        ratio_spat_variability = ref_grd/fcst_grad
+        ratio_spat_variability = fcst_grad/ref_grd
 
-        ratio_spat_variability = ratio_spat_variability.mean(dim=self.avg_dims)
+        if not add_avg_dims: ratio_spat_variability = ratio_spat_variability.mean(dim=add_avg_dims)
 
         return ratio_spat_variability
 
