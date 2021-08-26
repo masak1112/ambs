@@ -264,7 +264,8 @@ class TrainModel(object):
 
         self.start_checkpoint_step = int(math.ceil(self.total_steps * self.frac_save_model_start))
         self.saver_interval_step = int(math.ceil(self.total_steps * self.prob_save_model))
-
+        print("The model will be saved starting from step {} with {} interval step ".format(str(self.start_checkpoint_step),self.saver_interval_step))
+        
 
     def restore(self, sess, checkpoints, restore_to_checkpoint_mapping=None):
         """
