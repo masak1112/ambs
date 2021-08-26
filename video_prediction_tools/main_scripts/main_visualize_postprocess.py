@@ -1229,7 +1229,11 @@ def main():
                         help="Channel which is used for evaluation.")
     parser.add_argument("--lquick_evaluation", "-lquick", dest="lquick", default=False, action="store_true",
                         help="Flag if (reduced) quick evaluation based on MSE is performed.")
+    parser.add_argument("--evaluation_metric_quick", "metric_quick", dest="metric_quick", type=str, default="mse",
+                        help="(Only) metric to evaluate when quick evaluation (-lquick) is chosen.")
     args = parser.parse_args()
+
+    method = os.path.basename(__file__)
 
     print('----------------------------------- Options ------------------------------------')
     for k, v in args._get_kwargs():
@@ -1239,10 +1243,13 @@ def main():
     eval_metrics = args.eval_metrics
     results_dir = args.results_dir
     if args.lquick:      # in case of quick evaluation, onyl evaluate MSE and modify results_dir
-        eval_metrics = ["mse"]
+        eval_metrics = [args.metric_quick]
         if not os.path.isfile(args.checkpoint):
-            raise ValueError("Pass a specific checkpoint-file for quick evaluation.")
-        results_dir = args.results_dir + "_{0}".format(os.path.basename(args.checkpoint))
+            raise ValueError("%{0}: Pass a specific checkpoint-file for quick evaluation.".format(method))
+        chp = os.path.basename(args.checkpoint)
+        results_dir = args.results_dir + "_{0}".format(chp)
+        print("%{0}: Quick evaluation is chosen. \n * evaluation metric: {0}\n".format(args.metric_quick) +
+              "* checkpointed model: {0}\n * no conditional quantile and forecast example plots".format(chp))
 
     # initialize postprocessing instance
     postproc_instance = Postprocess(results_dir=results_dir, checkpoint=args.checkpoint, mode="test",
