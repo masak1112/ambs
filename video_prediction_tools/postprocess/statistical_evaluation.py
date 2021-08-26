@@ -310,9 +310,7 @@ class Scores:
                 img_fcst = data_fcst[i, j, ...]
                 img_ref = data_ref[i, j, ...]
                 # get the forecast time
-                print('img_fcst.init_time: ',img_fcst.init_time)
                 fcst_time = xr.Dataset({'time': pd.to_datetime(img_fcst.init_time.data) + datetime.timedelta(hours=j)})
-                print('fcst_time: ',fcst_time.time)
                 img_month = fcst_time.time.dt.month
                 img_hour = fcst_time.time.dt.hour
                 img_clim = data_clim.sel(month=img_month, hour=img_hour)               
