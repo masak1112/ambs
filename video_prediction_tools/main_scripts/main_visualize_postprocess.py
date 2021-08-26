@@ -547,7 +547,8 @@ class Postprocess(TrainModel):
             nbs = np.minimum(self.batch_size, self.num_samples_per_epoch - sample_ind)
             batch_ds = batch_ds.isel(init_time=slice(0, nbs))
 
-            for i in np.arange(nbs):
+            # run over mini-batch only if quick evaluation is NOT active
+            for i in np.arange(0 if self.lquick else nbs):
                 print("%{0}: Process mini-batch sample {1:d}/{2:d}".format(method, i+1, nbs))
                 # work-around to make use of get_persistence_forecast_per_sample-method
                 times_seq = (pd.date_range(times_0[i], periods=int(self.sequence_length), freq="h")).to_pydatetime()
@@ -563,10 +564,8 @@ class Postprocess(TrainModel):
                 
                 if os.path.exists(nc_fname):
                     print("%{0}: The file '{1}' already exists and is therefore skipped".format(method, nc_fname))
-                elif not self.lquick:
-                    self.save_ds_to_netcdf(batch_ds.isel(init_time=i), nc_fname)
                 else:
-                    pass
+                    self.save_ds_to_netcdf(batch_ds.isel(init_time=i), nc_fname)
 
                 # end of batch-loop
             # write evaluation metric to corresponding dataset and sa
