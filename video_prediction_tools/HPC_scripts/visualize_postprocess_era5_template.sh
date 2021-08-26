@@ -39,6 +39,7 @@ fi
 source_dir=/my/source/dir/
 checkpoint_dir=/my/trained/model/dir
 results_dir=/my/results/dir
+lquick=""
 
 # name of model
 model=convLSTM
@@ -46,5 +47,5 @@ model=convLSTM
 # run postprocessing/generation of model results including evaluation metrics
 srun python -u ../main_scripts/main_visualize_postprocess.py --checkpoint  ${checkpoint_dir} --mode test  \
                                                              --results_dir ${results_dir} --batch_size 4 \
-                                                             --num_stochastic_samples 1  \
+                                                             --num_stochastic_samples 1 ${lquick} \
                                                                > postprocess_era5-out_all.${SLURM_JOB_ID}
