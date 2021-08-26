@@ -541,7 +541,6 @@ class Postprocess(TrainModel):
             for i in np.arange(nbs):
                 # work-around to make use of get_persistence_forecast_per_sample-method
                 times_seq = (pd.date_range(times_0[i], periods=int(self.sequence_length), freq="h")).to_pydatetime()
-                print('times_seq: ',times_seq)
                 # get persistence forecast for sequences at hand and write to dataset
                 persistence_seq, _ = Postprocess.get_persistence(times_seq, self.input_dir_pkl)
                 for ivar, var in enumerate(self.vars_in):
