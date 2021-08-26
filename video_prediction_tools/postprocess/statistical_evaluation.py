@@ -360,7 +360,7 @@ class Scores:
 
         ratio_spat_variability = fcst_grad/ref_grd
 
-        if not add_avg_dims: ratio_spat_variability = ratio_spat_variability.mean(dim=add_avg_dims)
+        if add_avg_dims: ratio_spat_variability = ratio_spat_variability.mean(dim=add_avg_dims)
 
         return ratio_spat_variability
 
