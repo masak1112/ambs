@@ -236,7 +236,6 @@ class Postprocess(TrainModel):
                                      attrs={"units": "degrees_east"})
         self.lons = xr.DataArray(md_instance.lon, coords={"lon": md_instance.lon}, dims="lon",
                                      attrs={"units": "degrees_north"})
-        #print('self.lats: ',self.lats)
         return md_instance
 
     def load_climdata(self,clim_path="/p/scratch/deepacf/video_prediction_shared_folder/preprocessedData/T2monthly",
@@ -552,7 +551,7 @@ class Postprocess(TrainModel):
                                         .format(pd.to_datetime(init_times[i]).strftime("%Y%m%d%H"), sample_ind + i))
                 
                 if os.path.exists(nc_fname):
-                    print("The file {} exist".format(nc_fname))
+                    print("%{0}: The file '{1}' already exists and is therefore skipped".format(method, nc_fname))
                 else:
                     self.save_ds_to_netcdf(batch_ds.isel(init_time=i), nc_fname)
 
@@ -997,7 +996,6 @@ class Postprocess(TrainModel):
         year_start = t_persistence_start.year
         month_start = t_persistence_start.month
         month_end = t_persistence_end.month
-        print("start year:", year_start)
         # only one pickle file is needed (all hours during the same month)
         if month_start == month_end:
             # Open files to search for the indizes of the corresponding time
