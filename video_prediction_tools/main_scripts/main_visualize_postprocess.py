@@ -61,7 +61,6 @@ class Postprocess(TrainModel):
         self.seed = seed
         self.set_seed()
         self.num_stochastic_samples = num_stochastic_samples
-        #self.num_samples_per_epoch = 20 # reduce number of epoch samples  
         self.stochastic_plot_id = stochastic_plot_id
         self.args = args
         self.checkpoint = checkpoint
