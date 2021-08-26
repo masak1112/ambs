@@ -66,8 +66,10 @@ class Postprocess(TrainModel):
         self.stochastic_plot_id = stochastic_plot_id
         self.args = args
         self.checkpoint = checkpoint
+        if not os.path.isfile(self.checkpoint+".meta"): 
+            _ = check_dir(self.checkpoint)
+            self.checkpoint += "/"          # trick to handle checkpoint-directory and file simulataneously
         self.clim_path = clim_path
-        _ = check_dir(self.checkpoint)
         self.run_mode = run_mode
         self.mode = mode
         self.channel = channel
@@ -108,6 +110,8 @@ class Postprocess(TrainModel):
         self.setup_gpu_config()
         if "acc" in eval_metrics:
             self.load_climdata()
+        else:
+            self.data_clim = None
 
     # Methods that are called during initialization
     def get_input_dirs(self):
@@ -145,10 +149,11 @@ class Postprocess(TrainModel):
         method_name = Postprocess.copy_data_model_json.__name__
 
         # correctness of self.checkpoint and self.results_dir is already checked in __init__
-        model_opt_js = os.path.join(self.checkpoint, "options.json")
-        model_ds_js = os.path.join(self.checkpoint, "dataset_hparams.json")
-        model_hp_js = os.path.join(self.checkpoint, "model_hparams.json")
-        model_dd_js = os.path.join(self.checkpoint, "data_split.json")
+        checkpoint_dir = os.path.dirname(self.checkpoint)
+        model_opt_js = os.path.join(checkpoint_dir, "options.json")
+        model_ds_js = os.path.join(checkpoint_dir, "dataset_hparams.json")
+        model_hp_js = os.path.join(checkpoint_dir, "model_hparams.json")
+        model_dd_js = os.path.join(checkpoint_dir, "data_split.json")
 
         if os.path.isfile(model_opt_js):
             shutil.copy(model_opt_js, os.path.join(self.results_dir, "options_checkpoints.json"))
@@ -1229,7 +1234,7 @@ def main():
                         help="Channel which is used for evaluation.")
     parser.add_argument("--lquick_evaluation", "-lquick", dest="lquick", default=False, action="store_true",
                         help="Flag if (reduced) quick evaluation based on MSE is performed.")
-    parser.add_argument("--evaluation_metric_quick", "metric_quick", dest="metric_quick", type=str, default="mse",
+    parser.add_argument("--evaluation_metric_quick", "-metric_quick", dest="metric_quick", type=str, default="mse",
                         help="(Only) metric to evaluate when quick evaluation (-lquick) is chosen.")
     args = parser.parse_args()
 
@@ -1244,11 +1249,11 @@ def main():
     results_dir = args.results_dir
     if args.lquick:      # in case of quick evaluation, onyl evaluate MSE and modify results_dir
         eval_metrics = [args.metric_quick]
-        if not os.path.isfile(args.checkpoint):
+        if not os.path.isfile(args.checkpoint+".meta"):
             raise ValueError("%{0}: Pass a specific checkpoint-file for quick evaluation.".format(method))
         chp = os.path.basename(args.checkpoint)
         results_dir = args.results_dir + "_{0}".format(chp)
-        print("%{0}: Quick evaluation is chosen. \n * evaluation metric: {0}\n".format(args.metric_quick) +
+        print("%{0}: Quick evaluation is chosen. \n * evaluation metric: {1}\n".format(method, args.metric_quick) +
               "* checkpointed model: {0}\n * no conditional quantile and forecast example plots".format(chp))
 
     # initialize postprocessing instance
