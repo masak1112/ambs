@@ -23,7 +23,7 @@ from model_modules.video_prediction import datasets, models
 import matplotlib.pyplot as plt
 import pickle as pkl
 from model_modules.video_prediction.utils import tf_utils
-from statistical_evaluation import Scores
+from main_visualize_postprocess import Postprocess
 from general_utils import *
 import math
 
@@ -431,7 +431,6 @@ class TrainModel(object):
         if not self.saver_loss:
             raise AttributeError("%{0}: saver_loss is still not set. create_fetches_for_train must be run in advance."
                                  .format(method))
-        
         if self.saver_loss_dict:
             fetch_list = ["summary_op", (self.saver_loss_dict, self.saver_loss)]
         else:
@@ -552,24 +551,38 @@ class BestModelSelector(object):
     """
     Class to select the best performing model from multiple checkpoints created during training
     """
-    def __init__(self, model_dir: str, eval_metric: str, channel: int = 0,seed: int = 42):
-
+    def __init__(self, model_dir: str, eval_metric: str, criterion: str = "min", channel: int = 0, seed: int = 42):
+        """
+        Class to retrieve the best model checkpoint. The last one is also retained.
+        :param model_dir: path to directory where checkpoints are saved (the trained model output directory)
+        :param eval_metric: evaluation metric for model selection (must be implemented in Scores)
+        :param criterion: set to 'min' ('max') for negatively (positively) oriented metrics
+        :param channel: channel of data used for selection
+        :param seed: seed for the Postprocess-instance
+        """
         method = BestModelSelector.__init__.__name__
         # sanity check
         if not os.path.isdir(model_dir):
             raise NotADirectoryError("{0}: The passed directory '{1}' does not exist".format(method, model_dir))
+        assert criterion in ["min", "max"], "%{0}: criterion must be either 'min' or 'max'.".format(method)
         # set class attributes
         self.seed = seed
         self.channel = channel
+        self.metric = eval_metric
         self.checkpoint_base_dir = model_dir
         self.checkpoints_all = BestModelSelector.get_checkpoints_dirs(model_dir)
-        # attributes to be set in run and finalize method
-        self.checkpoints_eval_all = None        # to be populated in run-method
+        self.ncheckpoints = len(self.checkpoints_all)
+        # evaluate all checkpoints...
+        self.checkpoints_eval_all = self.run(self.metric)
+        # ... and finalize by choosing the best model and cleaning up
+        _ = self.finalize(criterion)
         
     @staticmethod
     def get_checkpoints_dirs(model_dir):
         """
-        Function to obtain all checkpoint directories in a list
+        Function to obtain all checkpoint directories in a list.
+        :param model_dir: path to directory where checkpoints are saved (the trained model output directory)
+        :return: list of all checkpoint directories in model_dir
         """
         method = BestModelSelector.get_checkpoints_dirs.__name__
 
@@ -582,6 +595,23 @@ class BestModelSelector(object):
 
         return checkpoints_all
 
+    @staticmethod
+    def get_avg_var(ds: xr.Dataset, varname_substr: str):
+        """
+        Retrieves and averages variable from dataset
+        :param ds: the dataset
+        :param varname_substr: the name of the variable or a substring suifficient to retrieve the variable
+        :return: the averaged variable
+        """
+        varnames = list(ds.variables)
+        var_in_file = [s for s in varnames if varname_substr in s]
+        try:
+            var_mean = ds[var_in_file[0]].mean().values
+        except Exception as err:
+            raise err
+
+        return var_mean
+
     def run(self, eval_metric):
         """
         Runs eager postprocessing on all checkpoints with evaluation of chosen metric
@@ -589,6 +619,8 @@ class BestModelSelector(object):
         :return: Populated self.checkpoints_eval_all where the average of the metric over all forecast hours is listed
         """
         method = BestModelSelector.run.__name__
+
+        metric_avg_all = []
 
         for checkpoint in self.checkpoints_all:
             results_dir_eager = os.path.join(checkpoint, "results_eager")
@@ -599,62 +631,72 @@ class BestModelSelector(object):
 
             eval_metric_ds = eager_eval.eval_metrics_ds
 
-    def finalize(self):
+            metric_avg_all.append(BestModelSelector.get_avg_var(eval_metric_ds, "avg"))
+
+        return metric_avg_all
+
+    def finalize(self, criterion):
         """
         Choose the best performing model checkpoint and delete all checkpoints apart from the best and the final ones
-        :return: -
+        :return: status if everything runs
         """
         method = BestModelSelector.finalize.__name__
 
-        if not self.checkpoints_eval_all:
-            raise AttributeError("%{0}: checkpoints_eval_all is still empty. run-method must be executed beforehand"
-                                 .format(method))
+        best_ind = self.get_best_checkpoint(criterion)
+        if best_ind == self.ncheckpoints -1:
+            print("%{0}: Last model checkpoint performs best ({1}: {2:.5f}) and is retained exclusively."
+                  .format(method, self.metric, self.checkpoints_eval_all[-1]))
+        else:
+            print("%{0}: The last ({1}: {2:.5f}) and the best ({1}: {3:.5f}) model checkpoint are retained."
+                  .format(method, self.metric, self.checkpoints_eval_all[-1], self.checkpoints_eval_all[best_ind]))
 
-    def get_best_checkpoint(self, criterion: str="min"):
+        stat = self.clean_checkpoints(best_ind)
+        return stat
+
+    def get_best_checkpoint(self, criterion: str):
         """
         Choose the best performing model checkpoint
         :param criterion: "max" or "min"
+        :return: index of best checkpoint in terms of evaluation metric
         """
         method = BestModelSelector.get_best_checkpoint.__name__
 
         if not self.checkpoints_eval_all:
-            raise AttributeError("%{0}: checkpoints_eval_all is still empty. run-method must be executed beforehand"
+            raise AttributeError("%{0}: checkpoints_eval_all is still empty. run-method must be executed beforehand."
                                  .format(method))
 
         if criterion == "min":
-            best_value = min(self.checkpoints_eval_all)
-        elif criterion == "max":
-            best_value = min(self.checkpoints_eval_all)
+            best_value = np.min(self.checkpoints_eval_all)
         else:
-            raise ValueError("{}: the criterion input should be either 'min' or 'max'".format(method))
+            best_value = np.max(self.checkpoints_eval_all)
 
         best_index = self.checkpoints_eval_all.index(best_value)
-        self.best_checkpoint_dir = self.checkpoints_all[best_index]
 
+        return best_index
 
-
-    def delete_checkpoint_dirs(self):
+    def clean_checkpoints(self, best_ind: int):
         """
-        delete all checkpoints apart from the best and the final ones
-        :return: -
+        Delete all checkpoints apart from the best and the final ones
+        :param best_ind: index of best performing checkpoint
+        :return: status
         """
-        #split the path name to get the number of step
-        checkpoints_steps = [int(s.split("_")[-1]) for s in self.checkpoints_all]
-        last_checkpoint_step = max(checkpoints_steps)
+        method = BestModelSelector.clean_checkpoints.__name__
 
-        self.last_checkpoint_dir = os.path.join(self.output_dir, "checkpoint_", str(last_checkpoint_step))
-        print("The best checkpoint dir:", self.best_checkpoint_dir)
-        print("The last checkpoint dir:", self.last_checkpoint_dir)
-        for dir_path in self.checkpoints_all:
-            if dir_path not in [self.last_checkpoint_dir, self.best_checkpoint_dir]:
-                os.rmdir(dir_path)
-                print("The checkpoint directory {} is removed from output directory {}".format(dir_path, self.output_dir))
+        # sort the checkpoint-directories to get the last checkpoint
+        checkpoints_all_sorted = sorted(self.checkpoints_all, key=lambda x: int(x.split("_")[-1]))
+        # list of checkpoints to keep (while ensuring uniqueness!)
+        checkpoints_keep = list({self.checkpoints_all[best_ind], checkpoints_all_sorted[-1]})
+        print("%{0}: The following checkpoints are retained: \n * {1}".format(method, "\n* ".join(checkpoints_keep)))
+        # drop checkpoints of interest from removal-list
+        checkpoints_op = self.checkpoints_all.copy()
+        for keep in checkpoints_keep:
+            checkpoints_op.remove(keep)
 
+        for dir_path in checkpoints_op:
+            os.rmdir(dir_path)
+            print("%{0}: The checkpoint directory {1} was removed.".format(method, dir_path))
 
-
-
-
-
+        return True
 
 
 def main():
@@ -670,8 +712,8 @@ def main():
     parser.add_argument("--gpu_mem_frac", type=float, default=0.99, help="Fraction of gpu memory to use")
     parser.add_argument("--frac_start_save", type=float, default=0.6,
                         help="Fraction of all iteration steps fater which checkpointing starts.")
-    parser.add_argument("--frac_intv_save", type = float, default = 0.01,
-                        help = "Fraction of all iteration steps to define the saving interval.")
+    parser.add_argument("--frac_intv_save", type=float, default=0.01,
+                        help="Fraction of all iteration steps to define the saving interval.")
     parser.add_argument("--seed", default=1234, type=int)
 
     args = parser.parse_args()
