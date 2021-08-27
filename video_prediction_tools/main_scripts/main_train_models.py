@@ -25,6 +25,7 @@ import pickle as pkl
 from model_modules.video_prediction.utils import tf_utils
 from general_utils import *
 import math
+import glob
 
 
 class TrainModel(object):
@@ -588,10 +589,31 @@ class BestModelSelector(object):
     Class to select the best performing model from multiple checkpoints created during training
     """
 
-    def __init__(self, model_dir):
+    def __init__(self, output_dir:str=None):
+        """
+        :param output_dir: the output_dir of training process, where save the multilple checkpoint folders
+        """
         print("Hallo init")
-
+        self.output_dir = output_dir
+        self.checkpoints_all = None
         self.checkpoints_eval_all = None        # to be populated in run-method
+
+
+    def get_checkpoints_dirs(self):
+        """
+        Function to obtain the checkpoint dirs path to save to a list
+        """
+        method = BestModelSelector.get_checkpoints_dirs.__name__
+
+        if not os.path.isdir(self.output_dir):
+            raise FileExistsError("{}: The output_dir does not exist".format(method))
+
+        self.checkpoints_all = glob.glob(os.path.join(self.output_dir,"checkpoint*"))
+        if len(self.checkpoints_all) == 0:
+            raise FileExistsError("{}: No checkpoint folders are in the output_dir ".format(method))
+        else:
+            print("{} checkpoints directories are in the output_dir".format(len(self.checkpoints_all)))
+
 
 
     def run(self, eval_metric):
@@ -602,10 +624,14 @@ class BestModelSelector(object):
         """
         method = BestModelSelector.run.__name__
 
-    def finalize(self):
+
+
+
+
+    def get_best_checkpoint(self, criterion: str="min"):
         """
-        Choose the best performing model checkpoint and delete all checkpoints apart from the best and the final ones
-        :return: -
+        Choose the best performing model checkpoint
+        :param criterion: "max" or "min"
         """
         method = BestModelSelector.finalize.__name__
 
@@ -613,9 +639,34 @@ class BestModelSelector(object):
             raise AttributeError("%{0}: checkpoints_eval_all is still empty. run-method must be executed beforehand"
                                  .format(method))
 
+        if criterion == "min":
+            best_value = min(self.checkpoints_eval_all)
+        elif criterion == "max":
+            best_value = min(self.checkpoints_eval_all)
+        else:
+            raise ValueError("{}: the criterion input should be either 'min' or 'max'".format(method))
+
+        best_index = self.checkpoints_eval_all.index(best_value)
+        self.best_checkpoint_dir = self.checkpoints_all[best_index]
 
 
 
+    def delete_checkpoint_dirs(self):
+        """
+        delete all checkpoints apart from the best and the final ones
+        :return: -
+        """
+        #split the path name to get the number of step
+        checkpoints_steps = [int(s.split("_")[-1]) for s in self.checkpoints_all]
+        last_checkpoint_step = max(checkpoints_steps)
+
+        self.last_checkpoint_dir = os.path.join(self.output_dir, "checkpoint_", str(last_checkpoint_step))
+        print("The best checkpoint dir:", self.best_checkpoint_dir)
+        print("The last checkpoint dir:", self.last_checkpoint_dir)
+        for dir_path in self.checkpoints_all:
+            if dir_path not in [self.last_checkpoint_dir, self.best_checkpoint_dir]:
+                os.rmdir(dir_path)
+                print("The checkpoint directory {} is removed from output directory {}".format(dir_path, self.output_dir))
 
 
 
