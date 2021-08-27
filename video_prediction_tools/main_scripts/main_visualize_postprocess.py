@@ -1152,12 +1152,11 @@ class Postprocess(TrainModel):
         if not set(varnames).issubset(ds_in.data_vars):
             raise ValueError("%{0}: Could not find all variables ({1}) in input dataset ds_in.".format(method,
                                                                                                        varnames_str))
-        #Bing : why using dtype as an aurument since it seems you only want ton configure dtype as np.double
         if dtype is None:
             dtype = np.double
         else:
-            if not isinstance(dtype, type(np.double)):
-                raise ValueError("%{0}: dytpe must be a NumPy datatype, but is of type '{1}'".format(method, type(dtype)))
+            if not np.issubdtype(dtype, np.dtype(float).type):
+                raise ValueError("%{0}: dytpe must be a NumPy datatype, but is '{1}'".format(method, np.dtype(dtype)))
   
         if ds_preexist is None:
             ds_preexist = ds_in[varnames].copy(deep=True)
