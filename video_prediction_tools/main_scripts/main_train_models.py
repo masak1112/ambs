@@ -10,10 +10,10 @@ __email__ = "b.gong@fz-juelich.de"
 __author__ = "Bing Gong, Michael Langguth"
 __date__ = "2020-10-22"
 
+import os, glob
 import argparse
 import errno
 import json
-import os
 from typing import Union, List
 import random
 import time
@@ -23,15 +23,16 @@ from model_modules.video_prediction import datasets, models
 import matplotlib.pyplot as plt
 import pickle as pkl
 from model_modules.video_prediction.utils import tf_utils
+from statistical_evaluation import Scores
 from general_utils import *
 import math
-import glob
 
 
 class TrainModel(object):
     def __init__(self, input_dir: str = None, output_dir: str = None, datasplit_dict: str = None,
                  model_hparams_dict: str = None, model: str = None, checkpoint: str = None, dataset: str = None,
-                 gpu_mem_frac: float = 1., seed: int = None, args=None, diag_intv_frac: float = 0.01, frac_save_model_start: float=None, prob_save_model:float=None):
+                 gpu_mem_frac: float = 1., seed: int = None, args=None, diag_intv_frac: float = 0.001,
+                 frac_start_save: float = None, frac_intv_save: float = None):
         """
         Class instance for training the models
         :param input_dir: parent directory under which "pickle" and "tfrecords" files directiory are located
@@ -44,12 +45,9 @@ class TrainModel(object):
         :param gpu_mem_frac: fraction of GPU memory to be preallocated
         :param seed: seed of the randomizers
         :param args: list of arguments passed
-        :param diag_intv_frac: interval for diagnozing and saving model; the fraction with respect to the number of
-                               steps per epoch is denoted here, e.g. 0.01 with 1000 iteration steps per epoch results
-                               into a diagnozing intreval of 10 iteration steps (= interval over which validation loss
-                               is averaged to identify best model performance)
-        :param frac_save_model_start: fraction of total iterations steps as the start point to save checkpoints
-        :param prob_save_model: probabability that model are saved to checkpoint (control the frequences of saving model0)
+        :param diag_intv_frac: interval for diagnozing the model (create loss-curves and save pickle-file with losses)
+        :param frac_start_save: fraction of total iterations steps to start checkpointing the model
+        :param frac_intv_save: fraction of total iterations steps for checkpointing the model
         """
         self.input_dir = os.path.normpath(input_dir)
         self.output_dir = os.path.normpath(output_dir)
@@ -62,8 +60,8 @@ class TrainModel(object):
         self.seed = seed
         self.args = args
         self.diag_intv_frac = diag_intv_frac
-        self.frac_save_model_start = frac_save_model_start
-        self.prob_save_model = prob_save_model
+        self.frac_start_save = frac_start_save
+        self.frac_intv_save = frac_intv_save
         # for diagnozing and saving the model during training
         self.saver_loss = None         # set in create_fetches_for_train-method
         self.saver_loss_name = None    # set in create_fetches_for_train-method 
@@ -243,11 +241,10 @@ class TrainModel(object):
         max_epochs = self.video_model.hparams.max_epochs # the number of epochs
         self.num_examples = self.train_dataset.num_examples_per_epoch()
         self.steps_per_epoch = int(self.num_examples/batch_size)
-        self.diag_intv_step = int(self.diag_intv_frac*self.steps_per_epoch)
         self.total_steps = self.steps_per_epoch * max_epochs
+        self.diag_intv_step = int(self.diag_intv_frac*self.total_steps)
         print("%{}: Batch size: {}; max_epochs: {}; num_samples per epoch: {}; steps_per_epoch: {}, total steps: {}"
-              .format(method, batch_size,max_epochs, self.num_examples,self.steps_per_epoch,self.total_steps))
-
+              .format(method, batch_size,max_epochs, self.num_examples, self.steps_per_epoch, self.total_steps))
 
     def calculate_checkpoint_saver_conf(self):
         """
@@ -256,17 +253,18 @@ class TrainModel(object):
         """
         method = TrainModel.calculate_checkpoint_saver_conf.__name__
 
-        if hasattr(self.total_steps, "attr_name"):
-            raise SyntaxError(" function 'calculate_sample_and_epochs' is required to call to calcualte the total_step before all function {}".format(method))
-        if self.prob_save_model > 1 or self.prob_save_model<0 :
-            raise ValueError("pro_save_model should be less than 1 and larger than 0")
-        if self.frac_save_model_start > 1 or self.frac_save_model_start<0:
-            raise ValueError("frac_save_model_start should be less than 1 and larger than 0")
+        if not hasattr(self, "total_steps"):
+            raise RuntimeError("%{0} self.total_steps is still unset. Run calculate_samples_and_epochs beforehand"
+                               .format(method))
+        if self.frac_intv_save > 1 or self.frac_intv_save<0 :
+            raise ValueError("%{0}: frac_intv_save must be less than 1 and larger than 0".format(method))
+        if self.frac_start_save > 1 or self.frac_start_save < 0:
+            raise ValueError("%{0}: frac_start_save must be less than 1 and larger than 0".format(method))
 
-        self.start_checkpoint_step = int(math.ceil(self.total_steps * self.frac_save_model_start))
-        self.saver_interval_step = int(math.ceil(self.total_steps * self.prob_save_model))
-        print("The model will be saved starting from step {} with {} interval step ".format(str(self.start_checkpoint_step),self.saver_interval_step))
-
+        self.chp_start_step = int(math.ceil(self.total_steps * self.frac_start_save))
+        self.chp_intv_step = int(math.ceil(self.total_steps * self.frac_intv_save))
+        print("%{0}: Model will be saved after step {1:d} at each {2:d} interval step "
+              .format(method, self.chp_start_step,self.chp_intv_step))
 
     def restore(self, sess, checkpoints, restore_to_checkpoint_mapping=None):
         """
@@ -313,19 +311,13 @@ class TrainModel(object):
 
     def create_checkpoints_folder(self, step:int=None):
         """
-        Create a folder to store checkpoint at certain step
-        :param step: the step you want to save the checkpoint
+        Create a folder to store checkpoint at certain step.
+        :param step: the iteration step corresponding to the checkpoint
         return : dir path to save model
         """
-        dir_name = "checkpoint_" + str(step)
-        full_dir_name = os.path.join(self.output_dir,dir_name)
-        if os.path.isfile(os.path.join(full_dir_name,"checkpoints")):
-            print("The checkpoint at step {} exists".format(step))
-        else:
-            os.mkdir(full_dir_name)
+        full_dir_name = os.path.join(self.output_dir, "checkpoint_{0:d}".format(step))
+        os.makedirs(full_dir_name, exist_ok=True)
         return full_dir_name
-
-
 
     def train_model(self):
         """
@@ -335,7 +327,6 @@ class TrainModel(object):
 
         self.global_step = tf.train.get_or_create_global_step()
         with tf.Session(config=self.config) as sess:
-            print("parameter_count =", sess.run(self.parameter_count))
             sess.run(tf.global_variables_initializer())
             sess.run(tf.local_variables_initializer())
             self.restore(sess, self.checkpoint)
@@ -347,7 +338,6 @@ class TrainModel(object):
             # initialize auxiliary variables
             time_per_iteration = []
             run_start_time = time.time()
-
             # perform iteration
             for step in range(start_step, self.total_steps):
                 timeit_start = time.time()
@@ -368,22 +358,22 @@ class TrainModel(object):
                 time_iter = time.time() - timeit_start
                 time_per_iteration.append(time_iter)
                 print("%{0}: time needed for this step {1:.3f}s".format(method, time_iter))
-
-                if step > self.start_checkpoint_step and (step % self.saver_interval_step == 0 or step == self.total_steps - 1):
+                if (step >= self.chp_start_step and (step-self.chp_start_step)%self.chp_intv_step == 0) or \
+                    step == self.total_steps - 1:
                     #create a checkpoint folder for step
                     full_dir_name = self.create_checkpoints_folder(step=step)
                     self.saver.save(sess, os.path.join(full_dir_name, "model_"), global_step=step)
 
                 # pickle file and plots are always created
-                TrainModel.save_results_to_pkl(train_losses, val_losses, self.output_dir)
-                TrainModel.plot_train(train_losses, val_losses, self.saver_loss_name, self.output_dir)
+                if step % self.diag_intv_step == 0 or step == self.total_steps - 1:
+                    TrainModel.save_results_to_pkl(train_losses, val_losses, self.output_dir)
+                    TrainModel.plot_train(train_losses, val_losses, self.saver_loss_name, self.output_dir)
 
-            # Final diagnostics
-            # track time (save to pickle-files)
+            # Final diagnostics: training track time and save to pickle-files)
             train_time = time.time() - run_start_time
-            results_dict = {"train_time": train_time,
-                            "total_steps": self.total_steps}
-            TrainModel.save_results_to_dict(results_dict,self.output_dir)
+            results_dict = {"train_time": train_time, "total_steps": self.total_steps}
+            TrainModel.save_results_to_dict(results_dict, self.output_dir)
+
             print("%{0}: Training loss decreased from {1:.6f} to {2:.6f}:"
                   .format(method, np.mean(train_losses[0:10]), np.mean(train_losses[-self.diag_intv_step:])))
             print("%{0}: Validation loss decreased from {1:.6f} to {2:.6f}:"
@@ -497,39 +487,13 @@ class TrainModel(object):
             print ("Total_loss:{}".format(results["total_loss"]))
         elif self.video_model.__class__.__name__ == "SAVPVideoPredictionModel":
             print("Total_loss/g_losses:{}; d_losses:{}; g_loss:{}; d_loss: {}, gen_l1_loss: {}"
-                  .format(results["g_losses"],results["d_losses"],results["g_loss"],results["d_loss"],results["gen_l1_loss"]))
+                  .format(results["g_losses"], results["d_losses"], results["g_loss"], results["d_loss"],
+                          results["gen_l1_loss"]))
         elif self.video_model.__class__.__name__ == "VanillaVAEVideoPredictionModel":
-            print("Total_loss:{}; latent_losses:{}; reconst_loss:{}".format(results["total_loss"],results["latent_loss"],results["recon_loss"]))
+            print("Total_loss:{}; latent_losses:{}; reconst_loss:{}"
+                  .format(results["total_loss"], results["latent_loss"], results["recon_loss"]))
         else:
-            print("%{0}: Printing results of the model {1} is not implemented yet".format(method, self.video_model.__class__.__name__))
-    
-    @staticmethod
-    def set_model_saver_flag(losses: List, old_min_loss: float, niter_steps: int = 100):
-        """
-        Sets flag to save the model given that a new minimum in the loss is readched
-        :param losses: list of losses over iteration steps
-        :param old_min_loss: previous loss
-        :param niter_steps: number of iteration steps over which the loss is averaged
-        :return flag: True if model should be saved
-        :return loss_avg: updated minimum loss
-        """
-        method = TrainModel.set_model_saver_flag.__name__       
- 
-        save_flag = False
-        if len(losses) <= niter_steps*2:
-            loss_avg = old_min_loss
-            return save_flag, loss_avg
-
-        loss_avg = np.mean(losses[-niter_steps:])
-        # print diagnosis
-        print("%{0}: Current loss: {1:.4f}, old minimum: {2:.4f}, model will be saved: {3}"
-              .format(method, loss_avg, old_min_loss, loss_avg < old_min_loss))
-        if loss_avg < old_min_loss:
-            save_flag = True
-        else:
-            loss_avg = old_min_loss
-
-        return save_flag, loss_avg
+            print("%{0}: Printing results of model '{1}' is not implemented yet".format(method, self.video_model.__class__.__name__))
 
     @staticmethod
     def plot_train(train_losses, val_losses, loss_name, output_dir):
@@ -588,33 +552,35 @@ class BestModelSelector(object):
     """
     Class to select the best performing model from multiple checkpoints created during training
     """
+    def __init__(self, model_dir: str, eval_metric: str, channel: int = 0,seed: int = 42):
 
-    def __init__(self, output_dir:str=None):
-        """
-        :param output_dir: the output_dir of training process, where save the multilple checkpoint folders
-        """
-        print("Hallo init")
-        self.output_dir = output_dir
-        self.checkpoints_all = None
+        method = BestModelSelector.__init__.__name__
+        # sanity check
+        if not os.path.isdir(model_dir):
+            raise NotADirectoryError("{0}: The passed directory '{1}' does not exist".format(method, model_dir))
+        # set class attributes
+        self.seed = seed
+        self.channel = channel
+        self.checkpoint_base_dir = model_dir
+        self.checkpoints_all = BestModelSelector.get_checkpoints_dirs(model_dir)
+        # attributes to be set in run and finalize method
         self.checkpoints_eval_all = None        # to be populated in run-method
-
-
-    def get_checkpoints_dirs(self):
+        
+    @staticmethod
+    def get_checkpoints_dirs(model_dir):
         """
-        Function to obtain the checkpoint dirs path to save to a list
+        Function to obtain all checkpoint directories in a list
         """
         method = BestModelSelector.get_checkpoints_dirs.__name__
 
-        if not os.path.isdir(self.output_dir):
-            raise FileExistsError("{}: The output_dir does not exist".format(method))
-
-        self.checkpoints_all = glob.glob(os.path.join(self.output_dir,"checkpoint*"))
-        if len(self.checkpoints_all) == 0:
-            raise FileExistsError("{}: No checkpoint folders are in the output_dir ".format(method))
+        checkpoints_all = glob.glob(os.path.join(model_dir, "checkpoint*/"))
+        ncheckpoints = len(checkpoints_all)
+        if ncheckpoints == 0:
+            raise FileExistsError("{0}: No checkpoint folders found under '{1}'".format(method, model_dir))
         else:
-            print("{} checkpoints directories are in the output_dir".format(len(self.checkpoints_all)))
+            print("%{0}: {1:d} checkpoints directories has been found.".format(method, ncheckpoints))
 
-
+        return checkpoints_all
 
     def run(self, eval_metric):
         """
@@ -624,9 +590,25 @@ class BestModelSelector(object):
         """
         method = BestModelSelector.run.__name__
 
+        for checkpoint in self.checkpoints_all:
+            results_dir_eager = os.path.join(checkpoint, "results_eager")
+            eager_eval = Postprocess(results_dir=results_dir_eager, checkpoint=checkpoint, mode="val", batch_size=32,
+                                     seed=self.seed, eval_metrics=[eval_metric], channel=self.channel, lquick=True)
+            eager_eval.run()
+            eager_eval.handle_eval_metrics()
 
+            eval_metric_ds = eager_eval.eval_metrics_ds
 
+    def finalize(self):
+        """
+        Choose the best performing model checkpoint and delete all checkpoints apart from the best and the final ones
+        :return: -
+        """
+        method = BestModelSelector.finalize.__name__
 
+        if not self.checkpoints_eval_all:
+            raise AttributeError("%{0}: checkpoints_eval_all is still empty. run-method must be executed beforehand"
+                                 .format(method))
 
     def get_best_checkpoint(self, criterion: str="min"):
         """
@@ -670,6 +652,11 @@ class BestModelSelector(object):
 
 
 
+
+
+
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--input_dir", type=str, required=True,
@@ -681,8 +668,10 @@ def main():
     parser.add_argument("--model", type=str, help="Model class name")
     parser.add_argument("--model_hparams_dict", type=str, help="JSON-file of model hyperparameters")
     parser.add_argument("--gpu_mem_frac", type=float, default=0.99, help="Fraction of gpu memory to use")
-    parser.add_argument("--frac_save_model_start", type=float,default=0.6,help="fraction of the start step for saving checkpoint")
-    parser.add_argument("--prob_save_model", type = float, default = 0.01, help = "probabability that model are saved to checkpoint (control the frequences of saving model")
+    parser.add_argument("--frac_start_save", type=float, default=0.6,
+                        help="Fraction of all iteration steps fater which checkpointing starts.")
+    parser.add_argument("--frac_intv_save", type = float, default = 0.01,
+                        help = "Fraction of all iteration steps to define the saving interval.")
     parser.add_argument("--seed", default=1234, type=int)
 
     args = parser.parse_args()
@@ -691,8 +680,8 @@ def main():
     # create a training instance
     train_case = TrainModel(input_dir=args.input_dir,output_dir=args.output_dir,datasplit_dict=args.datasplit_dict,
                  model_hparams_dict=args.model_hparams_dict,model=args.model,checkpoint=args.checkpoint, dataset=args.dataset,
-                 gpu_mem_frac=args.gpu_mem_frac, seed=args.seed, args=args, frac_save_model_start=args.frac_save_model_start,
-                 prob_save_model=args.prob_save_model)
+                 gpu_mem_frac=args.gpu_mem_frac, seed=args.seed, args=args, frac_start_save=args.frac_start_save,
+                 frac_intv_save=args.frac_intv_save)
     
     print('----------------------------------- Options ------------------------------------')
     for k, v in args._get_kwargs():
