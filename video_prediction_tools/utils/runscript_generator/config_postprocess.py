@@ -29,7 +29,7 @@ class Config_Postprocess(Config_runscript_base):
         self.model = None
         self.checkpoint_dir = None
         self.results_dir = None
-        self.lquick = None
+        #self.lquick = None
         # list of variables to be written to runscript
         self.list_batch_vars = ["VIRT_ENV_NAME", "results_dir", "checkpoint_dir", "model", "lquick"]
         # copy over method for keyboard interaction
