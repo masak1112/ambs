@@ -583,6 +583,42 @@ class TrainModel(object):
             pkl.dump(loss_per_iteration_val,f)
 
 
+class BestModelSelector(object):
+    """
+    Class to select the best performing model from multiple checkpoints created during training
+    """
+
+    def __init__(self, model_dir):
+        print("Hallo init")
+
+        self.checkpoints_eval_all = None        # to be populated in run-method
+
+
+    def run(self, eval_metric):
+        """
+        Runs eager postprocessing on all checkpoints with evaluation of chosen metric
+        :param eval_metric: the target evaluation metric
+        :return: Populated self.checkpoints_eval_all where the average of the metric over all forecast hours is listed
+        """
+        method = BestModelSelector.run.__name__
+
+    def finalize(self):
+        """
+        Choose the best performing model checkpoint and delete all checkpoints apart from the best and the final ones
+        :return: -
+        """
+        method = BestModelSelector.finalize.__name__
+
+        if not self.checkpoints_eval_all:
+            raise AttributeError("%{0}: checkpoints_eval_all is still empty. run-method must be executed beforehand"
+                                 .format(method))
+
+
+
+
+
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--input_dir", type=str, required=True,
@@ -600,8 +636,8 @@ def main():
 
     args = parser.parse_args()
     # start timing for the whole run
-    timeit_start_total_time = time.time()  
-    #create a training instance
+    timeit_start_tot_time = time.time()
+    # create a training instance
     train_case = TrainModel(input_dir=args.input_dir,output_dir=args.output_dir,datasplit_dict=args.datasplit_dict,
                  model_hparams_dict=args.model_hparams_dict,model=args.model,checkpoint=args.checkpoint, dataset=args.dataset,
                  gpu_mem_frac=args.gpu_mem_frac, seed=args.seed, args=args, frac_save_model_start=args.frac_save_model_start,
@@ -617,9 +653,10 @@ def main():
  
     # train model
     train_time, time_per_iteration = train_case.train_model()
-       
-    total_run_time = time.time() - timeit_start_total_time
-    train_case.save_timing_to_pkl(total_run_time, train_time, time_per_iteration, args.output_dir)
+
+    train_case.save_timing_to_pkl(time.time() - timeit_start_tot_time, train_time, time_per_iteration, args.output_dir)
+
+
     
 if __name__ == '__main__':
     main()
