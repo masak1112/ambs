@@ -633,7 +633,7 @@ class BestModelSelector(object):
         Choose the best performing model checkpoint
         :param criterion: "max" or "min"
         """
-        method = BestModelSelector.finalize.__name__
+        method = BestModelSelector.get_best_checkpoint.__name__
 
         if not self.checkpoints_eval_all:
             raise AttributeError("%{0}: checkpoints_eval_all is still empty. run-method must be executed beforehand"
