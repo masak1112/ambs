@@ -18,6 +18,7 @@ from typing import Union, List
 import random
 import time
 import numpy as np
+import xarray as xr
 import tensorflow as tf
 from model_modules.video_prediction import datasets, models
 import matplotlib.pyplot as plt
@@ -82,7 +83,6 @@ class TrainModel(object):
         self.setup_gpu_config()
         self.calculate_samples_and_epochs()
         self.calculate_checkpoint_saver_conf()
-
 
     def set_seed(self):
         """
@@ -576,41 +576,6 @@ class BestModelSelector(object):
         self.checkpoints_eval_all = self.run(self.metric)
         # ... and finalize by choosing the best model and cleaning up
         _ = self.finalize(criterion)
-        
-    @staticmethod
-    def get_checkpoints_dirs(model_dir):
-        """
-        Function to obtain all checkpoint directories in a list.
-        :param model_dir: path to directory where checkpoints are saved (the trained model output directory)
-        :return: list of all checkpoint directories in model_dir
-        """
-        method = BestModelSelector.get_checkpoints_dirs.__name__
-
-        checkpoints_all = glob.glob(os.path.join(model_dir, "checkpoint*/"))
-        ncheckpoints = len(checkpoints_all)
-        if ncheckpoints == 0:
-            raise FileExistsError("{0}: No checkpoint folders found under '{1}'".format(method, model_dir))
-        else:
-            print("%{0}: {1:d} checkpoints directories has been found.".format(method, ncheckpoints))
-
-        return checkpoints_all
-
-    @staticmethod
-    def get_avg_var(ds: xr.Dataset, varname_substr: str):
-        """
-        Retrieves and averages variable from dataset
-        :param ds: the dataset
-        :param varname_substr: the name of the variable or a substring suifficient to retrieve the variable
-        :return: the averaged variable
-        """
-        varnames = list(ds.variables)
-        var_in_file = [s for s in varnames if varname_substr in s]
-        try:
-            var_mean = ds[var_in_file[0]].mean().values
-        except Exception as err:
-            raise err
-
-        return var_mean
 
     def run(self, eval_metric):
         """
@@ -698,6 +663,41 @@ class BestModelSelector(object):
 
         return True
 
+    @staticmethod
+    def get_checkpoints_dirs(model_dir):
+        """
+        Function to obtain all checkpoint directories in a list.
+        :param model_dir: path to directory where checkpoints are saved (the trained model output directory)
+        :return: list of all checkpoint directories in model_dir
+        """
+        method = BestModelSelector.get_checkpoints_dirs.__name__
+
+        checkpoints_all = glob.glob(os.path.join(model_dir, "checkpoint*/"))
+        ncheckpoints = len(checkpoints_all)
+        if ncheckpoints == 0:
+            raise FileExistsError("{0}: No checkpoint folders found under '{1}'".format(method, model_dir))
+        else:
+            print("%{0}: {1:d} checkpoints directories has been found.".format(method, ncheckpoints))
+
+        return checkpoints_all
+
+    @staticmethod
+    def get_avg_var(ds: xr.Dataset, varname_substr: str):
+        """
+        Retrieves and averages variable from dataset
+        :param ds: the dataset
+        :param varname_substr: the name of the variable or a substring suifficient to retrieve the variable
+        :return: the averaged variable
+        """
+        varnames = list(ds.variables)
+        var_in_file = [s for s in varnames if varname_substr in s]
+        try:
+            var_mean = ds[var_in_file[0]].mean().values
+        except Exception as err:
+            raise err
+
+        return var_mean
+
 
 def main():
     parser = argparse.ArgumentParser()
@@ -718,7 +718,7 @@ def main():
 
     args = parser.parse_args()
     # start timing for the whole run
-    timeit_start_tot_time = time.time()
+    timeit_start = time.time()
     # create a training instance
     train_case = TrainModel(input_dir=args.input_dir,output_dir=args.output_dir,datasplit_dict=args.datasplit_dict,
                  model_hparams_dict=args.model_hparams_dict,model=args.model,checkpoint=args.checkpoint, dataset=args.dataset,
@@ -735,8 +735,16 @@ def main():
  
     # train model
     train_time, time_per_iteration = train_case.train_model()
+    timeit_after_train = time.time()
+    train_case.save_timing_to_pkl(timeit_after_train - timeit_start, train_time, time_per_iteration, args.output_dir)
 
-    train_case.save_timing_to_pkl(time.time() - timeit_start_tot_time, train_time, time_per_iteration, args.output_dir)
+    # select best model
+    _ = BestModelSelector(args.output_dir, "mse")
+    timeit_finish = time.time()
+
+    print("Selecting the best model checkpoint took {0:.2f} minutes.".format((timeit_finish - timeit_after_train)/60.))
+    print("Total time elapsed {0} minutes.".format((timeit_finish - timeit_start)/60.))
+
 
 
     
