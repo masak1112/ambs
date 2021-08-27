@@ -226,6 +226,6 @@ class Config_Postprocess(Config_runscript_base):
             status = True
         else:
             if not silent:
-                print("{0} is not a valid entry. Pass either yes or no.".format(str(decision))
+                print("{0} is not a valid entry. Pass either yes or no.".format(str(decision)))
 
         return status
