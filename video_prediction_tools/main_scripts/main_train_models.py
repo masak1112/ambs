@@ -24,7 +24,7 @@ from model_modules.video_prediction import datasets, models
 import matplotlib.pyplot as plt
 import pickle as pkl
 from model_modules.video_prediction.utils import tf_utils
-from main_visualize_postprocess import Postprocess
+from main_visualize_postprocess import *
 from general_utils import *
 import math
 
@@ -580,14 +580,13 @@ class BestModelSelector(object):
     def run(self, eval_metric):
         """
         Runs eager postprocessing on all checkpoints with evaluation of chosen metric
-        :param eval_metric: the target evaluation metric
-        :return: Populated self.checkpoints_eval_all where the average of the metric over all forecast hours is listed
         """
         method = BestModelSelector.run.__name__
 
         metric_avg_all = []
 
         for checkpoint in self.checkpoints_all:
+            print("Start to evalute checkpoint:", checkpoint)
             results_dir_eager = os.path.join(checkpoint, "results_eager")
             eager_eval = Postprocess(results_dir=results_dir_eager, checkpoint=checkpoint, mode="val", batch_size=32,
                                      seed=self.seed, eval_metrics=[eval_metric], channel=self.channel, lquick=True)
@@ -597,6 +596,7 @@ class BestModelSelector(object):
             eval_metric_ds = eager_eval.eval_metrics_ds
 
             metric_avg_all.append(BestModelSelector.get_avg_var(eval_metric_ds, "avg"))
+            print("Checkpoint {} is evaluated".format(checkpoint))
 
         return metric_avg_all
 

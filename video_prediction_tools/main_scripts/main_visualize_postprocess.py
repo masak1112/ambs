@@ -56,6 +56,7 @@ class Postprocess(TrainModel):
         :param lquick: flag for quick evaluation
         """
         # copy over attributes from parsed argument
+        tf.reset_default_graph()
         self.results_dir = self.output_dir = os.path.normpath(results_dir)
         _ = check_dir(self.results_dir, lcreate=True)
         self.batch_size = batch_size
@@ -81,7 +82,8 @@ class Postprocess(TrainModel):
         self.nboots_block = 1000
         self.block_length = 7 * 24  # this corresponds to a block length of 7 days in case of hourly forecasts
         # initialize evrything to get an executable Postprocess instance
-        self.save_args_to_option_json()     # create options.json-in results directory
+        if not self.lquick: 
+            self.save_args_to_option_json()     # create options.json-in results directory
         self.copy_data_model_json()         # copy over JSON-files from model directory
         # get some parameters related to model and dataset
         self.datasplit_dict, self.model_hparams_dict, self.dataset, self.model, self.input_dir_tfr = self.load_jsons()
@@ -105,7 +107,9 @@ class Postprocess(TrainModel):
         self.sequence_length, self.context_frames, self.future_length = self.get_data_params()
         self.inputs, self.input_ts = self.make_test_dataset_iterator()
         # set-up model, its graph and do GPU-configuration (from TrainModel)
-        self.setup_model(mode=self.mode)
+        if self.mode == "val" or self.mode == "test":
+            model_mode = "test"
+        self.setup_model(mode=model_mode)
         self.setup_graph()
         self.setup_gpu_config()
         if "acc" in eval_metrics:
@@ -149,7 +153,7 @@ class Postprocess(TrainModel):
         method_name = Postprocess.copy_data_model_json.__name__
 
         # correctness of self.checkpoint and self.results_dir is already checked in __init__
-        checkpoint_dir = os.path.dirname(self.checkpoint)
+        checkpoint_dir = os.path.split(os.path.dirname(self.checkpoint))[0]
         model_opt_js = os.path.join(checkpoint_dir, "options.json")
         model_ds_js = os.path.join(checkpoint_dir, "dataset_hparams.json")
         model_hp_js = os.path.join(checkpoint_dir, "model_hparams.json")
@@ -580,7 +584,8 @@ class Postprocess(TrainModel):
         # safe dataset with evaluation metrics for later use
         self.eval_metrics_ds = eval_metric_ds
         self.cond_quantiple_ds = cond_quantiple_ds
-
+        self.sess.close()
+             
     # all methods of the run factory
     def init_session(self):
         """
