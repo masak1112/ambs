@@ -580,6 +580,9 @@ class BestModelSelector(object):
     def run(self, eval_metric):
         """
         Runs eager postprocessing on all checkpoints with evaluation of chosen metric
+        :param eval_metric: the target evaluation metric
+        :return: Populated self.checkpoints_eval_all where the average of the metric over all forecast hours is listed
+
         """
         method = BestModelSelector.run.__name__
 
