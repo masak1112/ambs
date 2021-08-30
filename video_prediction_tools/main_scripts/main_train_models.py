@@ -651,7 +651,7 @@ class BestModelSelector(object):
         method = BestModelSelector.clean_checkpoints.__name__
 
         # sort the checkpoint-directories to get the last checkpoint
-        checkpoints_all_sorted = sorted(self.checkpoints_all, key=lambda x: int(x.split("_")[-1]))
+        checkpoints_all_sorted = sorted(self.checkpoints_all, key=lambda x: int(x.split("_")[-1].replace("/","")))
         # list of checkpoints to keep (while ensuring uniqueness!)
         checkpoints_keep = list({self.checkpoints_all[best_ind], checkpoints_all_sorted[-1]})
         print("%{0}: The following checkpoints are retained: \n * {1}".format(method, "\n* ".join(checkpoints_keep)))
