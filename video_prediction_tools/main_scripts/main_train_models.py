@@ -720,8 +720,8 @@ def main():
     parser.add_argument("--model", type=str, help="Model class name")
     parser.add_argument("--model_hparams_dict", type=str, help="JSON-file of model hyperparameters")
     parser.add_argument("--gpu_mem_frac", type=float, default=0.99, help="Fraction of gpu memory to use")
-    parser.add_argument("--frac_start_save", type=float, default=0.6,
-                        help="Fraction of all iteration steps fater which checkpointing starts.")
+    parser.add_argument("--frac_start_save", type=float, default=1.,
+                        help="Fraction of all iteration steps after which checkpointing starts.")
     parser.add_argument("--frac_intv_save", type=float, default=0.01,
                         help="Fraction of all iteration steps to define the saving interval.")
     parser.add_argument("--seed", default=1234, type=int)
@@ -749,10 +749,12 @@ def main():
     train_case.save_timing_to_pkl(timeit_after_train - timeit_start, train_time, time_per_iteration, args.output_dir)
 
     # select best model
-    _ = BestModelSelector(args.output_dir, "mse")
-    timeit_finish = time.time()
-
-    print("Selecting the best model checkpoint took {0:.2f} minutes.".format((timeit_finish - timeit_after_train)/60.))
+    if args.dataset == "era5" and args.frac_start_save < 1.:
+        _ = BestModelSelector(args.output_dir, "mse")
+        timeit_finish = time.time()
+        print("Selecting the best model checkpoint took {0:.2f} minutes.".format((timeit_finish - timeit_after_train)/60.))
+    else:
+        timeit_finish = time.time()
     print("Total time elapsed {0} minutes.".format((timeit_finish - timeit_start)/60.))
 
 
