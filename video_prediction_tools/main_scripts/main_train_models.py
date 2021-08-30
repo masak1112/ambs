@@ -73,7 +73,7 @@ class TrainModel(object):
         self.set_seed()
         self.get_model_hparams_dict()
         self.load_params_from_checkpoints_dir()
-        self.setup_dataset()
+        self.setup_datasets()
         self.setup_model()
         self.make_dataset_iterator()
         self.setup_graph()
@@ -81,7 +81,6 @@ class TrainModel(object):
         self.count_parameters()
         self.create_saver_and_writer()
         self.setup_gpu_config()
-        self.calculate_samples_and_epochs()
         self.calculate_checkpoint_saver_conf()
 
     def set_seed(self):
@@ -146,16 +145,23 @@ class TrainModel(object):
             except FileNotFoundError:
                 print("%{0}: model_hparams.json does not exist in {1}".format(method, self.checkpoint_dir))
                 
-    def setup_dataset(self):
+    def setup_datasets(self):
         """
         Setup train and val dataset instance with the corresponding data split configuration.
         Simultaneously, sequence_length is attached to the hyperparameter dictionary.
         """
+        # get some parameters from the model hyperparameters
+        self.batch_size = self.model_hparams_dict_load["batch_size"]
+        self.max_epochs = self.model_hparams_dict_load["max_epochs"]
+        # create dataset instance
         VideoDataset = datasets.get_dataset_class(self.dataset)
         self.train_dataset = VideoDataset(input_dir=self.input_dir, mode='train', datasplit_config=self.datasplit_dict,
                                           hparams_dict_config=self.model_hparams_dict)
+        self.calculate_samples_and_epochs()
+        self.model_hparams_dict_load.update({"sequence_length": self.train_dataset.sequence_length})
+        # set-up validation dataset and calculate number of batches for calculating validation loss
         self.val_dataset = VideoDataset(input_dir=self.input_dir, mode='val', datasplit_config=self.datasplit_dict,
-                                        hparams_dict_config=self.model_hparams_dict)
+                                        hparams_dict_config=self.model_hparams_dict, nsamples_ref=self.num_examples)
         # Retrieve sequence length from dataset
         self.model_hparams_dict_load.update({"sequence_length": self.train_dataset.sequence_length})
 
@@ -560,7 +566,7 @@ class BestModelSelector(object):
         :param channel: channel of data used for selection
         :param seed: seed for the Postprocess-instance
         """
-        method = BestModelSelector.__init__.__name__
+        method = self.__class__.__name__
         # sanity check
         if not os.path.isdir(model_dir):
             raise NotADirectoryError("{0}: The passed directory '{1}' does not exist".format(method, model_dir))
@@ -592,7 +598,8 @@ class BestModelSelector(object):
             print("Start to evalute checkpoint:", checkpoint)
             results_dir_eager = os.path.join(checkpoint, "results_eager")
             eager_eval = Postprocess(results_dir=results_dir_eager, checkpoint=checkpoint, mode="val", batch_size=32,
-                                     seed=self.seed, eval_metrics=[eval_metric], channel=self.channel, lquick=True)
+                                     seed=self.seed, eval_metrics=[eval_metric], channel=self.channel, frac_data=0.33,
+                                     lquick=True)
             eager_eval.run()
             eager_eval.handle_eval_metrics()
 
@@ -749,7 +756,5 @@ def main():
     print("Total time elapsed {0} minutes.".format((timeit_finish - timeit_start)/60.))
 
 
-
-    
 if __name__ == '__main__':
     main()
