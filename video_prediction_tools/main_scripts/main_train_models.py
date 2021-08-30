@@ -243,14 +243,13 @@ class TrainModel(object):
         """
         method = TrainModel.calculate_samples_and_epochs.__name__        
 
-        batch_size = self.video_model.hparams.batch_size
-        max_epochs = self.video_model.hparams.max_epochs # the number of epochs
         self.num_examples = self.train_dataset.num_examples_per_epoch()
-        self.steps_per_epoch = int(self.num_examples/batch_size)
-        self.total_steps = self.steps_per_epoch * max_epochs
+        self.steps_per_epoch = int(self.num_examples/self.batch_size)
+        self.total_steps = self.steps_per_epoch * self.max_epochs
         self.diag_intv_step = int(self.diag_intv_frac*self.total_steps)
         print("%{}: Batch size: {}; max_epochs: {}; num_samples per epoch: {}; steps_per_epoch: {}, total steps: {}"
-              .format(method, batch_size,max_epochs, self.num_examples, self.steps_per_epoch, self.total_steps))
+              .format(method, self.batch_size, self.max_epochs, self.num_examples, self.steps_per_epoch,
+                      self.total_steps))
 
     def calculate_checkpoint_saver_conf(self):
         """
