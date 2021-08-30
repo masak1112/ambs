@@ -30,33 +30,33 @@ from postprocess_plotting import plot_avg_eval_metrics, plot_cond_quantile, crea
 
 
 class Postprocess(TrainModel):
-    def __init__(self, results_dir: str = None, checkpoint: str = None, mode: str = "test", batch_size: int = None,
-                 num_stochastic_samples: int = 1, stochastic_plot_id: int = 0, gpu_mem_frac: float = None,
-                 seed: int = None, channel: int = 0, args=None, run_mode: str = "deterministic",
-                 eval_metrics: List = ("mse", "psnr", "ssim", "acc"),
-                 clim_path: str = "/p/scratch/deepacf/video_prediction_shared_folder/preprocessedData/T2monthly",
-                 lquick: bool = None):
+    def __init__(self, results_dir: str = None, checkpoint: str = None, data_mode: str = "test", batch_size: int = None,
+                 gpu_mem_frac: float = None, num_stochastic_samples: int = 1, stochastic_plot_id: int = 0,
+                 seed: int = None, channel: int = 0, run_mode: str = "deterministic", lquick: bool = None,
+                 frac_data: float = 1., eval_metrics: List = ("mse", "psnr", "ssim", "acc"), args=None,
+                 clim_path: str = "/p/scratch/deepacf/video_prediction_shared_folder/preprocessedData/T2monthly"):
         """
         Initialization of the class instance for postprocessing (generation of forecasts from trained model +
         basic evauation).
         :param results_dir: output directory to save results
         :param checkpoint: directory point to the model checkpoints
-        :param mode: mode of dataset to be processed ("train", "val" or "test"), default: "test"
+        :param data_mode: mode of dataset to be processed ("train", "val" or "test"), default: "test"
         :param batch_size: mini-batch size for generating forecasts from trained model
+        :param gpu_mem_frac: fraction of GPU memory to be preallocated
         :param num_stochastic_samples: number of ensemble members for variational models (SAVP, VAE), default: 1
                                        not supported yet!!!
         :param stochastic_plot_id: not supported yet!
-        :param gpu_mem_frac: fraction of GPU memory to be pre-allocated
         :param seed: Integer controlling randomization
         :param channel: Channel of interest for statistical evaluation
-        :param args: namespace of parsed arguments
         :param run_mode: "deterministic" or "stochastic", default: "deterministic", "stochastic is not supported yet!!!
+        :param lquick: flag for quick evaluation
+        :param frac_data: fraction of dataset to be used for evaluation (only applied when shuffling is active)
         :param eval_metrics: metrics used to evaluate the trained model
         :param clim_path:  the path to the netCDF-file storing climatolgical data
-        :param lquick: flag for quick evaluation
+        :param args: namespace of parsed arguments
         """
-        # copy over attributes from parsed argument
         tf.reset_default_graph()
+        # copy over attributes from parsed argument
         self.results_dir = self.output_dir = os.path.normpath(results_dir)
         _ = check_dir(self.results_dir, lcreate=True)
         self.batch_size = batch_size
@@ -72,9 +72,10 @@ class Postprocess(TrainModel):
             self.checkpoint += "/"          # trick to handle checkpoint-directory and file simulataneously
         self.clim_path = clim_path
         self.run_mode = run_mode
-        self.mode = mode
+        self.data_mode = data_mode
         self.channel = channel
         self.lquick = lquick
+        self.frac_data = frac_data
         # Attributes set during runtime
         self.norm_cls = None
         # configuration of basic evaluation
@@ -82,9 +83,9 @@ class Postprocess(TrainModel):
         self.nboots_block = 1000
         self.block_length = 7 * 24  # this corresponds to a block length of 7 days in case of hourly forecasts
         # initialize evrything to get an executable Postprocess instance
-        if not self.lquick: 
-            self.save_args_to_option_json()     # create options.json-in results directory
-        self.copy_data_model_json()         # copy over JSON-files from model directory
+        if args is not None:
+            self.save_args_to_option_json()     # create options.json in results directory
+        self.copy_data_model_json()             # copy over JSON-files from model directory
         # get some parameters related to model and dataset
         self.datasplit_dict, self.model_hparams_dict, self.dataset, self.model, self.input_dir_tfr = self.load_jsons()
         self.model_hparams_dict_load = self.get_model_hparams_dict()
@@ -102,20 +103,17 @@ class Postprocess(TrainModel):
         self.stat_fl = self.set_stat_file()
         self.cond_quantile_vars = self.init_cond_quantile_vars()
         # setup test dataset and model
-        self.test_dataset, self.num_samples_per_epoch = self.setup_test_dataset()
+        self.test_dataset, self.num_samples_per_epoch = self.setup_dataset()
         # self.num_samples_per_epoch = 100              # reduced number of epoch samples -> useful for testing
         self.sequence_length, self.context_frames, self.future_length = self.get_data_params()
         self.inputs, self.input_ts = self.make_test_dataset_iterator()
-        # set-up model, its graph and do GPU-configuration (from TrainModel)
-        if self.mode == "val" or self.mode == "test":
-            model_mode = "test"
-        self.setup_model(mode=model_mode)
-        self.setup_graph()
-        self.setup_gpu_config()
+        self.data_clim = None
         if "acc" in eval_metrics:
             self.load_climdata()
-        else:
-            self.data_clim = None
+        # set-up model, its graph and do GPU-configuration (from TrainModel)
+        self.setup_model(mode="test")
+        self.setup_graph()
+        self.setup_gpu_config()
 
     # Methods that are called during initialization
     def get_input_dirs(self):
@@ -153,11 +151,11 @@ class Postprocess(TrainModel):
         method_name = Postprocess.copy_data_model_json.__name__
 
         # correctness of self.checkpoint and self.results_dir is already checked in __init__
-        checkpoint_dir = os.path.split(os.path.dirname(self.checkpoint))[0]
-        model_opt_js = os.path.join(checkpoint_dir, "options.json")
-        model_ds_js = os.path.join(checkpoint_dir, "dataset_hparams.json")
-        model_hp_js = os.path.join(checkpoint_dir, "model_hparams.json")
-        model_dd_js = os.path.join(checkpoint_dir, "data_split.json")
+        model_outdir = os.path.split(os.path.dirname(self.checkpoint))[0]
+        model_opt_js = os.path.join(model_outdir, "options.json")
+        model_ds_js = os.path.join(model_outdir, "dataset_hparams.json")
+        model_hp_js = os.path.join(model_outdir, "model_hparams.json")
+        model_dd_js = os.path.join(model_outdir, "data_split.json")
 
         if os.path.isfile(model_opt_js):
             shutil.copy(model_opt_js, os.path.join(self.results_dir, "options_checkpoints.json"))
@@ -241,14 +239,6 @@ class Postprocess(TrainModel):
             print("%{0}: Something went wrong when getting metadata from file '{1}'".format(method_name, metadata_fl))
             raise err
 
-        # when the metadat is loaded without problems, the follwoing will work
-        self.height, self.width = md_instance.ny, md_instance.nx
-        self.vars_in = md_instance.variables
-
-        self.lats = xr.DataArray(md_instance.lat, coords={"lat": md_instance.lat}, dims="lat",
-                                     attrs={"units": "degrees_east"})
-        self.lons = xr.DataArray(md_instance.lon, coords={"lon": md_instance.lon}, dims="lon",
-                                     attrs={"units": "degrees_north"})
         return md_instance
 
     def load_climdata(self,clim_path="/p/scratch/deepacf/video_prediction_shared_folder/preprocessedData/T2monthly",
@@ -291,13 +281,14 @@ class Postprocess(TrainModel):
 
         self.data_clim = data_clim_new[dict(lon=meta_lon_loc,lat=meta_lat_loc)]
          
-    def setup_test_dataset(self):
+    def setup_dataset(self):
         """
         setup the test dataset instance
         :return test_dataset: the test dataset instance
         """
         VideoDataset = datasets.get_dataset_class(self.dataset)
-        test_dataset = VideoDataset(input_dir=self.input_dir_tfr, mode=self.mode, datasplit_config=self.datasplit_dict)
+        test_dataset = VideoDataset(input_dir=self.input_dir_tfr, mode=self.data_modemode,
+                                    datasplit_config=self.datasplit_dict)
         nsamples = test_dataset.num_examples_per_epoch()
 
         return test_dataset, nsamples
@@ -350,7 +341,7 @@ class Postprocess(TrainModel):
 
         if not hasattr(self, "model"):
             raise AttributeError("%{0}: Attribute model is still unset.".format(method))
-        cond_quantile_vars = ["{0}_{1}_fcst".format(self.vars_in[self.channel], self.model),
+        cond_quantile_vars = ["{0}_{1}_fcst".format(self.vars_in[self.channel], self.data_model),
                               "{0}_ref".format(self.vars_in[self.channel])]
 
         return cond_quantile_vars
@@ -391,14 +382,14 @@ class Postprocess(TrainModel):
         if not hasattr(self, "num_stochastic_samples"):
             raise AttributeError("%{0}: Attribute num_stochastic_samples is still unset".format(method))
 
-        if self.model == "convLSTM" or self.model == "test_model" or self.model == 'mcnet':
+        if np.any(self.model in ["convLSTM", "test_model", "mcnet"]):
             if self.num_stochastic_samples > 1:
                 print("Number of samples for deterministic model cannot be larger than 1. Higher values are ignored.")
             self.num_stochastic_samples = 1
 
     # the run-factory
     def run(self):
-        if self.model == "convLSTM" or self.model == "test_model" or self.model == 'mcnet':
+        if np.any(self.model in ["convLSTM", "test_model", "mcnet"]):
             self.run_deterministic()
         elif self.run_mode == "deterministic":
             self.run_deterministic()
@@ -530,7 +521,7 @@ class Postprocess(TrainModel):
                                                     nsamples, self.future_length)
         cond_quantiple_ds = None
 
-        while sample_ind < self.num_samples_per_epoch:
+        while sample_ind < nsamples:
             # get normalized and denormalized input data
             input_results, input_images_denorm, t_starts = self.get_input_data_per_batch(self.inputs)
             # feed and run the trained model; returned array has the shape [batchsize, seq_len, lat, lon, channel]
@@ -1262,7 +1253,7 @@ def main():
               "* checkpointed model: {0}\n * no conditional quantile and forecast example plots".format(chp))
 
     # initialize postprocessing instance
-    postproc_instance = Postprocess(results_dir=results_dir, checkpoint=args.checkpoint, mode="test",
+    postproc_instance = Postprocess(results_dir=results_dir, checkpoint=args.checkpoint, data_mode="test",
                                     batch_size=args.batch_size, num_stochastic_samples=args.num_stochastic_samples,
                                     gpu_mem_frac=args.gpu_mem_frac, seed=args.seed, args=args,
                                     eval_metrics=eval_metrics, channel=args.channel, lquick=args.lquick)
