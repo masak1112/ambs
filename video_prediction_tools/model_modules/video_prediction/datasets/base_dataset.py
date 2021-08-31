@@ -9,34 +9,30 @@ from tensorflow.contrib.training import HParams
 
 
 class BaseVideoDataset(object):
-    def __init__(self, input_dir, mode='train', num_epochs=None, seed=None,
+    def __init__(self, input_dir: str, mode: str = "train", num_epochs: int = None, seed: int = None,
                  hparams_dict=None, hparams=None):
         """
-        Args:
-            input_dir: either a directory containing subdirectories train,
-                val, test, etc, or a directory containing the tfrecords.
-            mode: either train, val, or test
-            num_epochs: if None, dataset is iterated indefinitely.
-            seed: random seed for the op that samples subsequences.
-            hparams_dict: a dict of `name=value` pairs, where `name` must be
-                defined in `self.get_default_hparams()`.
-            hparams: a string of comma separated list of `name=value` pairs,
-                where `name` must be defined in `self.get_default_hparams()`.
-                These values overrides any values in hparams_dict (if any).
-        Note:
-            self.input_dir is the directory containing the tfrecords.
+        This class is used for preparing data for training/validation and test models.
+        :param input_dir: the path of tfrecords files
+        :param mode: "train","val" or "test"
+        :param num_epochs: number of epochs
+        :param seed: the seed for dataset
+        :param hparams_dict: a dict of `name=value` pairs, where `name` must be defined in `self.get_default_hparams()`.
+        :param hparams: a dict of `name=value` pairs where `name` must be defined in `self.get_default_hparams()`.
+                        These values overrides any values in hparams_dict (if any).
         """
+        method = self.__class__.__name__
 
         self.input_dir = os.path.normpath(os.path.expanduser(input_dir))
         self.mode = mode
         self.num_epochs = num_epochs
         self.seed = seed
-
+        self.shuffled = False                                   # will be set properly in make_dataset-method
+        # sanity checks
         if self.mode not in ('train', 'val', 'test'):
-            raise ValueError('Invalid mode %s' % self.mode)
-
+            raise ValueError('%{0}: Invalid mode {1}'.format(method, self.mode))
         if not os.path.exists(self.input_dir):
-            raise FileNotFoundError("input_dir %s does not exist" % self.input_dir)
+            raise FileNotFoundError("%{0} input_dir '{1}' does not exist".format(method, self.input_dir))
         self.filenames = None
         # look for tfrecords in input_dir and input_dir/mode directories
         for input_dir in [self.input_dir, os.path.join(self.input_dir, self.mode)]:
@@ -53,13 +49,6 @@ class BaseVideoDataset(object):
         self.action_like_names_and_shapes = OrderedDict()
 
         self.hparams = self.parse_hparams(hparams_dict, hparams)
-        #Bing: add this for anomaly
-#         if os.path.exists(input_dir+"_mean"):
-#             input_mean_dir = input_dir+"_mean"
-#             self.filenames_mean = sorted(glob.glob(os.path.join(input_mean_dir, '*.tfrecord*')))
-#         else:
-#             self.filenames_mean = None
-
 
     def get_default_hparams_dict(self):
         """
@@ -130,14 +119,13 @@ class BaseVideoDataset(object):
         Parses a single tf.train.Example or tf.train.SequenceExample into
         images, states, actions, etc tensors.
         """
-
-
         raise NotImplementedError
 
     def make_dataset(self, batch_size):
         filenames = self.filenames
         shuffle = self.mode == 'train' or (self.mode == 'val' and self.hparams.shuffle_on_val)
         if shuffle:
+            self.shuffled = True
             random.shuffle(filenames)
 
         dataset = tf.data.TFRecordDataset(filenames, buffer_size= 8 * 1024 * 1024) #todo: what is buffer_size
@@ -162,7 +150,6 @@ class BaseVideoDataset(object):
         dataset = self.make_dataset(batch_size)
         iterator = dataset.make_one_shot_iterator()
         return iterator.get_next()
-
 
     def decode_and_preprocess_images(self, image_buffers, image_shape):
         def decode_and_preprocess_image(image_buffer):
@@ -252,7 +239,6 @@ class BaseVideoDataset(object):
 
     def num_examples_per_epoch(self):
         raise NotImplementedError
-
 
 
 class VideoDataset(BaseVideoDataset):

@@ -104,6 +104,8 @@ class Postprocess(TrainModel):
         self.cond_quantile_vars = self.init_cond_quantile_vars()
         # setup test dataset and model
         self.test_dataset, self.num_samples_per_epoch = self.setup_dataset()
+        if lquick and self.dataset.shuffled:
+            self.num_samples_per_epoch = Postprocess.reduce_samples(self.num_samples_per_epoch, frac_data)
         # self.num_samples_per_epoch = 100              # reduced number of epoch samples -> useful for testing
         self.sequence_length, self.context_frames, self.future_length = self.get_data_params()
         self.inputs, self.input_ts = self.make_test_dataset_iterator()
@@ -866,6 +868,24 @@ class Postprocess(TrainModel):
                                                                              quantiles=(0.05, 0.5, 0.95))
 
             plot_cond_quantile(quantile_panel_lbr, cond_variable_lbr, plt_fname_lbr)
+
+    @staticmethod
+    def reduce_samples(nsamples: int, frac_data: float):
+        """
+        Reduce number of sample for Postprocessing
+        :param nsamples: original number of samples
+        :param frac_data: fraction of samples used for evaluation
+        :return: reduced number of samples
+        """
+        method = Postprocess.reduce_samples.__name__
+
+        if frac_data <= 0. or frac_data >= 1.:
+            print("%{0}: frac_data is not within [0..1] and is therefore ignored.".format(method))
+            return nsamples
+        else:
+            nsamples_new = int(np.ceil(nsamples*frac_data))
+            print("%{0}: Sample size is reduced from {1:d} to {2:d}".format(method, int(nsamples), nsamples_new))
+            return nsamples_new
 
     @staticmethod
     def clean_obj_attribute(obj, attr_name, lremove=False):

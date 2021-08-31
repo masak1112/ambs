@@ -1,11 +1,11 @@
 __email__ = "b.gong@fz-juelich.de"
 __author__ = "Bing Gong, Scarlet Stadtler,Michael Langguth"
 
-import argparse
 import os
 import glob
 import random
 import json
+import numpy as np
 import tensorflow as tf
 from collections import OrderedDict
 from tensorflow.contrib.training import HParams
@@ -14,26 +14,37 @@ from general_utils import reduce_dict
 
 class ERA5Dataset(object):
 
-    def __init__(self,input_dir=None,datasplit_config=None,hparams_dict_config=None, mode='train',seed=None):
+    def __init__(self, input_dir: str = None, datasplit_config: str = None, hparams_dict_config: str = None,
+                 mode: str = "train", seed: int = None, nsamples_ref: int = None):
         """
         This class is used for preparing data for training/validation and test models
-        args:
-            input_dir            : the path of tfrecords files
-            datasplit_config     : the path pointing to the datasplit_config json file
-            hparams_dict_config  : the path to the dict that contains hparameters,
-            mode                 : string, "train","val" or "test"
-            seed                 : int, the seed for dataset 
+        :param input_dir: the path of tfrecords files
+        :param datasplit_config: the path pointing to the datasplit_config json file
+        :param hparams_dict_config: the path to the dict that contains hparameters,
+        :param mode: string, "train","val" or "test"
+        :param seed: int, the seed for dataset
+        :param nsamples_ref: number of reference samples whch can be used to control repetition factor for dataset
+                             for ensuring adopted size of dataset iterator (used for validation data during training)
+                             Example: Let nsamples_ref be 1000 while the current datset consists 100 samples, then
+                                      the repetition-factor will be 10 (i.e. nsamples*rep_fac = nsamples_ref)
         """
-       # super(ERA5Dataset, self).__init__(**kwargs)
+        method = self.__class__.__name__
+
         self.input_dir = input_dir
         self.datasplit_config = datasplit_config
         self.mode = mode
         self.seed = seed
         self.sequence_length = None                             # will be set in get_example_info
+        self.nsamples_ref = None
+        self.shuffled = False                                   # will be set properly in make_dataset-method
+        # sanity checks
         if self.mode not in ('train', 'val', 'test'):
-            raise ValueError('Invalid mode %s' % self.mode)
+            raise ValueError('%{0}: Invalid mode {1}'.format(method, self.mode))
         if not os.path.exists(self.input_dir):
-            raise FileNotFoundError("input_dir %s does not exist" % self.input_dir)
+            raise FileNotFoundError("%{0} input_dir '{1}' does not exist".format(method, self.input_dir))
+        if nsamples_ref is not None:
+            self.nsamples_ref = nsamples_ref
+        # get configuration parameters from datasplit- and modelparameters-files
         self.datasplit_dict_path = datasplit_config
         self.data_dict = self.get_datasplit()
         self.hparams_dict_config = hparams_dict_config
@@ -55,7 +66,6 @@ class ERA5Dataset(object):
     def get_default_hparams(self):
         return HParams(**self.get_default_hparams_dict())
 
-
     def get_default_hparams_dict(self):
         """
         Provide dictionary containing default hyperparameters for the dataset
@@ -68,9 +78,9 @@ class ERA5Dataset(object):
         """
         hparams = dict(
             context_frames=10,
-            max_epochs = 20,
-            batch_size = 40,
-            shuffle_on_val= True,
+            max_epochs=20,
+            batch_size=40,
+            shuffle_on_val=True,
         )
         return hparams
 
@@ -80,8 +90,8 @@ class ERA5Dataset(object):
         """
 
         with open(self.datasplit_dict_path) as f:
-            self.d = json.load(f)
-        return self.d
+            datasplit_dict = json.load(f)
+        return datasplit_dict
 
     def parse_hparams(self):
         """
@@ -92,7 +102,6 @@ class ERA5Dataset(object):
 
         return parsed_hparams
 
-      
     def get_tfrecords_filesnames_base_datasplit(self):
         """
         Get  absolute .tfrecord path names based on the data splits patterns
@@ -111,7 +120,6 @@ class ERA5Dataset(object):
             self.filenames = sorted(self.filenames)  # ensures order is the same across systems
         if not self.filenames:
             raise FileNotFoundError('No tfrecords were found in %s' % self.input_dir)
-
 
     def get_example_info(self):
         """
@@ -136,9 +144,9 @@ class ERA5Dataset(object):
         with open(num_seq_file, 'r') as dfile:
              num_seqs = dfile.readlines()
         num_sequences = [int(num_seq.strip()) for num_seq in num_seqs]
-        self.num_examples_per_epoch  = len_fnames * num_sequences[0]
-        return self.num_examples_per_epoch 
+        num_examples_per_epoch = len_fnames * num_sequences[0]
 
+        return num_examples_per_epoch
 
     def make_dataset(self, batch_size):
         """
@@ -149,7 +157,10 @@ class ERA5Dataset(object):
         args:
               batch_size: int, the size of samples fed into the models per iteration
         """
+        method = ERA5Dataset.make_dataset.__name__
+
         self.num_epochs = self.hparams.max_epochs
+
         def parser(serialized_example):
             seqs = OrderedDict()
             keys_to_features = {
@@ -174,15 +185,20 @@ class ERA5Dataset(object):
         filenames = self.filenames
         shuffle = self.mode == 'train' or (self.mode == 'val' and self.hparams.shuffle_on_val)
         if shuffle:
+            self.shuffled = True
             random.shuffle(filenames)
-        dataset = tf.data.TFRecordDataset(filenames, buffer_size = 8* 1024 * 1024) 
-        #dataset = dataset.filter(self.filter)
-        if shuffle:
-            dataset = dataset.apply(tf.contrib.data.shuffle_and_repeat(buffer_size =1024, count = self.num_epochs))
-        else:
-            dataset = dataset.repeat(self.num_epochs)
+        dataset = tf.data.TFRecordDataset(filenames, buffer_size=8*1024*1024)
 
-        if self.mode == "val": dataset = dataset.repeat(20) 
+        # set-up dataset iterator
+        nrepeat = self.num_epochs
+        if self.nsamples_ref:
+            num_samples = self.num_examples_per_epoch()
+            nrepeat = int(nrepeat*max(int(np.ceil(self.nsamples_ref/num_samples)), 1))
+
+        if shuffle:
+            dataset = dataset.apply(tf.contrib.data.shuffle_and_repeat(buffer_size=1024, count=nrepeat))
+        else:
+            dataset = dataset.repeat(nrepeat)
 
         num_parallel_calls = None if shuffle else 1
         dataset = dataset.apply(tf.contrib.data.map_and_batch(
@@ -196,8 +212,7 @@ class ERA5Dataset(object):
         return iterator.get_next()
 
 
-
-    
+# further auxiliary methods
 def _bytes_feature(value):
     return tf.train.Feature(bytes_list=tf.train.BytesList(value=[value]))
 
@@ -205,10 +220,10 @@ def _bytes_feature(value):
 def _bytes_list_feature(values):
     return tf.train.Feature(bytes_list=tf.train.BytesList(value=values))
 
+
 def _floats_feature(value):
     return tf.train.Feature(float_list=tf.train.FloatList(value=value))
 
+
 def _int64_feature(value):
     return tf.train.Feature(int64_list=tf.train.Int64List(value=[value]))
-
-
