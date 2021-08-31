@@ -27,7 +27,7 @@ from model_modules.video_prediction.utils import tf_utils
 from main_visualize_postprocess import *
 from general_utils import *
 import math
-
+import shutil
 
 class TrainModel(object):
     def __init__(self, input_dir: str = None, output_dir: str = None, datasplit_dict: str = None,
@@ -591,7 +591,7 @@ class BestModelSelector(object):
         for checkpoint in self.checkpoints_all:
             print("Start to evalute checkpoint:", checkpoint)
             results_dir_eager = os.path.join(checkpoint, "results_eager")
-            eager_eval = Postprocess(results_dir=results_dir_eager, checkpoint=checkpoint, mode="val", batch_size=32,
+            eager_eval = Postprocess(results_dir=results_dir_eager, checkpoint=checkpoint, data_mode="val", batch_size=32,
                                      seed=self.seed, eval_metrics=[eval_metric], channel=self.channel, lquick=True)
             eager_eval.run()
             eager_eval.handle_eval_metrics()
@@ -661,7 +661,7 @@ class BestModelSelector(object):
             checkpoints_op.remove(keep)
 
         for dir_path in checkpoints_op:
-            os.rmdir(dir_path)
+            shutil.rmtree(dir_path)
             print("%{0}: The checkpoint directory {1} was removed.".format(method, dir_path))
 
         return True

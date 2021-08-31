@@ -287,7 +287,7 @@ class Postprocess(TrainModel):
         :return test_dataset: the test dataset instance
         """
         VideoDataset = datasets.get_dataset_class(self.dataset)
-        test_dataset = VideoDataset(input_dir=self.input_dir_tfr, mode=self.data_modemode,
+        test_dataset = VideoDataset(input_dir=self.input_dir_tfr, mode=self.data_mode,
                                     datasplit_config=self.datasplit_dict)
         nsamples = test_dataset.num_examples_per_epoch()
 
@@ -341,7 +341,7 @@ class Postprocess(TrainModel):
 
         if not hasattr(self, "model"):
             raise AttributeError("%{0}: Attribute model is still unset.".format(method))
-        cond_quantile_vars = ["{0}_{1}_fcst".format(self.vars_in[self.channel], self.data_model),
+        cond_quantile_vars = ["{0}_{1}_fcst".format(self.vars_in[self.channel], self.data_mode),
                               "{0}_ref".format(self.vars_in[self.channel])]
 
         return cond_quantile_vars
