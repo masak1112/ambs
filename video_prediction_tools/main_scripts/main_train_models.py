@@ -24,7 +24,6 @@ from model_modules.video_prediction import datasets, models
 import matplotlib.pyplot as plt
 import pickle as pkl
 from model_modules.video_prediction.utils import tf_utils
-from main_visualize_postprocess import *
 from general_utils import *
 import math
 import shutil
@@ -552,10 +551,12 @@ class TrainModel(object):
             pkl.dump(loss_per_iteration_val,f)
 
 
+
 class BestModelSelector(object):
     """
     Class to select the best performing model from multiple checkpoints created during training
     """
+        
     def __init__(self, model_dir: str, eval_metric: str, criterion: str = "min", channel: int = 0, seed: int = 42):
         """
         Class to retrieve the best model checkpoint. The last one is also retained.
@@ -590,7 +591,7 @@ class BestModelSelector(object):
 
         """
         method = BestModelSelector.run.__name__
-
+        from main_visualize_postprocess import Postprocess
         metric_avg_all = []
 
         for checkpoint in self.checkpoints_all:
