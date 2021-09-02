@@ -600,7 +600,6 @@ class BestModelSelector(object):
             eager_eval = Postprocess(results_dir=results_dir_eager, checkpoint=checkpoint, data_mode="val", batch_size=32,
                                      seed=self.seed, eval_metrics=[eval_metric], channel=self.channel, frac_data=0.33,
                                      lquick=True)
-                                     seed=self.seed, eval_metrics=[eval_metric], channel=self.channel, lquick=True)
             eager_eval.run()
             eager_eval.handle_eval_metrics()
 
