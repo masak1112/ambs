@@ -596,7 +596,7 @@ class BestModelSelector(object):
         for checkpoint in self.checkpoints_all:
             print("Start to evalute checkpoint:", checkpoint)
             results_dir_eager = os.path.join(checkpoint, "results_eager")
-            eager_eval = Postprocess(results_dir=results_dir_eager, checkpoint=checkpoint, mode="val", batch_size=32,
+            eager_eval = Postprocess(results_dir=results_dir_eager, checkpoint=checkpoint, data_mode="val", batch_size=32,
                                      seed=self.seed, eval_metrics=[eval_metric], channel=self.channel, frac_data=0.33,
                                      lquick=True)
             eager_eval.run()
