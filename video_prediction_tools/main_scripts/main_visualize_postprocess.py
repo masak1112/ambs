@@ -104,7 +104,7 @@ class Postprocess(TrainModel):
         self.cond_quantile_vars = self.init_cond_quantile_vars()
         # setup test dataset and model
         self.test_dataset, self.num_samples_per_epoch = self.setup_dataset()
-        if lquick and self.dataset.shuffled:
+        if lquick and self.test_dataset.shuffled:
             self.num_samples_per_epoch = Postprocess.reduce_samples(self.num_samples_per_epoch, frac_data)
         # self.num_samples_per_epoch = 100              # reduced number of epoch samples -> useful for testing
         self.sequence_length, self.context_frames, self.future_length = self.get_data_params()
@@ -289,7 +289,7 @@ class Postprocess(TrainModel):
         :return test_dataset: the test dataset instance
         """
         VideoDataset = datasets.get_dataset_class(self.dataset)
-        test_dataset = VideoDataset(input_dir=self.input_dir_tfr, mode=self.data_modemode,
+        test_dataset = VideoDataset(input_dir=self.input_dir_tfr, mode=self.data_mode,
                                     datasplit_config=self.datasplit_dict)
         nsamples = test_dataset.num_examples_per_epoch()
 
@@ -343,7 +343,7 @@ class Postprocess(TrainModel):
 
         if not hasattr(self, "model"):
             raise AttributeError("%{0}: Attribute model is still unset.".format(method))
-        cond_quantile_vars = ["{0}_{1}_fcst".format(self.vars_in[self.channel], self.data_model),
+        cond_quantile_vars = ["{0}_{1}_fcst".format(self.vars_in[self.channel], self.data_mode),
                               "{0}_ref".format(self.vars_in[self.channel])]
 
         return cond_quantile_vars
