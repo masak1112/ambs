@@ -17,7 +17,7 @@ try:
     l_tqdm = True
 except:
     l_tqdm = False
-from general_utils import provide_default
+from general_utils import provide_default, check_str_in_list
 
 # basic data types
 da_or_ds = Union[xr.DataArray, xr.Dataset]
@@ -103,7 +103,7 @@ def avg_metrics(metric: da_or_ds, dim_name: str):
     :return: DataArray or Dataset of metric averaged over given dimension. If a Dataset is passed, the averaged metrics
              carry the suffix "_avg" in their variable names.
     """
-    method = perform_block_bootstrap_metric.__name__
+    method = avg_metrics.__name__
 
     if not isinstance(metric, da_or_ds.__args__):
         raise ValueError("%{0}: Input metric must be a xarray DataArray or Dataset and not {1}".format(method,
@@ -201,9 +201,6 @@ class Scores:
     """
     Class to calculate scores and skill scores.
     """
-
-    known_scores = ["mse", "psnr", "ssim", "acc"]
-
     def __init__(self, score_name: str, dims: List[str]):
         """
         Initialize score instance.
@@ -212,9 +209,9 @@ class Scores:
         :return: Score instance
         """
         method = Scores.__init__.__name__
-        self.metrics_dict = {"mse": self.calc_mse_batch , "psnr": self.calc_psnr_batch, "ssim":self.calc_ssim_batch, "acc":self.calc_acc_batch}
-        if set(self.metrics_dict.keys()) != set(Scores.known_scores):
-            raise ValueError("%{0}: Known scores must coincide with keys of metrics_dict.".format(method))
+        self.metrics_dict = {"mse": self.calc_mse_batch , "psnr": self.calc_psnr_batch,
+                             "ssim": self.calc_ssim_batch, "acc": self.calc_acc_batch,
+                             "texture": self.calc_spatial_variability}
         self.score_name = self.set_score_name(score_name)
         self.score_func = self.metrics_dict[score_name]
         # attributes set when run_calculation is called
@@ -287,9 +284,9 @@ class Scores:
         method = Scores.calc_ssim_batch.__name__
         batch_size = np.array(data_ref).shape[0]
         fore_hours = np.array(data_fcst).shape[1]
-        ssim_pred = [[ssim(data_ref[i,j,:,:],data_fcst[i,j,:,:]) for j in range(fore_hours)] for i in range(batch_size)]
+        ssim_pred = [[ssim(data_ref[i,j, ...],data_fcst[i,j,...]) for j in range(fore_hours)]
+                     for i in range(batch_size)]
         return ssim_pred
-
 
     def calc_acc_batch(self, data_fcst, data_ref,  **kwargs):
         """
@@ -305,21 +302,15 @@ class Scores:
         else:
             raise KeyError("%{0}: climatological data must be parsed to calculate the ACC.".format(method))        
 
-        #print(data_fcst)
-        #print('data_clim shape: ',data_clim.shape)
         batch_size = data_fcst.shape[0]
         fore_hours = data_fcst.shape[1]
-        #print('batch_size: ',batch_size)
-        #print('fore_hours: ',fore_hours)
         acc = np.ones([batch_size,fore_hours])*np.nan
         for i in range(batch_size):
             for j in range(fore_hours):
-                img_fcst = data_fcst[i,j,:,:]
-                img_ref = data_ref[i,j,:,:]
+                img_fcst = data_fcst[i, j, ...]
+                img_ref = data_ref[i, j, ...]
                 # get the forecast time
-                print('img_fcst.init_time: ',img_fcst.init_time)
                 fcst_time = xr.Dataset({'time': pd.to_datetime(img_fcst.init_time.data) + datetime.timedelta(hours=j)})
-                print('fcst_time: ',fcst_time.time)
                 img_month = fcst_time.time.dt.month
                 img_hour = fcst_time.time.dt.hour
                 img_clim = data_clim.sel(month=img_month, hour=img_hour)               
@@ -332,5 +323,94 @@ class Scores:
                 img2_ = img_fcst - img_clim
                 cor1 = np.sum(img1_*img2_)
                 cor2 = np.sqrt(np.sum(img1_**2)*np.sum(img2_**2))
-                acc[i,j] = cor1/cor2
+                acc[i, j] = cor1/cor2
         return acc
+
+    def calc_spatial_variability(self, data_fcst, data_ref, **kwargs):
+        """
+        Calculates the ratio between the spatial variability of differental operator with order 1 (or 2) forecast and
+        reference data
+        :param data_fcst: data_fcst: forecasted data (xarray with dimensions [batch, fore_hours, lat, lon])
+        :param data_ref: reference data (xarray with dimensions [batch, fore_hours, lat, lon])
+        :param kwargs: order to control the order of spatial differential operator, 'non_spatial_avg_dims' to perform
+                       averaging
+        :return: the ratio between spatial variabilty in the forecast and reference data field
+        """
+
+        method = Scores.calc_spatial_variability.__name__
+
+        if self.avg_dims is None:
+            pass
+        else:
+            print("%{0}: Passed dimensions to Scores-object instance are ignored.".format(method) +
+                  "Make use of 'non_spatial_avg_dims' to pass a list over dimensions for averaging")
+
+        if "order" in kwargs:
+            order = kwargs.get("order")
+        else:
+            order = 1
+         
+        if "non_spatial_avg_dims" in kwargs:
+            add_avg_dims = kwargs.get("non_spatial_avg_dims")
+        else:
+            add_avg_dims = None
+
+        fcst_grad = Scores.calc_geo_spatial_diff(data_fcst, order=order)
+        ref_grd = Scores.calc_geo_spatial_diff(data_ref, order=order)
+
+        ratio_spat_variability = fcst_grad/ref_grd
+
+        if add_avg_dims: ratio_spat_variability = ratio_spat_variability.mean(dim=add_avg_dims)
+
+        return ratio_spat_variability
+
+    @staticmethod
+    def calc_geo_spatial_diff(scalar_field: xr.DataArray, order: int = 1, r_e: float = 6371.e3, avg_dom: bool = True):
+        """
+        Calculates the amplitude of the gradient (order=1) or the Laplacian (order=2) of a scalar field given on a regular,
+        geographical grid (i.e. dlambda = const. and dphi=const.)
+        :param scalar_field: scalar field as data array with latitude and longitude as coordinates
+        :param order: order of spatial differential operator
+        :param r_e: radius of the sphere
+        :param avg_dom: flag if amplitude is averaged over the domain
+        :return: the amplitude of the gradient/laplacian at each grid point or over the whole domain (see avg_dom)
+        """
+        method = Scores.calc_geo_spatial_diff.__name__
+
+        # sanity checks
+        assert isinstance(scalar_field, xr.DataArray), "%{0}: scalar_field must be a xarray DataArray."\
+                                                       .format(method)
+        assert order in [1, 2], "%{0}: Order must be either 1 or 2.".format(method)
+
+        dims = list(scalar_field.dims)
+        lat_dims = ["lat", "latitude"]
+        lon_dims = ["lon", "longitude"]
+
+        def check_for_coords(coord_names_data, coord_names_expected):
+            for coord in coord_names_expected:
+                stat, ind_coord = check_str_in_list(coord_names_data, coord, return_ind=True)
+                if stat:
+                    return ind_coord[0], coord_names_data[ind_coord[0]] # just take the first value
+
+            raise ValueError("%{0}: Could not find one of the following coordinates in the passed dictionary."
+                             .format(method, ",".join(coord_names_expected)))
+
+        lat_ind, lat_name = check_for_coords(dims, lat_dims)
+        lon_ind, lon_name = check_for_coords(dims, lon_dims)
+
+        lat, lon = np.deg2rad(scalar_field[lat_name]), np.deg2rad(scalar_field[lon_name])
+
+        dphi, dlambda = lat[1].values - lat[0].values, lon[1].values - lon[0].values
+
+        if order == 1:
+            dvar_dlambda = 1./(r_e*np.cos(lat)*np.deg2rad(dlambda))*scalar_field.differentiate(lon_name)
+            dvar_dphi = 1./(r_e*np.deg2rad(dphi))*scalar_field.differentiate(lat_name)
+            dvar_dlambda = dvar_dlambda.transpose(*scalar_field.dims)    # ensure that dimension ordering is not changed
+
+            var_diff_amplitude = np.sqrt(dvar_dlambda**2 + dvar_dphi**2)
+            if avg_dom: var_diff_amplitude = var_diff_amplitude.mean(dim=[lat_name, lon_name])
+        else:
+            raise ValueError("%{0}: Second-order differentation is not implemenetd yet.".format(method))
+
+        return var_diff_amplitude
+

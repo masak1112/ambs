@@ -276,7 +276,8 @@ class Postprocess(TrainModel):
         coords_new["month"] = np.arange(1, 13) 
         coords_new["hour"] = np.arange(0, 24)
         # initialize a new data array with explicit dimensions for month and hour
-        data_clim_new = xr.DataArray(np.full((12, 24, nlat, nlon), np.nan), coords=coords_new, dims=["month", "hour", "lat", "lon"])
+        data_clim_new = xr.DataArray(np.full((12, 24, nlat, nlon), np.nan), coords=coords_new,
+                                     dims=["month", "hour", "lat", "lon"])
         # do the reorganization
         for month in np.arange(1, 13): 
             data_clim_new.loc[dict(month=month)]=dt_clim.sel(time=dt_clim["time.month"]==month)
@@ -666,7 +667,7 @@ class Postprocess(TrainModel):
 
         # dictionary of implemented evaluation metrics
         dims = ["lat", "lon"]
-        eval_metrics_func = [Scores(metric,dims).score_func for metric in self.eval_metrics]
+        eval_metrics_func = [Scores(metric, dims).score_func for metric in self.eval_metrics]
         varname_ref = "{0}_ref".format(varname)
         # reset init-time coordinate of metric_ds in place and get indices for slicing
         ind_end = np.minimum(ind_start + self.batch_size, self.num_samples_per_epoch)
@@ -1244,7 +1245,7 @@ def main():
     parser.add_argument("--gpu_mem_frac", type=float, default=0.95, help="fraction of gpu memory to use")
     parser.add_argument("--seed", type=int, default=7)
     parser.add_argument("--evaluation_metrics", "-eval_metrics", dest="eval_metrics", nargs="+",
-                        default=("mse", "psnr", "ssim", "acc"),
+                        default=("mse", "psnr", "ssim", "acc", "texture"),
                         help="Metrics to be evaluate the trained model. Must be known metrics, see Scores-class.")
     parser.add_argument("--channel", "-channel", dest="channel", type=int, default=0,
                         help="Channel which is used for evaluation.")

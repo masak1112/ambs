@@ -7,6 +7,7 @@ Provides:   * get_unique_vars
             * check_str_in_list
             * check_dir
             * reduce_dict
+            * find_key
             * provide_default
 """
 
@@ -75,7 +76,6 @@ def isw(value, interval):
     :param interval: The interval defined by lower and upper bound
     :return status: True if value lies in interval
     """
-
     method = isw.__name__
 
     if np.shape(interval)[0] != 2:
@@ -111,8 +111,8 @@ def check_str_in_list(list_in: List, str2check: str_or_List, labort: bool = True
     if isinstance(str2check, str):
         str2check = [str2check]
     elif isinstance(str2check, list):
-        assert np.all([isinstance(str1, str) for str1 in str2check]) == True, \
-            "Not all elements of str2check are strings"
+        assert np.all([isinstance(str1, str) for str1 in str2check]), "Not all elements of str2check are strings"\
+                                                                      .format(method)
     else:
         raise ValueError("%{0}: str2check argument must be either a string or a list of strings".format(method))
 
