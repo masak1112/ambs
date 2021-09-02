@@ -24,10 +24,9 @@ from model_modules.video_prediction import datasets, models
 import matplotlib.pyplot as plt
 import pickle as pkl
 from model_modules.video_prediction.utils import tf_utils
-from main_visualize_postprocess import *
 from general_utils import *
 import math
-
+import shutil
 
 class TrainModel(object):
     def __init__(self, input_dir: str = None, output_dir: str = None, datasplit_dict: str = None,
@@ -552,10 +551,12 @@ class TrainModel(object):
             pkl.dump(loss_per_iteration_val,f)
 
 
+
 class BestModelSelector(object):
     """
     Class to select the best performing model from multiple checkpoints created during training
     """
+        
     def __init__(self, model_dir: str, eval_metric: str, criterion: str = "min", channel: int = 0, seed: int = 42):
         """
         Class to retrieve the best model checkpoint. The last one is also retained.
@@ -590,7 +591,7 @@ class BestModelSelector(object):
 
         """
         method = BestModelSelector.run.__name__
-
+        from main_visualize_postprocess import Postprocess
         metric_avg_all = []
 
         for checkpoint in self.checkpoints_all:
@@ -599,6 +600,7 @@ class BestModelSelector(object):
             eager_eval = Postprocess(results_dir=results_dir_eager, checkpoint=checkpoint, data_mode="val", batch_size=32,
                                      seed=self.seed, eval_metrics=[eval_metric], channel=self.channel, frac_data=0.33,
                                      lquick=True)
+                                     seed=self.seed, eval_metrics=[eval_metric], channel=self.channel, lquick=True)
             eager_eval.run()
             eager_eval.handle_eval_metrics()
 
@@ -667,7 +669,7 @@ class BestModelSelector(object):
             checkpoints_op.remove(keep)
 
         for dir_path in checkpoints_op:
-            os.rmdir(dir_path)
+            shutil.rmtree(dir_path)
             print("%{0}: The checkpoint directory {1} was removed.".format(method, dir_path))
 
         return True

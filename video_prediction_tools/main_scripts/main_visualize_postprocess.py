@@ -22,7 +22,7 @@ from normalization import Norm_data
 from netcdf_datahandling import get_era5_varatts
 from general_utils import check_dir
 from metadata import MetaData as MetaData
-from main_scripts.main_train_models import *
+from main_train_models import TrainModel
 from data_preprocess.preprocess_data_step2 import *
 from model_modules.video_prediction import datasets, models, metrics
 from statistical_evaluation import perform_block_bootstrap_metric, avg_metrics, calculate_cond_quantiles, Scores
@@ -1171,7 +1171,7 @@ class Postprocess(TrainModel):
         if dtype is None:
             dtype = np.double
         else:
-            if not np.issubdtype(dtype, np.dtype(float).type):
+            if not np.issubdtype(dtype, np.number):
                 raise ValueError("%{0}: dytpe must be a NumPy datatype, but is '{1}'".format(method, np.dtype(dtype)))
   
         if ds_preexist is None:
