@@ -69,6 +69,8 @@ class BaseVideoPredictionModel(object):
         self.accum_eval_metrics = None
         self.saveable_variables = None
         self.post_init_ops = None
+        # ML 2021-06-23: Do not hide global step in self.saveable_variables
+        self.global_step = None
 
     def get_default_hparams_dict(self):
         """
@@ -228,6 +230,8 @@ class BaseVideoPredictionModel(object):
         return eval_outputs, eval_metrics
 
     def restore(self, sess, checkpoints, restore_to_checkpoint_mapping=None):
+        
+        method = BaseVideoPredictionModel.restore.__name__
         if checkpoints:
             var_list = self.saveable_variables
             # possibly restore from multiple checkpoints. useful if subset of weights
@@ -238,7 +242,7 @@ class BaseVideoPredictionModel(object):
             skip_global_step = len(checkpoints) > 1
             savers = []
             for checkpoint in checkpoints:
-                print("creating restore saver from checkpoint %s" % checkpoint)
+                print("%{0}: Creating restore saver from checkpoint '{1}'".format(method, checkpoint))
                 saver, _ = tf_utils.get_checkpoint_restore_saver(
                     checkpoint, var_list, skip_global_step=skip_global_step,
                     restore_to_checkpoint_mapping=restore_to_checkpoint_mapping)
@@ -471,6 +475,8 @@ class VideoPredictionModel(BaseVideoPredictionModel):
         BaseVideoPredictionModel.build_graph(self, inputs)
 
         global_step = tf.train.get_or_create_global_step()
+        # ML 2021-06-23: Do not hide global step in self.saveable_variables
+        self.global_step = global_step
         # Capture the variables created from here until the train_op for the
         # saveable_variables. Note that if variables are being reused (e.g.
         # they were created by a previously built model), those variables won't
@@ -751,9 +757,7 @@ class VideoPredictionModel(BaseVideoPredictionModel):
         else:
             raise ValueError("The opt_var in the hyper-parameters setting should be int or 'all'")
 
-        if hparams.l1_weight or hparams.l2_weight or hparams.vgg_cdist_weight:
-            gen_images = outputs.get('gen_images_enc', outputs['gen_images'])
-            target_images = inputs['images'][1:]
+
         if hparams.l1_weight:
             gen_l1_loss = vp.losses.l1_loss(gen_images, target_images)
             gen_losses["gen_l1_loss"] = (gen_l1_loss, hparams.l1_weight)

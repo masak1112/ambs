@@ -202,7 +202,7 @@ class Scores:
     Class to calculate scores and skill scores.
     """
 
-    known_scores = ["mse", "psnr","ssim", "acc"]
+    known_scores = ["mse", "psnr", "ssim", "acc"]
 
     def __init__(self, score_name: str, dims: List[str]):
         """
@@ -219,26 +219,6 @@ class Scores:
         self.score_func = self.metrics_dict[score_name]
         # attributes set when run_calculation is called
         self.avg_dims = dims
-
-    # ML 2021-06-10: The following method is not runnable and yet, it is unclear if it is needed at all.
-    # Thus, it is commented out for potential later use (in case that it won't be discarded).
-    # def run_calculation(self, model_data, ref_data, dims2avg=None, **kwargs):
-    #
-    #     method = Scores.run_calculation.__name__
-    #
-    #     model_data, ref_data = Scores.set_model_and_ref_data(model_data, ref_data, dims2avg=dims2avg)
-    #
-    #     try:
-    #         # if self.avg_dims is None:
-    #         result = self.score_func(model_data, ref_data, **kwargs)
-    #         # else:
-    #         #    result = self.score_func(model_data, ref_data, **kwargs)
-    #     except Exception as err:
-    #         print("%{0}: Calculation of '{1}' was not successful. Inspect error message!".format(method,
-    #                                                                                              self.score_name))
-    #         raise err
-    #
-    #     return result
 
     def set_score_name(self, score_name):
 

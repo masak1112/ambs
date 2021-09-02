@@ -11,12 +11,15 @@ Provides:   * get_unique_vars
 """
 
 # import modules
+from typing import List, Union
 import os
 import numpy as np
-#import xarray as xr
 
+str_or_List = Union[List, str]
 # routines
-def get_unique_vars(varnames):
+
+
+def get_unique_vars(varnames: List[str]):
     """
     :param varnames: list of variable names (or any other list of strings)
     :return: list with unique elements of inputted varnames list
@@ -27,7 +30,7 @@ def get_unique_vars(varnames):
     return vars_uni, varsind, nvars_uni
 
 
-def add_str_to_path(path_in, add_str):
+def add_str_to_path(path_in: str, add_str: str):
     """
     :param path_in: input path which is a candidate to be extended by add_str (see below)
     :param add_str: String to be added to path_in if not already done
@@ -92,12 +95,15 @@ def isw(value, interval):
     return status
 
 
-def check_str_in_list(list_in, str2check, labort=True):
+def check_str_in_list(list_in: List, str2check: str_or_List, labort: bool = True, return_ind: bool = False):
     """
     Checks if all strings are found in list
     :param list_in: input list
     :param str2check: string or list of strings to be checked if they are part of list_in
-    :return: True if existence of all strings was confirmed
+    :param labort: Flag if error will be risen in case of missing string in list
+    :param return_ind: Flag if index for each string found in list will be returned
+    :return: True if existence of all strings was confirmed, if return_ind is True, the index of each string in list is
+             returned as well
     """
     method = check_str_in_list.__name__
 
@@ -112,20 +118,25 @@ def check_str_in_list(list_in, str2check, labort=True):
 
     stat_element = [True if str1 in list_in else False for str1 in str2check]
 
-    if not np.all(stat_element):
+    if np.all(stat_element):
+        stat = True
+    else:
         print("%{0}: The following elements are not part of the input list:".format(method))
-        inds_miss = np.where(stat_element)[0]
+        inds_miss = np.where(list(~np.array(stat_element)))[0]
         for i in inds_miss:
             print("* index {0:d}: {1}".format(i, str2check[i]))
         if labort:
             raise ValueError("%{0}: Could not find all expected strings in list.".format(method))
+    # return
+    if stat and not return_ind:
+        return stat
+    elif stat:
+        return stat, [list_in.index(str_curr) for str_curr in str2check]
     else:
-        stat = True
-    
-    return stat
+        return stat, []
 
 
-def check_dir(path2dir: str, lcreate=False):
+def check_dir(path2dir: str, lcreate: bool = False):
     """
     Checks if path2dir exists and create it if desired
     :param path2dir:
@@ -174,7 +185,31 @@ def reduce_dict(dict_in: dict, dict_ref: dict):
     return dict_reduced
 
 
-def provide_default(dict_in, keyname, default=None, required=False):
+def find_key(dict_in: dict, key: str):
+    """
+    Searchs through nested dictionaries for key.
+    :param dict_in: input dictionary (cas also be an OrderedDictionary)
+    :param key: key to be retrieved
+    :return: value of the key in dict_in
+    """
+    method = find_key.__name__
+    # sanity check
+    if not isinstance(dict_in, dict):
+        raise TypeError("%{0}: dict_in must be a dictionary instance, but is of type '{1}'"
+                        .format(method, type(dict_in)))
+    # check for key
+    if key in dict_in:
+        return dict_in[key]
+    for k, v in dict_in.items():
+        if isinstance(v,dict):
+            item = find_key(v, key)
+            if item is not None:
+                return item
+
+    raise ValueError("%{0}: {1} could not be found in dict_in".format(method, key))
+
+
+def provide_default(dict_in: dict, keyname: str, default=None, required: bool = False):
     """
     Returns values of key from input dictionary or alternatively its default
 
