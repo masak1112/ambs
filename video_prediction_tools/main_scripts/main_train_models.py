@@ -641,11 +641,9 @@ class BestModelSelector(object):
                                  .format(method))
 
         if criterion == "min":
-            best_value = np.min(self.checkpoints_eval_all)
+            best_index = np.argmin(self.checkpoints_eval_all)
         else:
-            best_value = np.max(self.checkpoints_eval_all)
-
-        best_index = self.checkpoints_eval_all.index(best_value)
+            best_index = np.argmax(self.checkpoints_eval_all)
 
         return best_index
 
