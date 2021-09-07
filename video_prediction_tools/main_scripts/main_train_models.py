@@ -655,10 +655,8 @@ class BestModelSelector(object):
         """
         method = BestModelSelector.clean_checkpoints.__name__
 
-        # sort the checkpoint-directories to get the last checkpoint
-        checkpoints_all_sorted = sorted(self.checkpoints_all, key=lambda x: int(x.split("_")[-1].replace("/","")))
         # list of checkpoints to keep (while ensuring uniqueness!)
-        checkpoints_keep = list({self.checkpoints_all[best_ind], checkpoints_all_sorted[-1]})
+        checkpoints_keep = list({self.checkpoints_all[best_ind], self.checkpoints_all[-1]})
         print("%{0}: The following checkpoints are retained: \n * {1}".format(method, "\n* ".join(checkpoints_keep)))
         # drop checkpoints of interest from removal-list
         checkpoints_op = self.checkpoints_all.copy()
@@ -685,6 +683,8 @@ class BestModelSelector(object):
         if ncheckpoints == 0:
             raise FileExistsError("{0}: No checkpoint folders found under '{1}'".format(method, model_dir))
         else:
+            # glob.glob yiels unsorted directories, i.e. do the soring now
+            checkpoints_all = sorted(checkpoints_all, key=lambda x: int(x.split("_")[-1].replace("/","")))
             print("%{0}: {1:d} checkpoints directories has been found.".format(method, ncheckpoints))
 
         return checkpoints_all
