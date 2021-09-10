@@ -344,7 +344,7 @@ class Postprocess(TrainModel):
 
         if not hasattr(self, "model"):
             raise AttributeError("%{0}: Attribute model is still unset.".format(method))
-        cond_quantile_vars = ["{0}_{1}_fcst".format(self.vars_in[self.channel], self.data_mode),
+        cond_quantile_vars = ["{0}_{1}_fcst".format(self.vars_in[self.channel], self.model),
                               "{0}_ref".format(self.vars_in[self.channel])]
 
         return cond_quantile_vars
