@@ -40,7 +40,7 @@ def create_plot(data: xr.DataArray, data_ref: xr.DataArray, varname: str, fcst_h
         coords = data.coords
         # handle coordinates and forecast times
         lat, lon = coords["lat"], coords["lon"]
-        dates_fcst = pd.to_datetime(coords["time_forecast"].data)
+        dates_fcst = pd.to_datetime(coords["fcst_hour"].data)
     except Exception as err:
         print("%{0}: Could not retrieve expected coordinates lat, lon and time_forecast from data.".format(method))
         raise err
