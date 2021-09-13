@@ -85,10 +85,10 @@ def create_plot(data: xr.DataArray, data_ref: xr.DataArray, varname: str, fcst_h
         m.drawparallels(np.arange(0, 90, 5),labels=lat_lab, xoffset=0.5)
         m.drawmeridians(np.arange(5, 355, 10),labels=lon_lab, yoffset=0.5)
         if t == 0:
-            cs = m.contourf(x, y, data.isel(time_forecast=fcst_hour)-273.15, clevs, cmap=plt.get_cmap("jet"), ax=axes[t])
+            cs = m.contourf(x, y, data.isel(fcst_hour=fcst_hour)-273.15, clevs, cmap=plt.get_cmap("jet"), ax=axes[t])
             cbar_ticks = None
         elif t == 1:
-            cs = m.contourf(x, y, data.isel(time_forecast=fcst_hour)-data_ref.isel(time_forecast=fcst_hour),
+            cs = m.contourf(x, y, data.isel(fcst_hour=fcst_hour)-data_ref.isel(fcst_hour=fcst_hour),
                             clevs_diff, cmap=plt.get_cmap("PuOr"), ax=axes[t])
             cbar_ticks = list(np.arange(-10.5, -2., 2.)) + [-0.5, 0.5] + list(np.arange(2.5, 10.6, 2.))
             print(cbar_ticks)
