@@ -123,7 +123,7 @@ def main(args):
     filename = args.filename
     fhh = args.forecast_hour
 
-    if os.path.isfile(filename):
+    if not os.path.isfile(filename):
         raise FileNotFoundError("Could not find the indictaed netCDF-file '{0}'".format(filename))
 
     with xr.open_dataset(filename) as dfile:
