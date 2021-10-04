@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: 2021 Earth System Data Exploration (ESDE), Jülich Supercomputing Center (JSC)
+#
+# SPDX-License-Identifier: MIT
+
 """ 
 Classes to handle netCDF-data files and to extract gridded data on a subdomain 
 (e.g. used for handling ERA5-reanalysis data)

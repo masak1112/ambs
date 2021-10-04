@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: 2021 Earth System Data Exploration (ESDE), Jülich Supercomputing Center (JSC)
+#
+# SPDX-License-Identifier: MIT
+
 """
 Auxiliary functions that are used in config_runscript.py.
 They are used for facilating the customized conversion of the preprocessing step 2- and training runscript-templates

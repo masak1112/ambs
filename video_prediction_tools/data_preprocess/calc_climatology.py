@@ -1,3 +1,6 @@
+# SPDX-FileCopyrightText: 2021 Earth System Data Exploration (ESDE), Jülich Supercomputing Center (JSC)
+#
+# SPDX-License-Identifier: MIT
 
 __email__ = "b.gong@fz-juelich.de"
 __author__ = "Yan Ji, Bing Gong"

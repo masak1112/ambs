@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: 2021 Earth System Data Exploration (ESDE), Jülich Supercomputing Center (JSC)
+#
+# SPDX-License-Identifier: MIT
+
 from .base_model import BaseVideoPredictionModel
 from .base_model import VideoPredictionModel
 from .non_trainable_model import NonTrainableVideoPredictionModel

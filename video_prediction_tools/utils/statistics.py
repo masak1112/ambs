@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: 2021 Earth System Data Exploration (ESDE), Jülich Supercomputing Center (JSC)
+#
+# SPDX-License-Identifier: MIT
+
 """
 Class to calculate and save statistics in the ambs-workflow parallelized by PyStager.
 In addition to savin the statistics in json-files, it also comprises methods to read those files.
