@@ -100,9 +100,14 @@ SAVP,MIT License (MIT),https://github.com/alexlee-gk/video_prediction/blob/maste
 TrainModel,MIT License,https://github.com/alexlee-gk/video_prediction/blob/master/LICENSE,,,
 MCnet,MIT License,https://github.com/rubenvillegas/iclr2017mcnet/blob/master/LICENSE,,,
 flow_ops,MIT License,https://github.com/simonmeister/UnFlow/blob/master/LICENSE,,,
-GoogleRobotDataset,Creative Commons Attribution 4.0 International,https://creativecommons.org/licenses/by/4.0/,,,
+GoogleRobotDataset,MIT,https://github.com/alexlee-gk/video_prediction/blob/master/LICENSE,,,
 SNA,Apache License 2.0,http://www.apache.org/licenses/LICENSE-2.0,,,
 SV2P,Apache License 2.0,http://www.apache.org/licenses/LICENSE-2.0,,,
-lpips-tensorflow,BSD 2-Clause,https://github.com/alexlee-gk/lpips-tensorflow/blob/master/LICENSE
-McNet_utils,MIT,https://github.com/Newmu/dcgan_code/blob/master/LICENSE
-SoftMotionDataset, ,https://sites.google.com/view/sna-visual-mpc 
+lpips-tensorflow,BSD 2-Clause,https://github.com/alexlee-gk/lpips-tensorflow/blob/master/LICENSE,,,
+McNet_utils,MIT,https://github.com/Newmu/dcgan_code/blob/master/LICENSE,,,
+BaseVideoDataset,MIT,https://github.com/alexlee-gk/video_prediction/blob/master/LICENSE,,,
+SoftMotionDataset,MIT,https://github.com/alexlee-gk/video_prediction/blob/master/LICENSE,,,
+CartgripperVideoDataset,MIT,https://github.com/alexlee-gk/video_prediction/blob/master/LICENSE,,,
+Kthdataset,MIT,https://github.com/alexlee-gk/video_prediction/blob/master/LICENSE,,,
+SV2Pdataset,MIT,https://github.com/alexlee-gk/video_prediction/blob/master/LICENSE,,,
+UFC101dataset,MIT,https://github.com/alexlee-gk/video_prediction/blob/master/LICENSE,,,

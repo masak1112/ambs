@@ -13,6 +13,8 @@ def image_warp(im, flow):
         flow: Batch of flow vectors. [num_batch, height, width, 2]
     Returns:
         warped: transformed image of the same shape as the input image.
+
+    Implementation taken from here: https://github.com/simonmeister/UnFlow
     """
     with tf.variable_scope('image_warp'):
 

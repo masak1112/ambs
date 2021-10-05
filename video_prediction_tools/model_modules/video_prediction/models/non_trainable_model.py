@@ -1,8 +1,7 @@
-# SPDX-FileCopyrightText: 2021 Earth System Data Exploration (ESDE), Jülich Supercomputing Center (JSC)
+# SPDX-FileCopyrightText: 2018, alexlee-gk
 #
 # SPDX-License-Identifier: MIT
 
-from collections import OrderedDict
 from tensorflow.python.util import nest
 from model_modules.video_prediction.utils.tf_utils import transpose_batch_time
 

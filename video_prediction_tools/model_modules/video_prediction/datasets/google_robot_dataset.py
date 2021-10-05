@@ -1,8 +1,6 @@
-# SPDX-FileCopyrightText: 2021 Earth System Data Exploration (ESDE), Jülich Supercomputing Center (JSC)
-# Google Inc.
+# SPDX-FileCopyrightText: 2018, alexlee-gk
 #
 # SPDX-License-Identifier: MIT
-# SPDX-License-Identifier: Creative Commons Attribution 4.0 International License
 
 import itertools
 import os
@@ -11,6 +9,9 @@ from .base_dataset import VideoDataset
 
 
 class GoogleRobotVideoDataset(VideoDataset):
+    """
+    https://sites.google.com/view/sna-visual-mpc
+    """
     def __init__(self, *args, **kwargs):
         super(GoogleRobotVideoDataset, self).__init__(*args, **kwargs)
         self.state_like_names_and_shapes['images'] = 'move/%d/image/encoded', (512, 640, 3)

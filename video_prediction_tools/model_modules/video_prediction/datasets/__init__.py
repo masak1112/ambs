@@ -1,7 +1,3 @@
-# SPDX-FileCopyrightText: 2021 Earth System Data Exploration (ESDE), Jülich Supercomputing Center (JSC)
-#
-# SPDX-License-Identifier: MIT
-
 from .base_dataset import BaseVideoDataset
 from .base_dataset import VideoDataset, SequenceExampleVideoDataset, VarLenFeatureVideoDataset
 from .google_robot_dataset import GoogleRobotVideoDataset
