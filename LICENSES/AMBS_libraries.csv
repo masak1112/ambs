@@ -42,7 +42,7 @@ more-itertools==6.0.0,MIT License (MIT),https://pypi.org/project/more-itertools/
 mxnet==1.5.0,Apache Software License (Apache 2.0),https://pypi.org/project/mxnet/1.5.0/,,,
 netCDF4==1.5.1.2,MIT License (License :: OSI Approved :: MIT License),https://pypi.org/project/netCDF4/,,,
 networkx==2.4,BSD License,https://pypi.org/project/networkx/,,,
-nose==1.3.7,GNU Library or Lesser General Public License (LGPL) (GNU LGPL),https://pypi.org/project/nose/,,Dev-Library?!,
+nose==1.3.7,GNU Library or Lesser General Public License (LGPL) (GNU LGPL),https://pypi.org/project/nose/,,,
 numpy==1.16.2,OSI Approved (BSD)https://pypi.org/project/numpy/1.16.2/,https://pypi.org/project/numpy/1.16.2/,,,
 opencv-python==4.1.2.30,MIT License (MIT),https://pypi.org/project/opencv-python/,,,
 opencv-python-headless==4.2.0.34,MIT License (MIT),https://pypi.org/project/opencv-python-headless/,,,
