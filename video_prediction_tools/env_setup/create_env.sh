@@ -17,7 +17,7 @@ check_argin() {
 # Can also be used to check for non-positional arguments (such as -exp_id=*, see commented lines)
     for argin in "$@"; do
         if [[ $argin == *"-base_dir="* ]]; then
-          base_dir=${argin#"-base_dir="}
+          base_outdir=${argin#"-base_dir="}
         fi
         if [[ $argin == *"-lcontainer"* ]]; then
 	        bool_container=1
@@ -27,6 +27,7 @@ check_argin() {
         bool_container=0
     fi
 }
+
 # **************** Auxiliary functions ****************
 
 # **************** Actual script ****************
@@ -44,7 +45,7 @@ if [[ ! -n "$1" ]]; then
 fi
 
 if [[ "$#" -gt 1 ]]; then
-  check_argin ${@:2}                 # sets base_dir if provided, always sets l_container
+  check_argin ${@:2}                 # sets base_outdir if provided, always sets l_container
 fi
 
 # set some variables
@@ -71,7 +72,7 @@ if [[ "${bool_container}" == 1 ]]; then
   modules_purge=purge
   # Check if singularity exists
   if [[  ! -f "${TF_CONTAINER}" ]]; then
-    echo "ERROR: Could not found required TensorFlow 1.15-container under ${TF_CONTAINER}.sh"
+    echo "ERROR: Could not found required TensorFlow 1.15-container under ${TF_CONTAINER}"
     return
   fi
 fi
@@ -149,7 +150,6 @@ if [[ "$ENV_EXIST" == 0 ]]; then
     fi
     # ...and ensure that this also done when the
     echo "" >> "${activate_virt_env}"
-    # shellcheck disable=SC2129
     echo "# Expand PYTHONPATH..." >> ${activate_virt_env}
     echo "export PYTHONPATH=${WORKING_DIR}:\$PYTHONPATH" >> ${activate_virt_env}
     echo "export PYTHONPATH=${WORKING_DIR}/utils/:\$PYTHONPATH" >> ${activate_virt_env}
@@ -157,7 +157,7 @@ if [[ "$ENV_EXIST" == 0 ]]; then
     echo "export PYTHONPATH=${WORKING_DIR}/external_package/lpips-tensorflow:\$PYTHONPATH" >> ${activate_virt_env}
     echo "export PYTHONPATH=${WORKING_DIR}/postprocess:$PYTHONPATH" >> ${activate_virt_env}
 
-    if [[ "${HOST_NAME}" == hdfml* || "${HOST_NAME}" == *juwels* ]]; then
+    if [[ "${HOST_NAME}" == hdfml* || "${HOST_NAME}" == *jwlogin* ]]; then
       echo "export PYTHONPATH=${ENV_DIR}/lib/python3.6/site-packages:\$PYTHONPATH" >> ${activate_virt_env}
     fi
   fi
@@ -176,11 +176,10 @@ elif [[ "$ENV_EXIST" == 1 ]]; then
 fi
 
 echo "Set up runscript template for user ${USER}..."
-if [[ -z "${base_dir}" ]]; then
-  shift
-  source "${WORKING_DIR}"/utils/runscript_generator/setup_runscript_templates.sh
+if [[ -z "${base_outdir}" ]]; then
+  "${WORKING_DIR}"/utils/runscript_generator/setup_runscript_templates.sh
 else
-  source "${WORKING_DIR}"/utils/runscript_generator/setup_runscript_templates.sh ${base_dir}
+  "${WORKING_DIR}"/utils/runscript_generator/setup_runscript_templates.sh ${base_outdir}
 fi
 
 echo "******************************************** NOTE ********************************************"
