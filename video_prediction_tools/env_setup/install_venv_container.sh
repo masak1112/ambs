@@ -1,3 +1,4 @@
+#!/usr/bin/env bash
 #
 # __authors__ = Bing Gong, Michael Langguth
 # __date__  = '2021_10_28'
@@ -21,7 +22,7 @@ if [ -z "${SINGULARITY_NAME}" ]; then
 fi
 
 # check if directory to virtual environment is parsed
-if [[ -z "$1" ]]; then
+if [ -z "$1" ]; then
   echo "ERROR: Provide a name to set up the virtual environment."
   return
 fi
@@ -42,13 +43,14 @@ fi
 # create basic target directory for virtual environment
 mkdir "${VENV_BASE}"
 # Install virtualenv in this directory
+echo "Installing virtualenv under ${VENV_BASE}..."
 pip install --target="${VENV_BASE}/" virtualenv
 # Change into the directory...
 cd "${VENV_BASE}" || exit
 # .. to set-up virtual environment therein
 python -m virtualenv -p /usr/bin/python --system-site-packages "${VENV_NAME}"
 # Activate virtual environment and install required packages
-echo "Actiavting virtual environment ${ENV_DIR} to install required Python modules..."
+echo "Actiavting virtual environment ${VENV_NAME} to install required Python modules..."
 source "${VENV_DIR}/bin/activate"
 pip install -r "${BASE_DIR}/requirements_container.txt"
 
