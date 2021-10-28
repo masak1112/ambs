@@ -54,7 +54,7 @@ ENV_SETUP_DIR=`pwd`
 WORKING_DIR="$(dirname "$ENV_SETUP_DIR")"
 EXE_DIR="$(basename "$ENV_SETUP_DIR")"
 ENV_DIR=${WORKING_DIR}/${ENV_NAME}
-TF_CONTAINER=${WORKING_DIR}/tensorflow_21.09-tf1-py3.sif
+TF_CONTAINER=${WORKING_DIR}/../env_setup/tensorflow_21.09-tf1-py3.sif
 
 ## perform sanity checks
 # correct bool_container if host is Juwels Booster and ensure running singularity
