@@ -7,35 +7,37 @@
 # This auxiliary script sets up the virtual environment within a singularity container.
 # **************** Description ****************
 
+# set some basic variables
+local BASE_DIR=`pwd`
+local VENV_BASE=$1
+local VENV_NAME="$(basename "${VENV_BASE}")"
+local VENV_DIR=${VENV_BASE}/${VENV_NAME}
+
 # sanity checks
 # check if we are running in a container
 if [ -z "${SINGULARITY_NAME}" ]; then
   echo "ERROR: install_venv_container.sh must be called within a running singularity container."
-  exit
+  return
 fi
 
 # check if directory to virtual environment is parsed
 if [[ -z "$1" ]]; then
   echo "ERROR: Provide a name to set up the virtual environment."
-  exit
+  return
 fi
 
 # check if virtual environment is not already existing
 if [ -d "$1" ]; then
   echo "ERROR: Target directory of virtual environment ${1} already exists. Chosse another directory path."
-  exit
+  return
 fi
 
 # check for requirement-file
-if [ ! -d "${BASE_DIR}/requirements_container.txt" ]; then
+if [ ! -f "${BASE_DIR}/requirements_container.txt" ]; then
   echo "ERROR: Cannot find requirement-file ${BASE_DIR}/requirements_container.txt to set up virtual environment."
-  exit
+  return
 fi
 
-BASE_DIR=`pwd`
-VENV_BASE=$1
-VENV_NAME="$(dirname "$ENV_SETUP_DIR")"
-VENV_DIR=${VENV_BASE}/${VENV_NAME}
 
 # create basic target directory for virtual environment
 mkdir "${VENV_BASE}"
