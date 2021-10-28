@@ -26,7 +26,7 @@ VIRT_ENV_NAME="my_venv"
 # Name of container image (must be available in working directory)
 CONTAINER_IMG="${WORK_DIR}/tensorflow_21.09-tf1-py3.sif"
 
-# purge modules to avoid conflicts between container and host settings
+# clean-up modules to avoid conflicts between host and container settings
 module purge
 
 # declare directory-variables which will be modified appropriately during Preprocessing (invoked by mpi_split_data_multi_years.py)
