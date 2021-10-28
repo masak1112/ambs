@@ -8,10 +8,10 @@
 # **************** Description ****************
 
 # set some basic variables
-local BASE_DIR=`pwd`
-local VENV_BASE=$1
-local VENV_NAME="$(basename "${VENV_BASE}")"
-local VENV_DIR=${VENV_BASE}/${VENV_NAME}
+BASE_DIR=`pwd`
+VENV_BASE=$1
+VENV_NAME="$(basename "${VENV_BASE}")"
+VENV_DIR=${VENV_BASE}/${VENV_NAME}
 
 # sanity checks
 # check if we are running in a container
