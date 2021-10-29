@@ -48,10 +48,13 @@ pip install --target="${VENV_BASE}/" virtualenv
 # Change into the directory...
 cd "${VENV_BASE}" || exit
 # .. to set-up virtual environment therein
-python -m virtualenv -p /usr/bin/python --system-site-packages "${VENV_NAME}"
+python -m virtualenv -p /usr/bin/python "${VENV_NAME}"
 # Activate virtual environment and install required packages
 echo "Actiavting virtual environment ${VENV_NAME} to install required Python modules..."
 source "${VENV_DIR}/bin/activate"
+# set PYTHONPATH and install packages
+export PYTHONPATH="/usr/local/lib/python3.8/dist-packages/"
+echo 'export PYTHONPATH="/usr/local/lib/python3.8/dist-packages/"' >> "${VENV_DIR}/bin/activate"
 pip install -r "${BASE_DIR}/requirements_container.txt"
 
 # get back to basic directory
