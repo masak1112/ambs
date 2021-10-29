@@ -23,7 +23,7 @@ fi
 unset PYTHONPATH
 export PYTHONPATH=${VENV_DIR}/lib/python3.8/site-packages/:$PYTHONPATH
 # ... dist-packages from container singularity...
-#export PYTHONPATH=/usr/local/lib/python3.8/dist-packages:$PYTHONPATH
+export PYTHONPATH=/usr/local/lib/python3.8/dist-packages:$PYTHONPATH
 # ... and modules from current 
 export PYTHONPATH=${WORKING_DIR}:$PYTHONPATH
 export PYTHONPATH=${WORKING_DIR}/utils:$PYTHONPATH
@@ -33,4 +33,5 @@ echo "****** Check PYTHONPATH *****"
 echo $PYTHONPATH
 # MPI realted environmental variables
 export PMIX_SECURITY_MODE="native" 
+export TF_XLA_FLAGS=--tf_xla_auto_jit=0      # disable XLA graph optimization
 $@
