@@ -109,7 +109,7 @@ class VanillaConvLstmVideoPredictionModel(object):
             bce = tf.keras.losses.BinaryCrossentropy()
             self.total_loss = bce(x_flatten, x_hat_predict_frames_flatten)
         else:
-            raise ValueError("Loss function is not selected properly, you should chose either 'rmse' or 'cross_entropy'")
+            raise ValueError("Loss function is not selected properly, you should chose either 'mse' or 'cross_entropy'")
 
         #This is the loss for only all the channels(temperature, geo500, pressure)
         #self.total_loss = tf.reduce_mean(
