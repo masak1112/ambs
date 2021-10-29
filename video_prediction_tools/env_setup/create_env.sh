@@ -95,12 +95,16 @@ else
 fi
 
 ## check integratability of modules
-if [[ "${HOST_NAME}" == hdfml* || "${HOST_NAME}" == *juwels* || "${HOST_NAME}" == *jwlogin* ]]; then
+if [[ "${HOST_NAME}" == hdfml* || "${HOST_NAME}" == *jwlogin* && ! "${HOST_NAME}" == *jwlogin2[2-4]* ]]; then
     # load modules and check for their availability
     echo "***** Checking modules required during the workflow... *****"
     source ${ENV_SETUP_DIR}/modules_preprocess.sh purge
     source ${ENV_SETUP_DIR}/modules_train.sh purge
     source ${ENV_SETUP_DIR}/modules_postprocess.sh ${modules_purge}
+elif [[ "${HOST_NAME}" == *jwlogin2[2-4]* ]]; then
+    echo "***** Old Stages are not available on Juwels Booster ****"
+    echo "***** To check modules for preprocessing,            ****"
+    echo "***** run this script on Juwels or HDF-ML.           ****"
 else
   echo "ERROR: AMBS-workflow is currently only supported on the Juelich HPC-systems HDF-ML, Juwels and Juwels Booster"
   return
