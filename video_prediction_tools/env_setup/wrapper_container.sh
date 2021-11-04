@@ -23,7 +23,7 @@ fi
 unset PYTHONPATH
 export PYTHONPATH=${VENV_DIR}/lib/python3.8/site-packages/:$PYTHONPATH
 # ... dist-packages from container singularity...
-#export PYTHONPATH=/usr/local/lib/python3.8/dist-packages:$PYTHONPATH
+export PYTHONPATH=/usr/local/lib/python3.8/dist-packages:$PYTHONPATH
 # ... and modules from this project
 export PYTHONPATH=${WORKING_DIR}:$PYTHONPATH
 export PYTHONPATH=${WORKING_DIR}/utils:$PYTHONPATH
