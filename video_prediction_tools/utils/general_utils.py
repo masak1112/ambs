@@ -6,6 +6,7 @@
 Some auxilary routines which may are used throughout the project.
 Provides:   * get_unique_vars
             * add_str_to_path
+            * get_path_component
             * is_integer
             * ensure_list
             * isw
@@ -58,6 +59,23 @@ def add_str_to_path(path_in: str, add_str: str):
         return "{0} \n".format(line_str)
     else:
         return line_str
+
+
+def get_path_component(path: str, ind: int):
+    """
+    Get the ind-component of path, e.g. get_path_component("/my/dir/is", 1) yields "dir".
+    :param path: the full path
+    :param ind: the index of the component to retrieve
+    :return:
+    """
+    method = get_path_component.__name__
+
+    assert isinstance(path, str), "%{0}: Passed path must be string, but is of type '{1}'".format(method, type(path))
+    assert isinstance(ind, int), "%{0}: Passed ind must be an integer, but is of type '{1}'".format(method, type(ind))
+
+    path_comps = os.path.normpath(path).split(os.path.sep)[1:]
+
+    return path_comps[ind]
 
 
 def is_integer(n):
