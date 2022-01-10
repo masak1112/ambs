@@ -11,6 +11,7 @@ import shutil
 import subprocess as sp
 import datetime as dt
 from general_utils import check_str_in_list, get_path_component
+from netcdf_datahandling import NetcdfUtils
 from pystager_utils import PyStager
 
 # for typing
@@ -38,8 +39,26 @@ class Preprocess_ERA5_data(object):
             raise NotADirectoryError("%{0}: Output directory does not exist.".format(method))
 
         self.dirin, self.years = self.check_dirin(dirin, years)
-        _ = self.check_varnames(varnames, vartypes, dirin)
-        self.varnames, self.vartypes = varnames, vartypes
+        self.varnames, self.vartypes = self.check_varnames(varnames, vartypes, dirin)
+        self.lat_bounds, self.lon_bounds = self.check_coords(coord_sw, nyx)
+
+    def check_coords(self, coords_sw: List, nyx: List):
+
+        method = Preprocess_ERA5_data.check_coords.__name__
+
+        fexample = os.path.join(self.dirin, self.years[0], "01", "{0}010100_sf.grb".format(self.years[0]))
+        fexample_nc = fexample.replace(".grb", ".nc")
+
+        if not os.path.isfile(fexample):
+            raise FileNotFoundError("%{0}: Could not find example file '{1}' for retrieving coordinate data."
+                                    .format(method, fexample))
+
+        cmd = "cdo --eccodes -f nc copy {0} {1}".format(fexample, fexample_nc)
+        sp.call(cmd, shell=True)
+
+        dexample = NetcdfUtils(fexample_nc)
+
+        lat, lon = dexample["lon"].values, dexample["lat"].values
 
     @staticmethod
     def check_dirin(dirin: str, years: str_or_List):
@@ -105,7 +124,7 @@ class Preprocess_ERA5_data(object):
 
             stat = Preprocess_ERA5_data.check_var_in_grib(f2check, vars2check, labort=True)
 
-        return stat
+        return varnames, vartypes
 
     @staticmethod
     def check_var_in_grib(gribfile: str, varnames: str_or_List, labort: bool = False):
@@ -131,6 +150,46 @@ class Preprocess_ERA5_data(object):
         stat = check_str_in_list(varlist, varnames, labort=labort)
 
         return stat
+
+    @staticmethod
+    def get_ERA5_coords(era5_file):
+        """
+        Retrieves latitude and longitude coordinates from ERA5-file
+        :param era5_file: Path to ERA5-file. Can be either a netCDF- or grib2-file
+        :return: numpy-arrays of latitude and longitude coordinates
+        """
+
+        method = Preprocess_ERA5_data.get_ERA5_coords.__name__
+
+        if not os.path.isfile(era5_file):
+            raise FileNotFoundError("%{0}: Could not find example file '{1}' for retrieving coordinate data."
+                                    .format(method, era5_file))
+
+        if era5_file.endswith(".grb"):
+            era5_file_nc = era5_file.replace(".grb", ".nc")
+            cmd = "cdo --eccodes -f nc copy {0} {1}".format(era5_file, era5_file_nc)
+            sp.call(cmd, shell=True)
+        elif era5_file.endswith(".nc"):
+            era5_file_nc = era5_file
+        else:
+            raise ValueError("%{0}: '{1}' must be either a grib2 or netCDF-file.".format(method, era5_file))
+
+        data_era5 = NetcdfUtils(era5_file_nc)
+
+        try:
+            lat, lon = data_era5.coords["lat"], data_era5["lon"]
+        except Exception as err:
+            print("%{0}: Failed to retrieve lat and lon from file '{1}'".format(method, era5_file_nc))
+            raise err
+
+        return lat.values, lon.values
+
+
+
+
+
+
+
 
 
 
