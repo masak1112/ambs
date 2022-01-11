@@ -23,7 +23,7 @@ class Preprocess_ERA5_data(object):
 
     cls_name = "Preprocess_ERA5_data"
 
-    def __init__(self, dirin, dirout, varnames, vartypes, coord_sw, nyx, years, months = "all",
+    def __init__(self, dirin, dirout, varnames, vartypes, coord_sw, nyx, years, months="all",
                  lon_intv: List = (0., 360.), lat_inv: List = (-90., 90.), dx: float = 0.3):
         """
         This script performs several sanity checks and sets the class attributes accordingly.
@@ -132,6 +132,7 @@ class Preprocess_ERA5_data(object):
             os.makedirs(dirout, exist_ok=True)
 
             for vartype in np.unique(vartypes):
+                logger.info("Start processing variable type '{1}'".format(method, vartype))
                 vars4type = [varname for c, varname in enumerate(varnames) if vartypes[c] == vartype]
 
                 search_patt = os.path.join(dirin_now, "{0}_{1}{2}*.grb".format(vartype, year_str, month_str))
@@ -155,6 +156,18 @@ class Preprocess_ERA5_data(object):
                     cmd = "cdo -v --eccodes -f nc copy -selname,{0} -sellonlatbox,{1},{2},{3},{4} -mergetime ${5} ${6}"\
                         .format(",".join(vars4type), lon_bounds[0], lon_bounds[1], lat_bounds[0], lat_bounds[1],
                                 search_patt, os.path.join(dirout, "xxx"))
+
+                    if vartype == "ml":
+                        cmd.replace("-sellonlatbox", "ml2pl,{0:d}".format(pres_lvl))
+
+                    try:
+                        _ = sp.check_output(cmd, stderr=sp.STDOUT, shell=True)
+                    except sp.CalledProcessError as exc:
+                        logger.critical("%{0}: Preprocessing '{1}' failed. Inspect error message below:"
+                                        .format(method, grb_file))
+                        logger.critical("%{0}: Return code: {1}, error message: {2}".format(method, exc.returncode,
+                                                                                            exc.output))
+                        raise RuntimeError("%{0}: Preprocessing '{1}' failed.".format(method, grb_file))
 
     @staticmethod
     def check_dirin(dirin: str, years: str_or_List):
