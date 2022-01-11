@@ -10,9 +10,8 @@ from typing import List, Union, get_args
 import shutil
 import subprocess as sp
 import numpy as np
-import datetime as dt
+import logging
 from general_utils import check_str_in_list, get_path_component, isw
-from netcdf_datahandling import NetcdfUtils
 from pystager_utils import PyStager
 
 # for typing
