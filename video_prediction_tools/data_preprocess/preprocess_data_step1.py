@@ -54,13 +54,15 @@ class Preprocess_ERA5_data(object):
         self.lat_bounds, self.lon_bounds = self.check_coords(coord_sw, nyx)
 
         # initialize PyStager
-        era5_pystager = PyStager(self.preprocess_worker, "year_month_list", nmax_warn=5)
+        self.era5_pystager = PyStager(self.preprocess_worker, "year_month_list", nmax_warn=5)
 
     def __call__(self):
-
-        for seq_key in years_dict:
-            era5_pystager.setup(self.years, self.months)
-            era5_pystager.run(self.dirin, self.dirout, self.varnames, self.vartypes, self.lat_bounds, self.lon_bounds)
+        """
+        Set-up and run Pystager to preprocess the data.
+        :return:
+        """
+        self.era5_pystager.setup(self.years, self.months)
+        self.era5_pystager.run(self.dirin, self.dirout, self.varnames, self.vartypes, self.lat_bounds, self.lon_bounds)
 
     def check_coords(self, coords_sw: List, nyx: List):
         """
@@ -112,30 +114,47 @@ class Preprocess_ERA5_data(object):
         # lat, lon = dexample["lon"].values, dexample["lat"].values
         return [coords_sw[0], coords_ne[0]], [coords_sw[1], coords_ne[1]]
 
-    def get_year_seqs(self):
+    @staticmethod
+    def worker_func(year_months: list, dirin: str, dirout: str, varnames, vartypes, lat_bounds, lon_bounds,
+                          logger: logging.Logger, nmax_warn: int = 3):
 
-        years_arr = np.sort(np.asarray(self.years))
-        nyears = np.size(years_arr)
+        method = Preprocess_ERA5_data.worker_func.__name__
 
-        # initialize dictionary and...
-        year_seqs = {"seq_0": [years_arr[0], None]}
-        # ..counters
-        c = 1
-        ii = 0
-
-        while c <= nyears - 1:
-            if years_arr[c-1] + 1 != years_arr[c]:
-                year_seqs["seq_{0:d}".format(ii)][1] = years_arr[c - 1]
-                ii += 1
-                year_seqs["seq_{0:d}".format(ii)] = [years_arr[c], None]
-            c += 1              # increment loop counter
-
-        # set final element of last dictionary value (still None)
-        year_seqs["seq_{0:d}".format(ii)][1] = years_arr[-1]
-
-        return year_seqs
+        assert isinstance(logger, logging.Logger), "%{0}: logger-argument must be a logging.Logger instance" \
+            .format(method)
 
 
+        for year_month in year_months:
+            year, month = int(year_month.strftime("%Y")), int(year_month.strftime("%m"))
+            year_str, month_str = str(year), "{0:02d}".format(int(month))
+
+            dirin_now = os.path.join(dirin, year_str, month_str)
+            os.makedirs(dirout, exist_ok=True)
+
+            for vartype in np.unique(vartypes):
+                vars4type = [varname for c, varname in enumerate(varnames) if vartypes[c] == vartype]
+
+                search_patt = os.path.join(dirin_now, "{0}_{1}{2}*.grb".format(vartype, year_str, month_str))
+                logger.info("%{0}: Serach for grib-files under '{1}' for year {2} and month {3}"
+                            .format(method, dirin_now, year_str, month_str))
+                grb_files = glob.glob(search_patt)
+
+                nfiles = len(grb_files)
+                nfiles_exp = pd.Period("{0}-{1}".format(year_str, month_str)).days_in_month*24
+
+                if not nfiles == nfiles_exp:
+                    err = "%{0}: Found {1:d} grib-files with search pattern '{2}'".format(method, nfiles, search_patt) \
+                          + ", but {0:d} files found. Check data directory...".format(nfiles)
+                    logger.critical(err)
+                    raise FileNotFoundError(err)
+
+                for i, grb_file in enumerate(grb_files):
+                    logger.info("%{0}: Start converting and slicing of data from file '{1}' ({2:d}/{3:d})"
+                                .format(method, grb_file, i + 1, nfiles))
+
+                    cmd = "cdo -v --eccodes -f nc copy -selname,{0} -sellonlatbox,{1},{2},{3},{4} -mergetime ${5} ${6}"\
+                        .format(",".join(vars4type), lon_bounds[0], lon_bounds[1], lat_bounds[0], lat_bounds[1],
+                                search_patt, os.path.join(dirout, "xxx"))
 
     @staticmethod
     def check_dirin(dirin: str, years: str_or_List):
