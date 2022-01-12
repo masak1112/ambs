@@ -23,14 +23,13 @@ class Preprocess_ERA5_data(object):
 
     cls_name = "Preprocess_ERA5_data"
 
-    def __init__(self, dirin, dirout, varnames, vartypes, coord_sw, nyx, years, months="all",
-                 lon_intv: List = (0., 360.), lat_inv: List = (-90., 90.), dx: float = 0.3):
+    def __init__(self, dirin: str, dirout: str, var_req: dict, coord_sw: List, nyx: List, years: List,
+                 months: str_or_List="all", lon_intv: List = (0., 360.), lat_inv: List = (-90., 90.), dx: float = 0.3):
         """
         This script performs several sanity checks and sets the class attributes accordingly.
         :param dirin: directory to the ERA5 reanalysis data
         :param dirout: directory where the output data will be saved
-        :param varnames: list of variables to be extracted
-        :param vartypes: type of variable matching varnames
+        :param var_req: controlled dictionary for getting variables from ERA5-dataset, e.g. {"t": {"ml": "p850"}}
         :param coord_sw: latitude [°N] and longitude [°E] of south-western corner defining target domain
         :param nyx: number of grid points in latitude and longitude direction for target domain
         :param lon_intv: interval of the longitude values for ERA5 data (adapt if required)
@@ -45,7 +44,7 @@ class Preprocess_ERA5_data(object):
 
         self.dirin, self.years = self.check_dirin(dirin, years)
         self.months = self.get_months(months)
-        self.varnames, self.vartypes = self.check_varnames(varnames, vartypes, dirin)
+        self.varnames, self.vartypes = self.check_varnames(var_req, dirin)
         # some basic grid information
         self.lat_intv, self.lon_intv = lat_inv, lon_intv
         self.lon_intv[1] -= np.abs(dx)
@@ -115,7 +114,7 @@ class Preprocess_ERA5_data(object):
         return [coords_sw[0], coords_ne[0]], [coords_sw[1], coords_ne[1]]
 
     @staticmethod
-    def worker_func(year_months: list, dirin: str, dirout: str, varnames, vartypes, lat_bounds, lon_bounds,
+    def worker_func(year_months: list, dirin: str, dirout: str, var_req: dict, lat_bounds, lon_bounds,
                     logger: logging.Logger, nmax_warn: int = 1):
 
         method = Preprocess_ERA5_data.worker_func.__name__
@@ -241,29 +240,34 @@ class Preprocess_ERA5_data(object):
         return month_list
 
     @staticmethod
-    def check_varnames(varnames: str_or_List, vartypes: str_or_List, datadir: str):
+    def check_varnames(var_req: dict, datadir: str):
         """
         Check if all variables can be found in an exemplary datafile stored under datadir
-        :param varnames: list of variable names
-        :param vartypes: matching list of variabe type. Must be one of the following {"sf": surface, "ml": multi-level}
+        :param var_req: nested dictionary where first-level keys carry request variable name. The values of these keys
+                        are dictionaries whose keys denote the type of variable (e.g. "sfc" for surface)
+                        and whose values control (optional) vertical interpolation
         :param datadir: directory where gribfiles of ERA5 reanalysis are stored
         :return:
         """
         method = Preprocess_ERA5_data.check_varnames.__name__
 
-        allowed_vartypes = ["ml", "sf"]
-        varnames, vartypes = list(varnames), list(vartypes)
+        allowed_vartypes = ["ml", "sfc"]
 
-        assert len(varnames) == len(vartypes), "%{0}: Number of elements in varnames and vartypes do not coincide."\
-                                               .format(method)
+        assert isinstance(var_req, dict), "%{0}: var_req must be a (controlled) dictionary. See doc-string."\
+                                          .format(method)
 
-        if not all(vartype in allowed_vartypes for vartype in vartypes):
-            raise ValueError("%{0}: All vartypes must be one of the following: '{1}'"
-                             .format(method, ",".join(allowed_vartypes)))
+        if not all(isinstance(vardict, dict) for vardict in var_req.values()):
+            raise ValueError("%{0}: Values of var_req-dictionary must be dictionary, i.e. pass a nested dictionary."
+                             .format(method))
 
+        varnames = var_req.keys()
+        vartypes = [list(var_req[varname].keys())[0] for varname in varnames]
+
+        # first check for availability of variables in grib-files
         for vartype in allowed_vartypes:
             inds = [i for i, vtype in enumerate(vartypes) if vtype == vartype]
             vars2check = list(map(varnames.__getitem__, inds))
+            if not vars2check: continue                   # skip the following if no variable to check
 
             # retrieve year and month from path to get exemplary datafile
             yr, mm = get_path_component(datadir, -2), get_path_component(datadir, -1)
@@ -271,7 +275,26 @@ class Preprocess_ERA5_data(object):
 
             _ = Preprocess_ERA5_data.check_var_in_grib(f2check, vars2check, labort=True)
 
-        return varnames, vartypes
+        # second check for content of nested dictionaries
+        print("%{0}: Start checking consistency of nested dictionaries for each requested variable.".format(method))
+        for varname in varnames:
+            # check vartypes
+            vartype = var_req[varname].keys()[0]
+            lvl_info = var_req[varname].values()[0]
+            if not vartype in allowed_vartypes:
+                raise ValueError("%{0}: Key of variable dict for '{1}' must be one of the following types: {2}"
+                                 .format(method, vartype, ", ".join(allowed_vartypes)))
+            # check level types
+            if vartype == "sfc" and lvl_info is not None:
+                print("%{0}: lvl_info for surface variable '{1}' is not None and thus will be ignored."
+                      .format(method, varname))
+            elif vartype == "ml" and not lvl_info.startswith("p"):
+                raise ValueError("%{0}: Variable '' on model levels requires target pressure level".format(method) +
+                                 "for interpolation. Thus, provide 'pX' where X denotes a pressure level in hPa.")
+
+        print("%{0}: Check for consistency of nested dictionaries approved.".format(method))
+
+        return var_req
 
     @staticmethod
     def check_var_in_grib(gribfile: str, varnames: str_or_List, labort: bool = False):
