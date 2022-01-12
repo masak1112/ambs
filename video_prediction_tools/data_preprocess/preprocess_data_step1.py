@@ -10,6 +10,7 @@ from typing import List, Union, get_args
 import shutil
 import subprocess as sp
 import numpy as np
+import pandas as pd
 import logging
 from general_utils import check_str_in_list, get_path_component, isw
 from pystager_utils import PyStager
@@ -53,7 +54,7 @@ class Preprocess_ERA5_data(object):
         self.lat_bounds, self.lon_bounds = self.check_coords(coord_sw, nyx)
 
         # initialize PyStager
-        self.era5_pystager = PyStager(self.preprocess_worker, "year_month_list", nmax_warn=5)
+        self.era5_pystager = PyStager(self.worker_func, "year_month_list")
 
     def __call__(self):
         """
@@ -115,13 +116,16 @@ class Preprocess_ERA5_data(object):
 
     @staticmethod
     def worker_func(year_months: list, dirin: str, dirout: str, varnames, vartypes, lat_bounds, lon_bounds,
-                          logger: logging.Logger, nmax_warn: int = 3):
+                    logger: logging.Logger, nmax_warn: int = 1):
 
         method = Preprocess_ERA5_data.worker_func.__name__
 
+        # sanity check
         assert isinstance(logger, logging.Logger), "%{0}: logger-argument must be a logging.Logger instance" \
             .format(method)
 
+        # initilaize warn counter and start iterating over year_month-list
+        nwarns = 0
 
         for year_month in year_months:
             year, month = int(year_month.strftime("%Y")), int(year_month.strftime("%m"))
@@ -135,6 +139,8 @@ class Preprocess_ERA5_data(object):
                 vars4type = [varname for c, varname in enumerate(varnames) if vartypes[c] == vartype]
 
                 search_patt = os.path.join(dirin_now, "{0}_{1}{2}*.grb".format(vartype, year_str, month_str))
+                dest_file= os.path.join(dirout, "preproc_{0}_{1}{2}".format(vartype, year_str, month_str))
+
                 logger.info("%{0}: Serach for grib-files under '{1}' for year {2} and month {3}"
                             .format(method, dirin_now, year_str, month_str))
                 grb_files = glob.glob(search_patt)
@@ -148,25 +154,28 @@ class Preprocess_ERA5_data(object):
                     logger.critical(err)
                     raise FileNotFoundError(err)
 
-                for i, grb_file in enumerate(grb_files):
-                    logger.info("%{0}: Start converting and slicing of data from file '{1}' ({2:d}/{3:d})"
-                                .format(method, grb_file, i + 1, nfiles))
+                logger.info("%{0}: Start converting and slicing of data from {1:d} files found with pattern {2}..."
+                            .format(method, nfiles, search_patt))
 
-                    cmd = "cdo -v --eccodes -f nc copy -selname,{0} -sellonlatbox,{1},{2},{3},{4} -mergetime ${5} ${6}"\
-                        .format(",".join(vars4type), lon_bounds[0], lon_bounds[1], lat_bounds[0], lat_bounds[1],
-                                search_patt, os.path.join(dirout, "xxx"))
+                cmd = "cdo -v --eccodes -f nc copy -selname,{0} -sellonlatbox,{1},{2},{3},{4} -mergetime ${5} ${6}" \
+                      .format(",".join(vars4type), lon_bounds[0], lon_bounds[1], lat_bounds[0], lat_bounds[1],
+                              search_patt, dest_file)
 
-                    if vartype == "ml":
-                        cmd.replace("-sellonlatbox", "ml2pl,{0:d}".format(pres_lvl))
+                if vartype == "ml":
+                    cmd.replace("-sellonlatbox", "ml2pl,{0:d}".format(pres_lvl))
 
-                    try:
-                        _ = sp.check_output(cmd, stderr=sp.STDOUT, shell=True)
-                    except sp.CalledProcessError as exc:
-                        logger.critical("%{0}: Preprocessing '{1}' failed. Inspect error message below:"
-                                        .format(method, grb_file))
-                        logger.critical("%{0}: Return code: {1}, error message: {2}".format(method, exc.returncode,
-                                                                                            exc.output))
-                        raise RuntimeError("%{0}: Preprocessing '{1}' failed.".format(method, grb_file))
+                try:
+                    _ = sp.check_output(cmd, stderr=sp.STDOUT, shell=True)
+                except sp.CalledProcessError as exc:
+                    nwarns += 1
+                    logger.critical("%{0}: Preprocessing of files found with '{1}' failed. Inspect error message below:"
+                                    .format(method, search_patt))
+                    logger.critical("%{0}: Return code: {1}, error message: {2}".format(method, exc.returncode,
+                                                                                        exc.output))
+                    if nwarns >= nmax_warn:
+                        return -1
+
+        return nwarns
 
     @staticmethod
     def check_dirin(dirin: str, years: str_or_List):
