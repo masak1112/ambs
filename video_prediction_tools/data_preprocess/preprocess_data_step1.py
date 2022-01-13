@@ -170,7 +170,7 @@ class Preprocess_ERA5_data(object):
                         logger.debug("%{0}: Failed to convert '{1}' to pressure level integer."
                                      .format(method, var_req[vars4type[0]].get("ml")))
                         raise err
-                    cmd.replace("-sellonlatbox", "ml2pl,{0:d}".format(pres_lvl))
+                    cmd.replace("-mergetime", "ml2pl,{0:d} -mergetime".format(pres_lvl))
 
                 try:
                     _ = sp.check_output(cmd, stderr=sp.STDOUT, shell=True)
