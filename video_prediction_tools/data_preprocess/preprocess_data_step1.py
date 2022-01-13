@@ -24,7 +24,7 @@ class Preprocess_ERA5_data(object):
     cls_name = "Preprocess_ERA5_data"
 
     def __init__(self, dirin: str, dirout: str, var_req: dict, coord_sw: List, nyx: List, years: List,
-                 months: str_or_List="all", lon_intv: List = (0., 360.), lat_inv: List = (-90., 90.), dx: float = 0.3):
+                 months: str_or_List = "all", lon_intv: List = (0., 360.), lat_inv: List = (-90., 90.), dx: float = 0.3):
         """
         This script performs several sanity checks and sets the class attributes accordingly.
         :param dirin: directory to the ERA5 reanalysis data
@@ -42,8 +42,8 @@ class Preprocess_ERA5_data(object):
         if not self.dirout:
             raise NotADirectoryError("%{0}: Output directory does not exist.".format(method))
 
-        self.dirin, self.years = self.check_dirin(dirin, years)
         self.months = self.get_months(months)
+        self.dirin, self.years = self.check_dirin(dirin, years, months)
         self.varnames, self.vartypes = self.check_varnames(var_req, dirin)
         # some basic grid information
         self.lat_intv, self.lon_intv = lat_inv, lon_intv
@@ -123,6 +123,9 @@ class Preprocess_ERA5_data(object):
         assert isinstance(logger, logging.Logger), "%{0}: logger-argument must be a logging.Logger instance" \
             .format(method)
 
+        varnames = var_req.keys()
+        vartypes = [list(var_req[varname].keys())[0] for varname in varnames]
+
         # initilaize warn counter and start iterating over year_month-list
         nwarns = 0
 
@@ -161,6 +164,12 @@ class Preprocess_ERA5_data(object):
                               search_patt, dest_file)
 
                 if vartype == "ml":
+                    try:
+                        pres_lvl = int(var_req[vars4type[0]].get("ml").lstrip("p"))
+                    except Exception as err:
+                        logger.debug("%{0}: Failed to convert '{1}' to pressure level integer."
+                                     .format(method, var_req[vars4type[0]].get("ml")))
+                        raise err
                     cmd.replace("-sellonlatbox", "ml2pl,{0:d}".format(pres_lvl))
 
                 try:
@@ -177,11 +186,12 @@ class Preprocess_ERA5_data(object):
         return nwarns
 
     @staticmethod
-    def check_dirin(dirin: str, years: str_or_List):
+    def check_dirin(dirin: str, years: str_or_List, months : List):
         """
         Checks if data directories for all years exist
         :param dirin: path to basic data directory under which files are located
         :param years: years for which data is requested
+        :param months: months for which data is requested
         :return: status
         """
         method = Preprocess_ERA5_data.check_dirin.__name__
@@ -190,23 +200,25 @@ class Preprocess_ERA5_data(object):
         # basic sanity checks
         assert isinstance(dir, str), "%{0}: Parsed dirin must be a string, but is of type '{1}'".format(method,
                                                                                                         type(dirin))
-        if not all(isinstance(e, int) for e in years):
+        if not all(isinstance(yr, int) for yr in years):
             raise ValueError("%{0}: Passed years must be a list of integers.".format(method))
+
+        if not all(isinstance(mm, int) for mm in months):
+            raise ValueError("%{0}: Passed months must be a list of integers.".format(method))
 
         if not os.path.isdir(dirin):
             raise NotADirectoryError("%{0}: Input directory for ERA%-data '{1}' does not exist.".format(method, dirin))
 
         # check if at least one ERA5-datafile is present
         for year in years:
-            dirin_yr = os.path.join(dirin, str(year))
-            sf_f, ml_f = glob.iglob("{0}/*_sf.grb".format(dirin_yr)), glob.iglob("{0}/*_ml.grb".format(dirin_yr))
+            for month in months:
+                mm_str, yr_str = str(year), "{0:02d}".format(month)
+                dirin_now = os.path.join(dirin, yr_str, mm_str)
+                f = glob.iglob(os.path.join(dirin_now, "{0}{1}*.grb".format(yr_str, mm_str)))
 
-            if not os.path.isfile(sf_f):
-                raise("%{0}: Could not find any ERA5-surface file for year {1:d} under '{2}'".format(method, year,
-                                                                                                     dirin_yr))
-            if not os.path.isfile(ml_f):
-                raise("%{0}: Could not find any ERA5-surface file for year {1:d} under '{2}'".format(method, year,
-                                                                                                     dirin_yr))
+                if not os.path.isfile(f):
+                    raise FileNotFoundError("%{0}: Could not find any ERA5 file for {1}/{2} under '{2}'"
+                                            .format(method, yr_str, mm_str, dirin_now))
         return dirin, years
 
     @staticmethod
