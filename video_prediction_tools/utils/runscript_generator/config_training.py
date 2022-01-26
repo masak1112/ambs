@@ -14,6 +14,7 @@ from model_modules.model_architectures import known_models
 from data_preprocess.dataset_options import known_datasets
 from runscript_generator.config_utils import Config_runscript_base    # import parent class
 
+
 class Config_Train(Config_runscript_base):
     cls_name = "Config_Train"#.__name__
 
@@ -32,13 +33,15 @@ class Config_Train(Config_runscript_base):
         self.long_name_wrk_step = "Training"
         self.rscrpt_tmpl_prefix = "train_model_"
         # initialize additional runscript-specific attributes to be set via keyboard interaction
+        self.dataset = None
+        self.runscript_template = None
         self.model = None
+        self.source_dir = None
         self.destination_dir = None
         self.datasplit_dict = None
         self.model_hparams = None
         # list of variables to be written to runscript
-        self.list_batch_vars = ["VIRT_ENV_NAME", "source_dir", "model", "destination_dir", "datasplit_dict",
-                                "model_hparams"]
+        self.list_batch_vars = ["VIRT_ENV_NAME", "source_dir", "model", "destination_dir"]
         # copy over method for keyboard interaction
         self.run_config = Config_Train.run_training
     #
@@ -59,7 +62,8 @@ class Config_Train(Config_runscript_base):
                                                          dset_err, ntries=2)
 
         # get source dir (relative to base_dir_source!)
-        self.runscript_template = os.path.join(self.runscript_dir, "train_model_{0}{1}".format(self.dataset, self.suffix_template))
+        self.runscript_template = os.path.join(self.runscript_dir, "train_model_{0}{1}"
+                                               .format(self.dataset, self.suffix_template))
         source_dir_base = Config_Train.handle_source_dir(self, "preprocessedData")
 
         expdir_req_str = "Choose a subdirectory listed above where the preprocessed TFrecords are located:"
@@ -84,7 +88,6 @@ class Config_Train(Config_runscript_base):
                                                                 seq_err, ntries=2,
                                                                 prefix2arg=os.path.join(self.source_dir,
                                                                                         Config_Train.basename_tfdirs))
-
 
         # split up directory path in order to retrieve exp_dir used for setting up the destination directory
         exp_dir_split = Config_Train.path_rec_split(self.source_dir)

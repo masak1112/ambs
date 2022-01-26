@@ -113,7 +113,7 @@ class Config_runscript_base:
             else:
                 batch_var_val = getattr(self, batch_var)
                 if batch_var_val is None:
-                    err= AttributeError("%{0}: Attribute '{1}' is still None.".format(method_name, batch_var))
+                    err = AttributeError("%{0}: Attribute '{1}' is still None.".format(method_name, batch_var))
 
             if not err is None:
                 raise err
@@ -128,7 +128,8 @@ class Config_runscript_base:
             if stat_batch_var:
                 stat = os.system(write_cmd)
                 if stat > 0:
-                    print("%{0}: Runscript script variable {1} could not be set properly.".format(method_name, batch_var))
+                    print("%{0}: Runscript script variable {1} could not be set properly."
+                          .format(method_name, batch_var))
             else:
                 print("%{0}: Could not find variable {1} in runscript {2} could not be set.".format(method_name, batch_var, runscript))
     #
