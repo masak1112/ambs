@@ -52,11 +52,22 @@ cd "${VENV_BASE}" || exit
 python -m virtualenv -p /usr/bin/python "${VENV_NAME}"
 # Activate virtual environment and install required packages
 echo "Actiavting virtual environment ${VENV_NAME} to install required Python modules..."
+ACT_VENV="${VENV_DIR}/bin/activate"
 source "${VENV_DIR}/bin/activate"
-# set PYTHONPATH and install packages
+# set PYTHONPATH...
 export PYTHONPATH="/usr/local/lib/python3.8/dist-packages/"
-echo 'export PYTHONPATH="/usr/local/lib/python3.8/dist-packages/"' >> "${VENV_DIR}/bin/activate"
-pip install -r "${VENV_REQ}"
+export PYTHONPATH=${WORKING_DIR}:$PYTHONPATH
+export PYTHONPATH=${WORKING_DIR}/utils:$PYTHONPATH
+export PYTHONPATH=${WORKING_DIR}/model_modules:$PYTHONPATH
+export PYTHONPATH=${WORKING_DIR}/postprocess:$PYTHONPATH
+# ... also ensure that PYTHONPATH is appended when activating the virtual environment...
+echo 'export PYTHONPATH="/usr/local/lib/python3.8/dist-packages/"' >> "${ACT_VENV}"
+echo 'export PYTHONPATH=${WORKING_DIR}:$PYTHONPATH' >> ${ACT_VENV}
+echo 'export PYTHONPATH=${WORKING_DIR}/utils:$PYTHONPATH' >> ${ACT_VENV}
+echo 'export PYTHONPATH=${WORKING_DIR}/model_modules:$PYTHONPATH' >> ${ACT_VENV}
+echo 'export PYTHONPATH=${WORKING_DIR}/postprocess:$PYTHONPATH' >> ${ACT_VENV}
+# ... install requirements
+pip install --no-cache-dir -r "${VENV_REQ}"
 
 # get back to basic directory
 cd "${BASE_DIR}" || exit
