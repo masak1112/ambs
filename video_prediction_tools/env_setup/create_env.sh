@@ -54,8 +54,8 @@ TF_CONTAINER=${WORKING_DIR}/HPC_scripts/tensorflow_21.09-tf1-py3.sif
 ## perform sanity checks
 
 modules_purge=""
-if [[ ! -f ${CONTAINER_IMG} ]]; then
-  echo "ERROR: Cannot find required TF1.15 container image '${CONTAINER_IMG}'."
+if [[ ! -f ${TF_CONTAINER} ]]; then
+  echo "ERROR: Cannot find required TF1.15 container image '${TF_CONTAINER}'."
   return
 fi
 
@@ -80,7 +80,7 @@ fi
 if [[ "${HOST_NAME}" == hdfml* || "${HOST_NAME}" == *jwlogin*  ]]; then
     # load modules and check for their availability
     echo "***** Checking modules required during the workflow... *****"
-    source "${ENV_SETUP_DIR}"/modules_preprocess.sh purge
+    source "${THIS_DIR}"/modules_preprocess.sh purge
 else
   echo "ERROR: AMBS-workflow is currently only supported on the Juelich HPC-systems HDF-ML, Juwels and Juwels Booster"
   return
@@ -94,52 +94,7 @@ if [[ "$ENV_EXIST" == 0 ]]; then
   echo "Configuring and activating virtual environment on ${HOST_NAME}"
 
   singularity exec --nv "${TF_CONTAINER}" ./install_venv_container.sh "${ENV_DIR}"
-  else
-    # cretae virtual environemt here
-    python3 -m venv $ENV_DIR
   
-    activate_virt_env=${ENV_DIR}/bin/activate
-
-    echo "Activating virtual environment ${ENV_DIR} to install required Python modules..."
-    source ${activate_virt_env}
-  
-    # Install packages depending on host
-    if [[ "${HOST_NAME}" == hdfml* || "${HOST_NAME}" == *juwels* || "${HOST_NAME}" == *jwlogin* ]]; then
-      echo "***** Start installing additional Python modules with pip... *****"
-      req_file=${ENV_SETUP_DIR}/requirements.txt
-      if [[ "${bool_container}" > 0 ]]; then req_file=${ENV_SETUP_DIR}/requirements_container.txt; fi
-
-      pip3 install --no-cache-dir -r ${req_file}
-    else
-      echo "***** Start installing additional Python modules with pip... *****"
-      req_file=${ENV_SETUP_DIR}/requirements_noHPC.txt
-      pip3 install --upgrade pip
-      pip3 install --no-cache-dir -r ${req_file}
-    fi
-
-    # expand PYTHONPATH...
-    export PYTHONPATH=${WORKING_DIR}:$PYTHONPATH >> ${activate_virt_env}
-    export PYTHONPATH=${WORKING_DIR}/utils:$PYTHONPATH >> ${activate_virt_env}
-    export PYTHONPATH=${WORKING_DIR}/external_package/lpips-tensorflow:$PYTHONPATH >> ${activate_virt_env}
-    export PYTHONPATH=${WORKING_DIR}/model_modules:$PYTHONPATH >> ${activate_virt_env}
-    export PYTHONPATH=${WORKING_DIR}/postprocess:$PYTHONPATH >> ${activate_virt_env}
-
-    if [[ "${HOST_NAME}" == hdfml* || "${HOST_NAME}" == *jwlogin* ]]; then
-       export PYTHONPATH=${ENV_DIR}/lib/python3.6/site-packages:$PYTHONPATH >> ${activate_virt_env}
-    fi
-    # ...and ensure that this also done when the
-    echo "" >> "${activate_virt_env}"
-    echo "# Expand PYTHONPATH..." >> ${activate_virt_env}
-    echo "export PYTHONPATH=${WORKING_DIR}:\$PYTHONPATH" >> ${activate_virt_env}
-    echo "export PYTHONPATH=${WORKING_DIR}/utils/:\$PYTHONPATH" >> ${activate_virt_env}
-    echo "export PYTHONPATH=${WORKING_DIR}/model_modules:$PYTHONPATH " >> ${activate_virt_env}
-    echo "export PYTHONPATH=${WORKING_DIR}/external_package/lpips-tensorflow:\$PYTHONPATH" >> ${activate_virt_env}
-    echo "export PYTHONPATH=${WORKING_DIR}/postprocess:$PYTHONPATH" >> ${activate_virt_env}
-
-    if [[ "${HOST_NAME}" == hdfml* || "${HOST_NAME}" == *jwlogin* ]]; then
-      echo "export PYTHONPATH=${ENV_DIR}/lib/python3.6/site-packages:\$PYTHONPATH" >> ${activate_virt_env}
-    fi
-  fi
   info_str="Virtual environment ${ENV_DIR} has been set up successfully."
 elif [[ "$ENV_EXIST" == 1 ]]; then
   # loading modules of postprocessing and activating virtual env are suifficient
