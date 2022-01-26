@@ -1,2 +1,5 @@
-opencv-python==4.2.0.34
-hickle
+matplotlib==3.3.0
+mpi4py==3.0.3
+pandas==0.25.3
+scikit-image==0.18.1
+opencv-python-headless==4.2.0.34

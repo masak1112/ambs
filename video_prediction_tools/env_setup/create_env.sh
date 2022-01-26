@@ -19,62 +19,44 @@ check_argin() {
         if [[ $argin == *"-base_dir="* ]]; then
           base_outdir=${argin#"-base_dir="}
         fi
-        if [[ $argin == *"-lcontainer"* ]]; then
-	        bool_container=1
-        fi
     done
-    if [[ -z "${bool_container}" ]]; then
-        bool_container=0
-    fi
 }
 
 # **************** Auxiliary functions ****************
 
 # **************** Actual script ****************
 # some first sanity checks
-if [[ ${BASH_SOURCE[0]} == ${0} ]]; then
+if [[ ${BASH_SOURCE[0]} == "${0}" ]]; then
   echo "ERROR: 'create_env.sh' must be sourced, i.e. execute by prompting 'source create_env.sh [virt_env_name]'"
   exit 1
 fi
 
 # from now on, just return if something unexpected occurs instead of exiting
 # as the latter would close the terminal including logging out
-if [[ ! -n "$1" ]]; then
+if [[ -z "$1" ]]; then
   echo "ERROR: Provide a name to set up the virtual environment, i.e. execute by prompting 'source create_env.sh [virt_env_name]"
   return
 fi
 
 if [[ "$#" -gt 1 ]]; then
-  check_argin ${@:2}                 # sets base_outdir if provided, always sets l_container
+  check_argin ${@:2}                 # sets base_outdir if provided
 fi
 
 # set some variables
-HOST_NAME=`hostname`
+HOST_NAME="$(hostname)"
 ENV_NAME=$1
-ENV_SETUP_DIR=`pwd`
-WORKING_DIR="$(dirname "$ENV_SETUP_DIR")"
-EXE_DIR="$(basename "$ENV_SETUP_DIR")"
+THIS_DIR="$(pwd)"
+WORKING_DIR="$(dirname "$THIS_DIR")"
+EXE_DIR="$(basename "$THIS_DIR")"
 ENV_DIR=${WORKING_DIR}/${ENV_NAME}
-TF_CONTAINER=${WORKING_DIR}/env_setup/tensorflow_21.09-tf1-py3.sif
+TF_CONTAINER=${WORKING_DIR}/HPC_scripts/tensorflow_21.09-tf1-py3.sif
 
 ## perform sanity checks
-# correct bool_container if host is Juwels Booster and ensure running singularity
-if [[ "${bool_container}" == 0 ]]; then
-  echo "******************************************** NOTE ********************************************"
-  echo "                     Set up virtual environment without TF1.15-container.                     "
-  echo "  Note that training without container using GPUs on the Juelich HPC-systems is not possible! "
-  echo "******************************************** NOTE ********************************************"
-fi
 
 modules_purge=""
-if [[ "${bool_container}" == 1 ]]; then
-  echo "Virtual environment will be set up in TensorFlow 1.15-container."
-  modules_purge=purge
-  # Check if singularity exists
-  if [[  ! -f "${TF_CONTAINER}" ]]; then
-    echo "ERROR: Could not found required TensorFlow 1.15-container under ${TF_CONTAINER}"
-    return
-  fi
+if [[ ! -f ${CONTAINER_IMG} ]]; then
+  echo "ERROR: Cannot find required TF1.15 container image '${CONTAINER_IMG}'."
+  return
 fi
 
 # further sanity checks:
@@ -95,16 +77,10 @@ else
 fi
 
 ## check integratability of modules
-if [[ "${HOST_NAME}" == hdfml* || "${HOST_NAME}" == *jwlogin* && ! "${HOST_NAME}" == *jwlogin2[2-4]* ]]; then
+if [[ "${HOST_NAME}" == hdfml* || "${HOST_NAME}" == *jwlogin*  ]]; then
     # load modules and check for their availability
     echo "***** Checking modules required during the workflow... *****"
-    source ${ENV_SETUP_DIR}/modules_preprocess.sh purge
-    source ${ENV_SETUP_DIR}/modules_train.sh purge
-    source ${ENV_SETUP_DIR}/modules_postprocess.sh ${modules_purge}
-elif [[ "${HOST_NAME}" == *jwlogin2[2-4]* ]]; then
-    echo "***** Old Stages are not available on Juwels Booster ****"
-    echo "***** To check modules for preprocessing,            ****"
-    echo "***** run this script on Juwels or HDF-ML.           ****"
+    source "${ENV_SETUP_DIR}"/modules_preprocess.sh purge
 else
   echo "ERROR: AMBS-workflow is currently only supported on the Juelich HPC-systems HDF-ML, Juwels and Juwels Booster"
   return
@@ -117,8 +93,7 @@ if [[ "$ENV_EXIST" == 0 ]]; then
   # Activate virtual environment and install additional Python packages.
   echo "Configuring and activating virtual environment on ${HOST_NAME}"
 
-  if [[ "${bool_container}" == 1 ]]; then
-    singularity exec --nv "${TF_CONTAINER}" ./install_venv_container.sh "${ENV_DIR}"
+  singularity exec --nv "${TF_CONTAINER}" ./install_venv_container.sh "${ENV_DIR}"
   else
     # cretae virtual environemt here
     python3 -m venv $ENV_DIR

@@ -2,17 +2,18 @@
 #
 # __authors__ = Bing Gong, Michael Langguth
 # __date__  = '2021_10_28'
-# __last_update__  = '2021_10_28' by Michael Langguth
+# __last_update__  = '2022_01_26' by Michael Langguth
 #
 # **************** Description ****************
 # This auxiliary script sets up the virtual environment within a singularity container.
 # **************** Description ****************
 
 # set some basic variables
-BASE_DIR=`pwd`
+BASE_DIR="$(pwd)"
 VENV_BASE=$1
 VENV_NAME="$(basename "${VENV_BASE}")"
 VENV_DIR=${VENV_BASE}/${VENV_NAME}
+VENV_REQ=${BASE_DIR}/requirements.txt
 
 # sanity checks
 # check if we are running in a container
@@ -34,8 +35,8 @@ if [ -d "$1" ]; then
 fi
 
 # check for requirement-file
-if [ ! -f "${BASE_DIR}/requirements_container.txt" ]; then
-  echo "ERROR: Cannot find requirement-file ${BASE_DIR}/requirements_container.txt to set up virtual environment."
+if [ ! -f "${VENV_REQ}" ]; then
+  echo "ERROR: Cannot find requirement-file '${VENV_REQ}' to set up virtual environment."
   return
 fi
 
@@ -55,7 +56,7 @@ source "${VENV_DIR}/bin/activate"
 # set PYTHONPATH and install packages
 export PYTHONPATH="/usr/local/lib/python3.8/dist-packages/"
 echo 'export PYTHONPATH="/usr/local/lib/python3.8/dist-packages/"' >> "${VENV_DIR}/bin/activate"
-pip install -r "${BASE_DIR}/requirements_container.txt"
+pip install -r "${VENV_REQ}"
 
 # get back to basic directory
 cd "${BASE_DIR}" || exit
