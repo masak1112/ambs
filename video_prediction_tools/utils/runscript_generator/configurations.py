@@ -4,6 +4,8 @@ They are used for facilating the customized conversion of the preprocessing step
 to executable runscripts
 """
 
+import os, sys
+
 # robust check if script is running in virtual env from
 # https://stackoverflow.com/questions/1871549/determine-if-python-is-running-inside-virtualenv/38939054
 def get_base_prefix_compat():
@@ -25,26 +27,42 @@ def path_rec_split(full_path):
 #--------------------------------------------------------------------------------------------------------
 #
 def in_virtualenv():
-    return get_base_prefix_compat() != sys.prefix
+    """
+    New version! -> relies on "VIRTUAL_ENV" environmental variable which also works in conjunction with loaded modules
+    Checks if a virtual environment is activated
+    :return: True if virtual environment is running, else False
+    """
+    stat = bool(os.environ.get("VIRTUAL_ENV"))
+
+    return stat
 #
 #--------------------------------------------------------------------------------------------------------
 #
-def check_virtualenv(labort=False):
+def check_virtualenv(lactive: bool= True, venv_path: str = "",labort=False):
     '''
     Checks if current script is running a virtual environment and returns the directory's name
-    :param labort: If True, the an Exception is raised. If False, only a Warning is given
+    :param lactive: If True, virtual environment must be activated. If False, the existence is required only.
+    :param labort: If True, an Exception is raised. If False, only a Warning is given
     :return: name of virtual environment
     '''
-    lvirt = in_virtualenv()
+    method = check_virtualenv.__name__
 
+    if lactive:
+        lvirt = in_virtualenv()
+        err_mess = "%{0}: No virtual environment is running.".format(method)
+        venv_path = os.environ.get("VIRTUAL_ENV")
+    else: 
+        lvirt = os.path.isfile(os.path.join(venv_path, "bin", "activate"))
+        err_mess = "%{0}: Virtual environment is not existing under '{1}'".format(method, venv_path)
+        
     if not lvirt:
         if labort:
-            raise EnvironmentError("config_train.py has to run in an activated virtual environment!")
+            raise EnvironmentError(err_mess)
         else:
-            raise Warning("config_train.py is not running in an activated virtual environment!")
+            raise Warning(err_mess)
             return
     else:
-        return os.path.basename(sys.prefix)
+        return os.path.basename(venv_path)
 #
 # --------------------------------------------------------------------------------------------------------
 #
