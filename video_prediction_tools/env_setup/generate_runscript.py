@@ -19,7 +19,7 @@ workdir = os.path.dirname(os.getcwd())
 sys.path.append(os.path.join(workdir, "utils"))
 import argparse
 
-from runscript_generator.configurations import check_virtualenv
+from runscript_generator.config_utils import check_virtualenv
 
 from runscript_generator.config_utils import Config_runscript_base
 from runscript_generator.config_extraction import Config_Extraction
