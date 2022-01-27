@@ -18,13 +18,13 @@ exit 99
 ######### Template identifier (don't remove) #########
 
 # auxiliary variables
-WORK_DIR=`pwd`
+WORK_DIR="$(pwd)"
 BASE_DIR=$(dirname "$WORK_DIR")
 # Name of virtual environment 
 VIRT_ENV_NAME="my_venv"
 # Name of container image (must be available in working directory)
 CONTAINER_IMG="${WORK_DIR}/tensorflow_21.09-tf1-py3.sif"
-WRAPPER="${WORK_DIR}/wrapper_container.sh"
+WRAPPER="${BASE_DIR}/env_setup/wrapper_container.sh"
 
 # sanity checks
 if [[ ! -f ${CONTAINER_IMG} ]]; then
