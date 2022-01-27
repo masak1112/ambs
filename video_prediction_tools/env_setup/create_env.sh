@@ -93,11 +93,12 @@ if [[ "$ENV_EXIST" == 0 ]]; then
   
   info_str="Virtual environment ${ENV_DIR} has been set up successfully."
 elif [[ "$ENV_EXIST" == 1 ]]; then
-  info_str="Virtual environment ${ENV_DIR} alread exists"
+  info_str="Virtual environment ${ENV_DIR} already exists."
 fi
 
 ## load modules (for running runscript-generator...
 echo "${info_str}"
+echo "Load modules and activate virtual environment '${ENV_DIR}'"
 source ${THIS_DIR}/modules_preprocess.sh
 
 ## ... and prepare runscripts
