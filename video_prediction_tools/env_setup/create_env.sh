@@ -48,7 +48,7 @@ ENV_NAME=$1
 THIS_DIR="$(pwd)"
 WORKING_DIR="$(dirname "$THIS_DIR")"
 EXE_DIR="$(basename "$THIS_DIR")"
-ENV_DIR=${WORKING_DIR}/${ENV_NAME}
+ENV_DIR=${WORKING_DIR}/virtual_envs/${ENV_NAME}
 TF_CONTAINER=${WORKING_DIR}/HPC_scripts/tensorflow_21.09-tf1-py3.sif
 
 ## perform sanity checks
@@ -98,14 +98,10 @@ if [[ "$ENV_EXIST" == 0 ]]; then
   info_str="Virtual environment ${ENV_DIR} has been set up successfully."
 elif [[ "$ENV_EXIST" == 1 ]]; then
   # loading modules of postprocessing and activating virtual env are suifficient
-  if [[ "${bool_container}" == 0 ]]; then
-    source ${ENV_SETUP_DIR}/modules_postprocess.sh
-    # activate virtual envirionment
-    source ${ENV_DIR}/bin/activate
-  else
-    # activate virtual envirionment with path-adaption
-    source ${ENV_DIR}/${ENV_NAME}/bin/activate
-  fi
+  source ${ENV_SETUP_DIR}/modules_postprocess.sh
+  # activate virtual envirionment
+  source ${ENV_DIR}/bin/activate
+  
   info_str="Virtual environment ${ENV_DIR} has been activated successfully."
 fi
 

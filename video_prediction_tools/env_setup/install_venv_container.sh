@@ -10,9 +10,9 @@
 
 # set some basic variables
 BASE_DIR="$(pwd)"
-VENV_BASE=$1
-VENV_NAME="$(basename "${VENV_BASE}")"
-VENV_DIR=${VENV_BASE}/${VENV_NAME}
+VENV_DIR=$1
+VENV_NAME="$(basename "${VENV_DIR}")"
+VENV_BASE="$(dirname "${VENV_DIR}")"
 VENV_REQ=${BASE_DIR}/requirements.txt
 
 # sanity checks
@@ -40,15 +40,26 @@ if [ ! -f "${VENV_REQ}" ]; then
   return
 fi
 
+# create or change to  base directory for virtual environment (i.e. where the virtualenv-module is placed)
+if ! [[ -d "${VENV_BASE}" ]]; then
+  mkdir "${VENV_BASE}"
+  # Install virtualenv in this directory
+  echo "Installing virtualenv under ${VENV_BASE}..."
+  pip install --target="${VENV_BASE}/" virtualenv
+  # Change into the base-directory of virtual environments...
+  cd "${VENV_BASE}" || return
+else
+  # Change into the base-directory of virtual environments...
+  cd "${VENV_BASE}" || return
+  if ! python -m virtualenv --version >/dev/null; then
+    echo "ERROR: Base directory for virtual environment exists, but virtualenv-module is unavailable."
+    exit
+  fi
+  echo "Virtualenv is already installed."
+fi
 
-# create basic target directory for virtual environment
-mkdir "${VENV_BASE}"
-# Install virtualenv in this directory
-echo "Installing virtualenv under ${VENV_BASE}..."
-pip install --target="${VENV_BASE}/" virtualenv
-# Change into the directory...
-cd "${VENV_BASE}" || exit
-# .. to set-up virtual environment therein
+
+# Set-up virtual environment in base directory for virtual environments
 python -m virtualenv -p /usr/bin/python "${VENV_NAME}"
 # Activate virtual environment and install required packages
 echo "Actiavting virtual environment ${VENV_NAME} to install required Python modules..."
@@ -62,10 +73,10 @@ export PYTHONPATH=${WORKING_DIR}/model_modules:$PYTHONPATH
 export PYTHONPATH=${WORKING_DIR}/postprocess:$PYTHONPATH
 # ... also ensure that PYTHONPATH is appended when activating the virtual environment...
 echo 'export PYTHONPATH="/usr/local/lib/python3.8/dist-packages/"' >> "${ACT_VENV}"
-echo 'export PYTHONPATH=${WORKING_DIR}:$PYTHONPATH' >> ${ACT_VENV}
-echo 'export PYTHONPATH=${WORKING_DIR}/utils:$PYTHONPATH' >> ${ACT_VENV}
-echo 'export PYTHONPATH=${WORKING_DIR}/model_modules:$PYTHONPATH' >> ${ACT_VENV}
-echo 'export PYTHONPATH=${WORKING_DIR}/postprocess:$PYTHONPATH' >> ${ACT_VENV}
+echo 'export PYTHONPATH='${WORKING_DIR}':$PYTHONPATH' >> ${ACT_VENV}
+echo 'export PYTHONPATH='${WORKING_DIR}'/utils:$PYTHONPATH' >> ${ACT_VENV}
+echo 'export PYTHONPATH='${WORKING_DIR}'/model_modules:$PYTHONPATH' >> ${ACT_VENV}
+echo 'export PYTHONPATH='${WORKING_DIR}'/postprocess:$PYTHONPATH' >> ${ACT_VENV}
 # ... install requirements
 pip install --no-cache-dir -r "${VENV_REQ}"
 
