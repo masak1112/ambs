@@ -13,6 +13,7 @@ BASE_DIR="$(pwd)"
 VENV_DIR=$1
 VENV_NAME="$(basename "${VENV_DIR}")"
 VENV_BASE="$(dirname "${VENV_DIR}")"
+WORKING_DIR="$(dirname "${VENV_BASE}")"
 VENV_REQ=${BASE_DIR}/requirements.txt
 
 # sanity checks
