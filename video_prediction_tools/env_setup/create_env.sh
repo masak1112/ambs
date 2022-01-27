@@ -88,7 +88,8 @@ fi
 if [[ "$ENV_EXIST" == 0 ]]; then
   # Activate virtual environment and install additional Python packages.
   echo "Configuring and activating virtual environment on ${HOST_NAME}"
-
+  
+  module purge 
   singularity exec --nv "${TF_CONTAINER}" ./install_venv_container.sh "${ENV_DIR}"
   
   info_str="Virtual environment ${ENV_DIR} has been set up successfully."
