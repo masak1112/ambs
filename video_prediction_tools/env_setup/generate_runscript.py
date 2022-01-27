@@ -13,10 +13,13 @@ import sys, os
 import socket
 if sys.version_info[0] < 3:
     raise Exception("This script has to be run with Python 3!")
+# append path to get runscript-generator scripts
 sys.path.append(os.path.dirname(sys.path[0]))
+workdir = os.path.dirname(os.getcwd())
+sys.path.append(os.path.join(workdir, "utils"))
+import argparse
+
 from runscript_generator.config_utils import check_virtualenv
-# sanity check (is Python running in a virtual environment)
-_ = check_virtualenv(labort=True)
 
 from runscript_generator.config_utils import Config_runscript_base
 from runscript_generator.config_extraction import Config_Extraction
@@ -51,7 +54,14 @@ def get_runscript_cls(target_runscript_name, venv_name, lhpc):
 #
 def main():
 
-    venv_name = check_virtualenv(labort=True)
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--venv_path", "-venv", dest="venv_name", type=str, required=True,
+                        help="Name of virtual environment to be used (created with create_env.sh).")
+
+
+    args = parser.parse_args()
+    venv_path = os.path.join(os.path.dirname(os.getcwd()), "virtual_envs", args.venv_name) 
+    venv_name = check_virtualenv(lactive=False, venv_path=venv_path, labort=True)
 
     # check if we are on a known HPC
     lhpc = False

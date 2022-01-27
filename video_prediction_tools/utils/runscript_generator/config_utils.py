@@ -113,7 +113,7 @@ class Config_runscript_base:
             else:
                 batch_var_val = getattr(self, batch_var)
                 if batch_var_val is None:
-                    err= AttributeError("%{0}: Attribute '{1}' is still None.".format(method_name, batch_var))
+                    err = AttributeError("%{0}: Attribute '{1}' is still None.".format(method_name, batch_var))
 
             if not err is None:
                 raise err
@@ -128,7 +128,8 @@ class Config_runscript_base:
             if stat_batch_var:
                 stat = os.system(write_cmd)
                 if stat > 0:
-                    print("%{0}: Runscript script variable {1} could not be set properly.".format(method_name, batch_var))
+                    print("%{0}: Runscript script variable {1} could not be set properly."
+                          .format(method_name, batch_var))
             else:
                 print("%{0}: Could not find variable {1} in runscript {2} could not be set.".format(method_name, batch_var, runscript))
     #
@@ -371,24 +372,29 @@ def in_virtualenv():
 #
 #--------------------------------------------------------------------------------------------------------
 #
-def check_virtualenv(labort=False):
+def check_virtualenv(lactive: bool = True, venv_path: str = "", labort=False):
     """
-    New version! -> relies on "VIRTUAL_ENV" environmental variable which also works in conjunction with loaded modules
     Checks if current script is running a virtual environment and returns the directory's name
-    :param labort: If True, the an Exception is raised. If False, only a Warning is given
+    :param lactive: If True, virtual environment must be activated. If False, the existence is required only.
+    :param venv_path: Path to virtual environment (required if lactive is set to False)
+    :param labort: If True, an Exception is raised. If False, only a Warning is given
     :return: name of virtual environment
     """
+    method = check_virtualenv.__name__
 
-    method_name = check_virtualenv.__name__
-
-    lvirt = in_virtualenv()
+    if lactive:
+        lvirt = in_virtualenv()
+        err_mess = "%{0}: No virtual environment is running.".format(method)
+        venv_path = os.environ.get("VIRTUAL_ENV")
+    else:
+        lvirt = os.path.isfile(os.path.join(venv_path, "bin", "activate"))
+        err_mess = "%{0}: Virtual environment is not existing under '{1}'".format(method, venv_path)
 
     if not lvirt:
         if labort:
-            raise EnvironmentError("%{0}: generate_runscript.py has to run in an activated virtual environment!"
-                                   .format(method_name))
+            raise EnvironmentError(err_mess)
         else:
-            print("%{0}: config_runscript.py is not running in an activated virtual environment!".format(method_name))
+            raise Warning(err_mess)
             return
     else:
-        return os.path.basename(os.environ.get("VIRTUAL_ENV"))
+        return os.path.basename(venv_path)

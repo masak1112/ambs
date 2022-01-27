@@ -37,4 +37,9 @@ source_dir=/my/path/to/mnist/raw/data/
 destination_dir=/my/path/to/mnist/tfrecords/
 
 # run Preprocessing (step 2 where Tf-records are generated)
-srun python ../video_prediction/datasets/moving_mnist.py ${source_dir} ${destination_dir}
+# run postprocessing/generation of model results including evaluation metrics
+export CUDA_VISIBLE_DEVICES=0
+## One node, single GPU
+srun --mpi=pspmix --cpu-bind=none \
+     singularity exec --nv "${CONTAINER_IMG}" "${WRAPPER}" ${VIRT_ENV_NAME} \
+     python3 ../video_prediction/datasets/moving_mnist.py ${source_dir} ${destination_dir}
