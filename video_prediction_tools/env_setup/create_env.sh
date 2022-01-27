@@ -61,11 +61,19 @@ fi
 
 # further sanity checks:
 # * ensure execution from env_setup-directory
+# * check host
 # * check if virtual env has already been set up
 
 if [[ "${EXE_DIR}" != "env_setup"  ]]; then
   echo "ERROR: Execute 'create_env.sh' from the env_setup-subdirectory only!"
   return
+fi
+
+if ! [[ "${HOST_NAME}" == hdfml* || "${HOST_NAME}" == *jwlogin*  ]]; then
+  echo "ERROR: AMBS-workflow is currently only supported on the Juelich HPC-systems HDF-ML, Juwels and Juwels Booster"
+  return
+  # unset PYTHONPATH on every other machine that is not a known HPC-system
+  # unset PYTHONPATH
 fi
 
 if [[ -d ${ENV_DIR} ]]; then
@@ -76,19 +84,7 @@ else
   ENV_EXIST=0
 fi
 
-## check integratability of modules
-if [[ "${HOST_NAME}" == hdfml* || "${HOST_NAME}" == *jwlogin*  ]]; then
-    # load modules and check for their availability
-    echo "***** Checking modules required during the workflow... *****"
-    source "${THIS_DIR}"/modules_preprocess.sh purge
-else
-  echo "ERROR: AMBS-workflow is currently only supported on the Juelich HPC-systems HDF-ML, Juwels and Juwels Booster"
-  return
-  # unset PYTHONPATH on every other machine that is not a known HPC-system
-  # unset PYTHONPATH
-fi
-
-## set up virtual environment
+## set up virtual environment if required
 if [[ "$ENV_EXIST" == 0 ]]; then
   # Activate virtual environment and install additional Python packages.
   echo "Configuring and activating virtual environment on ${HOST_NAME}"
@@ -97,27 +93,21 @@ if [[ "$ENV_EXIST" == 0 ]]; then
   
   info_str="Virtual environment ${ENV_DIR} has been set up successfully."
 elif [[ "$ENV_EXIST" == 1 ]]; then
-  # loading modules of postprocessing and activating virtual env are suifficient
-  source ${ENV_SETUP_DIR}/modules_postprocess.sh
-  # activate virtual envirionment
-  source ${ENV_DIR}/bin/activate
-  
-  info_str="Virtual environment ${ENV_DIR} has been activated successfully."
+  info_str="Virtual environment ${ENV_DIR} alread exists"
 fi
 
+## load modules (for running runscript-generator...
+echo "${info_str}"
+source ${THIS_DIR}/modules_preprocess.sh
+
+## ... and prepare runscripts
 echo "Set up runscript template for user ${USER}..."
 if [[ -z "${base_outdir}" ]]; then
   "${WORKING_DIR}"/utils/runscript_generator/setup_runscript_templates.sh
 else
-  "${WORKING_DIR}"/utils/runscript_generator/setup_runscript_templates.sh ${base_outdir}
+  "${WORKING_DIR}"/utils/runscript_generator/setup_runscript_templates.sh "${base_outdir}"
 fi
 
 echo "******************************************** NOTE ********************************************"
-echo "${info_str}"
 echo "Make use of generate_runscript.py to generate customized runscripts of the workflow steps."
 echo "******************************************** NOTE ********************************************"
-
-# finally clean up loaded modules (if we are not on Juwels)
-#if [[ "${HOST_NAME}" == *hdfml* || "${HOST_NAME}" == *juwels* ]] && [[ "${HOST_NAME}" != jwlogin2[1-4]* ]]; then
-#  module --force purge
-#fi
