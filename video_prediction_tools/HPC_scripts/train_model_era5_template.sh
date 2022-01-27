@@ -38,7 +38,7 @@ fi
 # clean-up modules to avoid conflicts between host and container settings
 module purge
 
-# declare directory-variables
+# declare directory-variables which will be modified by generate_runscript.py
 source_dir=/my/path/to/tfrecords/files
 destination_dir=/my/model/output/path
 
