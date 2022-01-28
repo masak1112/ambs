@@ -99,8 +99,8 @@ fi
 
 ## load modules (for running runscript-generator...
 echo "${info_str}"
-echo "Load modules and activate virtual environment '${ENV_DIR}'"
-source ${THIS_DIR}/modules_preprocess.sh
+echo "Load modules to enable running of runscript generator '${ENV_DIR}'."
+source ${THIS_DIR}/modules_preprocess+extract.sh
 
 ## ... and prepare runscripts
 echo "Set up runscript template for user ${USER}..."

@@ -10,7 +10,7 @@ try:
     import xarray as xr
 except:
     raise ImportError("Loading preprocssing modules in advance is mandotory, " +
-                      "i.e. execute 'source modules_preprocess.sh' from env_setup-directory in terminal first.")
+                      "i.e. execute 'source modules_preprocess+extract.sh' from env_setup-directory in terminal first.")
 
 from netcdf_datahandling import NetcdfUtils
 from general_utils import check_str_in_list
