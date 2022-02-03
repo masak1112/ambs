@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: 2021 Earth System Data Exploration (ESDE), Jülich Supercomputing Center (JSC)
+#
+# SPDX-License-Identifier: MIT
+
 """
 Parent class which contains some basic atributes and methods shared by all subclasses which are
 used to configure the runscripts of dedicated workflow steps (done by config_runscript.py).

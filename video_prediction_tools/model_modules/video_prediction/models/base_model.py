@@ -1,4 +1,7 @@
-import functools
+# SPDX-FileCopyrightText: 2018, alexlee-gk
+#
+# SPDX-License-Identifier: MIT
+
 import itertools
 import os
 import re
