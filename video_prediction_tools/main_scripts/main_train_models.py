@@ -355,13 +355,13 @@ class TrainModel(object):
                 self.create_fetches_for_train()             # In addition to the loss, we fetch the optimizer
                 self.results = sess.run(self.fetches)       # ...and run it here!
                 # Note: For SAVP, the obtained loss is a list where the first element is of interest, for convLSTM,
-                # it's just a number. Thus, with list(<losses>)[0], we can handle both
-                train_losses.append(list(self.results[self.saver_loss])[0])
+                # it's just a number. Thus, with ensure_list(<losses>)[0], we can handle both
+                train_losses.append(ensure_list(self.results[self.saver_loss])[0])
                 # run and fetch losses for validation data
                 val_handle_eval = sess.run(self.val_handle)
                 self.create_fetches_for_val()
                 self.val_results = sess.run(self.val_fetches, feed_dict={self.train_handle: val_handle_eval})
-                val_losses.append(list(self.val_results[self.saver_loss])[0])
+                val_losses.append(ensure_list(self.val_results[self.saver_loss])[0])
                 self.write_to_summary()
                 self.print_results(step, self.results)
                 # track iteration time

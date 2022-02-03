@@ -18,22 +18,28 @@ echo "Do not run the template scripts"
 exit 99
 ######### Template identifier (don't remove) #########
 
-# Name of virtual environment 
+# auxiliary variables
+WORK_DIR=`pwd`
+BASE_DIR=$(dirname "$WORK_DIR")
+# Name of virtual environment
 VIRT_ENV_NAME="my_venv"
+# Name of container image (must be available in working directory)
+CONTAINER_IMG="${WORK_DIR}/tensorflow_21.09-tf1-py3.sif"
+WRAPPER="${BASE_DIR}/env_setup/wrapper_container.sh"
 
-# Loading mouldes
-source ../env_setup/modules_train.sh
-# Activate virtual environment if needed (and possible)
-if [ -z ${VIRTUAL_ENV} ]; then
-   if [[ -f ../${VIRT_ENV_NAME}/bin/activate ]]; then
-      echo "Activating virtual environment..."
-      source ../${VIRT_ENV_NAME}/bin/activate
-   else 
-      echo "ERROR: Requested virtual environment ${VIRT_ENV_NAME} not found..."
-      exit 1
-   fi
+# sanity checks
+if [[ ! -f ${CONTAINER_IMG} ]]; then
+  echo "ERROR: Cannot find required TF1.15 container image '${CONTAINER_IMG}'."
+  exit 1
 fi
 
+if [[ ! -f ${WRAPPER} ]]; then
+  echo "ERROR: Cannot find wrapper-script '${WRAPPER}' for TF1.15 container image."
+  exit 1
+fi
+
+# clean-up modules to avoid conflicts between host and container settings
+module purge
 
 # declare directory-variables which will be modified appropriately during Preprocessing (invoked by mpi_split_data_multi_years.py)
 
@@ -47,5 +53,10 @@ model_hparams=../hparams/${dataset}/${model}/model_hparams.json
 destination_dir=${destination_dir}/${model}/"$(date +"%Y%m%dT%H%M")_"$USER""
 
 # rund training
-
-srun python ../scripts/train_dummy.py --input_dir  ${source_dir}/tfrecords/ --dataset moving_mnist  --model ${model} --model_hparams_dict ${model_hparams} --output_dir ${destination_dir}/
+# run training in container
+export CUDA_VISIBLE_DEVICES=0
+## One node, single GPU
+srun --mpi=pspmix --cpu-bind=none \
+     singularity exec --nv "${CONTAINER_IMG}" "${WRAPPER}" ${VIRT_ENV_NAME} \
+     python ../main_scripts/train.py --input_dir  ${source_dir}/tfrecords/ --dataset ${dataset}  --model ${model} \
+      --model_hparams_dict ${model_hparams} --output_dir "${destination_dir}"/

@@ -24,7 +24,7 @@ jutil env activate -p deepacf
 VIRT_ENV_NAME="my_venv"
 
 # Loading mouldes
-source ../env_setup/modules_data_extraction.sh
+source ../env_setup/modules_preprocess+extract.sh
 # Activate virtual environment if needed (and possible)
 if [ -z ${VIRTUAL_ENV} ]; then
    if [[ -f ../${VIRT_ENV_NAME}/bin/activate ]]; then
