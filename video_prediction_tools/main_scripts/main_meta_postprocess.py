@@ -7,12 +7,10 @@ from __future__ import division
 from __future__ import print_function
 
 __email__ = "b.gong@fz-juelich.de"
-__author__ = "Bing Gong"
+__author__ = "Bing Gong, Yan Ji"
 __date__ = "2020-12-04"
 __update_date__ = "2022-02-02"
 
-
-import os
 from matplotlib.pylab import plt
 import json
 import numpy as np
@@ -21,6 +19,11 @@ import glob
 from netCDF4 import Dataset
 from  model_modules.video_prediction.metrics import *
 import xarray as xr
+
+
+def skill_score(tar_score,ref_score,best_score):
+    ss = (tar_score-ref_score) / (best_score-ref_score)
+    return ss
 
 
 class MetaPostprocess(object):
