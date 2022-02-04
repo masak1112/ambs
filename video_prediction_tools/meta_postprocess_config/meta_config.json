@@ -1,0 +1,12 @@
+{
+"results":
+{"ConvLSTM_cv1":"/p/project/deepacf/deeprain/video_prediction_shared_folder/results/era5-Y2007-2019M01to12-92x56-3840N0000E-2t_tcc_t_850/convLSTM/20210712T104840_gong1_convLSTM_cv11_epoch20",
+"ConvLSTM_cv2":"/p/project/deepacf/deeprain/video_prediction_shared_folder/results/era5-Y2007-2019M01to12-92x56-3840N0000E-2t_tcc_t_850/convLSTM/20210709T225929_gong1_convLSTM_epoch20",
+"ConvLSTM_cv3":"/p/project/deepacf/deeprain/video_prediction_shared_folder/results/era5-Y2007-2019M01to12-92x56-3840N0000E-2t_tcc_t_850/convLSTM/20210712T110410_gong1_convLSTM_cv13_epoch20",
+"SAVP_cv1":"/p/project/deepacf/deeprain/video_prediction_shared_folder/results/era5-Y2007-2019M01to12-92x56-3840N0000E-2t_tcc_t_850/savp/20210709T224456_gong1_savp_cv11_best_model",
+"SAVP_cv2":"/p/project/deepacf/deeprain/video_prediction_shared_folder/results/era5-Y2007-2019M01to12-92x56-3840N0000E-2t_tcc_t_850/savp/20210901T090059_gong1_savp_cv12/",
+"SAVP_cv3":"/p/project/deepacf/deeprain/video_prediction_shared_folder/results/era5-Y2007-2019M01to12-92x56-3840N0000E-2t_tcc_t_850/savp/20210709T225131_gong1_savp_cv13_best_model"},
+"markers":["X","X","X","P","P","P"],
+"colors":["r","g","b","r","g","b"]
+
+}
