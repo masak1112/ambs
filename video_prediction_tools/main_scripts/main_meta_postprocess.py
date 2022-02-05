@@ -1,3 +1,4 @@
+# coding=utf-8
 # SPDX-FileCopyrightText: 2021 Earth System Data Exploration (ESDE), Jülich Supercomputing Center (JSC)
 #
 # SPDX-License-Identifier: MIT
@@ -9,7 +10,9 @@ from __future__ import print_function
 __email__ = "b.gong@fz-juelich.de"
 __author__ = "Bing Gong, Yan Ji"
 __date__ = "2020-12-04"
-__update_date__ = "2022-02-02"
+__updatedate__ = "2022-02-02"
+
+import argparse
 import os
 from matplotlib.pylab import plt
 import json
@@ -271,6 +274,7 @@ class MetaPostprocess(object):
 
 def main():
     parser = argparse.ArgumentParser()
+    parser.add_argument("--root_dir", type=str, required=True, help="The root path for output dir")
     parser.add_argument("--analysis_config", type=str, required=True, help="The path points to the  meta_postprocess configuration file.",
                         default="../meta_postprocess_config/meta_config.json")
     parser.add_argument("--metric", help="Based on which the models are compared, the value should be in one of [mse,ssim,acc,texture]",default="mse")
@@ -278,7 +282,7 @@ def main():
     parser.add_argument("--enable_skill_scores", help="compared by skill scores or the absolute evaluation values",default=True)
     args = parser.parse_args()
 
-    meta = MetaPostprocess(analysis_config=args.analysis_config, metric=args.metric, exp_id=args.metric,
+    meta = MetaPostprocess(root_dir=args.root_dir,analysis_config=args.analysis_config, metric=args.metric, exp_id=args.metric,
                            enable_skill_scores=args.enable_skill_scores)
     meta()
 
