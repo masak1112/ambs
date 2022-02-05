@@ -2,12 +2,12 @@
 ## Controlling Batch-job
 #SBATCH --account=deepacf
 #SBATCH --nodes=1
-#SBATCH --ntasks=13
+#SBATCH --ntasks=1
 ##SBATCH --ntasks-per-node=13
 #SBATCH --cpus-per-task=1
-#SBATCH --output=data_extraction_era5-out.%j
-#SBATCH --error=data_extraction_era5-err.%j
-#SBATCH --time=04:20:00
+#SBATCH --output=meta_postprocess_era5-out.%j
+#SBATCH --error=meta_postprocess_era5-err.%j
+#SBATCH --time=00:20:00
 #SBATCH --partition=batch
 #SBATCH --gres=gpu:0
 #SBATCH --mail-type=ALL
@@ -17,22 +17,15 @@
 echo "Do not run the template scripts"
 exit 99
 ######### Template identifier (don't remove) #########
-
 jutil env activate -p deepacf
 
-# Name of virtual environment 
-VIRT_ENV_NAME="my_venv"
 
-# Loading mouldes
-source ../env_setup/modules_preprocess+extract.sh
-# Activate virtual environment if needed (and possible)
-if [ -z ${VIRTUAL_ENV} ]; then
-   if [[ -f ../${VIRT_ENV_NAME}/bin/activate ]]; then
-      echo "Activating virtual environment..."
-      source ../${VIRT_ENV_NAME}/bin/activate
-   else 
-      echo "ERROR: Requested virtual environment ${VIRT_ENV_NAME} not found..."
-      exit 1
-   fi
-fi
+# Declare input parameters
+root_dir=/p/project/deepacf/deeprain/video_prediction_shared_folder/
+analysis_config=video_prediction_tools/meta_postprocess_config/meta_config.json
+metric=mse
+exp_id=test
+enable_skill_scores=True
 
+srun python ../main_scripts/main_meta_postprocess.py  --root_dir ${root_dir} --analysis_config ${analysis_config} \
+                                                       --metric ${metric} --exp_id ${exp_id} --enable_skill_scores ${enable_skill_scores}
