@@ -22,6 +22,7 @@ ml mpi4py/3.0.1-Python-3.6.8
 # see https://gitlab.version.fz-juelich.de/haf/Wiki/-/wikis/HDF-ML%20System
 if [[ "${HOST_NAME}" == hdfml* ]]; then
   ml h5py/2.9.0-serial-Python-3.6.8
+  ml CDO/1.9.6
 elif [[ "${HOST_NAME}" == juwels* ]]; then
   ml h5py/2.9.0-Python-3.6.8
 fi
