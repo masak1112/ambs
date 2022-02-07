@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: 2018, alexlee-gk
+#
+# SPDX-License-Identifier: MIT
+
 import itertools
 import os
 
@@ -6,7 +10,7 @@ from .base_dataset import VideoDataset
 
 class GoogleRobotVideoDataset(VideoDataset):
     """
-    https://sites.google.com/site/brainrobotdata/home/push-dataset
+    https://sites.google.com/view/sna-visual-mpc
     """
     def __init__(self, *args, **kwargs):
         super(GoogleRobotVideoDataset, self).__init__(*args, **kwargs)

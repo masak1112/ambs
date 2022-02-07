@@ -1,6 +1,7 @@
-"""
-Some codes from https://github.com/Newmu/dcgan_code
-"""
+# SPDX-FileCopyrightText: 2021 Earth System Data Exploration (ESDE), Jülich Supercomputing Center (JSC)
+# SPDX-FileCopyrightText: 2015 Alec Radford
+#
+# SPDX-License-Identifier: MIT
 
 import cv2
 import random

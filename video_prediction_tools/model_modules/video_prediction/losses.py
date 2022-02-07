@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: 2018, alexlee-gk
+#
+# SPDX-License-Identifier: MIT
+
 import tensorflow as tf
 
 from model_modules.video_prediction.ops import sigmoid_kl_with_logits

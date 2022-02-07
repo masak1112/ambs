@@ -32,7 +32,7 @@ if [ -z ${VIRTUAL_ENV} ]; then
    fi
 fi
 # Loading mouldes
-source ../env_setup/modules_preprocess.sh
+source ../env_setup/modules_preprocess+extract.sh
 
 
 # select years and variables for dataset and define target domain 

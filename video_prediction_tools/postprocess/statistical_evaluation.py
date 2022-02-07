@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: 2021 Earth System Data Exploration (ESDE), Jülich Supercomputing Center (JSC)
+#
+# SPDX-License-Identifier: MIT
+
 """
 Collection of auxiliary functions for statistical evaluation and class for Score-functions
 """
@@ -9,7 +13,7 @@ __date__ = "2021-05-xx"
 import numpy as np
 import xarray as xr
 from typing import Union, List
-from skimage.measure import compare_ssim as ssim
+from skimage.metrics import structural_similarity as ssim
 import datetime
 import pandas as pd
 try:

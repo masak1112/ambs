@@ -1,8 +1,13 @@
+# SPDX-FileCopyrightText: 2021 Earth System Data Exploration (ESDE), Jülich Supercomputing Center (JSC)
+#
+# SPDX-License-Identifier: MIT
+
 """
 Some auxilary routines which may are used throughout the project.
 Provides:   * get_unique_vars
             * add_str_to_path
             * is_integer
+            * ensure_list
             * isw
             * check_str_in_list
             * check_dir
@@ -66,6 +71,27 @@ def is_integer(n):
         return False
     else:
         return float(n).is_integer()
+
+
+def ensure_list(x):
+    """
+    Converts input generically to list-object
+    :param x: the input data (can be a list, a number/string or an array)
+    """
+    method = ensure_list.__name__
+
+    if isinstance(x, list):
+        return x
+    elif isinstance(x, str):
+        return [x]
+    
+    try:
+        return list(x)
+    except TypeError:
+        try:
+            return [x]
+        except:
+            raise TypeError("%{0}: Failed to put input into list.".format(method))
 
 
 def isw(value, interval):

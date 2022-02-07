@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: 2017 Simon Meister
+#
+# SPDX-License-Identifier: MIT
+
 import tensorflow as tf
 
 

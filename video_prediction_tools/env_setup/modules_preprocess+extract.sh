@@ -10,7 +10,6 @@ HOST_NAME=`hostname`
 
 echo "Start loading modules on ${HOST_NAME} required for preprocessing..."
 echo "modules_preprocess.sh is subject to: "
-echo "* data_extraction_era5.sh"
 echo "* preprocess_data_era5_step1.sh"
 
 module purge
