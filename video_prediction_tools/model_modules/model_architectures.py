@@ -6,14 +6,11 @@ def known_models():
     """
     model_mappings = {
         'ground_truth': 'GroundTruthVideoPredictionModel',
-        'repeat': 'RepeatVideoPredictionModel',
         'savp': 'SAVPVideoPredictionModel',
-        'dna': 'DNAVideoPredictionModel',
-        'sna': 'SNAVideoPredictionModel',
-        'sv2p': 'SV2PVideoPredictionModel',
         'vae': 'VanillaVAEVideoPredictionModel',
         'convLSTM': 'VanillaConvLstmVideoPredictionModel',
         'mcnet': 'McNetVideoPredictionModel',
+        'convLSTM_gan': "ConvLstmGANVideoPredictionModel",
         'ours_vae_l1': 'SAVPVideoPredictionModel',
         'ours_gan': 'SAVPVideoPredictionModel',
     }

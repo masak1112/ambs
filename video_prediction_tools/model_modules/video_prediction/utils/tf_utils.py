@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: 2018, alexlee-gk
+#
+# SPDX-License-Identifier: MIT
+
 import itertools
 import os
 from collections import OrderedDict
@@ -526,10 +530,14 @@ def reduce_tensors(structures, shallow=False):
 
 def get_checkpoint_restore_saver(checkpoint, var_list=None, skip_global_step=False, restore_to_checkpoint_mapping=None):
 
+    method = get_checkpoint_restore_saver.__name__
 
     if os.path.isdir(checkpoint):
         # latest_checkpoint doesn't work when the path has special characters
         checkpoint = tf.train.latest_checkpoint(checkpoint)
+    # print name of checkpoint-file for verbosity
+    print("%{0}: The follwoing checkpoint is used for restoring the model: '{1}'".format(method, checkpoint))
+    # Start processing the checkpoint
     checkpoint_reader = tf.pywrap_tensorflow.NewCheckpointReader(checkpoint)
     checkpoint_var_names = checkpoint_reader.get_variable_to_shape_map().keys()
     restore_to_checkpoint_mapping = restore_to_checkpoint_mapping or (lambda name, _: name.split(':')[0])

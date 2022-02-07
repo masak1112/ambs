@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: 2018, alexlee-gk
+#
+# SPDX-License-Identifier: MIT
+
 import collections
 import functools
 import itertools
@@ -686,10 +690,8 @@ class SAVPCell(tf.nn.rnn_cell.RNNCell):
 
 def generator_given_z_fn(inputs, mode, hparams):
     # all the inputs needs to have the same length for unrolling the rnn
-    print("inputs.items",inputs.items())
     #20200822 bing
     inputs ={"images":inputs["images"]}
-    print("inputs 20200822:",inputs)
     #20200822
     inputs = {name: tf_utils.maybe_pad_or_slice(input, hparams.sequence_length - 1)
               for name, input in inputs.items()}
@@ -701,9 +703,6 @@ def generator_given_z_fn(inputs, mode, hparams):
 
 def generator_fn(inputs, mode, hparams):
     batch_size = tf.shape(inputs['images'])[1]
-    print("2********mode*****",mode)
-    print("3*******hparams",hparams)
-
 
     if hparams.nz == 0:
         # no zs is given in inputs

@@ -2,10 +2,8 @@
 {
     "batch_size": 10,
     "lr": 0.001,
-    "max_epochs":2,
-    "context_frames":10,
-    "sequence_length":20
-
+    "max_epochs": 2,
+    "context_frames": 12
 }
 
 

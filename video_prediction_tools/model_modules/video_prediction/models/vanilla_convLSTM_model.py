@@ -1,51 +1,48 @@
-# SPDX-FileCopyrightText: 2016, 2018-2019 Jane Doe <jane@example.com>
-# SPDX-FileCopyrightText: 2019 Example Company
-# SPDX-License-Identifier: GPL-3.0-or-later
+# SPDX-FileCopyrightText: 2021 Earth System Data Exploration (ESDE), Jülich Supercomputing Center (JSC)
+#
+# SPDX-License-Identifier: MIT
 
 __email__ = "b.gong@fz-juelich.de"
 __author__ = "Bing Gong, Scarlet Stadtler,Michael Langguth"
 __date__ = "2020-11-05"
 
-"""
-This file is revised based on the project https://github.com/loliverhennigh/Convolutional-LSTM-in-Tensorflow/blob/master/BasicConvLSTMCell.py
-"""
-import collections
-import functools
-import itertools
-from collections import OrderedDict
-import numpy as np
+from model_modules.video_prediction.models.model_helpers import set_and_check_pred_frames
 import tensorflow as tf
-from tensorflow.python.util import nest
-from model_modules.video_prediction import ops, flow_ops
-from model_modules.video_prediction.models import BaseVideoPredictionModel
-from model_modules.video_prediction.models import networks
-from model_modules.video_prediction.ops import dense, pad2d, conv2d, flatten, tile_concat
-from model_modules.video_prediction.rnn_ops import BasicConv2DLSTMCell, Conv2DGRUCell
-from model_modules.video_prediction.utils import tf_utils
-from datetime import datetime
-from pathlib import Path
 from model_modules.video_prediction.layers import layer_def as ld
 from model_modules.video_prediction.layers.BasicConvLSTMCell import BasicConvLSTMCell
 from tensorflow.contrib.training import HParams
 
+
+
 class VanillaConvLstmVideoPredictionModel(object):
-    def __init__(self, mode='train', hparams_dict=None):
+    def __init__(self, hparams_dict=None, **kwargs):
         """
         This is class for building convLSTM architecture by using updated hparameters
         args:
-             mode   :str, "train" or "val", side note: mode may not be used in the convLSTM, but this will be a useful argument for the GAN-based model
-             hparams_dict: dict, the dictionary contains the hparaemters names and values
+             hparams_dict : dict, the dictionary contains the hparaemters names and values
         """
-        self.mode = mode
         self.hparams_dict = hparams_dict
         self.hparams = self.parse_hparams()        
         self.learning_rate = self.hparams.lr
-        self.total_loss = None
         self.context_frames = self.hparams.context_frames
         self.sequence_length = self.hparams.sequence_length
-        self.predict_frames = self.sequence_length - self.context_frames
+        self.predict_frames = set_and_check_pred_frames(self.sequence_length, self.context_frames)
         self.max_epochs = self.hparams.max_epochs
         self.loss_fun = self.hparams.loss_fun
+        self.opt_var = self.hparams.opt_var
+        # Attributes set during runtime
+        self.loss_summary = None
+        self.total_loss = None
+        self.outputs = {}
+        self.train_op = None
+        self.summary_op = None
+        self.x = None
+        self.inputs = None
+        self.global_step = None
+        self.saveable_variables = None
+        self.is_build_graph = None
+        self.x_hat = None
+        self.x_hat_predict_frames = None
 
 
     def get_default_hparams(self):
@@ -70,38 +67,53 @@ class VanillaConvLstmVideoPredictionModel(object):
             max_epochs      : the number of epochs to train model
             lr              : learning rate
             loss_fun        : the loss function
+            opt_var         : the target vars/channel to be optimize, string: "0","1",..."n", or "all", if "all" means optimize all the variables/channels
         """
         hparams = dict(
             context_frames=10,
             sequence_length=20,
-            max_epochs = 20,
-            batch_size = 40,
-            lr = 0.001,
-            loss_fun = "cross_entropy",
-            shuffle_on_val= True,
+            max_epochs=20,
+            batch_size=40,
+            lr=0.001,
+            loss_fun="cross_entropy",
+            shuffle_on_val=True,
+            opt_var="0",
         )
         return hparams
 
 
     def build_graph(self, x):
         self.is_build_graph = False
+        self.inputs = x
         self.x = x["images"]
         self.global_step = tf.train.get_or_create_global_step()
         original_global_variables = tf.global_variables()
-        # ARCHITECTURE
+
         self.convLSTM_network()
-        #This is the loss function (RMSE):
-        #This is loss function only for 1 channel (temperature RMSE)
-        if self.loss_fun == "rmse":
-            self.total_loss = tf.reduce_mean(
-                tf.square(self.x[:, self.context_frames:,:,:,0] - self.x_hat_predict_frames[:,:,:,:,0]))
-        elif self.loss_fun == "cross_entropy":
-            x_flatten = tf.reshape(self.x[:, self.context_frames:,:,:,0],[-1])
-            x_hat_predict_frames_flatten = tf.reshape(self.x_hat_predict_frames[:,:,:,:,0],[-1])
-            bce = tf.keras.losses.BinaryCrossentropy()
-            self.total_loss = bce(x_flatten,x_hat_predict_frames_flatten)  
+        #This is the loss function (MSE):
+
+        #Optimize all target variables/channels
+        if self.opt_var == "all":
+            x = self.x[:, self.context_frames:, :, :, :]
+            x_hat = self.x_hat_predict_frames[:, :, :, :, :]
+            print ("The model is optimzied on all the variables in the loss function")
+        elif self.opt_var != "all" and isinstance(self.opt_var, str):
+            self.opt_var = int(self.opt_var)
+            print ("The model is optimized on the {} variable in the loss function".format(self.opt_var))
+            x = self.x[:, self.context_frames:, :, :, self.opt_var]
+            x_hat = self.x_hat_predict_frames[:, :, :, :, self.opt_var]
         else:
-            raise ValueError("Loss function is not selected properly, you should chose either 'rmse' or 'cross_entropy'")
+            raise ValueError("The opt var in the hyperparameters setup should be '0','1','2' indicate the index of target variable to be optimised or 'all' indicating optimize all the variables")
+
+        if self.loss_fun == "mse":
+            self.total_loss = tf.reduce_mean(tf.square(x - x_hat))
+        elif self.loss_fun == "cross_entropy":
+            x_flatten = tf.reshape(x, [-1])
+            x_hat_predict_frames_flatten = tf.reshape(x_hat, [-1])
+            bce = tf.keras.losses.BinaryCrossentropy()
+            self.total_loss = bce(x_flatten, x_hat_predict_frames_flatten)
+        else:
+            raise ValueError("Loss function is not selected properly, you should chose either 'mse' or 'cross_entropy'")
 
         #This is the loss for only all the channels(temperature, geo500, pressure)
         #self.total_loss = tf.reduce_mean(
@@ -109,7 +121,7 @@ class VanillaConvLstmVideoPredictionModel(object):
  
         self.train_op = tf.train.AdamOptimizer(
             learning_rate = self.learning_rate).minimize(self.total_loss, global_step = self.global_step)
-        self.outputs = {}
+
         self.outputs["gen_images"] = self.x_hat
         # Summary op
         self.loss_summary = tf.summary.scalar("total_loss", self.total_loss)
@@ -118,6 +130,26 @@ class VanillaConvLstmVideoPredictionModel(object):
         self.saveable_variables = [self.global_step] + global_variables
         self.is_build_graph = True
         return self.is_build_graph 
+
+    def convLSTM_network(self):
+        network_template = tf.make_template('network',
+                                            VanillaConvLstmVideoPredictionModel.convLSTM_cell)  # make the template to share the variables
+        # create network
+        x_hat = []
+        
+        #This is for training (optimization of convLSTM layer)
+        hidden_g = None
+        for i in range(self.sequence_length-1):
+            if i < self.context_frames:
+                x_1_g, hidden_g = network_template(self.x[:, i, :, :, :], hidden_g)
+            else:
+                x_1_g, hidden_g = network_template(x_1_g, hidden_g)
+            x_hat.append(x_1_g)
+
+        # pack them all together
+        x_hat = tf.stack(x_hat)
+        self.x_hat = tf.transpose(x_hat, [1, 0, 2, 3, 4])  # change first dim with sec dim
+        self.x_hat_predict_frames = self.x_hat[:, self.context_frames-1:, :, :, :]
 
     @staticmethod
     def convLSTM_cell(inputs, hidden):
@@ -142,23 +174,23 @@ class VanillaConvLstmVideoPredictionModel(object):
         x_hat = ld.conv_layer(z3, 1, 1, channels, "decode_1", activate="sigmoid")
         return x_hat, hidden
 
-    def convLSTM_network(self):
-        network_template = tf.make_template('network',
-                                            VanillaConvLstmVideoPredictionModel.convLSTM_cell)  # make the template to share the variables
-        # create network
-        x_hat = []
-        
-        #This is for training (optimization of convLSTM layer)
-        hidden_g = None
-        for i in range(self.sequence_length-1):
-            if i < self.context_frames:
-                x_1_g, hidden_g = network_template(self.x[:, i, :, :, :], hidden_g)
-            else:
-                x_1_g, hidden_g = network_template(x_1_g, hidden_g)
-            x_hat.append(x_1_g)
+    @staticmethod
+    def set_and_check_pred_frames(seq_length, context_frames):
+        """
+        Checks if sequence length and context_frames are set properly and returns number of frames to be predicted.
+        :param seq_length: number of frames/images per sequences
+        :param context_frames: number of context frames/images
+        :return: number of predicted frames
+        """
 
-        # pack them all together
-        x_hat = tf.stack(x_hat)
-        self.x_hat= tf.transpose(x_hat, [1, 0, 2, 3, 4])  # change first dim with sec dim
-        self.x_hat_predict_frames = self.x_hat[:,self.context_frames-1:,:,:,:]
+        method = VanillaConvLstmVideoPredictionModel.set_and_check_pred_frames.__name__
 
+        # sanity checks
+        assert isinstance(seq_length, int), "%{0}: Sequence length (seq_length) must be an integer".format(method)
+        assert isinstance(context_frames, int), "%{0}: Number of context frames must be an integer".format(method)
+
+        if seq_length > context_frames:
+            return seq_length-context_frames
+        else:
+            raise ValueError("%{0}: Sequence length ({1}) must be larger than context frames ({2})."
+                             .format(method, seq_length, context_frames))
