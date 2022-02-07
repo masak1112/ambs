@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: 2021 Earth System Data Exploration (ESDE), Jülich Supercomputing Center (JSC)
+#
+# SPDX-License-Identifier: MIT
+
 """shiftgrid function from mpl_toolkitsbasemap v1.1.0
 This function was copied here to avoid the hassle of importing basemap.
 """

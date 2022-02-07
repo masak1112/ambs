@@ -1,10 +1,11 @@
+# SPDX-FileCopyrightText: 2021 Earth System Data Exploration (ESDE), Jülich Supercomputing Center (JSC)
+# SPDX-FileCopyrightText: 2018 Alex X. Lee
+#
+# SPDX-License-Identifier: MIT
+
 from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
-
-"""
-We took the code implementation from https://github.com/alexlee-gk/video_prediction, SAVP model  as reference, and adjust the code based on our project needs
-"""
 
 __email__ = "b.gong@fz-juelich.de"
 __author__ = "Bing Gong, Michael Langguth"
