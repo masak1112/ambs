@@ -247,6 +247,10 @@ class TrainModel(object):
         self.steps_per_epoch = int(self.num_examples/self.batch_size)
         self.total_steps = self.steps_per_epoch * self.max_epochs
         self.diag_intv_step = int(self.diag_intv_frac*self.total_steps)
+        if self.diag_intv_step == 0:
+            self.diag_intv_step = 1
+        else:
+            pass
         print("%{}: Batch size: {}; max_epochs: {}; num_samples per epoch: {}; steps_per_epoch: {}, total steps: {}"
               .format(method, self.batch_size, self.max_epochs, self.num_examples, self.steps_per_epoch,
                       self.total_steps))
