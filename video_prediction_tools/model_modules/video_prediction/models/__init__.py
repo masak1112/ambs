@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: 2018, alexlee-gk
+#
+# SPDX-License-Identifier: MIT
+
 from .base_model import BaseVideoPredictionModel
 from .base_model import VideoPredictionModel
 from .non_trainable_model import NonTrainableVideoPredictionModel

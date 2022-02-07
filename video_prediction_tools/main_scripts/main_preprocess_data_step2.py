@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: 2021 Earth System Data Exploration (ESDE), Jülich Supercomputing Center (JSC)
+#
+# SPDX-License-Identifier: MIT
+
 """
 Driver for preprocessing step 2 which parses the input arguments from the runscript
 and performs parallelization with OpenMPI.

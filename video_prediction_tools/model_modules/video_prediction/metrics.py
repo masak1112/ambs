@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: 2018, alexlee-gk
+#
+# SPDX-License-Identifier: MIT
+
 import tensorflow as tf
 #import lpips_tf
 import math

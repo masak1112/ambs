@@ -1,4 +1,7 @@
-from collections import OrderedDict
+# SPDX-FileCopyrightText: 2018, alexlee-gk
+#
+# SPDX-License-Identifier: MIT
+
 from tensorflow.python.util import nest
 from model_modules.video_prediction.utils.tf_utils import transpose_batch_time
 

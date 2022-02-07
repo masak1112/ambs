@@ -23,16 +23,16 @@ VIRT_ENV_NAME="my_venv"
 
 # Activate virtual environment if needed (and possible)
 if [ -z ${VIRTUAL_ENV} ]; then
-   if [[ -f ../${VIRT_ENV_NAME}/bin/activate ]]; then
+   if [[ -f ../virtual_envs/${VIRT_ENV_NAME}/bin/activate ]]; then
       echo "Activating virtual environment..."
-      source ../${VIRT_ENV_NAME}/bin/activate
+      source ../virtual_envs/${VIRT_ENV_NAME}/bin/activate
    else 
       echo "ERROR: Requested virtual environment ${VIRT_ENV_NAME} not found..."
       exit 1
    fi
 fi
 # Loading mouldes
-source ../env_setup/modules_preprocess.sh
+source ../env_setup/modules_preprocess+extract.sh
 
 
 # select years and variables for dataset and define target domain 

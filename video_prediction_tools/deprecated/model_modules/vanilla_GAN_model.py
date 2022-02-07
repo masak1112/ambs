@@ -1,15 +1,12 @@
+# SPDX-FileCopyrightText: 2021 Earth System Data Exploration (ESDE), Jülich Supercomputing Center (JSC)
+#
+# SPDX-License-Identifier: MIT 
+
+
 __email__ = "b.gong@fz-juelich.de"
 __author__ = "Bing Gong"
 __date__ = "2021=01-05"
 
-
-
-"""
-This code implement take the following as references:
-1) https://stackabuse.com/introduction-to-gans-with-python-and-tensorflow/
-2) cousera GAN courses
-3) https://github.com/hwalsuklee/tensorflow-generative-model-collections/blob/master/GAN.py
-"""
 
 import tensorflow as tf
 

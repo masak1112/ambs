@@ -26,7 +26,7 @@ USER=$USER
 # check/handle input arguments
 if [[ "$#" -lt 1 ]]; then
   data_dir=${base_data_dir_default}
-  echo "No base directory passed. Thus, the default path ${base_data_dir_default} will be applied."
+  echo "No base data-directory passed. Thus, the default path ${base_data_dir_default} will be applied."
   echo "In order to set it pass the directory path as a first argument."
   echo "Example: ./setup_runscript_templates.sh /my/desired/path/"
 elif [[ "$#" -ge 2 ]]; then
@@ -37,6 +37,7 @@ else
   base_data_dir="$(dirname "${data_dir}")"
   if [[ ! -d ${base_data_dir} ]]; then
     echo "ERROR: Top-level data directory ${base_data_dir} does not exist. Cannot create passed directory."
+    echo "DEBUG: Parsed data_dir was '${data_dir}'" 
     exit 2
   fi
   if [[ ! -d ${data_dir} ]]; then

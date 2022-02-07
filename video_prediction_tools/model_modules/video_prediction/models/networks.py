@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: 2018, alexlee-gk
+#
+# SPDX-License-Identifier: MIT
+
 import tensorflow as tf
 from tensorflow.python.util import nest
 

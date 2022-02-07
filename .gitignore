@@ -71,6 +71,9 @@ target/
 # Jupyter Notebook
 .ipynb_checkpoints
 
+# singularity containers
+*.sif
+
 # pyenv
 .python-version
 

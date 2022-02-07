@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: 2021 Earth System Data Exploration (ESDE), Jülich Supercomputing Center (JSC)
+#
+# SPDX-License-Identifier: MIT
+
 """
 Code for processing staged ERA5 data, this is used for the DataPreprocessing step 1 of the workflow
 
