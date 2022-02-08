@@ -45,10 +45,8 @@ class KTHVideoDataset(object):
         self.get_example_info()
 
 
-
     def get_default_hparams(self):
         return HParams(**self.get_default_hparams_dict())
-
 
     def get_default_hparams_dict(self):
         """
@@ -71,9 +69,6 @@ class KTHVideoDataset(object):
             shuffle_on_val= True,
         )
         return hparams
-
-
-
 
     def get_datasplit(self):
         """
@@ -169,7 +164,6 @@ def save_tf_record(output_fname, sequences):
             })
             example = tf.train.Example(features=features)
             writer.write(example.SerializeToString())
-
 
 
     def read_frames_and_save_tf_records(output_dir, video_dirs, image_size, sequences_per_file=128):
