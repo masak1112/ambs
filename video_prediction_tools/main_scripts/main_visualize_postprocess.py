@@ -1130,7 +1130,7 @@ class Postprocess(TrainModel):
 
         # populate data in netCDF-file (take care for the mode!)
         try:
-            ds.to_netcdf(nc_fname, encoding=encode_nc)
+            ds.to_netcdf(nc_fname, encoding=encode_nc,engine="netcdf4")
             print("%{0}: netCDF-file '{1}' was created successfully.".format(method, nc_fname))
         except Exception as err:
             print("%{0}: Something unexpected happened when creating netCDF-file '1'".format(method, nc_fname))
