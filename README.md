@@ -1,18 +1,17 @@
 ## Table of Contents  
 
-- [Introduction to AMBS](#Introduction to AMBS)  
-- [Prerequisitese](#Prerequisites)
-- [Download Data](#Download Data)
-    - [ERA5 data](#ERA5 Data)
-    - [Climitology data[] (#Climitology Data)
-
-- [Run workflow on Jülich Supercomputer](#Run workflow)
-    - [Installation](#Installation)
-    - [Set up virtual environment](#Set up virtual environment)
-    - [Create specific runscripts](#Create specific runscripts)
-    - [Running the workflow substeps](#Running the workflow substeps)
-- [Benchmark deep learning architecture]
-- [Authors]
+- [Introduction to AMBS](##Introduction to AMBS)  
+- [Prerequisitese](##Prerequisites)
+- [Download Data](##Download Data)
+    - [ERA5 data](##ERA5 Data)
+    - [Climitology data[](##Climitology Data)
+- [Run workflow on Jülich Supercomputer](##Run workflow)
+    - [Installation](##Installation)
+    - [Set up virtual environment](##Set up virtual environment)
+    - [Create specific runscripts](## Create specific runscripts)
+    - [Running the workflow substeps](## Run the workflow)
+- [Benchmark deep learning architecture](##Benchmark deep learning architecture)
+- [Authors](##Authors)
  
 ## AMBS 
 **A**tmopsheric **M**achine learning **B**enchmarking **S**ystem (AMBS)
