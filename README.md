@@ -9,7 +9,7 @@
     - [Installation](##Installation)
     - [Set up virtual environment](##Set up virtual environment)
     - [Create specific runscripts](## Create specific runscripts)
-    - [Running the workflow substeps](## Run the workflow)
+    - [Running the workflow](### Run the workflow)
 - [Benchmark deep learning architecture](##Benchmark deep learning architecture)
 - [Authors](##Authors)
  
