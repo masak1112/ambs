@@ -67,13 +67,15 @@ echo "Actiavting virtual environment ${VENV_NAME} to install required Python mod
 ACT_VENV="${VENV_DIR}/bin/activate"
 source "${VENV_DIR}/bin/activate"
 # set PYTHONPATH...
-export PYTHONPATH="/usr/local/lib/python3.8/dist-packages/"
+export PYTHONPATH=/usr/local/lib/python3.8/dist-packages/:$PYTHONPATH
+export PYTHONPATH=${WORKING_DIR}/virtual_envs/${VENV_NAME}/lib/python3.8/site-packages:$PYTHONPATH
 export PYTHONPATH=${WORKING_DIR}:$PYTHONPATH
 export PYTHONPATH=${WORKING_DIR}/utils:$PYTHONPATH
 export PYTHONPATH=${WORKING_DIR}/model_modules:$PYTHONPATH
 export PYTHONPATH=${WORKING_DIR}/postprocess:$PYTHONPATH
 # ... also ensure that PYTHONPATH is appended when activating the virtual environment...
-echo 'export PYTHONPATH="/usr/local/lib/python3.8/dist-packages/"' >> "${ACT_VENV}"
+echo 'export PYTHONPATH=/usr/local/lib/python3.8/dist-packages/:$PYTHONPATH' >> "${ACT_VENV}"
+echo 'export PYTHONPATH='${WORKING_DIR}'/virtual_envs/'${VENV_NAME}'/lib/python3.8/site-packages:$PYTHONPATH' >> ${ACT_VENV}
 echo 'export PYTHONPATH='${WORKING_DIR}':$PYTHONPATH' >> ${ACT_VENV}
 echo 'export PYTHONPATH='${WORKING_DIR}'/utils:$PYTHONPATH' >> ${ACT_VENV}
 echo 'export PYTHONPATH='${WORKING_DIR}'/model_modules:$PYTHONPATH' >> ${ACT_VENV}

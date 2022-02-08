@@ -2,6 +2,7 @@
 #
 # SPDX-License-Identifier: MIT
 
+import functools
 import itertools
 import os
 import re
