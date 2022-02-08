@@ -1,9 +1,18 @@
+## Table of Contents  
 
-##### Table of Contents  
-[Introduction to AMBS](AMBS)  
-[Emphasis](#emphasis)  
-...snip...    
-<a name="headers"/>
+- [Introduction to AMBS](#Introduction to AMBS)  
+- [Prerequisitese](#Prerequisites)
+- [Download Data](#Download Data)
+    - ERA5 data
+    - Climateology data  
+
+- [Run workflow on Jülich Supercomputer](#Run workflow)
+    - [Installation](#Installation)
+    - [Set up virtual environment](#Set up virtual environment)
+    - [Create specific runscripts](#Create specific runscripts)
+    - [Running the workflow substeps](#Running the workflow substeps)
+- [Benchmark deep learning architecture]
+- [Authors]
  
 ## AMBS 
 **A**tmopsheric **M**achine learning **B**enchmarking **S**ystem (AMBS)
