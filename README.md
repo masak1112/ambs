@@ -1,6 +1,8 @@
 
-
 <img src="ambs_logo.jpg" width="1000" height="400">
+
+[Check our video](https://www.youtube.com/watch?v=Tf2BDDlSDeQ)
+
 
 ## Table of Contents  
 
