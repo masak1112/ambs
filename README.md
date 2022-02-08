@@ -3,8 +3,8 @@
 - [Introduction to AMBS](#Introduction to AMBS)  
 - [Prerequisitese](#Prerequisites)
 - [Download Data](#Download Data)
-    - ERA5 data
-    - Climateology data  
+    - [ERA5 data](#ERA5 Data)
+    - [Climitology data[] (#Climitology Data)
 
 - [Run workflow on Jülich Supercomputer](#Run workflow)
     - [Installation](#Installation)
