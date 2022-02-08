@@ -1045,7 +1045,11 @@ class Postprocess(TrainModel):
                 var_pickle.extend(var_origin_pickle)
 
             # Retrieve starting index
-            ind = list(time_pickle).index(np.array(ts_persistence[0]))
+            try:
+                ind = list(time_pickle).index(np.array(ts_persistence[0]))
+            except Exception as err:
+                print("Please consider return Data preprocess step 1 to generate entire month data")
+                raise err
 
             var_persistence = np.array(var_pickle)[ind:ind + len(ts_persistence)]
             time_persistence = np.array(time_pickle)[ind:ind + len(ts_persistence)].ravel()
@@ -1144,10 +1148,10 @@ class Postprocess(TrainModel):
             raise NotADirectoryError("%{0}: The directory to store the netCDf-file does not exist.".format(method))
 
         encode_nc = {key: {"zlib": True, "complevel": comp_level} for key in ds.keys()}
-
+        
         # populate data in netCDF-file (take care for the mode!)
         try:
-            ds.to_netcdf(nc_fname, encoding=encode_nc)
+            ds.to_netcdf(nc_fname, encoding=encode_nc,engine="netcdf4")
             print("%{0}: netCDF-file '{1}' was created successfully.".format(method, nc_fname))
         except Exception as err:
             print("%{0}: Something unexpected happened when creating netCDF-file '1'".format(method, nc_fname))
