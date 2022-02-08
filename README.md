@@ -1,7 +1,7 @@
 ## Table of Contents  
 
-- [Introduction to AMBS](##Introduction to AMBS)  
-- [Prerequisitese](##Prerequisites)
+- [Introduction to AMBS](#Introduction to AMBS)  
+- [Prerequisites](#Prerequisites)
 - [Download Data](##Download Data)
     - [ERA5 data](##ERA5 Data)
     - [Climitology data](##Climitology Data)
@@ -13,7 +13,7 @@
 - [Benchmark deep learning architecture](##Benchmark deep learning architecture)
 - [Authors](##Authors)
  
-## AMBS 
+## Introduction to AMBS
 **A**tmopsheric **M**achine learning **B**enchmarking **S**ystem (AMBS)
  aims to provide state-of-the-art video prediction methods applied to the meteorological domain.
 In the scope of the current application, the hourly evolution of the 2m temperature
@@ -28,7 +28,7 @@ The project is currently developed by Bing Gong, Michael Langguth, Amirpasha Moz
 Former code developers are Scarlet Stadtler and Severin Hussmann.
 
 
-### Prerequisites
+## Prerequisites
 - Linux or macOS
 - Python 3
 - CPU or NVIDIA GPU + CUDA CuDNN
