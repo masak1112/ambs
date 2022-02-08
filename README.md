@@ -1,19 +1,21 @@
 ## Table of Contents  
 
-- [Introduction to AMBS](#Introduction to AMBS)  
-- [Prerequisites](#Prerequisites)
-- [Download Data](##Download Data)
-    - [ERA5 data](##ERA5 Data)
-    - [Climitology data](##Climitology Data)
-- [Run workflow on Jülich Supercomputer](##Run workflow)
-    - [Installation](##Installation)
-    - [Set up virtual environment](##Set up virtual environment)
-    - [Create specific runscripts](## Create specific runscripts)
-    - [Running the workflow](### Run the workflow)
-- [Benchmark deep learning architecture](##Benchmark deep learning architecture)
-- [Authors](##Authors)
+- [AMBS](#ambs)
+  * [Prerequisites](#prerequisites)
+  * [Installation](#installation)
+  * [Set-up environment on Jülich's HPC systems or other computing systems](#set-up-environment-on-j-lich-s-hpc-systems-or-other-computing-systems)
+  * [Run the workflow](#run-the-workflow)
+    + [Preparation](#preparation)
+    + [Create specific runscripts](#create-specific-runscripts)
+    + [Running the workflow substeps](#running-the-workflow-substeps)
+  * [Running the training in NVIDIA's TF1.15 singularity containers](#running-the-training-in-nvidia-s-tf115-singularity-containers)
+  * [Output folder structure and naming convention](#output-folder-structure-and-naming-convention)
+  * [Benchmarking architectures:](#benchmarking-architectures-)
+  * [Contact](#contact)
+
+
  
-## Introduction to AMBS
+## AMBS 
 **A**tmopsheric **M**achine learning **B**enchmarking **S**ystem (AMBS)
  aims to provide state-of-the-art video prediction methods applied to the meteorological domain.
 In the scope of the current application, the hourly evolution of the 2m temperature
@@ -28,7 +30,7 @@ The project is currently developed by Bing Gong, Michael Langguth, Amirpasha Moz
 Former code developers are Scarlet Stadtler and Severin Hussmann.
 
 
-## Prerequisites
+### Prerequisites
 - Linux or macOS
 - Python 3
 - CPU or NVIDIA GPU + CUDA CuDNN
