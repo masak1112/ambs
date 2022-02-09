@@ -218,7 +218,8 @@ class ERA5Pkl2Tfrecords(ERA5Dataset):
             X_end = X_start + self.sequence_length
             seq = X_train[X_start:X_end, ...]
             # recording the start point of the timestamps (already datetime-objects)
-            t_start = ERA5Pkl2Tfrecords.ensure_datetime(T_train[X_start][0])
+           
+            t_start = ERA5Pkl2Tfrecords.ensure_datetime(T_train[X_start])
             seq = list(np.array(seq).reshape((self.sequence_length, self.height, self.width, self.nvars)))
             if not sequences:
                 last_start_sequence_iter = sequence_iter

@@ -27,6 +27,8 @@ export PYTHONPATH=/usr/local/lib/python3.8/dist-packages:$PYTHONPATH
 # ... and modules from this project
 export PYTHONPATH=${WORKING_DIR}:$PYTHONPATH
 export PYTHONPATH=${WORKING_DIR}/utils:$PYTHONPATH
+export PYTHONPATH=${WORKING_DIR}/model_modules:$PYTHONPATH
+export PYTHONPATH=${WORKING_DIR}/postprocess:$PYTHONPATH
 
 # Control
 echo "****** Check PYTHONPATH *****"

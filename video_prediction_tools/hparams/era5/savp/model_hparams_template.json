@@ -1,5 +1,5 @@
 {
-    "batch_size": 4,
+    "batch_size": 32,
     "lr": 0.0002,
     "beta1": 0.5,
     "beta2": 0.999,
@@ -12,9 +12,11 @@
     "gan_feature_cdist_weight": 0.0,
     "state_weight": 0.0,
     "nz": 16,
-    "max_epochs":2,
+    "max_epochs":4,
     "context_frames": 12,
-    "opt_var": "0"
+    "opt_var": "0",
+    "decay_steps":[3000,9000],
+    "end_lr": 0.00000008
 }
 
 
