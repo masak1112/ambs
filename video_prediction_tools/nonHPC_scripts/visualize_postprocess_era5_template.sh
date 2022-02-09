@@ -5,19 +5,23 @@ echo "Do not run the template scripts"
 exit 99
 ######### Template identifier (don't remove) #########
 
-# declare directory-variables which will be modified appropriately during Preprocessing (invoked by mpi_split_data_multi_years.py)
-source_dir=/home/${USER}/preprocessedData/
-checkpoint_dir=/home/${USER}/models/
-results_dir=/home/${USER}/results/
+# clean-up modules to avoid conflicts between host and container settings
+module purge
 
-# for choosing the model
-model=mcnet
+# declare directory-variables which will be modified by generate_runscript.py
+# Note: source_dir is only needed for retrieving the base-directory
+source_dir=/my/source/dir/
+checkpoint_dir=/my/trained/model/dir
+results_dir=/my/results/dir
+lquick=""
 
-# execute respective Python-script
-python -u ../scripts/generate_transfer_learning_finetune.py \
---input_dir ${source_dir}/tfrecords  \
---dataset_hparams sequence_length=20 --checkpoint  ${checkpoint_dir}/${model} \
---mode test --results_dir ${results_dir} \
---batch_size 2 --dataset era5   > generate_era5-out.out
+# run postprocessing/generation of model results including evaluation metrics
+export CUDA_VISIBLE_DEVICES=0
+## One node, single GPU
+srun --mpi=pspmix --cpu-bind=none \
+     singularity exec --nv "${CONTAINER_IMG}" "${WRAPPER}" ${VIRT_ENV_NAME} \
+     python3 ../main_scripts/main_visualize_postprocess.py --checkpoint  ${checkpoint_dir} --mode test  \
+                                                           --results_dir ${results_dir} --batch_size 4 \
+                                                           --num_stochastic_samples 1 ${lquick} \
+                                                           > postprocess_era5-out_all."${SLURM_JOB_ID}"
 
-#srun  python scripts/train.py --input_dir data/era5 --dataset era5  --model savp --model_hparams_dict hparams/kth/ours_savp/model_hparams.json --output_dir logs/era5/ours_savp
