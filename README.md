@@ -18,10 +18,10 @@
   * [Preparation with NVIDIA's TF1.15 singularity containers](#preparation-with-nvidia-s-tf115-singularity-containers)
   * [Create specific runscripts](#create-specific-runscripts)
   * [Running the workflow substeps](#running-the-workflow-substeps)
-  * [Input and Output folder structure and naming convention](#input-and-output-folder-structure-and-naming-convention)
-  * [Benchmarking architectures:](#benchmarking-architectures-)
-  * [Contributors and contact](#contributors-and-contact)
-  * [On-going work](#on-going-work)
+- [Output folder structure and naming convention](#output-folder-structure-and-naming-convention)
+- [Benchmarking architectures](#benchmarking-architectures-)
+- [Contributors and contact](#contributors-and-contact)
+- [On-going work](#on-going-work)
 
 
 
@@ -213,14 +213,14 @@ The details can be found [name_convention](docs/structure_name_convention.md)
 
 ```
 
-### Benchmarking architectures:
+## Benchmarking architectures:
 
 - convLSTM: [paper](https://papers.nips.cc/paper/5955-convolutional-lstm-network-a-machine-learning-approach-for-precipitation-nowcasting.pdf),[code](https://github.com/loliverhennigh/Convolutional-LSTM-in-Tensorflow)
 - Stochastic Adversarial Video Prediction (SAVP): [paper](https://arxiv.org/pdf/1804.01523.pdf),[code](https://github.com/alexlee-gk/video_prediction) 
 - Variational Autoencoder:[paper](https://arxiv.org/pdf/1312.6114.pdf)
 
 
-### Contributors and contact
+## Contributors and contact
 
 The project is currently developed by Bing Gong, Michael Langguth, Amirpasha Mozafarri, and Yan Ji. 
 
@@ -231,7 +231,7 @@ The project is currently developed by Bing Gong, Michael Langguth, Amirpasha Moz
 
 Former code developers are Scarlet Stadtler and Severin Hussmann.
 
-### On-going work
+## On-going work
 
 - Port to PyTorch version
 - Parallel training neural network
