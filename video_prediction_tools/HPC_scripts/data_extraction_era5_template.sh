@@ -1,6 +1,6 @@
 #!/bin/bash -x
-## Controlling Batch-job
-#SBATCH --account=deepacf
+## Controlling Batch-job : Need input
+#SBATCH --account=<Project name>
 #SBATCH --nodes=1
 #SBATCH --ntasks=13
 ##SBATCH --ntasks-per-node=13
@@ -13,28 +13,28 @@
 #SBATCH --mail-type=ALL
 #SBATCH --mail-user=me@somewhere.com
 
-######### Template identifier (don't remove) #########
-echo "Do not run the template scripts"
-exit 99
-######### Template identifier (don't remove) #########
+##Load basic Python module: Need input
+#module load Python
 
-jutil env activate -p deepacf
 
-# Name of virtual environment 
-VIRT_ENV_NAME="my_venv"
+##Create and activate a virtual environment: Need input 
+#VENV_NAME=<my_venv>
+#Python -m venv ../virtual_envs/${VENV_NAME}
+#source ../virtual_envs/${VENV_NAME}/bin/activate
 
-# Loading mouldes
-source ../env_setup/modules_preprocess+extract.sh
-# Activate virtual environment if needed (and possible)
-if [ -z ${VIRTUAL_ENV} ]; then
-   if [[ -f ../${VIRT_ENV_NAME}/bin/activate ]]; then
-      echo "Activating virtual environment..."
-      source ../${VIRT_ENV_NAME}/bin/activate
-   else 
-      echo "ERROR: Requested virtual environment ${VIRT_ENV_NAME} not found..."
-      exit 1
-   fi
-fi
+
+## Install required packages
+# set PYTHONPATH...
+BASE_DIR="$(pwd)"
+WORKING_DIR=="$(BASE_DIR "$dir")"
+export PYTHONPATH=${WORKING_DIR}/virtual_envs/${VENV_NAME}/lib/python3.8/site-packages:$PYTHONPATH
+export PYTHONPATH=${WORKING_DIR}:$PYTHONPATH
+export PYTHONPATH=${WORKING_DIR}/utils:$PYTHONPATH
+export PYTHONPATH=${WORKING_DIR}/model_modules:$PYTHONPATH
+export PYTHONPATH=${WORKING_DIR}/postprocess:$PYTHONPATH
+# ... install requirements
+pip install --no-cache-dir -r ../env_setup/requirements_nonJSC.txt
+
 
 # Declare path-variables (dest_dir will be set and configured automatically via generate_runscript.py)
 source_dir=/my/path/to/era5
