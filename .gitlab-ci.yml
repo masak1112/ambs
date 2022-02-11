@@ -10,7 +10,7 @@ Loading:
     stage: build
     script: 
         - echo "dataset testing"
-        - cd /data_era5/2017
+        - cd /data_era5
         - ls -ls
 
 
