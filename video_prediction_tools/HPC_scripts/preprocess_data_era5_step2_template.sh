@@ -32,7 +32,7 @@ export PYTHONPATH=${BASE_DIR}/utils:$PYTHONPATH
 export PYTHONPATH=${BASE_DIR}/model_modules:$PYTHONPATH
 export PYTHONPATH=${BASE_DIR}/postprocess:$PYTHONPATH
 # ... install requirements
-pip install --no-cache-dir -r ../env_setup/requirements_nonJSC.txt
+pip install --no-cache-dir -r ../env_setup/requirements.txt
 
 # Name of virtual environment
 VENV_NAME=venv_hdfml

@@ -33,7 +33,7 @@ export PYTHONPATH=${WORKING_DIR}/utils:$PYTHONPATH
 export PYTHONPATH=${WORKING_DIR}/model_modules:$PYTHONPATH
 export PYTHONPATH=${WORKING_DIR}/postprocess:$PYTHONPATH
 # ... install requirements
-pip install --no-cache-dir -r ../env_setup/requirements_nonJSC.txt
+pip install --no-cache-dir -r ../env_setup/requirements.txt
 
 
 # select years for dataset
