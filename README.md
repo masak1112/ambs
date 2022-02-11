@@ -9,19 +9,22 @@
 - [Prerequisites](#prerequisites)
 - [Installation](#installation)
 - [Start with AMBS](#start-with-ambs)
-  * [Set-up environment and target directory on Jülich's HPC systems or other computing systems](#set-up-environment-and-target-directory-on-j-lich-s-hpc-systems-or-other-computing-systems)
+  * [Set-up virtual environment](#set-up-virtual-environment)
+    + [On Jülich's HPC systems](#on-j-lich-s-hpc-systems)
+    + [On other HPC systems](#on-other-hpc-systems)
   * [Prepare your dataset](#prepare-your-dataset)
     + [Dry run with small samples (~15 GB)](#dry-run-with-small-samples---15-gb-)
     + [Access ERA5 dataset (~TB)](#access-era5-dataset---tb-)
-    + [climatological mean data](#climatological-mean-data)
+    + [Climatological mean data](#climatological-mean-data)
   * [Run the workflow](#run-the-workflow)
   * [Preparation with NVIDIA's TF1.15 singularity containers](#preparation-with-nvidia-s-tf115-singularity-containers)
   * [Create specific runscripts](#create-specific-runscripts)
   * [Running the workflow substeps](#running-the-workflow-substeps)
-- [Output folder structure and naming convention](#output-folder-structure-and-naming-convention)
-- [Benchmarking architectures](#benchmarking-architectures-)
-- [Contributors and contact](#contributors-and-contact)
-- [On-going work](#on-going-work)
+  * [Compare and visualize the results](#compare-and-visualize-the-results)
+  * [Input and Output folder structure and naming convention](#input-and-output-folder-structure-and-naming-convention)
+  * [Benchmarking architectures:](#benchmarking-architectures-)
+  * [Contributors and contact](#contributors-and-contact)
+  * [On-going work](#on-going-work)
 
 
 
@@ -65,10 +68,15 @@ cd ambs/video_preditcion_tools/
 
 ## Start with AMBS
 
-### Set-up environment and target directory on Jülich's HPC systems or other computing systems
+### Set-up virtual environment
 
-The following commands will setup a customized virtual environment
-either on a known HPC-system at JSC (Juwels, Juwels Booster or HDF-ML). Setting up a virtual environment on other computing systems, e.g. the personal computer, is currently not supported, but targeted for the future. The script `create_env.sh` automatically detects on which machine it is executed and loads/installs all required Python (binary) modules and packages. The virtual environment with the name provide by user is then set up in a subdirectory `[...]/ambs/video_prediction_tools/virtual_envs/<env_name>` the top-level directory (`[...]/ambs/video_prediction_tools`).
+AMBS is the tool for HPC systems. Other computing systems sucha s personal computer is not supported.  Currently, we provide two approaches to set up your virtual envionrment based on either Jülich HPC system or other HPC systems. The introduction is described as below.
+
+
+#### On Jülich's HPC systems 
+
+The following commands will setup a customized virtual environment on a known HPC-system at JSC (Juwels, Juwels Booster or HDF-ML). The script `create_env.sh` automatically detects on which machine it is executed and loads/installs all required Python (binary) modules and packages. The virtual environment with the name provide by user is then set up in a subdirectory `[...]/ambs/video_prediction_tools/virtual_envs/<env_name>` the top-level directory (`[...]/ambs/video_prediction_tools`).
+
 
 ```bash
 cd env_setup
@@ -77,48 +85,50 @@ source create_env.sh <env_name>
 
 This also already sets up the runscript templates with regards to the five steps of the workflow for you under the folder  `[...]/ambs/video_prediction_tools/HPC_scripts`. 
 
-By default, the runscript templates make use of the standard target base directory `/p/project/deepacf/deeprain/video_prediction_shared_folder/`. This directory will serve as your standard top-level direcotry to store the output of each step in the workflow (see details in #Input-and-output-folder-tructure-and-naming-convention). In case that you want to deviate from this, you may call create_env.sh` as follows:
+By default, the runscript templates make use of the standard target base directory `/p/project/deepacf/deeprain/video_prediction_shared_folder/`. This directory will serve as your standard top-level direcotry to store the output of each step in the workflow (see details in #Input-and-output-folder-tructure-and-naming-convention). In case that you want to deviate from this, you may call `create_env.sh` as follows:
 
 ```bash
 source create_env.sh <env_name> -base_dir=<my_target_dir>
 ```
 **Note** that suifficient read-write permissions and a reasonable amount of memory space is mandatory for your alternative standard output directory.
 
+#### On other HPC systems
+
+If you are working on other HPC system, you are required to custermise the templates under the folder `nonJSC_HPC_scripts`. You can then replace the templates to the `HPC_scripts`. 
 
 ### Prepare your dataset
 
 #### Dry run with small samples (~15 GB)
-In weatheer and Ccimate application, we are also dealing with the large dataset. However, we prepare rather small samples (3 months data with few variables) to help the users test the workflow.
-- For the users of JSC HPC system: The data can be downloaded through the following link  [LINK!!] . 
-- For the users of deepacf project: You can also access `cd /p/project/deepacf/deeprain/video_prediction_shared_folder/GMD_samples` 
+In weatheer and Climate application, we are also dealing with the large dataset. However, we prepare rather small samples (3 months data with few variables) to help the users test the workflow.
+- For the users of JSC HPC system: The data can be downloaded through the following link  [link!!] . 
+- For the users of deepacf project: You can also access `cd /p/scratch/deepacf/deeprain/ji4/GMD_data_example` 
 
 #### Access ERA5 dataset (~TB)
 The experiment described in the GMD paper relies on the rather large ERA5 dataset with 13 years data.  
 
 - For the users of JSC HPC system: You access the data from the followin path: /p/fastdata/slmet/slmet111/met_data/ecmwf/era5/grib. If you meet access permission issue please contact: Stein, Olaf <o.stein@fz-juelich.de>
--  For the users of deepacf project: You can retrieve the ERA5 data from the ECMWF MARS archive by specifying a resolution of 0.3° in the retrieval script (keyword "GRID",  https://confluence.ecmwf.int/pages/viewpage.action?pageId=123799065 ).
 
-#### climatological mean data
+-  For the users of other HPC sytems: You can retrieve the ERA5 data from the ECMWF MARS archive by specifying a resolution of 0.3° in the retrieval script (keyword "GRID",  "https://confluence.ecmwf.int/pages/viewpage.action?pageId=123799065 ").  The variable names and the corresponding paramID can be found in the ECMWF documentaation website [ERA5 documentations](https://confluence.ecmwf.int/display/CKB/ERA5%3A+data+documentation#ERA5:datadocumentation-Howtoacknowledge,citeandrefertoERA5)
+
+#### Climatological mean data
 climatological mean which is inferred at each grid point from the ERA5 reanalysis data between 1990 and 2019 is used in the postprocess step. The data can be download  [LINK!!]  
+
+### Run the workflow
+
+Depending on the computing system you are working on, the workflow steps will be invoked by dedicated runscripts either from the directory `HPC_scripts/` (on known HPC-systems, see above) or from the directory `JSC_scripts/`.
+
+To help the users conduct different experiments with different configuration (e.g. input variables, hyperparameters etc).  Each runscript can be set up conveniently with the help of the Python-script `generate_runscript.py`. Its usage as well the workflow runscripts are described subsequently. 
 
 ### Preparation with NVIDIA's TF1.15 singularity containers
 
 Since 2022, JSC HPC does not support TF1.X in the current stack software system. As an intermediate solution before the TF2 version being ready,
 a singularity container with a CUDA-enabled NVIDIA TensorFlow v1.15 was made available which has to be reflected when setting up the virtual environment and when submiiting the job.  
 
-Firstly, if you are the user of JSC HPC system, you need to log in [Judoor account] (https://judoor.fz-juelich.de/login) and specifically ask for the request to access to the restricted container software. 
-
  Then, you can either download container image ([Link](https://docs.nvidia.com/deeplearning/frameworks/tensorflow-release-notes/rel_21-09.html#rel_21-09)) and place it under the folder`HPC_script`;  Or you can access to the image though the symlink command as below, if you are part of the *deepacf*project (still link to the `HPC_scripts`-directory)
 
 ` ln -sf /p/project/deepacf/deeprain/video_prediction_shared_folder/containers_juwels_booster/nvidia_tensorflow_21.09-tf1-py3.sif` 
 
-### Run the workflow
-
-Depending on the computing system you are working on, the workflow steps will be invoked by dedicated runscripts either from the directory `HPC_scripts/` (on known HPC-systems, see above) or from the directory `nonHPC_scripts/` (else, but not implemented yet).
-
-To help the users conduct different experiments with different configuration (e.g. input variables, hyperparameters etc).  Each runscript can be set up conveniently with the help of the Python-script `generate_runscript.py`. Its usage as well the workflow runscripts are described subsequently. 
-
-
+Note that if you are the user of JSC HPC system, you need to log in [Judoor account] (https://judoor.fz-juelich.de/login) and specifically ask for the request to access to the restricted container software. 
 
 ### Create specific runscripts
 
@@ -144,8 +154,7 @@ Thus, they should be created sequentially instead of all at once at the beginnin
 
 ### Running the workflow substeps 
 
-Having created the runscript by keyboard interaction, the workflow substeps can be run sequentially. Depending on the machine you are working on, change either to `HPC_scripts/` (on Juwels, Juwels Booster or HDF-ML) or to 
-`nonHPC347_scripts/` (not implemented yet).
+Having created the runscript by keyboard interaction, the workflow substeps can be run sequentially. Depending on the machine you are working on, change either to `HPC_scripts/` (on Juwels, Juwels Booster or HDF-ML).
 There, the respective runscripts for all steps of the workflow are located 
 whose order is as follows. Note that `[sbatch]` only has to precede on one of the HPC systems. Besides data extraction and preprocessing step 1 are onyl mandatory when ERA5 data is subject to the application.
 
@@ -168,7 +177,7 @@ The TFrecord-files which are fed to the trained model (next workflow step) are c
     [sbatch] ./preprocess_data_era5_step2.sh
     ```
 
-3. Training: Training of one of the available models with the preprocessed data. <br>
+3. Training: Training of one of the available models with the preprocessed data. 
 Note that the `exp_id` is generated automatically when running `generate_runscript.py`.
     * **ERA 5 data**
     ```bash
@@ -183,7 +192,14 @@ Note that the `exp_id` is generated automatically when running `generate_runscri
     [sbatch] ./visualize_postprocess_era5_<exp_id>.sh
     ```
 
+### Compare and visualize the results
+
+AMBS also provide the tool (called met_postprocess) for the users to compare different experiments results and visualize the results as shown in GMD paper through 
+`meta_postprocess` step. The runscript template are also prepared in the `HPC_scripts`. 
+
+
 ### Input and Output folder structure and naming convention
+
 The details can be found [name_convention](docs/structure_name_convention.md)
 
 ```
@@ -213,14 +229,13 @@ The details can be found [name_convention](docs/structure_name_convention.md)
 
 ```
 
-## Benchmarking architectures:
+### Benchmarking architectures:
 
 - convLSTM: [paper](https://papers.nips.cc/paper/5955-convolutional-lstm-network-a-machine-learning-approach-for-precipitation-nowcasting.pdf),[code](https://github.com/loliverhennigh/Convolutional-LSTM-in-Tensorflow)
 - Stochastic Adversarial Video Prediction (SAVP): [paper](https://arxiv.org/pdf/1804.01523.pdf),[code](https://github.com/alexlee-gk/video_prediction) 
 - Variational Autoencoder:[paper](https://arxiv.org/pdf/1312.6114.pdf)
 
-
-## Contributors and contact
+### Contributors and contact
 
 The project is currently developed by Bing Gong, Michael Langguth, Amirpasha Mozafarri, and Yan Ji. 
 
@@ -231,7 +246,7 @@ The project is currently developed by Bing Gong, Michael Langguth, Amirpasha Moz
 
 Former code developers are Scarlet Stadtler and Severin Hussmann.
 
-## On-going work
+### On-going work
 
 - Port to PyTorch version
 - Parallel training neural network
