@@ -22,11 +22,9 @@
   * [Running the workflow substeps](#running-the-workflow-substeps)
   * [Compare and visualize the results](#compare-and-visualize-the-results)
   * [Input and Output folder structure and naming convention](#input-and-output-folder-structure-and-naming-convention)
-  * [Benchmarking architectures:](#benchmarking-architectures-)
-  * [Contributors and contact](#contributors-and-contact)
-  * [On-going work](#on-going-work)
-
-
+- [Benchmarking architectures:](#benchmarking-architectures-)
+- [Contributors and contact](#contributors-and-contact)
+- [On-going work](#on-going-work)
 
 
 
@@ -171,7 +169,6 @@ Now it is time to run the AMBS workflow
 2. Data Preprocessing: Crop the ERA 5-data (multiple years possible) to the region of interest (preprocesing step 1),
 The TFrecord-files which are fed to the trained model (next workflow step) are created afterwards. Thus, two cases exist at this stage:
 
-    * **ERA 5 data**
     ```bash
     [sbatch] ./preprocess_data_era5_step1.sh
     [sbatch] ./preprocess_data_era5_step2.sh
@@ -179,7 +176,7 @@ The TFrecord-files which are fed to the trained model (next workflow step) are c
 
 3. Training: Training of one of the available models with the preprocessed data. 
 Note that the `exp_id` is generated automatically when running `generate_runscript.py`.
-    * **ERA 5 data**
+
     ```bash
     [sbatch] ./train_model_era5_<exp_id>.sh
     ```
@@ -187,7 +184,7 @@ Note that the `exp_id` is generated automatically when running `generate_runscri
 4. Postprocess: Create some plots and calculate the evaluation metrics for test dataset. <br>
 Note that the `exp_id` is generated automatically when running `generate_runscript.py`.
 
-    * **ERA 5 data**
+
     ```bash
     [sbatch] ./visualize_postprocess_era5_<exp_id>.sh
     ```
@@ -199,9 +196,26 @@ AMBS also provide the tool (called met_postprocess) for the users to compare dif
 
 
 ### Input and Output folder structure and naming convention
+To succesfully runt the workflow and enable to track the result from each step, inputs and output directories, and the file name convention should  be constructed as below:
 
-The details can be found [name_convention](docs/structure_name_convention.md)
+The example of inputs structure for ERA5 dataset. In detail, the  data is recoredly hourly and stored into two grib files. The file with postfix `*_ml.grb` consists of multi layers of the variables, whereas `_sf.grb` only include the surface data.
 
+```
+├── ERA5 dataset
+│   ├── [Year]
+│   │   ├── [Month]
+│   │   │   ├── *_ml.grb 
+│   │   │   ├── *_sf.grb 
+│   │   │   ├── ...
+│   │   ├── [Month]
+│   │   │   ├── *_ml.grb 
+│   │   │   ├── *_sf.grb 
+│   │   │   ├── ...
+
+
+```
+The root output directory should be set up when you run the workflow at the first time as aformentioned
+The output strucutre for each step of the workflow along with the file name convention are described below:
 ```
 ├── ExtractedData
 │   ├── [Year]
@@ -210,32 +224,69 @@ The details can be found [name_convention](docs/structure_name_convention.md)
 ├── PreprocessedData
 │   ├── [Data_name_convention]
 │   │   ├── pickle
-│   │   │   ├── train
-│   │   │   ├── val
-│   │   │   ├── test
+│   │   │   ├── X_<Month>.pkl
+│   │   │   ├── T_<Month>.pkl
+│   │   │   ├── stat_<Month>.pkl
 │   │   ├── tfrecords
-│   │   │   ├── train
-│   │   │   ├── val
-│   │   │   ├── test
+│   │   │   ├── sequence_Y_<Year>_M_<Month>.tfrecords
+│   │   │── metadata.json
 ├── Models
 │   ├── [Data_name_convention]
 │   │   ├── [model_name]
-│   │   ├── [model_name]
+│   │   │   ├── <timestamp>_<user>_<exp_id>
+│   │   │   │   ├── checkpoint_<iteration>
+│   │   │   │   │   ├── model_*
+│   │   │   │   │── timing_per_iteration_time.pkl
+│   │   │   │   │── timing_total_time.pkl
+│   │   │   │   │── timing_training_time.pkl
+│   │   │   │   │── train_losses.pkl
+│   │   │   │   │── val_losses.pkl
+│   │   │   │   │── *.json 
 ├── Results
 │   ├── [Data_name_convention]
 │   │   ├── [training_mode]
 │   │   │   ├── [source_data_name_convention]
 │   │   │   │   ├── [model_name]
+│   │   │   │   │  ├── *.nc
+├── meta_postprocoess
+│   ├── [experiment ID]
 
 ```
 
-### Benchmarking architectures:
+
+| Arguments	| Value	|
+|---	|---	|
+| [Year]	| 2005;2006;2007,...,2019|
+| [Month]	| 01;02;03 ...,12|
+|[Data_name_convention]|Y[yyyy]to[yyyy]M[mm]to[mm]-[nx]_[ny]-[nn.nn]N[ee.ee]E-[var1]_[var2]_[var3]|
+|[model_name]| convLSTM, savp, ...|
+
+***Data name convention***
+
+`Y[yyyy]to[yyyy]M[mm]to[mm]-[nx]_[ny]-[nn.nn]N[ee.ee]E-[var1]_[var2]_[var3]`
+ - Y[yyyy]to[yyyy]M[mm]to[mm]
+ - [nx]_[ny]: the size of images,e.g 64_64 means 64*64 pixels 
+ - [nn.nn]N[ee.ee]E: the geolocation of selected regions with two decimal points. e.g : 0.00N11.50E
+ - [var1]_[var2]_[var3]: the abbrevation of selected variables
+
+
+| Examples	| Name abbrevation 	|
+|---	|---	|
+|all data from March to June of the years 2005-2015	| Y2005toY2015M03to06 |   
+|data from February to May of years 2005-2008 + data from March to June of year 2015| Y2005to2008M02to05_Y2015M03to06 |   
+|Data from February to May, and October to December of 2005 |  Y2005M02to05_Y2015M10to12 |   
+|operational’ data base: whole year 2016 |  Y2016M01to12 |   
+|add new whole year data of 2017 on the operational data base |Y2016to2017M01to12 |  
+|Note: Y2016to2017M01to12 = Y2016M01to12_Y2017M01to12|  
+
+
+## Benchmarking architectures:
 
 - convLSTM: [paper](https://papers.nips.cc/paper/5955-convolutional-lstm-network-a-machine-learning-approach-for-precipitation-nowcasting.pdf),[code](https://github.com/loliverhennigh/Convolutional-LSTM-in-Tensorflow)
 - Stochastic Adversarial Video Prediction (SAVP): [paper](https://arxiv.org/pdf/1804.01523.pdf),[code](https://github.com/alexlee-gk/video_prediction) 
 - Variational Autoencoder:[paper](https://arxiv.org/pdf/1312.6114.pdf)
 
-### Contributors and contact
+## Contributors and contact
 
 The project is currently developed by Bing Gong, Michael Langguth, Amirpasha Mozafarri, and Yan Ji. 
 
@@ -246,11 +297,10 @@ The project is currently developed by Bing Gong, Michael Langguth, Amirpasha Moz
 
 Former code developers are Scarlet Stadtler and Severin Hussmann.
 
-### On-going work
+## On-going work
 
 - Port to PyTorch version
 - Parallel training neural network
 - Integrate precipitation data and new architecture used in our submitted CVPR paper
 - Integrate the ML benchmark datasets such as Moving MNIST 
-
 
