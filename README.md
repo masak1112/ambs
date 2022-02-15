@@ -106,7 +106,7 @@ The experiment described in the GMD paper relies on the rather large ERA5 datase
 
 - For the users of JSC HPC system: You access the data from the followin path: /p/fastdata/slmet/slmet111/met_data/ecmwf/era5/grib. If you meet access permission issue please contact: Stein, Olaf <o.stein@fz-juelich.de>
 
--  For the users of other HPC sytems: You can retrieve the ERA5 data from the ECMWF MARS archive by specifying a resolution of 0.3° in the retrieval script (keyword "GRID",  "https://confluence.ecmwf.int/pages/viewpage.action?pageId=123799065 ").  The variable names and the corresponding paramID can be found in the ECMWF documentaation website [ERA5 documentations](https://confluence.ecmwf.int/display/CKB/ERA5%3A+data+documentation#ERA5:datadocumentation-Howtoacknowledge,citeandrefertoERA5)
+-  For the users of other HPC sytems: You can retrieve the ERA5 data from the ECMWF MARS archive by specifying a resolution of 0.3° in the retrieval script (keyword "GRID",  "https://confluence.ecmwf.int/pages/viewpage.action?pageId=123799065 ").  The variable names and the corresponding paramID can be found in the ECMWF Parameter database website [ERA5 documentations](https://apps.ecmwf.int/codes/grib/param-db)
 
 #### Climatological mean data
 climatological mean which is inferred at each grid point from the ERA5 reanalysis data between 1990 and 2019 is used in the postprocess step. The data can be download  [LINK!!]  
