@@ -9,7 +9,7 @@ Loading:
      - era5
     stage: build
     script: 
-        - echo "dataset testing"
+        - echo "Dataset testing"
         - cd /data_era5/2017
         - ls -ls
 
@@ -26,7 +26,7 @@ Preprocessing:
      - era5
     stage: build
     script: 
-        - echo "Building-preprocessing"
+        - echo "Building preprocessing"
 
 
 Training:
@@ -34,14 +34,33 @@ Training:
      - era5
     stage: build
     script: 
-        - echo "Building-Training"
+        - echo "Building training"
+
+
+Postprocessing:
+    tags:
+     - era5    
+    stage: build  
+    script: 
+        - echo "Building postprocessing"
+        - zypper --non-interactive install gcc gcc-c++ gcc-fortran
+        - zypper  --non-interactive install openmpi openmpi-devel
+        - zypper  --non-interactive install python3
+        - ls /usr/lib64/mpi/gcc/openmpi/bin
+        - export LD_LIBRARY_PATH=/usr/local/lib:$LD_LIBRARY_PATH
+        - export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/lib64/mpi/gcc/openmpi/bin
+        - export PATH=$PATH:/usr/lib64/mpi/gcc/openmpi/bin
+        - mpicxx -showme:link -pthread -L/usr/lib64/mpi/gcc/openmpi/bin -lmpi_cxx -lmpi -lopen-rte -lopen-pal -ldl -Wl,--export-dynamic -lnsl -lutil -lm -ldl
+        - pip install -r video_prediction_tools/env_setup/requirements.txt
+        - ./video_prediction_tools/other_scripts/visualize_postprocess_era5_template.sh   
+                                                                   
 
 test:
     tags: 
      - era5
     stage: build
     script:
-        - echo "model testing"
+        - echo "Model testing"
 #      - zypper --non-interactive install python3-pip
 #      - zypper --non-interactive install python-devel
 #      - pip install --upgrade pip
