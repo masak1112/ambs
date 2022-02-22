@@ -10,7 +10,7 @@ THIS_DIR="$(pwd)"
 WORKING_DIR="$(dirname "$THIS_DIR")"
 VENV_BASE=${WORKING_DIR}/virtual_envs
 VENV_DIR=${WORKING_DIR}/virtual_envs/${ENV_NAME}
-
+ACT_VENV="${VENV_DIR}/bin/activate"
 
 # check if directory to virtual environment is parsed
 if [ -z "$1" ]; then
@@ -39,6 +39,14 @@ export PYTHONPATH=${WORKING_DIR}:$PYTHONPATH
 export PYTHONPATH=${WORKING_DIR}/utils:$PYTHONPATH
 export PYTHONPATH=${WORKING_DIR}/model_modules:$PYTHONPATH
 export PYTHONPATH=${WORKING_DIR}/postprocess:$PYTHONPATH
+
+
+#ensure the PYTHONPATH is appended when activating the virtual enviornemnt
+echo 'export PYTHONPATH='${WORKING_DIR}':$PYTHONPATH' >> ${ACT_VENV}
+echo 'export PYTHONPATH='${WORKING_DIR}'/utils:$PYTHONPATH' >> ${ACT_VENV}
+echo 'export PYTHONPATH='${WORKING_DIR}'/model_modules:$PYTHONPATH' >> ${ACT_VENV}
+echo 'export PYTHONPATH='${WORKING_DIR}'/postprocess:$PYTHONPATH' >> ${ACT_VENV}
+
 
 # get back to basic directory
 cd "${WORKING_DIR}" || exit
