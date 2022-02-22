@@ -31,14 +31,14 @@ from data_preprocess.preprocess_data_step2 import *
 from model_modules.video_prediction import datasets, models, metrics
 from statistical_evaluation import perform_block_bootstrap_metric, avg_metrics, calculate_cond_quantiles, Scores
 from postprocess_plotting import plot_avg_eval_metrics, plot_cond_quantile, create_geo_contour_plot
-
+import warnings
 
 class Postprocess(TrainModel):
     def __init__(self, results_dir: str = None, checkpoint: str = None, data_mode: str = "test", batch_size: int = None,
                  gpu_mem_frac: float = None, num_stochastic_samples: int = 1, stochastic_plot_id: int = 0,
                  seed: int = None, channel: int = 0, run_mode: str = "deterministic", lquick: bool = None,
                  frac_data: float = 1., eval_metrics: List = ("mse", "psnr", "ssim", "acc"), args=None,
-                 clim_path: str = "/p/scratch/deepacf/video_prediction_shared_folder/preprocessedData/T2monthly"):
+                 clim_path: str = "/p/scratch/deepacf/video_prediction_shared_folder/preprocessedData/T2monthly/climatology_t2m_1991-2020.nc"):
         """
         Initialization of the class instance for postprocessing (generation of forecasts from trained model +
         basic evauation).
@@ -85,7 +85,10 @@ class Postprocess(TrainModel):
         # configuration of basic evaluation
         self.eval_metrics = eval_metrics
         self.nboots_block = 1000
-        self.block_length = 7 * 24  # this corresponds to a block length of 7 days in case of hourly forecasts
+        if lquick:
+            self.block_length = 7
+        else:
+            self.block_length = 7 * 24  # this corresponds to a block length of 7 days in case of hourly forecasts
         # initialize evrything to get an executable Postprocess instance
         if args is not None:
             self.save_args_to_option_json()     # create options.json in results directory
@@ -115,7 +118,7 @@ class Postprocess(TrainModel):
         self.inputs, self.input_ts = self.make_test_dataset_iterator()
         self.data_clim = None
         if "acc" in eval_metrics:
-            self.load_climdata()
+            self.load_climdata(clim_path)
         # set-up model, its graph and do GPU-configuration (from TrainModel)
         self.setup_model(mode="test")
         self.setup_graph()
@@ -247,14 +250,13 @@ class Postprocess(TrainModel):
 
         return md_instance
 
-    def load_climdata(self,clim_path="/p/scratch/deepacf/video_prediction_shared_folder/preprocessedData/T2monthly",
-                            var="T2M",climatology_fl="climatology_t2m_1991-2020.nc"):
+    def load_climdata(self,data_clim_path="/p/scratch/deepacf/video_prediction_shared_folder/preprocessedData/T2monthly/climatology_t2m_1991-2020.nc",
+                            var="var167"):
         """
-        params:climatology_fl: str, the full path to the climatology file
+        params:data_cli_path : str, the full path to the climatology file
         params:var           : str, the variable name 
         
         """
-        data_clim_path = os.path.join(clim_path,climatology_fl)
         data = xr.open_dataset(data_clim_path)
         dt_clim = data[var]
 
@@ -558,7 +560,7 @@ class Postprocess(TrainModel):
                 persistence_seq, _ = Postprocess.get_persistence(times_seq, self.input_dir_pkl)
                 for ivar, var in enumerate(self.vars_in):
                     batch_ds["{0}_persistence_fcst".format(var)].loc[dict(init_time=init_times[i])] = \
-                        persistence_seq[self.context_frames-1:, :, :, ivar]
+                            persistence_seq[self.context_frames-1:, :, :, ivar]
 
                 # save sequences to netcdf-file and track initial time
                 nc_fname = os.path.join(self.results_dir, "vfp_date_{0}_sample_ind_{1:d}.nc"
@@ -568,7 +570,6 @@ class Postprocess(TrainModel):
                     print("%{0}: The file '{1}' already exists and is therefore skipped".format(method, nc_fname))
                 else:
                     self.save_ds_to_netcdf(batch_ds.isel(init_time=i), nc_fname)
-
                 # end of batch-loop
             # write evaluation metric to corresponding dataset and sa
             eval_metric_ds = self.populate_eval_metric_ds(eval_metric_ds, batch_ds, sample_ind,
@@ -1119,10 +1120,14 @@ class Postprocess(TrainModel):
         :param pkl_type: Either "X" or "T"
         """
         path_to_pickle = os.path.join(input_dir_pkl, str(year_start), pkl_type + "_{:02}.pkl".format(month_start))
-        with open(path_to_pickle, "rb") as pkl_file:
-            var = pickle.load(pkl_file)
-        return var
-
+        try:
+            with open(path_to_pickle, "rb") as pkl_file:
+                var = pickle.load(pkl_file)
+                return var
+        except Exception as e:
+            
+            print("The pickle file {} does not generated, please consider re-generate the pickle data in the preprocessing step 1",path_to_pickle)
+            raise(e)
     @staticmethod
     def save_ds_to_netcdf(ds, nc_fname, comp_level=5):
         """
@@ -1261,6 +1266,8 @@ def main():
                         help="Flag if (reduced) quick evaluation based on MSE is performed.")
     parser.add_argument("--evaluation_metric_quick", "-metric_quick", dest="metric_quick", type=str, default="mse",
                         help="(Only) metric to evaluate when quick evaluation (-lquick) is chosen.")
+    parser.add_argument("--climatology_file", "-clim_fl", dest="clim_fl", type=str, default=False,
+                        help="The path to the climatology_t2m_1991-2020.nc file ")
     args = parser.parse_args()
 
     method = os.path.basename(__file__)
@@ -1274,7 +1281,8 @@ def main():
     results_dir = args.results_dir
     if args.lquick:      # in case of quick evaluation, onyl evaluate MSE and modify results_dir
         eval_metrics = [args.metric_quick]
-        if not os.path.isfile(args.checkpoint+".meta"):
+        if not glob.glob(os.path.join(args.checkpoint,"*.meta")):
+            print(os.path.join(args.checkpoint,"*.meta"))
             raise ValueError("%{0}: Pass a specific checkpoint-file for quick evaluation.".format(method))
         chp = os.path.basename(args.checkpoint)
         results_dir = args.results_dir + "_{0}".format(chp)
@@ -1285,7 +1293,7 @@ def main():
     postproc_instance = Postprocess(results_dir=results_dir, checkpoint=args.checkpoint, data_mode="test",
                                     batch_size=args.batch_size, num_stochastic_samples=args.num_stochastic_samples,
                                     gpu_mem_frac=args.gpu_mem_frac, seed=args.seed, args=args,
-                                    eval_metrics=eval_metrics, channel=args.channel, lquick=args.lquick)
+                                    eval_metrics=eval_metrics, channel=args.channel, lquick=args.lquick,clim_path=args.clim_fl)
     # run the postprocessing
     postproc_instance.run()
     postproc_instance.handle_eval_metrics()
