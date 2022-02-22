@@ -17,6 +17,5 @@ mkdir ${results_dir}
 python3 ../main_scripts/main_visualize_postprocess.py --checkpoint  ${checkpoint_dir} --mode test  \
                                                            --results_dir ${results_dir} --batch_size 4 \
                                                            --num_stochastic_samples 1 \
-							   --lquick_evaluation \
-							   --climatology_file ${climate_file}
+							   --lquick_evaluation ${lquick} --climatology_file ${climate_file}
 
