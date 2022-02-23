@@ -52,6 +52,7 @@ Postprocessing:
         - export PATH=$PATH:/usr/lib64/mpi/gcc/openmpi/bin
         - mpicxx -showme:link -pthread -L/usr/lib64/mpi/gcc/openmpi/bin -lmpi_cxx -lmpi -lopen-rte -lopen-pal -ldl -Wl,--export-dynamic -lnsl -lutil -lm -ldl
         - pip install -r video_prediction_tools/env_setup/requirements_non_HPC.txt
+        - chmod +x ./video_prediction_tools/other_scripts/visualize_postprocess_era5_template.sh
         - ./video_prediction_tools/other_scripts/visualize_postprocess_era5_template.sh   
                                                                    
 
