@@ -140,7 +140,7 @@ a singularity container with a CUDA-enabled NVIDIA TensorFlow v1.15 was made ava
  Then, you can either download container image ([Link](https://docs.nvidia.com/deeplearning/frameworks/tensorflow-release-notes/rel_21-09.html#rel_21-09)) and place it under the folder`HPC_script`;  Or you can access to the image though the symlink command as below, if you are part of the *deepacf*project (still link to the `HPC_scripts`-directory)
 
 ```bash
-ln -sf /p/project/deepacf/deeprain/video_prediction_shared_folder/containers_juwels_booster/nvidia_tensorflow_21.09-tf1-py3.sif
+ln -sf /p/project/deepacf/deeprain/video_prediction_shared_folder/containers_juwels_booster/nvidia_tensorflow_21.09-tf1-py3.sif tensorflow_21.09-tf1-py3.sif
 ```
 
 
