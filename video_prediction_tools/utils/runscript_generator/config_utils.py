@@ -31,9 +31,9 @@ class Config_runscript_base:
         self.VIRT_ENV_NAME = venv_name
         # runscript related attributes
         if lhpc:
-            self.runscript_dir = "../HPC_scripts"
+            self.runscript_dir = "../JSC_scripts"
         else:
-            self.runscript_dir = "../nonHPC_scripts"
+            self.runscript_dir = "../HPC_scripts"
 
         self.long_name_wrk_step = None
         self.rscrpt_tmpl_prefix = None
