@@ -6,9 +6,9 @@ VIRT_ENV_NAME=venv_test
 echo "Activating virtual environment..."
 source ../virtual_envs/${VIRT_ENV_NAME}/bin/activate
 
-# the source directory contains the tfrecords
-source_dir=/home/b.gong/preprocessed_data-40x40-990N2010E-2t/tfrecords
-destination_dir=/home/b.gong/model2/
+# the source directory contains the tfrecords from data preprocessing step 2
+source_dir=/path/to/tfrecords
+destination_dir=/path/to/output/directory
 
 #select models
 model=savp
