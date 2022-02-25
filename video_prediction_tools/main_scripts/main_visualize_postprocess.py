@@ -85,10 +85,7 @@ class Postprocess(TrainModel):
         # configuration of basic evaluation
         self.eval_metrics = eval_metrics
         self.nboots_block = 1000
-        if lquick:
-            self.block_length = 7
-        else:
-            self.block_length = 7 * 24  # this corresponds to a block length of 7 days in case of hourly forecasts
+        self.block_length = 7 * 24  # this corresponds to a block length of 7 days in case of hourly forecasts
         # initialize evrything to get an executable Postprocess instance
         if args is not None:
             self.save_args_to_option_json()     # create options.json in results directory
