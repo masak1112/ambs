@@ -5,36 +5,35 @@
 
 ## Table of Contents  
 
-- [Introduction to Atmospheric Machine learning Benchmarking System](#introduction-to-atmopsheric-machine-learning-benchmarking-system)
+- [Introduction to Atmospheric Machine Learning Benchmarking System](#introduction-to-atmopsheric-machine-learning-benchmarking-system)
 - [Prepare your dataset](#prepare-your-dataset)
     + [Access ERA5 dataset (~TB)](#access-era5-dataset---tb-)
     + [Dry run with small samples (~15 GB)](#dry-run-with-small-samples---15-gb-)
     + [Climatological mean data](#climatological-mean-data)
 - [Prerequisites](#prerequisites)
 - [Installation](#installation)
+  * [Preparation with NVIDIA's TF1.15 singularity containers](#preparation-with-nvidia-s-tf115-singularity-containers)
 - [Start with AMBS](#start-with-ambs)
   * [Set-up virtual environment](#set-up-virtual-environment)
     + [On Jülich's HPC systems](#on-j-lich-s-hpc-systems)
     + [On other HPC systems](#on-other-hpc-systems)
     + [Other systems](#other-systems)
   * [Run the workflow](#run-the-workflow)
-  * [Preparation with NVIDIA's TF1.15 singularity containers](#preparation-with-nvidia-s-tf115-singularity-containers)
   * [Create specific runscripts](#create-specific-runscripts)
   * [Running the workflow substeps](#running-the-workflow-substeps)
   * [Compare and visualize the results](#compare-and-visualize-the-results)
   * [Input and Output folder structure and naming convention](#input-and-output-folder-structure-and-naming-convention)
-- [Benchmarking architectures:](#benchmarking-architectures-)
+- [Benchmarking architectures](#benchmarking-architectures)
 - [Contributors and contact](#contributors-and-contact)
 - [On-going work](#on-going-work)
 
 
 
-## Introduction to Atmopsheric Machine learning Benchmarking System 
+## Introduction to Atmopsheric Machine Learning Benchmarking System 
 
-**A**tmopsheric **M**achine learning **B**enchmarking **S**ystem (AMBS) aims to provide state-of-the-art video prediction methods applied to the meteorological domain. In the scope of the current application, the hourly evolution of the 2m temperature over a used-defined region is focused. 
+**A**tmopsheric **M**achine Learning **B**enchmarking **S**ystem (AMBS) aims to provide state-of-the-art video prediction methods applied to the meteorological domain. In the scope of the current application, the hourly evolution of the 2m temperature over a used-defined region is focused. 
 
-Different Deep Learning video prediction architectures such as convLSTM and SAVP are trained with ERA5 reanalysis to perform a prediction for 12 hours based on the previous 12 hours. In addition to the 2m temperature (2t) itself, other variables can be fed to the video frame prediction models to enhance their capability to learn the complex physical processes driving the diurnal cycle of temperature. Currently, the recommended additional meteorological variables are the 850 hPa temperature (t850) and the total cloud cover (tcc) as described in our preprint GMD paper. 
-
+Different Deep Learning video prediction architectures such as ConvLSTM and SAVP are trained with ERA5 reanalysis to perform a prediction for 12 hours based on the previous 12 hours. In addition to the 2m temperature (2t) itself, other variables can be fed to the video frame prediction models to enhance their capability to learn the complex physical processes driving the diurnal cycle of temperature. Currently, the recommended additional meteorological variables are the 850 hPa temperature (t850) and the total cloud cover (tcc) as described in our preprint GMD paper. 
 
 
 ## Prepare your dataset
@@ -51,7 +50,7 @@ We recommend the users to store the data following the input structure of the de
 
 #### Dry run with small samples (~15 GB)
 
-In our application, we are dealing with the large dataset. Nevertheless, we also prepared rather small samples ~ 15 GB (3 months data with few variables) to help the users to be able fast test the workflow.  The data can be downloaded through the following link  [link!!] .  For the users of deepacf project in JSC: You can also access from the following path `cd /p/project/deepacf/deeprain/video_prediction_shared_folder/GMD_samples` 
+In our application, we are dealing with the large dataset. Nevertheless, we also prepared rather small samples ~ 15 GB (1 month data in 2007,2008,2009 respectively data with few variables) to help the users to be able fast test the workflow.  The data can be downloaded through the following link  [link!!] .  For the users of deepacf project in JSC: You can also access from the following path `cd /p/project/deepacf/deeprain/video_prediction_shared_folder/GMD_samples` 
 
 
 #### Climatological mean data
@@ -84,8 +83,24 @@ This will create a directory called `ambs` under which this README-file and two 
 
 Thus, change into this subdirectory after cloning:
 ```bash 
-cd ambs/video_preditcion_tools/
+cd ambs/video_prediction_tools/
 ```
+
+
+### Preparation with NVIDIA's TF1.15 singularity containers
+
+Since 2022, JSC HPC does not support TF1.X in the current stack software system. As an intermediate solution before the TF2 version being ready,
+a singularity container with a CUDA-enabled NVIDIA TensorFlow v1.15 was made available which has to be reflected when setting up the virtual environment and when submiiting the job.  
+
+ Then, you can either download container image ([Link](https://docs.nvidia.com/deeplearning/frameworks/tensorflow-release-notes/rel_21-09.html#rel_21-09)) and place it under the folder`HPC_script`;  Or you can access to the image though the symlink command as below, if you are part of the *deepacf* project (still link to the `HPC_scripts`-directory)
+
+```bash
+cd ambs/video_prediction_tools/HPC_scripts
+ln -sf /p/project/deepacf/deeprain/video_prediction_shared_folder/containers_juwels_booster/nvidia_tensorflow_21.09-tf1-py3.sif tensorflow_21.09-tf1-py3.sif
+```
+
+
+Note that if you are the user of JSC HPC system, you need to log in [Judoor account] (https://judoor.fz-juelich.de/login) and specifically ask for the request to access to the restricted container software. If your system support TF1.X, you can load the corresponding module or install the package by adding it to requirement.txt
 
 
 ## Start with AMBS
@@ -98,17 +113,17 @@ In such case, we provide three approaches to set up your virtual environment bas
 
 #### On Jülich's HPC systems 
 
-The following commands will setup a customized virtual environment on a known HPC-system at JSC (Juwels, Juwels Booster or HDF-ML). The script `create_env.sh` automatically detects on which machine it is executed and loads/installs all required Python (binary) modules and packages. The virtual environment with the name provide by user is then set up in a subdirectory `[...]/ambs/video_prediction_tools/virtual_envs/<env_name>` the top-level directory (`[...]/ambs/video_prediction_tools`).
+The following commands will setup a customized virtual environment on a known HPC-system at JSC (Juwels, Juwels Booster or HDF-ML). The script `create_env.sh` automatically detects on which machine it is executed and loads/installs all required Python (binary) modules and packages. The virtual environment with the name provide by user is then set up in a subdirectory `[...]/ambs/video_prediction_tools/virtual_envs/<env_name>` the top-level directory (`../ambs/video_prediction_tools`).
 
 
 ```bash
-cd env_setup
+cd ../ambs/video_prediction_tools/env_setup
 source create_env.sh <env_name> 
 ```
 
 This also already sets up the runscript templates with regards to the five steps of the workflow for you under the folder  `[...]/ambs/video_prediction_tools/JSC_scripts`. 
 
-By default, the runscript templates make use of the standard target base directory `/p/project/deepacf/deeprain/video_prediction_shared_folder/`. This directory will serve as your standard top-level direcotry to store the output of each step in the workflow see details in the [folder structure section]( #input-and-output-folder-tructure-and-naming-convention). In case that you want to deviate from this, you may call `create_env.sh`  to setup a new  root direcotyr as follows:
+By default, the runscript templates make use of the standard target base directory `/p/project/deepacf/deeprain/video_prediction_shared_folder/`. This directory will serve as your standard top-level direcotry to store the output of each step in the workflow see details in the [folder structure section]( #input-and-output-folder-tructure-and-naming-convention). In case that you want to deviate from this, you may call `create_env.sh`  to custermise a new  root direcotyr as follows:
 
 ```bash
 source create_env.sh <env_name> -base_dir=<my_target_dir>
@@ -127,33 +142,21 @@ source create_env_non_HPC.sh <env_name>
 ```
 Then the virtual enviornment will be created under `../ambs/video_prediction_tools/virtual_envs`. The required packages (`requirement_non_HPC.txt`) will be installed.
 
+
 ### Run the workflow
 
 Depending on the computing system you are working on, the workflow steps will be invoked by dedicated runscripts either from the directory `JSC_scripts/` (on known HPC-systems, see above) or from the directory `HPC_scripts/`, `other_scripts/`
 To help the users conduct different experiments with different configuration (e.g. input variables, hyperparameters etc).  Each runscript can be set up conveniently with the help of the Python-script `generate_runscript.py`. Its usage as well the workflow runscripts are described subsequently. 
 
-### Preparation with NVIDIA's TF1.15 singularity containers
-
-Since 2022, JSC HPC does not support TF1.X in the current stack software system. As an intermediate solution before the TF2 version being ready,
-a singularity container with a CUDA-enabled NVIDIA TensorFlow v1.15 was made available which has to be reflected when setting up the virtual environment and when submiiting the job.  
-
- Then, you can either download container image ([Link](https://docs.nvidia.com/deeplearning/frameworks/tensorflow-release-notes/rel_21-09.html#rel_21-09)) and place it under the folder`HPC_script`;  Or you can access to the image though the symlink command as below, if you are part of the *deepacf*project (still link to the `HPC_scripts`-directory)
-
-```bash
-ln -sf /p/project/deepacf/deeprain/video_prediction_shared_folder/containers_juwels_booster/nvidia_tensorflow_21.09-tf1-py3.sif tensorflow_21.09-tf1-py3.sif
-```
-
-
-Note that if you are the user of JSC HPC system, you need to log in [Judoor account] (https://judoor.fz-juelich.de/login) and specifically ask for the request to access to the restricted container software. 
 
 ### Create specific runscripts
 
 Specific runscripts for each workflow substep (see below) are generated conveniently by keyboard interaction.
 
-The interactive Python script thereby has to be executed in an activated virtual environment with some additional modules! After prompting 
+The interactive Python script under the folder `../ambs/video_prediction_tools/env_setup` thereby has to be executed in an activated virtual environment with some additional modules! After prompting 
 
 ```bash
-python generate_runscript.py
+python generate_runscript.py --venv_path <venv_name>
 ```
 
 You will be asked first which workflow runscript shall be generated. You can chose one of the workflow step name: 
@@ -168,6 +171,8 @@ The subsequent keyboard interactions then allow the user to make individual sett
 Note that the runscript creation of later workflow substeps depends on the preceding steps (i.e. by checking the arguments from keyboard interaction).
 Thus, they should be created sequentially instead of all at once at the beginning. 
 
+
+**Note:** The step of one step relies on the outcomes from previous step in the workfow. Please run the steps sequentially instead of in parallel. 
 **Warning**: the `generate_runscript.py` currently is only for the JSC users. You can skip this step for non-JSC HPC users. If you have different settings for various experiments, you can simply copy the template to a new file where you can customize your setting. 
 
 ### Running the workflow substeps 
@@ -291,7 +296,7 @@ Here we give some examples to explain the name conventions:
 |Note: Y2016to2017M01to12 = Y2016M01to12_Y2017M01to12  
 
 
-## Benchmarking architectures:
+## Benchmarking architectures
 Currently, the workflow include the following ML architectures, and we are working on integrating more into the system.
 - ConvLSTM: [paper](https://papers.nips.cc/paper/5955-convolutional-lstm-network-a-machine-learning-approach-for-precipitation-nowcasting.pdf),[code](https://github.com/loliverhennigh/Convolutional-LSTM-in-Tensorflow)
 - Stochastic Adversarial Video Prediction (SAVP): [paper](https://arxiv.org/pdf/1804.01523.pdf),[code](https://github.com/alexlee-gk/video_prediction) 
@@ -314,5 +319,3 @@ Former code developers are Scarlet Stadtler and Severin Hussmann.
 - Parallel training neural network
 - Integrate precipitation data and new architecture used in our submitted CVPR paper
 - Integrate the ML benchmark datasets such as Moving MNIST 
-
-
