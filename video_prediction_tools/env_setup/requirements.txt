@@ -7,7 +7,7 @@ numpy==1.17.3     # although this numpy-version is in the container, we set it h
 scikit-image==0.18.1
 opencv-python-headless==4.2.0.34
 netcdf4==1.5.8
-metadata==0.2
+#metadata==0.2
 normalization==0.4
 utils==1.0.1
 
