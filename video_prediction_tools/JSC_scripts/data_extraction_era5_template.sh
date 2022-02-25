@@ -23,8 +23,7 @@ jutil env activate -p deepacf
 # Name of virtual environment 
 VIRT_ENV_NAME="my_venv"
 
-# Loading mouldes
-source ../env_setup/modules_preprocess+extract.sh
+
 # Activate virtual environment if needed (and possible)
 if [ -z ${VIRTUAL_ENV} ]; then
    if [[ -f ../virtual_envs/${VIRT_ENV_NAME}/bin/activate ]]; then
@@ -35,6 +34,8 @@ if [ -z ${VIRTUAL_ENV} ]; then
       exit 1
    fi
 fi
+# Loading mouldes
+source ../env_setup/modules_preprocess+extract.sh
 
 # Declare path-variables (dest_dir will be set and configured automatically via generate_runscript.py)
 source_dir=/my/path/to/era5
