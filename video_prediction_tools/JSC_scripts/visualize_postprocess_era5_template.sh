@@ -42,7 +42,6 @@ module purge
 
 # declare directory-variables which will be modified by generate_runscript.py
 # Note: source_dir is only needed for retrieving the base-directory
-source_dir=/my/source/dir/
 checkpoint_dir=/my/trained/model/dir
 results_dir=/my/results/dir
 lquick=""
