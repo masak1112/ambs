@@ -1268,6 +1268,7 @@ def main():
                         help="(Only) metric to evaluate when quick evaluation (-lquick) is chosen.")
     parser.add_argument("--climatology_file", "-clim_fl", dest="clim_fl", type=str, default=False,
                         help="The path to the climatology_t2m_1991-2020.nc file ")
+    parse.add_argument("--frac_data", "-f_dt",  dest="f_dt",type=float,default=1,help="fraction of dataset to be used for evaluation (only applied when shuffling is active)")
     args = parser.parse_args()
 
     method = os.path.basename(__file__)
@@ -1293,7 +1294,7 @@ def main():
     postproc_instance = Postprocess(results_dir=results_dir, checkpoint=args.checkpoint, data_mode="test",
                                     batch_size=args.batch_size, num_stochastic_samples=args.num_stochastic_samples,
                                     gpu_mem_frac=args.gpu_mem_frac, seed=args.seed, args=args,
-                                    eval_metrics=eval_metrics, channel=args.channel, lquick=args.lquick,clim_path=args.clim_fl)
+                                    eval_metrics=eval_metrics, channel=args.channel, lquick=args.lquick,clim_path=args.clim_fl,frac_data=args.frac_data)
     # run the postprocessing
     postproc_instance.run()
     postproc_instance.handle_eval_metrics()
