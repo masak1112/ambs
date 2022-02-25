@@ -8,9 +8,10 @@ source ../virtual_envs/${VIRT_ENV_NAME}/bin/activate
 
 sequence_length=20
 sequences_per_file=10
-source_dir=/home/b.gong/preprocessed_data-40x40-990N2010E-2t/pickle
+source_dir=/path/to/pickle/directory
 base_dir="$(dirname "$source_dir")"
 destination_dir=${base_dir}/tfrecords
+
 #the number of the nodes should be the number of processed folder (month) plus 1
 n_nodes=3
 
