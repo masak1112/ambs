@@ -14,7 +14,7 @@ climate_file=/home/b.gong/data_era5/T2monthly/climatology_t2m_1991-2020.nc
 #select models
 model=convLSTM
 #mkdir ${results_dir}
-python3 ./video_prediction_tools/main_scripts/main_visualize_postprocess.py --checkpoint  ${checkpoint_dir} --mode test  \
+python3 ../main_scripts/main_visualize_postprocess.py --checkpoint  ${checkpoint_dir} --mode test  \
                                                            --results_dir ${results_dir} --batch_size 4 \
                                                            --num_stochastic_samples 1 \
 							   --lquick_evaluation ${lquick} --climatology_file ${climate_file}
