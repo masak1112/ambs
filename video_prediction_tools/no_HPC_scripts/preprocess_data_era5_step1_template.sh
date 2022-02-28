@@ -1,10 +1,22 @@
 #!/bin/bash -x
 
-#User's input : your virtual enviornment name
+######### Template identifier (don't remove) #########
+echo "Do not run the template scripts"
+exit 99
+######### Template identifier (don't remove) #########
+
+# Name of virtual environment
 VIRT_ENV_NAME=venv_test
 
-echo "Activating virtual environment..."
-source ../virtual_envs/${VIRT_ENV_NAME}/bin/activate
+if [ -z ${VIRTUAL_ENV} ]; then
+   if [[ -f ../virtual_envs/${VIRT_ENV_NAME}/bin/activate ]]; then
+      echo "Activating virtual environment..."
+      source ../virtual_envs/${VIRT_ENV_NAME}/bin/activate
+   else
+      echo "ERROR: Requested virtual environment ${VIRT_ENV_NAME} not found..."
+      exit 1
+   fi
+fi
 
 #select years and variables for dataset and define target domain 
 years=( "2007" )

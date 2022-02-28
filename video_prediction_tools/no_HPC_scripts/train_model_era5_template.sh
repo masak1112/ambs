@@ -1,7 +1,15 @@
 #!/bin/bash -x
 
-#your virtual enviornment name
-VIRT_ENV_NAME=venv_test
+######### Template identifier (don't remove) #########
+echo "Do not run the template scripts"
+exit 99
+######### Template identifier (don't remove) #########
+
+# auxiliary variables
+WORK_DIR="$(pwd)"
+BASE_DIR=$(dirname "$WORK_DIR")
+# Name of virtual environment
+VIRT_ENV_NAME="my_venv"
 
 # declare directory-variables which will be modified by generate_runscript.py
 source_dir=/my/path/to/tfrecords/files

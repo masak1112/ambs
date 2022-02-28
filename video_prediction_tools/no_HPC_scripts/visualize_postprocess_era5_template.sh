@@ -1,5 +1,15 @@
 #!/bin/bash -x
 
+######### Template identifier (don't remove) #########
+echo "Do not run the template scripts"
+exit 99
+######### Template identifier (don't remove) #########
+
+# auxiliary variables
+WORK_DIR="$(pwd)"
+BASE_DIR=$(dirname "$WORK_DIR")
+#your virtual enviornment name
+
 #User's input : your virtual enviornment name
 VIRT_ENV_NAME=venv_test
 # !!! ADAPAT DEPENDING ON USAGE OF CONTAINER !!!

@@ -1,6 +1,14 @@
 #!/bin/bash -x
 
-#User's input : your virtual enviornment name
+######### Template identifier (don't remove) #########
+echo "Do not run the template scripts"
+exit 99
+######### Template identifier (don't remove) #########
+
+# auxiliary variables
+WORK_DIR="$(pwd)"
+BASE_DIR=$(dirname "$WORK_DIR")
+# Name of virtual environment
 VIRT_ENV_NAME=venv_test
 
 # declare directory-variables which will be modified by config_runscript.py

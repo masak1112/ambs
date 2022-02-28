@@ -1,6 +1,11 @@
 #!/bin/bash -x
 
-#User's input : your virtual enviornment name
+######### Template identifier (don't remove) #########
+echo "Do not run the template scripts"
+exit 99
+######### Template identifier (don't remove) #########
+
+# Name of virtual environment
 VIRT_ENV_NAME=venv_test
 
 echo "Activating virtual environment..."
