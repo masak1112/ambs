@@ -56,8 +56,9 @@ else
   # Change into the base-directory of virtual environments...
   cd "${VENV_BASE}" || return
   if ! python -m virtualenv --version >/dev/null; then
-    echo "ERROR: Base directory for virtual environment exists, but virtualenv-module is unavailable."
-    exit
+    echo "WARNING: Base directory for virtual environment exists, but virtualenv-module is unavailable."
+    echo "Try installation."
+    pip3 install --target="${VENV_BASE}"/ virtualenv 
   fi
   echo "Virtualenv is already installed."
 fi
