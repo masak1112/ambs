@@ -32,7 +32,7 @@ check_argin() {
     if [[ -z "${bool_container}" ]]; then
         bool_container=1
     fi
-    if [[ -z "${bool_container}" ]]; then
+    if [[ -z "${bool_hpc}" ]]; then
         bool_hpc=1
     fi
     # in case that no TF-container is set manually, set the default
@@ -69,6 +69,9 @@ WORKING_DIR="$(dirname "$THIS_DIR")"
 EXE_DIR="$(basename "$THIS_DIR")"
 ENV_DIR=${WORKING_DIR}/virtual_envs/${ENV_NAME}
 TF_CONTAINER=${WORKING_DIR}/HPC_scripts/${TF_CONTAINER_NAME}
+if [[ ${bool_hpc} == 0 ]]; then
+  TF_CONTAINER=${WORKING_DIR}/no_HPC_scripts/${TF_CONTAINER_NAME}
+fi 
 
 ## perform sanity checks
 
@@ -124,10 +127,14 @@ if [[ "$ENV_EXIST" == 0 ]]; then
     if [[ ${bool_hpc} == 1 ]]; then
       source ${THIS_DIR}/modules_train.sh
     fi
+    unset PYTHONPATH
     ./install_venv.sh "${ENV_DIR}"
 
+    # Activate virtual environment again
+    source "${ENV_DIR}/bin/activate"
+
     if [[ ${bool_hpc} == 0 ]]; then
-      pip install --no-cache-dir tensorflow==1.13.1
+      pip3 install --no-cache-dir tensorflow==1.13.1
     fi
   fi
 elif [[ "$ENV_EXIST" == 1 ]]; then
