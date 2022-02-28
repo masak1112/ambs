@@ -2,11 +2,12 @@
 #SBATCH --account=<your_project>
 #SBATCH --nodes=1
 #SBATCH --ntasks=1
-#SBATCH --output=train_model_era5-out.%j
-#SBATCH --error=train_model_era5-err.%j
-#SBATCH --time=24:00:00
-#SBATCH --gres=gpu:1
-#SBATCH --partition=some_partition
+##SBATCH --ntasks-per-node=1
+#SBATCH --cpus-per-task=1
+#SBATCH --output=DataPreprocess_moving_mnist-out.%j
+#SBATCH --error=DataPreprocess_moving_mnist-err.%j
+#SBATCH --time=04:00:00
+#SBATCH --partition=batch
 #SBATCH --mail-type=ALL
 #SBATCH --mail-user=me@somewhere.com
 
@@ -15,11 +16,9 @@ echo "Do not run the template scripts"
 exit 99
 ######### Template identifier (don't remove) #########
 
-# auxiliary variables
-WORK_DIR="$(pwd)"
-BASE_DIR=$(dirname "$WORK_DIR")
-# Name of virtual environment
+# Name of virtual environment 
 VIRT_ENV_NAME="my_venv"
+
 # !!! ADAPAT DEPENDING ON USAGE OF CONTAINER !!!
 # For container usage, comment in the follwoing lines
 # Name of container image (must be available in working directory)
@@ -40,22 +39,17 @@ fi
 # clean-up modules to avoid conflicts between host and container settings
 module purge
 
-# declare directory-variables which will be modified by generate_runscript.py
-source_dir=/my/path/to/tfrecords/files
-destination_dir=/my/model/output/path
+# declare directory-variables which will be modified generate_runscript.py
+source_dir=/my/path/to/mnist/raw/data/
+destination_dir=/my/path/to/mnist/tfrecords/
 
-# valid identifiers for model-argument are: convLSTM, savp, mcnet and vae
-model=convLSTM
-datasplit_dict=${destination_dir}/data_split.json
-model_hparams=${destination_dir}/model_hparams.json
-
-# run training in container
+# run Preprocessing (step 2 where Tf-records are generated)
+# run postprocessing/generation of model results including evaluation metrics
 export CUDA_VISIBLE_DEVICES=0
-## One node, single GPU 
+## One node, single GPU
 srun --mpi=pspmix --cpu-bind=none \
      singularity exec --nv "${CONTAINER_IMG}" "${WRAPPER}" ${VIRT_ENV_NAME} \
-     python3 "${BASE_DIR}"/main_scripts/main_train_models.py --input_dir ${source_dir} --datasplit_dict ${datasplit_dict} \
-     --dataset era5 --model ${model} --model_hparams_dict ${model_hparams} --output_dir ${destination_dir}/
+     python3 ../video_prediction/datasets/moving_mnist.py ${source_dir} ${destination_dir}
 
 # WITHOUT container usage, comment in the follwoing lines (and uncomment the lines above)
 # Activate virtual environment if needed (and possible)
@@ -74,5 +68,4 @@ srun --mpi=pspmix --cpu-bind=none \
 #source ../env_setup/modules_train.sh
 #export CUDA_VISIBLE_DEVICES=0
 #
-# srun python3 "${BASE_DIR}"/main_scripts/main_train_models.py --input_dir ${source_dir} --datasplit_dict ${datasplit_dict} \
-#     --dataset era5 --model ${model} --model_hparams_dict ${model_hparams} --output_dir ${destination_dir}/
+# srun python3 .../video_prediction/datasets/moving_mnist.py ${source_dir} ${destination_dir}

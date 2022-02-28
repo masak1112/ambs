@@ -1,5 +1,5 @@
 #!/bin/bash -x
-#SBATCH --account=deepacf
+#SBATCH --account=<your_project>
 #SBATCH --nodes=1
 #SBATCH --ntasks=1
 ##SBATCH --ntasks-per-node=1
@@ -10,8 +10,7 @@
 #SBATCH --gres=gpu:1
 #SBATCH --partition=gpus
 #SBATCH --mail-type=ALL
-#SBATCH --mail-user=b.gong@fz-juelich.de
-##jutil env activate -p cjjsc42
+#SBATCH --mail-user=me@somewhere.com
 
 ######### Template identifier (don't remove) #########
 echo "Do not run the template scripts"
@@ -23,6 +22,8 @@ WORK_DIR=`pwd`
 BASE_DIR=$(dirname "$WORK_DIR")
 # Name of virtual environment
 VIRT_ENV_NAME="my_venv"
+# !!! ADAPAT DEPENDING ON USAGE OF CONTAINER !!!
+# For container usage, comment in the follwoing lines
 # Name of container image (must be available in working directory)
 CONTAINER_IMG="${WORK_DIR}/tensorflow_21.09-tf1-py3.sif"
 WRAPPER="${BASE_DIR}/env_setup/wrapper_container.sh"
@@ -52,7 +53,6 @@ dataset=moving_mnist
 model_hparams=../hparams/${dataset}/${model}/model_hparams.json
 destination_dir=${destination_dir}/${model}/"$(date +"%Y%m%dT%H%M")_"$USER""
 
-# rund training
 # run training in container
 export CUDA_VISIBLE_DEVICES=0
 ## One node, single GPU
@@ -60,3 +60,23 @@ srun --mpi=pspmix --cpu-bind=none \
      singularity exec --nv "${CONTAINER_IMG}" "${WRAPPER}" ${VIRT_ENV_NAME} \
      python ../main_scripts/train.py --input_dir  ${source_dir}/tfrecords/ --dataset ${dataset}  --model ${model} \
       --model_hparams_dict ${model_hparams} --output_dir "${destination_dir}"/
+
+# WITHOUT container usage, comment in the follwoing lines (and uncomment the lines above)
+# Activate virtual environment if needed (and possible)
+#if [ -z ${VIRTUAL_ENV} ]; then
+#   if [[ -f ../virtual_envs/${VIRT_ENV_NAME}/bin/activate ]]; then
+#      echo "Activating virtual environment..."
+#      source ../virtual_envs/${VIRT_ENV_NAME}/bin/activate
+#   else
+#      echo "ERROR: Requested virtual environment ${VIRT_ENV_NAME} not found..."
+#      exit 1
+#   fi
+#fi
+#
+# Loading modules
+#module purge
+#source ../env_setup/modules_train.sh
+#export CUDA_VISIBLE_DEVICES=0
+#
+# srun python3 ../main_scripts/train.py --input_dir  ${source_dir}/tfrecords/ --dataset ${dataset}  --model ${model} \
+#      --model_hparams_dict ${model_hparams} --output_dir "${destination_dir}"/
