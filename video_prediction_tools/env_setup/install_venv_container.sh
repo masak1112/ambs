@@ -41,6 +41,9 @@ if [ ! -f "${VENV_REQ}" ]; then
   return
 fi
 
+# get Python-version
+PYTHON_VERSION=$(python3 -c 'import sys; version=sys.version_info[:2]; print("{0}.{1}".format(*version))')
+
 # create or change to  base directory for virtual environment (i.e. where the virtualenv-module is placed)
 if ! [[ -d "${VENV_BASE}" ]]; then
   mkdir "${VENV_BASE}"
@@ -67,8 +70,8 @@ echo "Actiavting virtual environment ${VENV_NAME} to install required Python mod
 ACT_VENV="${VENV_DIR}/bin/activate"
 source "${VENV_DIR}/bin/activate"
 # set PYTHONPATH...
-export PYTHONPATH=/usr/local/lib/python3.8/dist-packages/:$PYTHONPATH
-export PYTHONPATH=${WORKING_DIR}/virtual_envs/${VENV_NAME}/lib/python3.8/site-packages:$PYTHONPATH
+export PYTHONPATH=/usr/local/lib/python${PYTHON_VERSION}/dist-packages/:$PYTHONPATH
+export PYTHONPATH=${WORKING_DIR}/virtual_envs/${VENV_NAME}/lib/python${PYTHON_VERSION}/site-packages:$PYTHONPATH
 export PYTHONPATH=${WORKING_DIR}:$PYTHONPATH
 export PYTHONPATH=${WORKING_DIR}/utils:$PYTHONPATH
 export PYTHONPATH=${WORKING_DIR}/model_modules:$PYTHONPATH
