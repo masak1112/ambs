@@ -13,7 +13,7 @@ varmap_file=/my/path/to/varmapping/file
 
 years=( "2007" )
 
-#The number of nodes should be equal to the number of 1 preprcessed folder plus 1
+#The number of nodes should be equal to the number of 1 preprocessed folder plus 1
 n_nodes=3
 
 # Run data extraction

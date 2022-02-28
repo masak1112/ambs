@@ -16,7 +16,7 @@ nyx=( 40 40 )
 source_dir=/home/b.gong/data_era5
 destination_dir=/home/b.gong/preprocessed_data
 
-#The number of nodes should be equal to the number of 1 preprcessed folder plus 1
+#The number of nodes should be equal to the number of 1 preprocessed folders plus 1
 n_nodes=3
 
 for year in "${years[@]}"; do
