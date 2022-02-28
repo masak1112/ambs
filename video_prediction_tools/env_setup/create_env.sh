@@ -57,9 +57,7 @@ if [[ -z "$1" ]]; then
   return
 fi
 
-if [[ "$#" -gt 1 ]]; then
-  check_argin ${@:2}                 # sets further variables
-fi
+check_argin ${@:2}                 # sets further variables
 
 # set some variables
 HOST_NAME="$(hostname)"
@@ -115,7 +113,7 @@ fi
 if [[ "$ENV_EXIST" == 0 ]]; then
   # Activate virtual environment and install additional Python packages.
   echo "Configuring and activating virtual environment on ${HOST_NAME}"
-
+ 
   if [[ ${bool_container} == 1 ]]; then
     if [[ ${bool_hpc} == 1 ]]; then
       module purge
