@@ -19,7 +19,26 @@ check_argin() {
         if [[ $argin == *"-base_dir="* ]]; then
           base_outdir=${argin#"-base_dir="}
         fi
+        if [[ $argin == *"-tf_container="* ]]; then
+          TF_CONTAINER_NAME=${argin#"-tf_container="}
+        fi
+        if [[ $argin == *"-l_nocontainer"* ]]; then
+          bool_container=0
+        fi
+        if [[ $argin == *"-l_nohpc"* ]]; then
+          bool_hpc=0
+        fi
     done
+    if [[ -z "${bool_container}" ]]; then
+        bool_container=1
+    fi
+    if [[ -z "${bool_container}" ]]; then
+        bool_hpc=1
+    fi
+    # in case that no TF-container is set manually, set the default
+    if [[ -z "${TF_CONTAINER_NAME}" ]]; then
+      TF_CONTAINER_NAME="tensorflow_21.09-tf1-py3.sif"
+    fi
 }
 
 # **************** Auxiliary functions ****************
@@ -39,7 +58,7 @@ if [[ -z "$1" ]]; then
 fi
 
 if [[ "$#" -gt 1 ]]; then
-  check_argin ${@:2}                 # sets base_outdir if provided
+  check_argin ${@:2}                 # sets further variables
 fi
 
 # set some variables
@@ -49,12 +68,12 @@ THIS_DIR="$(pwd)"
 WORKING_DIR="$(dirname "$THIS_DIR")"
 EXE_DIR="$(basename "$THIS_DIR")"
 ENV_DIR=${WORKING_DIR}/virtual_envs/${ENV_NAME}
-TF_CONTAINER=${WORKING_DIR}/HPC_scripts/tensorflow_21.09-tf1-py3.sif
+TF_CONTAINER=${WORKING_DIR}/HPC_scripts/${TF_CONTAINER_NAME}
 
 ## perform sanity checks
 
 modules_purge=""
-if [[ ! -f ${TF_CONTAINER} ]]; then
+if [[ ! -f ${TF_CONTAINER} ]] && [[ ${bool_container} == 1 ]]; then
   echo "ERROR: Cannot find required TF1.15 container image '${TF_CONTAINER}'."
   return
 fi
@@ -70,10 +89,15 @@ if [[ "${EXE_DIR}" != "env_setup"  ]]; then
 fi
 
 if ! [[ "${HOST_NAME}" == hdfml* || "${HOST_NAME}" == *jwlogin*  ]]; then
-  echo "ERROR: AMBS-workflow is currently only supported on the Juelich HPC-systems HDF-ML, Juwels and Juwels Booster"
-  return
-  # unset PYTHONPATH on every other machine that is not a known HPC-system
-  # unset PYTHONPATH
+  if [[ ${bool_container} == 0 ]]; then
+    echo "Execution without container. Please ensure that you fulfill the software requirements for Preprocessing."
+    if [[ ${bool_hpc} == 1 ]]; then
+      echo "Make use of modules provided on your HPC-system if possible, i.e. adapt modules_preprocess.sh and modules_train.sh."
+    fi
+  fi
+  if [[ ${bool_hpc} == 0 ]]; then
+    echo "Running on a non-HPC system. Ensure that you fulfill the software requirements on your machine, e.g. CDO."
+  fi
 fi
 
 if [[ -d ${ENV_DIR} ]]; then
@@ -88,19 +112,34 @@ fi
 if [[ "$ENV_EXIST" == 0 ]]; then
   # Activate virtual environment and install additional Python packages.
   echo "Configuring and activating virtual environment on ${HOST_NAME}"
+
+  if [[ ${bool_container} == 1 ]]; then
+    if [[ ${bool_hpc} == 1 ]]; then
+      module purge
+    fi
+    singularity exec --nv "${TF_CONTAINER}" ./install_venv_container.sh "${ENV_DIR}"
   
-  module purge 
-  singularity exec --nv "${TF_CONTAINER}" ./install_venv_container.sh "${ENV_DIR}"
-  
-  info_str="Virtual environment ${ENV_DIR} has been set up successfully."
+    info_str="Virtual environment ${ENV_DIR} has been set up successfully."
+  else
+    if [[ ${bool_hpc} == 1 ]]; then
+      source ${THIS_DIR}/modules_train.sh
+    fi
+    ./install_venv.sh "${ENV_DIR}"
+
+    if [[ ${bool_hpc} == 0 ]]; then
+      pip install --no-cache-dir tensorflow==1.13.1
+    fi
+  fi
 elif [[ "$ENV_EXIST" == 1 ]]; then
   info_str="Virtual environment ${ENV_DIR} already exists."
 fi
 
 ## load modules (for running runscript-generator...
 echo "${info_str}"
-echo "Load modules to enable running of runscript generator '${ENV_DIR}'."
-source ${THIS_DIR}/modules_preprocess+extract.sh
+if [[ ${bool_hpc} == 1 ]]; then
+  echo "Load modules to enable running of runscript generator '${ENV_DIR}'."
+  source ${THIS_DIR}/modules_preprocess+extract.sh
+fi
 
 ## ... and prepare runscripts
 echo "Set up runscript template for user ${USER}..."
