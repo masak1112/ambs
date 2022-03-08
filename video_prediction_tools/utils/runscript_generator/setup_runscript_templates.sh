@@ -47,7 +47,7 @@ else
 fi
 
 echo "Start setting up templates under nonHPC_scripts/..."
-for f in "${BASE_DIR}"/nonHPC_scripts/*template.sh; do
+for f in "${BASE_DIR}"/HPC_scripts/*template.sh; do
   echo "Setting up ${f}..."
   fnew=${f%%.*}_${USER}.sh
   cp "${f}" "${fnew}"
@@ -56,7 +56,7 @@ done
 echo "Done!"
 
 echo "Start setting up templates under HPC_scripts/"
-for f in "${BASE_DIR}"/HPC_scripts/*template.sh; do
+for f in "${BASE_DIR}"/JSC_scripts/*template.sh; do
   echo "Setting up ${f}..."
   fnew=${f%%.*}_${USER}.sh
   cp "${f}" "${fnew}"

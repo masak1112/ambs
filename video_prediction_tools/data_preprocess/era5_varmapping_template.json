@@ -10,12 +10,8 @@
 #              !!! This file should be only adapted if you are familiar with the ERA5 grib files!!!
 {
 "surface":{
-    "2t": "var167",
-    "tcc": "var164",
-    "msl": "var151",
-    "10u": "var165",
-    "10v": "var166"
-    },
+   ["2t", "tcc","msl","10u","10v"]
+       },
 
 "surface_fc":{
     "tp": "var228"

@@ -231,6 +231,7 @@ class SAVPCell(tf.nn.rnn_cell.RNNCell):
                 (self.hparams.ngf, False),
             ]
         else:
+            print("The minimum of image size is 32")
             raise NotImplementedError
         assert len(self.encoder_layer_specs) == len(self.decoder_layer_specs)
         total_stride = 2 ** len(self.encoder_layer_specs)

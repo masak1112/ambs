@@ -8,8 +8,8 @@ Functions required for extracting ERA5 data.
 import os
 import json
 __email__ = "b.gong@fz-juelich.de"
-__author__ = "Bing Gong, Scarlet Stadtler, Michael Langguth,Yanji"
-__date__ = "unknown"
+__author__ = "Bing Gong,Michael Langguth,Yanji"
+__update_date__ = "2022-02-15"
 # specify source and target directories
 
 
@@ -63,12 +63,12 @@ class ERA5DataExtraction(object):
         temp_path = os.path.join(self.target_dir, self.year, month)
         os.makedirs(temp_path, exist_ok=True)
         
-        # surface variables
-        for var,value in self.varslist_surface.items():
+        for value in self.varslist_surface:
+            # surface variables
             infile = os.path.join(self.src_dir, self.year, month, self.year+month+day+hour+'_sf.grb')
-            outfile_sf = os.path.join(self.target_dir, self.year, month, self.year+month+day+hour+'_'+var+'.nc')
-            os.system('cdo -f nc copy -selname,%s %s %s' % (value, infile, outfile_sf))
-            os.system('cdo -chname,%s,%s %s %s' % (value, var, outfile_sf, outfile_sf))
+            outfile_sf = os.path.join(self.target_dir, self.year, month, self.year+month+day+hour+'_'+value+'.nc')
+            os.system('cdo --eccodes -f nc copy -selname,%s %s %s' % (value, infile, outfile_sf))
+
 
         # surface_fc variables
         for var,value in self.varslist_surface_fc.items():
@@ -81,10 +81,13 @@ class ERA5DataExtraction(object):
         for var, pl_dic in self.varslist_multi.items():
             for pl, pl_value in pl_dic.items():
                 infile = os.path.join(self.src_dir, self.year, month, self.year+month+day+hour+'_ml.grb')
-                outfile_sf = os.path.join(self.target_dir, self.year, month, self.year+month+day+hour+'_'+var +
+                outfile_sf_temp = os.path.join(self.target_dir, self.year, month, self.year+month+day+hour+'_'+var +
                                           str(pl_value) + '.nc')
-                os.system('cdo -f nc copy -selname,%s -ml2plx,%d %s %s' % (var,pl_value,infile,outfile_sf)) 
-                os.system('cdo -chname,%s,%s %s %s' % (var, var+"_{0:d}".format(int(pl_value/100.)), outfile_sf, outfile_sf))
+                outfile_sf = os.path.join(self.target_dir, self.year, month, self.year+month+day+hour+'_'+var +
+                                          str(int(pl_value/100.)) + '.nc')
+                os.system('cdo -f nc copy -selname,%s -ml2pl,%d %s %s' % (var,pl_value,infile,outfile_sf_temp)) 
+                os.system('cdo -chname,%s,%s %s %s' % (var, var+"_{0:d}".format(int(pl_value/100.)), outfile_sf_temp, outfile_sf))
+                os.system('rm %s' % (outfile_sf_temp))
         # merge both variables
         infile = os.path.join(self.target_dir, self.year, month, self.year+month+day+hour+'*.nc')
         # change the output file name

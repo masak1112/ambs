@@ -26,39 +26,40 @@ from normalization import Norm_data
 from netcdf_datahandling import get_era5_varatts
 from general_utils import check_dir
 from metadata import MetaData as MetaData
-from main_scripts.main_train_models import *
+from main_train_models import TrainModel
 from data_preprocess.preprocess_data_step2 import *
 from model_modules.video_prediction import datasets, models, metrics
 from statistical_evaluation import perform_block_bootstrap_metric, avg_metrics, calculate_cond_quantiles, Scores
 from postprocess_plotting import plot_avg_eval_metrics, plot_cond_quantile, create_geo_contour_plot
-
+import warnings
 
 class Postprocess(TrainModel):
-    def __init__(self, results_dir: str = None, checkpoint: str = None, mode: str = "test", batch_size: int = None,
-                 num_stochastic_samples: int = 1, stochastic_plot_id: int = 0, gpu_mem_frac: float = None,
-                 seed: int = None, channel: int = 0, args=None, run_mode: str = "deterministic",
-                 eval_metrics: List = ("mse", "psnr", "ssim", "acc"),
-                 clim_path: str = "/p/scratch/deepacf/video_prediction_shared_folder/preprocessedData/T2monthly",
-                 lquick: bool = None):
+    def __init__(self, results_dir: str = None, checkpoint: str = None, data_mode: str = "test", batch_size: int = None,
+                 gpu_mem_frac: float = None, num_stochastic_samples: int = 1, stochastic_plot_id: int = 0,
+                 seed: int = None, channel: int = 0, run_mode: str = "deterministic", lquick: bool = None,
+                 frac_data: float = 1., eval_metrics: List = ("mse", "psnr", "ssim", "acc"), args=None,
+                 clim_path: str = "/p/scratch/deepacf/video_prediction_shared_folder/preprocessedData/T2monthly/climatology_t2m_1991-2020.nc"):
         """
         Initialization of the class instance for postprocessing (generation of forecasts from trained model +
         basic evauation).
         :param results_dir: output directory to save results
         :param checkpoint: directory point to the model checkpoints
-        :param mode: mode of dataset to be processed ("train", "val" or "test"), default: "test"
+        :param data_mode: mode of dataset to be processed ("train", "val" or "test"), default: "test"
         :param batch_size: mini-batch size for generating forecasts from trained model
+        :param gpu_mem_frac: fraction of GPU memory to be preallocated
         :param num_stochastic_samples: number of ensemble members for variational models (SAVP, VAE), default: 1
                                        not supported yet!!!
         :param stochastic_plot_id: not supported yet!
-        :param gpu_mem_frac: fraction of GPU memory to be pre-allocated
         :param seed: Integer controlling randomization
         :param channel: Channel of interest for statistical evaluation
-        :param args: namespace of parsed arguments
         :param run_mode: "deterministic" or "stochastic", default: "deterministic", "stochastic is not supported yet!!!
+        :param lquick: flag for quick evaluation
+        :param frac_data: fraction of dataset to be used for evaluation (only applied when shuffling is active)
         :param eval_metrics: metrics used to evaluate the trained model
         :param clim_path:  the path to the netCDF-file storing climatolgical data
-        :param lquick: flag for quick evaluation
+        :param args: namespace of parsed arguments
         """
+        tf.reset_default_graph()
         # copy over attributes from parsed argument
         self.results_dir = self.output_dir = os.path.normpath(results_dir)
         _ = check_dir(self.results_dir, lcreate=True)
@@ -75,18 +76,23 @@ class Postprocess(TrainModel):
             self.checkpoint += "/"          # trick to handle checkpoint-directory and file simulataneously
         self.clim_path = clim_path
         self.run_mode = run_mode
-        self.mode = mode
+        self.data_mode = data_mode
         self.channel = channel
         self.lquick = lquick
+        self.frac_data = frac_data
         # Attributes set during runtime
         self.norm_cls = None
         # configuration of basic evaluation
         self.eval_metrics = eval_metrics
         self.nboots_block = 1000
-        self.block_length = 7 * 24  # this corresponds to a block length of 7 days in case of hourly forecasts
+        if lquick:
+            self.block_length = 7
+        else:
+            self.block_length = 7 * 24  # this corresponds to a block length of 7 days in case of hourly forecasts
         # initialize evrything to get an executable Postprocess instance
-        self.save_args_to_option_json()     # create options.json-in results directory
-        self.copy_data_model_json()         # copy over JSON-files from model directory
+        if args is not None:
+            self.save_args_to_option_json()     # create options.json in results directory
+        self.copy_data_model_json()             # copy over JSON-files from model directory
         # get some parameters related to model and dataset
         self.datasplit_dict, self.model_hparams_dict, self.dataset, self.model, self.input_dir_tfr = self.load_jsons()
         self.model_hparams_dict_load = self.get_model_hparams_dict()
@@ -104,18 +110,19 @@ class Postprocess(TrainModel):
         self.stat_fl = self.set_stat_file()
         self.cond_quantile_vars = self.init_cond_quantile_vars()
         # setup test dataset and model
-        self.test_dataset, self.num_samples_per_epoch = self.setup_test_dataset()
+        self.test_dataset, self.num_samples_per_epoch = self.setup_dataset()
+        if lquick and self.test_dataset.shuffled:
+            self.num_samples_per_epoch = Postprocess.reduce_samples(self.num_samples_per_epoch, frac_data)
         # self.num_samples_per_epoch = 100              # reduced number of epoch samples -> useful for testing
         self.sequence_length, self.context_frames, self.future_length = self.get_data_params()
         self.inputs, self.input_ts = self.make_test_dataset_iterator()
+        self.data_clim = None
+        if "acc" in eval_metrics:
+            self.load_climdata(clim_path)
         # set-up model, its graph and do GPU-configuration (from TrainModel)
-        self.setup_model(mode=self.mode)
+        self.setup_model(mode="test")
         self.setup_graph()
         self.setup_gpu_config()
-        if "acc" in eval_metrics:
-            self.load_climdata()
-        else:
-            self.data_clim = None
 
     # Methods that are called during initialization
     def get_input_dirs(self):
@@ -153,11 +160,11 @@ class Postprocess(TrainModel):
         method_name = Postprocess.copy_data_model_json.__name__
 
         # correctness of self.checkpoint and self.results_dir is already checked in __init__
-        checkpoint_dir = os.path.dirname(self.checkpoint)
-        model_opt_js = os.path.join(checkpoint_dir, "options.json")
-        model_ds_js = os.path.join(checkpoint_dir, "dataset_hparams.json")
-        model_hp_js = os.path.join(checkpoint_dir, "model_hparams.json")
-        model_dd_js = os.path.join(checkpoint_dir, "data_split.json")
+        model_outdir = os.path.split(os.path.dirname(self.checkpoint))[0]
+        model_opt_js = os.path.join(model_outdir, "options.json")
+        model_ds_js = os.path.join(model_outdir, "dataset_hparams.json")
+        model_hp_js = os.path.join(model_outdir, "model_hparams.json")
+        model_dd_js = os.path.join(model_outdir, "data_split.json")
 
         if os.path.isfile(model_opt_js):
             shutil.copy(model_opt_js, os.path.join(self.results_dir, "options_checkpoints.json"))
@@ -241,24 +248,15 @@ class Postprocess(TrainModel):
             print("%{0}: Something went wrong when getting metadata from file '{1}'".format(method_name, metadata_fl))
             raise err
 
-        # when the metadat is loaded without problems, the follwoing will work
-        self.height, self.width = md_instance.ny, md_instance.nx
-        self.vars_in = md_instance.variables
-
-        self.lats = xr.DataArray(md_instance.lat, coords={"lat": md_instance.lat}, dims="lat",
-                                     attrs={"units": "degrees_east"})
-        self.lons = xr.DataArray(md_instance.lon, coords={"lon": md_instance.lon}, dims="lon",
-                                     attrs={"units": "degrees_north"})
         return md_instance
 
-    def load_climdata(self,clim_path="/p/scratch/deepacf/video_prediction_shared_folder/preprocessedData/T2monthly",
-                            var="T2M",climatology_fl="climatology_t2m_1991-2020.nc"):
+    def load_climdata(self,data_clim_path="/p/scratch/deepacf/video_prediction_shared_folder/preprocessedData/T2monthly/climatology_t2m_1991-2020.nc",
+                            var="var167"):
         """
-        params:climatology_fl: str, the full path to the climatology file
+        params:data_cli_path : str, the full path to the climatology file
         params:var           : str, the variable name 
         
         """
-        data_clim_path = os.path.join(clim_path,climatology_fl)
         data = xr.open_dataset(data_clim_path)
         dt_clim = data[var]
 
@@ -284,20 +282,22 @@ class Postprocess(TrainModel):
         coords_new["month"] = np.arange(1, 13) 
         coords_new["hour"] = np.arange(0, 24)
         # initialize a new data array with explicit dimensions for month and hour
-        data_clim_new = xr.DataArray(np.full((12, 24, nlat, nlon), np.nan), coords=coords_new, dims=["month", "hour", "lat", "lon"])
+        data_clim_new = xr.DataArray(np.full((12, 24, nlat, nlon), np.nan), coords=coords_new,
+                                     dims=["month", "hour", "lat", "lon"])
         # do the reorganization
         for month in np.arange(1, 13): 
             data_clim_new.loc[dict(month=month)]=dt_clim.sel(time=dt_clim["time.month"]==month)
 
         self.data_clim = data_clim_new[dict(lon=meta_lon_loc,lat=meta_lat_loc)]
          
-    def setup_test_dataset(self):
+    def setup_dataset(self):
         """
         setup the test dataset instance
         :return test_dataset: the test dataset instance
         """
         VideoDataset = datasets.get_dataset_class(self.dataset)
-        test_dataset = VideoDataset(input_dir=self.input_dir_tfr, mode=self.mode, datasplit_config=self.datasplit_dict)
+        test_dataset = VideoDataset(input_dir=self.input_dir_tfr, mode=self.data_mode,
+                                    datasplit_config=self.datasplit_dict)
         nsamples = test_dataset.num_examples_per_epoch()
 
         return test_dataset, nsamples
@@ -391,14 +391,14 @@ class Postprocess(TrainModel):
         if not hasattr(self, "num_stochastic_samples"):
             raise AttributeError("%{0}: Attribute num_stochastic_samples is still unset".format(method))
 
-        if self.model == "convLSTM" or self.model == "test_model" or self.model == 'mcnet':
+        if np.any(self.model in ["convLSTM", "test_model", "mcnet"]):
             if self.num_stochastic_samples > 1:
                 print("Number of samples for deterministic model cannot be larger than 1. Higher values are ignored.")
             self.num_stochastic_samples = 1
 
     # the run-factory
     def run(self):
-        if self.model == "convLSTM" or self.model == "test_model" or self.model == 'mcnet':
+        if np.any(self.model in ["convLSTM", "test_model", "mcnet"]):
             self.run_deterministic()
         elif self.run_mode == "deterministic":
             self.run_deterministic()
@@ -530,7 +530,7 @@ class Postprocess(TrainModel):
                                                     nsamples, self.future_length)
         cond_quantiple_ds = None
 
-        while sample_ind < self.num_samples_per_epoch:
+        while sample_ind < nsamples:
             # get normalized and denormalized input data
             input_results, input_images_denorm, t_starts = self.get_input_data_per_batch(self.inputs)
             # feed and run the trained model; returned array has the shape [batchsize, seq_len, lat, lon, channel]
@@ -560,7 +560,7 @@ class Postprocess(TrainModel):
                 persistence_seq, _ = Postprocess.get_persistence(times_seq, self.input_dir_pkl)
                 for ivar, var in enumerate(self.vars_in):
                     batch_ds["{0}_persistence_fcst".format(var)].loc[dict(init_time=init_times[i])] = \
-                        persistence_seq[self.context_frames-1:, :, :, ivar]
+                            persistence_seq[self.context_frames-1:, :, :, ivar]
 
                 # save sequences to netcdf-file and track initial time
                 nc_fname = os.path.join(self.results_dir, "vfp_date_{0}_sample_ind_{1:d}.nc"
@@ -570,7 +570,6 @@ class Postprocess(TrainModel):
                     print("%{0}: The file '{1}' already exists and is therefore skipped".format(method, nc_fname))
                 else:
                     self.save_ds_to_netcdf(batch_ds.isel(init_time=i), nc_fname)
-
                 # end of batch-loop
             # write evaluation metric to corresponding dataset and sa
             eval_metric_ds = self.populate_eval_metric_ds(eval_metric_ds, batch_ds, sample_ind,
@@ -584,7 +583,8 @@ class Postprocess(TrainModel):
         # safe dataset with evaluation metrics for later use
         self.eval_metrics_ds = eval_metric_ds
         self.cond_quantiple_ds = cond_quantiple_ds
-
+        self.sess.close()
+             
     # all methods of the run factory
     def init_session(self):
         """
@@ -672,7 +672,7 @@ class Postprocess(TrainModel):
 
         # dictionary of implemented evaluation metrics
         dims = ["lat", "lon"]
-        eval_metrics_func = [Scores(metric,dims).score_func for metric in self.eval_metrics]
+        eval_metrics_func = [Scores(metric, dims).score_func for metric in self.eval_metrics]
         varname_ref = "{0}_ref".format(varname)
         # reset init-time coordinate of metric_ds in place and get indices for slicing
         ind_end = np.minimum(ind_start + self.batch_size, self.num_samples_per_epoch)
@@ -876,6 +876,24 @@ class Postprocess(TrainModel):
             plot_cond_quantile(quantile_panel_lbr, cond_variable_lbr, plt_fname_lbr)
 
     @staticmethod
+    def reduce_samples(nsamples: int, frac_data: float):
+        """
+        Reduce number of sample for Postprocessing
+        :param nsamples: original number of samples
+        :param frac_data: fraction of samples used for evaluation
+        :return: reduced number of samples
+        """
+        method = Postprocess.reduce_samples.__name__
+
+        if frac_data <= 0. or frac_data >= 1.:
+            print("%{0}: frac_data is not within [0..1] and is therefore ignored.".format(method))
+            return nsamples
+        else:
+            nsamples_new = int(np.ceil(nsamples*frac_data))
+            print("%{0}: Sample size is reduced from {1:d} to {2:d}".format(method, int(nsamples), nsamples_new))
+            return nsamples_new
+
+    @staticmethod
     def clean_obj_attribute(obj, attr_name, lremove=False):
         """
         Cleans attribute of object by setting it to None (can be used to releave memory)
@@ -1028,7 +1046,11 @@ class Postprocess(TrainModel):
                 var_pickle.extend(var_origin_pickle)
 
             # Retrieve starting index
-            ind = list(time_pickle).index(np.array(ts_persistence[0]))
+            try:
+                ind = list(time_pickle).index(np.array(ts_persistence[0]))
+            except Exception as err:
+                print("Please consider return Data preprocess step 1 to generate entire month data")
+                raise err
 
             var_persistence = np.array(var_pickle)[ind:ind + len(ts_persistence)]
             time_persistence = np.array(time_pickle)[ind:ind + len(ts_persistence)].ravel()
@@ -1098,10 +1120,14 @@ class Postprocess(TrainModel):
         :param pkl_type: Either "X" or "T"
         """
         path_to_pickle = os.path.join(input_dir_pkl, str(year_start), pkl_type + "_{:02}.pkl".format(month_start))
-        with open(path_to_pickle, "rb") as pkl_file:
-            var = pickle.load(pkl_file)
-        return var
-
+        try:
+            with open(path_to_pickle, "rb") as pkl_file:
+                var = pickle.load(pkl_file)
+                return var
+        except Exception as e:
+            
+            print("The pickle file {} does not generated, please consider re-generate the pickle data in the preprocessing step 1",path_to_pickle)
+            raise(e)
     @staticmethod
     def save_ds_to_netcdf(ds, nc_fname, comp_level=5):
         """
@@ -1127,10 +1153,10 @@ class Postprocess(TrainModel):
             raise NotADirectoryError("%{0}: The directory to store the netCDf-file does not exist.".format(method))
 
         encode_nc = {key: {"zlib": True, "complevel": comp_level} for key in ds.keys()}
-
+        
         # populate data in netCDF-file (take care for the mode!)
         try:
-            ds.to_netcdf(nc_fname, encoding=encode_nc)
+            ds.to_netcdf(nc_fname, encoding=encode_nc,engine="netcdf4")
             print("%{0}: netCDF-file '{1}' was created successfully.".format(method, nc_fname))
         except Exception as err:
             print("%{0}: Something unexpected happened when creating netCDF-file '1'".format(method, nc_fname))
@@ -1159,7 +1185,7 @@ class Postprocess(TrainModel):
         if dtype is None:
             dtype = np.double
         else:
-            if not np.issubdtype(dtype, np.dtype(float).type):
+            if not np.issubdtype(dtype, np.number):
                 raise ValueError("%{0}: dytpe must be a NumPy datatype, but is '{1}'".format(method, np.dtype(dtype)))
   
         if ds_preexist is None:
@@ -1232,7 +1258,7 @@ def main():
     parser.add_argument("--gpu_mem_frac", type=float, default=0.95, help="fraction of gpu memory to use")
     parser.add_argument("--seed", type=int, default=7)
     parser.add_argument("--evaluation_metrics", "-eval_metrics", dest="eval_metrics", nargs="+",
-                        default=("mse", "psnr", "ssim", "acc"),
+                        default=("mse", "psnr", "ssim", "acc", "texture"),
                         help="Metrics to be evaluate the trained model. Must be known metrics, see Scores-class.")
     parser.add_argument("--channel", "-channel", dest="channel", type=int, default=0,
                         help="Channel which is used for evaluation.")
@@ -1240,6 +1266,8 @@ def main():
                         help="Flag if (reduced) quick evaluation based on MSE is performed.")
     parser.add_argument("--evaluation_metric_quick", "-metric_quick", dest="metric_quick", type=str, default="mse",
                         help="(Only) metric to evaluate when quick evaluation (-lquick) is chosen.")
+    parser.add_argument("--climatology_file", "-clim_fl", dest="clim_fl", type=str, default=False,
+                        help="The path to the climatology_t2m_1991-2020.nc file ")
     args = parser.parse_args()
 
     method = os.path.basename(__file__)
@@ -1253,7 +1281,8 @@ def main():
     results_dir = args.results_dir
     if args.lquick:      # in case of quick evaluation, onyl evaluate MSE and modify results_dir
         eval_metrics = [args.metric_quick]
-        if not os.path.isfile(args.checkpoint+".meta"):
+        if not glob.glob(os.path.join(args.checkpoint,"*.meta")):
+            print(os.path.join(args.checkpoint,"*.meta"))
             raise ValueError("%{0}: Pass a specific checkpoint-file for quick evaluation.".format(method))
         chp = os.path.basename(args.checkpoint)
         results_dir = args.results_dir + "_{0}".format(chp)
@@ -1261,10 +1290,10 @@ def main():
               "* checkpointed model: {0}\n * no conditional quantile and forecast example plots".format(chp))
 
     # initialize postprocessing instance
-    postproc_instance = Postprocess(results_dir=results_dir, checkpoint=args.checkpoint, mode="test",
+    postproc_instance = Postprocess(results_dir=results_dir, checkpoint=args.checkpoint, data_mode="test",
                                     batch_size=args.batch_size, num_stochastic_samples=args.num_stochastic_samples,
                                     gpu_mem_frac=args.gpu_mem_frac, seed=args.seed, args=args,
-                                    eval_metrics=eval_metrics, channel=args.channel, lquick=args.lquick)
+                                    eval_metrics=eval_metrics, channel=args.channel, lquick=args.lquick,clim_path=args.clim_fl)
     # run the postprocessing
     postproc_instance.run()
     postproc_instance.handle_eval_metrics()
