@@ -66,7 +66,7 @@ class BaseDataset(object):
         """
         obtain the hparams from the dict to the class variables
         """
-        method = BaseDataset.__class__.__name__
+        method = BaseDataset.get_hparams.__name__
         try:
             self.context_frames = self.hparams.context_frames 
             self.max_epochs = self.hparams.max_epochs
@@ -85,8 +85,11 @@ class BaseDataset(object):
 
    def calc_samples_per_epoch(self):
        """
-     
+       calculate the number of samples per epoch
        """
+       pass
+
+
    def make_dataset(self):
        """
         Prepare batch_size dataset fed into to the models.
@@ -97,5 +100,22 @@ class BaseDataset(object):
        """
        method = BaseDataset.make_dtaset.__name__
        shuffle = self.mode == 'train' or (self.mode == 'val' and self.hparams.shuffle_on_val)
-       
-             
+       filenames = self.filenames
+
+       if shuffle:
+           self.shuffled = True
+           random.shuffle(filenames)
+       if len(filenames) == 0 :
+           raise ("The filenames list is empty for {} dataset, please make sure your data_split dictionary is configured correctly".format(self.mode))
+       else:
+           ds = xr.open_mfdataset()
+           da = ds.to_array(dim="variables").squeeze()
+           dims = ["time", "lat", "lon"]
+           max_vars, min_vars = da.max(dim=dims).values, da.min(dim=dims).values
+           data_arr = np.squeeze(da.values)
+           dataset = tf.data.Dataset.from_tensor_slices(data_arr).window(self.sqeuence_length,shift=1,drop_remainder=True)
+           dataset = dataset.flat_map(lambda window: window.batch(self.sequence_length))
+           dataset = dataset.batch(self.batch_size)
+           #normalise the dataset
+           def parse_fn(x):
+               return x/min_value  
