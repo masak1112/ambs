@@ -1,16 +1,16 @@
 
-
 __author__ = "Bing Gong"
 __date__ = "2022-03-17"
 __email__ = "b.gong@fz-juelich.de"
 
 from hparams_utils import *
+import json, os
 
-class BaseDataset(object):
+
+class BaseDataset:
 
     def __init__(self, input_dir: str = None, datasplit_config: str = None, hparams_dict_config: str = None,
                  mode: str = "train", seed: int = None, nsamples_ref: int = None):
-
         """
         This class is used for preparing data for training/validation and test models
         :param input_dir: the path of tfrecords files
@@ -49,6 +49,10 @@ class BaseDataset(object):
         self.get_filesnames_base_datasplit()
 
     def parse_hparams(self):
+        """
+        Obtain the parameters from json file
+        """
+
         self.hparams_dict = dotdict(self.hparams_dict)
         return self.hparams_dict
   
@@ -57,65 +61,59 @@ class BaseDataset(object):
         """
         Get the datasplit json file
         """
-
         with open(self.datasplit_dict_path) as f:
             datasplit_dict = json.load(f)
         return datasplit_dict
+
 
     def get_hparams(self):
         """
         obtain the hparams from the dict to the class variables
         """
         method = BaseDataset.get_hparams.__name__
+
         try:
             self.context_frames = self.hparams.context_frames 
             self.max_epochs = self.hparams.max_epochs
             self.batch_size = self.hparams.batch_size
             self.shuffle_on_val = self.hparams.shuffle_on_val
-       except Exception as error:
+
+        except Exception as error:
            print("Method %{}: error: {}".format(method,error))
            raise("Method %{}: the hparameter dictionary must include 'context_frames','max_epochs','batch_size','shuffle_on_val'".format(method))
-   
+
+
+
     def get_filnames_base_datasplit(self):
-       """
-       Get the filenames for train and val dataset
-       Must implement in the Child class
-       """ 
-       raise NotImplmentedError
+        """
+        Get the filenames for train and val dataset
+        Must implement in the Child class
+        """
+        raise NotImplementedError
+
 
    def calc_samples_per_epoch(self):
        """
        calculate the number of samples per epoch
        """
-       pass
-
+       raise NotImplementedError
 
    def make_dataset(self):
        """
         Prepare batch_size dataset fed into to the models.
         If the data are from training dataset,then the data is shuffled;
         If the data are from val dataset, the shuffle var will be decided by the hparams.shuffled_on_val;
-        if the data are from test dataset, the data will not be shuffled 
+        if the data are from test dataset, the data will not be shuffled
 
        """
-       method = BaseDataset.make_dtaset.__name__
-       shuffle = self.mode == 'train' or (self.mode == 'val' and self.hparams.shuffle_on_val)
-       filenames = self.filenames
+       method = BaseDataset.make_dataset.__name__
 
-       if shuffle:
-           self.shuffled = True
-           random.shuffle(filenames)
-       if len(filenames) == 0 :
-           raise ("The filenames list is empty for {} dataset, please make sure your data_split dictionary is configured correctly".format(self.mode))
-       else:
-           ds = xr.open_mfdataset()
-           da = ds.to_array(dim="variables").squeeze()
-           dims = ["time", "lat", "lon"]
-           max_vars, min_vars = da.max(dim=dims).values, da.min(dim=dims).values
-           data_arr = np.squeeze(da.values)
-           dataset = tf.data.Dataset.from_tensor_slices(data_arr).window(self.sqeuence_length,shift=1,drop_remainder=True)
-           dataset = dataset.flat_map(lambda window: window.batch(self.sequence_length))
-           dataset = dataset.batch(self.batch_size)
-           #normalise the dataset
-           def parse_fn(x):
-               return x/min_value  
+       raise NotImplementedError
+
+
+    def make_batch(self, batch_size):
+        dataset = self.make_dataset(batch_size)
+        iterator = dataset.make_one_shot_iterator()
+        return iterator.get_next()
+
+
