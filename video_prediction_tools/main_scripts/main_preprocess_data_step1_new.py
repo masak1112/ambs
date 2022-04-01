@@ -6,15 +6,8 @@ and performs parallelization with PyStager.
 __email__ = "m.langguth@fz-juelich.de"
 __author__ = "Michael Langguth"
 
-from mpi4py import MPI
-import os, sys, glob
-import logging
-import time
 import argparse
-from data_preprocess.process_netCDF_v2 import *
-from metadata import MetaData
-from netcdf_datahandling import GeoSubdomain
-import json
+from data_preprocess.preprocess_data_step1 import Preprocess_ERA5_data
 
 
 def main():
@@ -25,12 +18,24 @@ def main():
     parser.add_argument("--destination_dir", "-dest_dir", dest="destination_dir", type=str,
                         help="Destination directory where the netCDF-files will be stored")
     parser.add_argument("--years", "-y", nargs="+", dest="years", help="Years of data to be processed.")
-    parser.add_argument("--years", "-m", nargs="+", dest="months",
+    parser.add_argument("--months", "-m", nargs="+", dest="months",
                         help="Months of data. Can also be 'all' or season-strings, e.g. 'DJF'.")
-    parser.add_argument("--variables", "-v",  nargs="+", default=["2t"], help="Variables to be processed.")
+    parser.add_argument("--variables", "-v", dest="vars", nargs="+", default=["2t"],
+                        help="Variables to be processed.")
     parser.add_argument("--sw_corner", "-swc", dest="sw_corner", nargs="+",
                         help="Defines south-west corner of target domain (lat, lon)=(-90..90, 0..360)")
     parser.add_argument("--nyx", "-nyx", dest="nyx", nargs="+",
                         help="Number of grid points in zonal and meridional direction.")
 
     args = parser.parse_args()
+
+    # initialize preprocessing instance...
+    era5_preprocess = Preprocess_ERA5_data(args.source_dir, args.destination_dir, args.vars, args.sw_corner,
+                                           args.nyx, args.years, args.months)
+
+    # ...and run it
+    era5_preprocess()
+
+
+if __name__ == "__main__":
+    main()
