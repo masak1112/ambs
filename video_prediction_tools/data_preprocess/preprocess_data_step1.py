@@ -24,7 +24,8 @@ class Preprocess_ERA5_data(object):
     cls_name = "Preprocess_ERA5_data"
 
     def __init__(self, dirin: str, dirout: str, var_req: dict, coord_sw: List, nyx: List, years: List,
-                 months: str_or_List = "all", lon_intv: List = (0., 360.), lat_inv: List = (-90., 90.), dx: float = 0.3):
+                 months: str_or_List = "all", lon_intv: List = (0., 360.), lat_intv: List = (-90., 90.),
+                 dx: float = 0.3):
         """
         This script performs several sanity checks and sets the class attributes accordingly.
         :param dirin: directory to the ERA5 reanalysis data
@@ -32,8 +33,8 @@ class Preprocess_ERA5_data(object):
         :param var_req: controlled dictionary for getting variables from ERA5-dataset, e.g. {"t": {"ml": "p850"}}
         :param coord_sw: latitude [°N] and longitude [°E] of south-western corner defining target domain
         :param nyx: number of grid points in latitude and longitude direction for target domain
-        :param lon_intv: interval of the longitude values for ERA5 data (adapt if required)
-        :param lat_intv: interval of the latitude values for ERA5 data (adapt if required)
+        :param lon_intv: Allowed interval for slicing along longitude axis for ERA5 data (adapt if required)
+        :param lat_intv: Allowed interval for slicing along latitude axis for ERA5 data (adapt if required)
         :param dx: grid spacing of regular, spherical grid onto which the ERA5 data is provided (adapt if required)
         """
         method = Preprocess_ERA5_data.__init__.__name__
@@ -46,7 +47,7 @@ class Preprocess_ERA5_data(object):
         self.dirin, self.years = self.check_dirin(dirin, years, months)
         self.varnames, self.vartypes = self.check_varnames(var_req, dirin)
         # some basic grid information
-        self.lat_intv, self.lon_intv = lat_inv, lon_intv
+        self.lat_intv, self.lon_intv = lat_intv, lon_intv
         self.lon_intv[1] -= np.abs(dx)
         self.dx = dx
         # check provided data for regional slicing
