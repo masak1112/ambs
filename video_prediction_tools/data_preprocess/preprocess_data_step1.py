@@ -214,7 +214,8 @@ class Preprocess_ERA5_data(object):
                 dirin_now = os.path.join(dirin, yr_str, mm_str)
                 f = glob.iglob(os.path.join(dirin_now, "{0}{1}*.grb".format(yr_str, mm_str)))
 
-                if not os.path.isfile(f):
+                _exhausted = object()
+                if next(f, _exhausted) is _exhausted:
                     raise FileNotFoundError("%{0}: Could not find any ERA5 file for {1}/{2} under '{2}'"
                                             .format(method, yr_str, mm_str, dirin_now))
         return dirin, years
