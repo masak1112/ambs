@@ -199,13 +199,10 @@ class Preprocess_ERA5_data(object):
 
         years = list(years)
         # basic sanity checks
-        assert isinstance(dir, str), "%{0}: Parsed dirin must be a string, but is of type '{1}'".format(method,
+        assert isinstance(dirin, str), "%{0}: Parsed dirin must be a string, but is of type '{1}'".format(method,
                                                                                                         type(dirin))
         if not all(isinstance(yr, int) for yr in years):
             raise ValueError("%{0}: Passed years must be a list of integers.".format(method))
-
-        if not all(isinstance(mm, int) for mm in months):
-            raise ValueError("%{0}: Passed months must be a list of integers.".format(method))
 
         if not os.path.isdir(dirin):
             raise NotADirectoryError("%{0}: Input directory for ERA%-data '{1}' does not exist.".format(method, dirin))
@@ -213,7 +210,7 @@ class Preprocess_ERA5_data(object):
         # check if at least one ERA5-datafile is present
         for year in years:
             for month in months:
-                mm_str, yr_str = str(year), "{0:02d}".format(month)
+                mm_str, yr_str = str(year), "{0:02d}".format(int(month))
                 dirin_now = os.path.join(dirin, yr_str, mm_str)
                 f = glob.iglob(os.path.join(dirin_now, "{0}{1}*.grb".format(yr_str, mm_str)))
 
@@ -231,9 +228,10 @@ class Preprocess_ERA5_data(object):
                "%{0}: months must be either a list of months or a (known) string.".format(method)
 
         if isinstance(months, list):
-            if np.all([isinstance(x, int) & isw(x, [1,12]) for x in months]):
-                month_list = months
-            else:
+            month_list = [int(x) for x in months]
+            if not np.all([isw(x, [1,12]) for x in month_list]):
+                for i, x in enumerate(month_list):
+                    print(" Value {0:d}: {1}".format(i, x))
                 raise ValueError("%{0}: Not all elements of months can serve as month-integers".format(method) +
                                  "(only values between 1 and 12 can be passed).")
         elif months == "DJF":
