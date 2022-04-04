@@ -18,7 +18,7 @@ def main():
                         help="Top-level directory where ERA5 grib-files are located under <year>/<month>.")
     parser.add_argument("--destination_dir", "-dest_dir", dest="destination_dir", type=str,
                         help="Destination directory where the netCDF-files will be stored")
-    parser.add_argument("--years", "-y", nargs="+", dest="years", help="Years of data to be processed.")
+    parser.add_argument("--years", "-y", nargs="+", dest="years", type=int, help="Years of data to be processed.")
     parser.add_argument("--months", "-m", nargs="+", dest="months",
                         help="Months of data. Can also be 'all' or season-strings, e.g. 'DJF'.")
     parser.add_argument("--variables", "-v", dest="vars_dict", type=js.loads, default='{"2t": "sfc"}',
@@ -26,7 +26,7 @@ def main():
                              "variable types (values).")
     parser.add_argument("--sw_corner", "-swc", dest="sw_corner", nargs="+",
                         help="Defines south-west corner of target domain (lat, lon)=(-90..90, 0..360)")
-    parser.add_argument("--nyx", "-nyx", dest="nyx", nargs="+",
+    parser.add_argument("--nyx", "-nyx", dest="nyx", nargs="+", type=int,
                         help="Number of grid points in zonal and meridional direction.")
 
     args = parser.parse_args()
