@@ -142,7 +142,7 @@ class Preprocess_ERA5_data(object):
                 vars4type = [varname for c, varname in enumerate(varnames) if vartypes[c] == vartype]
 
                 search_patt = os.path.join(dirin_now, "{0}_{1}{2}*.grb".format(vartype, year_str, month_str))
-                dest_file= os.path.join(dirout, "preproc_{0}_{1}{2}".format(vartype, year_str, month_str))
+                dest_file = os.path.join(dirout, "preproc_{0}_{1}{2}".format(vartype, year_str, month_str))
 
                 logger.info("%{0}: Serach for grib-files under '{1}' for year {2} and month {3}"
                             .format(method, dirin_now, year_str, month_str))
