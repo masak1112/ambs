@@ -18,7 +18,7 @@ class BaseDataset(ABC):
         :param hparams_dict_config: the path to the dict that contains hparameters,
         :param mode: string, "train","val" or "test"
         :param seed: int, the seed for dataset
-        :param nsamples_ref: number of reference samples whch can be used to control repetition factor for dataset
+        :param nsamples_ref: number of reference samples which can be used to control repetition factor for dataset
                              for ensuring adopted size of dataset iterator (used for validation data during training)
                              Example: Let nsamples_ref be 1000 while the current datset consists 100 samples, then
                                       the repetition-factor will be 10 (i.e. nsamples*rep_fac = nsamples_ref)
@@ -39,14 +39,13 @@ class BaseDataset(ABC):
             raise FileNotFoundError("%{0} input_dir '{1}' does not exist".format(method, self.input_dir))
         if nsamples_ref is not None:
             self.nsamples_ref = nsamples_ref
-        # get configuration parameters from datasplit- and modelparameters-files
+        # get configuration parameters from datasplit- and model parameters-files
         self.datasplit_dict_path = datasplit_config
         self.data_dict = self.get_datasplit()
         self.hparams_dict_config = hparams_dict_config
         self.hparams = self.parse_hparams() 
         self.get_hparams()
         self.filenames = [] #contain the data filenames
-        self.get_filesnames_base_datasplit()
 
     def parse_hparams(self):
         """
@@ -66,6 +65,7 @@ class BaseDataset(ABC):
         return datasplit_dict
 
 
+    @abc.abstractmethod
     def get_hparams(self):
         """
         obtain the hparams from the dict to the class variables
@@ -84,7 +84,7 @@ class BaseDataset(ABC):
 
 
     @abc.abstractmethod
-    def get_filnames_base_datasplit(self):
+    def get_filnames_from_datasplit(self):
         """
         Get the filenames for train and val dataset
         Must implement in the Child class

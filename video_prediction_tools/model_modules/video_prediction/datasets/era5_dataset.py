@@ -16,26 +16,21 @@ class ERA5Dataset(BaseDataset):
     
     def __init__(self, *args, **kwargs):
         super(BaseDataset, *args, **kwargs)
+        pass
 
-
-    def get_filnames_base_datasplit(self):
+    def get_filenames_from_datasplit(self):
         """
-        Get  absolute .tfrecord path names based on the data splits patterns
+        Get  absolute .nc path names based on the data splits patterns
         """
         self.filenames = []
         self.data_mode = self.data_dict[self.mode]
-        self.tf_names = []
+
         for year, months in self.data_mode.items():
             for month in months:
-                tf_files = "era5_vars4ambs_{}{.2}.*nc".format(year,month)
-                self.tf_names.append(tf_files)
-        # look for tfrecords in input_dir and input_dir/mode directories
-        for files in self.tf_names:
-            self.filenames.extend(glob.glob(os.path.join(self.input_dir, files)))
-        if self.filenames:
-            self.filenames = sorted(self.filenames)  # ensures order is the same across systems
-        if not self.filenames:
-            raise FileNotFoundError('No netCDF  were found in %s' % self.input_dir)
+                tf_files = "era5_vars4ambs_{}{.2}.nc".format(year, month)
+                self.filenames.append(tf_files)
+
+        return self.filenames
 
 
     def load_data_from_nc(self):
@@ -64,11 +59,12 @@ class ERA5Dataset(BaseDataset):
         return data_arr
 
 
-    def calc_samples_per_epoch(self):
+
+    def __get_numbers_samples_per_epoch__(self):
         """
         calculate the number of samples per epoch
         """
-        return self.n_samples
+       pass
 
 
     def make_dataset(self):
@@ -79,7 +75,7 @@ class ERA5Dataset(BaseDataset):
          if the data are from test dataset, the data will not be shuffled
 
         """
-        method = BaseDataset.make_dataset.__name__
+        method = ERA5Dataset.make_dataset.__name__
 
         shuffle = self.mode == 'train' or (self.mode == 'val' and self.shuffle_on_val)
 
@@ -116,8 +112,7 @@ class ERA5Dataset(BaseDataset):
                     self.mode))
         else:
             #group the data into sequenceds
-            dataset = tf.data.Dataset.from_tensor_slices(data_arr).window(self.sqeuence_length, shift = 1,
-                                                                          drop_remainder = True)
+            dataset = tf.data.Dataset.from_tensor_slices(data_arr).window(self.sequence_length, shift = 1, drop_remainder = True)
             dataset = dataset.flat_map(lambda window: window.batch(self.sequence_length))
             # shuffle the data
             if shuffle:
@@ -134,7 +129,7 @@ class ERA5Dataset(BaseDataset):
 # if __name__ == '__main__':
 #     dataset = ERA5Dataset(input_dir: str = None, datasplit_config: str = None, hparams_dict_config: str = None,
 #                  mode: str = "train", seed: int = None, nsamples_ref: int = None)
-#     for next_element in dataset.take(200):
+#     for next_element in dataset.take(2):
 #         # time_s = time.time()
 #         # tf.print(next_element.shape)
 #         pass

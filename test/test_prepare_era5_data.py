@@ -4,11 +4,8 @@ __author__ = "Bing Gong"
 __date__ = "2021-03-03"
 
 
-
 from data_preprocess.prepare_era5_data import *
 import pytest
-import numpy as np
-import json
 import os
 
 year="2007"
@@ -21,8 +18,6 @@ varslist_json="/p/home/jusers/gong1/juwels/ambs/video_prediction_tools/data_spli
 @pytest.fixture(scope="module")
 def dataExtraction_case1(year=year,job_name=job_name,src_dir=src_dir,target_dir=target_dir,varslist_json=varslist_json):
     return ERA5DataExtraction(year,job_name,src_dir,target_dir,varslist_json)
-
-
 
 
 def test_init(dataExtraction_case1):
