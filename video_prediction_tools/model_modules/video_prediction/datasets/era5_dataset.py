@@ -6,8 +6,8 @@ __email__ = "b.gong@fz-juelich.de"
 __author__ = "Bing Gong"
 __date__ = "2022-03-17"
 
-from .base_dataset  import BaseDataset
-import json, random, glob, os
+from .base_dataset import BaseDataset
+import glob, os
 import tensorflow as tf
 import xarray as xr
 import numpy as np
@@ -62,7 +62,6 @@ class ERA5Dataset(BaseDataset):
         self.variables = list(ds.keys())
         self.n_vars = len(self.variables)
         return data_arr
-
 
 
     def calc_samples_per_epoch(self):

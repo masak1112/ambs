@@ -5,9 +5,9 @@ __email__ = "b.gong@fz-juelich.de"
 
 from hparams_utils import *
 import json, os
+from abc import ABC, abstractmethod
 
-
-class BaseDataset:
+class BaseDataset(ABC):
 
     def __init__(self, input_dir: str = None, datasplit_config: str = None, hparams_dict_config: str = None,
                  mode: str = "train", seed: int = None, nsamples_ref: int = None):
@@ -83,21 +83,23 @@ class BaseDataset:
            raise("Method %{}: the hparameter dictionary must include 'context_frames','max_epochs','batch_size','shuffle_on_val'".format(method))
 
 
-
+    @abc.abstractmethod
     def get_filnames_base_datasplit(self):
         """
         Get the filenames for train and val dataset
         Must implement in the Child class
         """
-        raise NotImplementedError
+        pass
 
-
+   @abc.abstractmethod
    def calc_samples_per_epoch(self):
        """
        calculate the number of samples per epoch
        """
-       raise NotImplementedError
+       pass
 
+
+   @abc.abstractmethod
    def make_dataset(self):
        """
         Prepare batch_size dataset fed into to the models.
@@ -106,13 +108,11 @@ class BaseDataset:
         if the data are from test dataset, the data will not be shuffled
 
        """
-       method = BaseDataset.make_dataset.__name__
-
-       raise NotImplementedError
+       pass
 
 
-    def make_batch(self, batch_size):
-        dataset = self.make_dataset(batch_size)
+    def make_batch(self):
+        dataset = self.make_dataset(self.batch_size)
         iterator = dataset.make_one_shot_iterator()
         return iterator.get_next()
 
