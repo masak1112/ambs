@@ -252,8 +252,7 @@ class Preprocess_ERA5_data(object):
 
         return month_list
 
-    @staticmethod
-    def check_varnames(var_req: dict, datadir: str):
+    def check_varnames(self, var_req: dict):
         """
         Check if all variables can be found in an exemplary datafile stored under datadir
         :param var_req: nested dictionary where first-level keys carry request variable name. The values of these keys
@@ -282,9 +281,9 @@ class Preprocess_ERA5_data(object):
             vars2check = list(map(varnames.__getitem__, inds))
             if not vars2check: continue                   # skip the following if no variable to check
 
-            # retrieve year and month from path to get exemplary datafile
-            yr, mm = get_path_component(datadir, -2), get_path_component(datadir, -1)
-            f2check = os.path.join(datadir, "{0}{1}0100_{2}.grb".format(yr, mm, vartype))
+            # construct path to exemplary datafile
+            f2check = os.path.join(self.dirin, self.years[0], self.months[0],
+                                   "{0}{1}0100_{2}.grb".format(self.years[0], self.months[0], vartype))
 
             _ = Preprocess_ERA5_data.check_var_in_grib(f2check, vars2check, labort=True)
 
