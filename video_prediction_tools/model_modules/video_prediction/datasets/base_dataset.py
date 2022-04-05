@@ -56,7 +56,7 @@ class BaseDataset(ABC):
         return self.hparams_dict
   
 
-   def get_datasplit(self):
+    def get_datasplit(self):
         """
         Get the datasplit json file
         """
@@ -91,24 +91,24 @@ class BaseDataset(ABC):
         """
         pass
 
-   @abc.abstractmethod
-   def calc_samples_per_epoch(self):
-       """
-       calculate the number of samples per epoch
-       """
-       pass
+    @abc.abstractmethod
+    def calc_samples_per_epoch(self):
+        """
+        calculate the number of samples per epoch
+        """
+        pass
 
 
-   @abc.abstractmethod
-   def make_dataset(self):
-       """
+    @abc.abstractmethod
+    def make_dataset(self):
+        """
         Prepare batch_size dataset fed into to the models.
         If the data are from training dataset,then the data is shuffled;
         If the data are from val dataset, the shuffle var will be decided by the hparams.shuffled_on_val;
         if the data are from test dataset, the data will not be shuffled
 
-       """
-       pass
+        """
+        pass
 
 
     def make_batch(self):
