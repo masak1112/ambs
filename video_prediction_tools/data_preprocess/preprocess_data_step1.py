@@ -210,14 +210,14 @@ class Preprocess_ERA5_data(object):
         # check if at least one ERA5-datafile is present
         for year in years:
             for month in months:
-                mm_str, yr_str = str(year), "{0:02d}".format(int(month))
+                yr_str, mm_str = str(year), "{0:02d}".format(int(month))
                 dirin_now = os.path.join(dirin, yr_str, mm_str)
                 print("dirin_base: {0}, dirin_now: {1}".format(dirin, dirin_now))
                 f = glob.iglob(os.path.join(dirin_now, "{0}{1}*.grb".format(yr_str, mm_str)))
 
                 _exhausted = object()
                 if next(f, _exhausted) is _exhausted:
-                    raise FileNotFoundError("%{0}: Could not find any ERA5 file for {1}/{2} under '{2}'"
+                    raise FileNotFoundError("%{0}: Could not find any ERA5 file for {1}/{2} under '{3}'"
                                             .format(method, yr_str, mm_str, dirin_now))
         return dirin, years
 
