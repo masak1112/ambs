@@ -45,9 +45,9 @@ class Preprocess_ERA5_data(object):
 
         self.months = self.get_months(months)
         self.dirin, self.years = self.check_dirin(dirin, years, months)
-        self.varnames, self.vartypes = self.check_varnames(var_req, dirin)
+        self.varnames, self.vartypes = self.check_varnames(var_req)
         # some basic grid information
-        self.lat_intv, self.lon_intv = lat_intv, lon_intv
+        self.lat_intv, self.lon_intv = list(lat_intv), list(lon_intv)
         self.lon_intv[1] -= np.abs(dx)
         self.dx = dx
         # check provided data for regional slicing
@@ -77,6 +77,10 @@ class Preprocess_ERA5_data(object):
         if self.dx < 0:
             print("%{0}: Grid spacing should be positive. Change negative value to positive one.".format(method))
             self.dx = np.abs(self.dx)
+
+        # convert type of input data if required
+        coords_sw = [float(coord) for coord in coords_sw]
+        nyx = [int(n) for n in nyx]
 
         if not isw(coords_sw[0], self.lat_intv):
             raise ValueError("%{0}: Latitude of south-western domain corner {1:.2f}".format(method, coords_sw[0]) +
@@ -256,14 +260,14 @@ class Preprocess_ERA5_data(object):
         """
         Check if all variables can be found in an exemplary datafile stored under datadir
         :param var_req: nested dictionary where first-level keys carry request variable name. The values of these keys
-                        are dictionaries whose keys denote the type of variable (e.g. "sfc" for surface)
+                        are dictionaries whose keys denote the type of variable (e.g. "sf" for surface)
                         and whose values control (optional) vertical interpolation
         :param datadir: directory where gribfiles of ERA5 reanalysis are stored
         :return:
         """
         method = Preprocess_ERA5_data.check_varnames.__name__
 
-        allowed_vartypes = ["ml", "sfc"]
+        allowed_vartypes = ["ml", "sf"]
 
         assert isinstance(var_req, dict), "%{0}: var_req must be a (controlled) dictionary. See doc-string."\
                                           .format(method)
@@ -282,8 +286,8 @@ class Preprocess_ERA5_data(object):
             if not vars2check: continue                   # skip the following if no variable to check
 
             # construct path to exemplary datafile
-            f2check = os.path.join(self.dirin, self.years[0], self.months[0],
-                                   "{0}{1}0100_{2}.grb".format(self.years[0], self.months[0], vartype))
+            yy_str, mm_str = str(self.years[0]), "{0:02d}".format(self.months[0])
+            f2check = os.path.join(self.dirin, yy_str, mm_str, "{0}{1}0100_{2}.grb".format(yy_str, mm_str, vartype))
 
             _ = Preprocess_ERA5_data.check_var_in_grib(f2check, vars2check, labort=True)
 
@@ -291,13 +295,13 @@ class Preprocess_ERA5_data(object):
         print("%{0}: Start checking consistency of nested dictionaries for each requested variable.".format(method))
         for varname in varnames:
             # check vartypes
-            vartype = var_req[varname].keys()[0]
-            lvl_info = var_req[varname].values()[0]
+            vartype = list(var_req[varname].keys())[0]
+            lvl_info = list(var_req[varname].values())[0]
             if not vartype in allowed_vartypes:
                 raise ValueError("%{0}: Key of variable dict for '{1}' must be one of the following types: {2}"
                                  .format(method, vartype, ", ".join(allowed_vartypes)))
             # check level types
-            if vartype == "sfc" and lvl_info is not None:
+            if vartype == "sf" and lvl_info is not None:
                 print("%{0}: lvl_info for surface variable '{1}' is not None and thus will be ignored."
                       .format(method, varname))
             elif vartype == "ml" and not lvl_info.startswith("p"):
@@ -306,7 +310,7 @@ class Preprocess_ERA5_data(object):
 
         print("%{0}: Check for consistency of nested dictionaries approved.".format(method))
 
-        return var_req
+        return varnames, vartypes
 
     @staticmethod
     def check_var_in_grib(gribfile: str, varnames: str_or_List, labort: bool = False):
@@ -326,7 +330,7 @@ class Preprocess_ERA5_data(object):
                                                                       .format(method))
 
         cmd = "grib_ls -p shortName:s {0} | tail -n +3 | head -n -3".format(gribfile)
-        varlist = str(sp.check_output(cmd, stderr=sp.STDOUT, shell=True)).lstrip("b'").rstrip("'").remove(" ", "")
+        varlist = str(sp.check_output(cmd, stderr=sp.STDOUT, shell=True)).lstrip("b'").rstrip("'").replace(" ", "")
         varlist = varlist.split("\\n")
 
         stat = check_str_in_list(varlist, varnames, labort=labort)
