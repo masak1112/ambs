@@ -1,6 +1,11 @@
 #!/bin/bash -x
 
-#User's input : your virtual enviornment name
+######### Template identifier (don't remove) #########
+echo "Do not run the template scripts"
+exit 99
+######### Template identifier (don't remove) #########
+
+# Name of virtual environment
 VIRT_ENV_NAME=venv_test
 
 echo "Activating virtual environment..."
@@ -13,7 +18,7 @@ varmap_file=/my/path/to/varmapping/file
 
 years=( "2007" )
 
-#The number of nodes should be equal to the number of 1 preprcessed folder plus 1
+#The number of nodes should be equal to the number of 1 preprocessed folder plus 1
 n_nodes=3
 
 # Run data extraction
