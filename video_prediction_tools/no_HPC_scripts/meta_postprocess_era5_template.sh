@@ -6,8 +6,7 @@ VIRT_ENV_NAME=venv_test
 echo "Activating virtual environment..."
 source ../virtual_envs/${VIRT_ENV_NAME}/bin/activate
 
-#the source directory contains the tfrecords
-root_dir=/home/b.gong/
+root_dir=/path/to/root/output/directory
 analysis_config=../meta_postprocess_config/meta_config.json
 vim ${analysis_config}
 metric=mse

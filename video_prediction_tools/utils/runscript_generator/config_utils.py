@@ -33,8 +33,8 @@ class Config_runscript_base:
         if lhpc:
             self.runscript_dir = "../HPC_scripts"
         else:
-            self.runscript_dir = "../nonHPC_scripts"
-
+            self.runscript_dir = "../no_HPC_scripts"
+        
         self.long_name_wrk_step = None
         self.rscrpt_tmpl_prefix = None
         self.runscript_template = None

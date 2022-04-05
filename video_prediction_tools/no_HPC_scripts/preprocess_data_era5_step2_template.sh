@@ -1,16 +1,4 @@
 #!/bin/bash -x
-#SBATCH --account=<your_project>
-#SBATCH --nodes=1
-#SBATCH --ntasks=13
-##SBATCH --ntasks-per-node=13
-#SBATCH --cpus-per-task=1
-#SBATCH --output=DataPreprocess_era5_step2-out.%j
-#SBATCH --error=DataPreprocess_era5_step2-err.%j
-#SBATCH --time=04:00:00
-#SBATCH --gres=gpu:0
-#SBATCH --partition=batch
-#SBATCH --mail-type=ALL
-#SBATCH --mail-user=me@somewhere.com
 
 ######### Template identifier (don't remove) #########
 echo "Do not run the template scripts"
@@ -21,7 +9,18 @@ exit 99
 WORK_DIR="$(pwd)"
 BASE_DIR=$(dirname "$WORK_DIR")
 # Name of virtual environment
-VIRT_ENV_NAME="my_venv"
+VIRT_ENV_NAME=venv_test
+
+# declare directory-variables which will be modified by config_runscript.py
+source_dir=/my/path/to/pkl/files/
+destination_dir=/my/path/to/tfrecords/files
+
+sequence_length=20
+sequences_per_file=10
+
+#the number of the nodes should be the number of processed folder (month) plus 1
+n_nodes=3
+
 # !!! ADAPAT DEPENDING ON USAGE OF CONTAINER !!!
 # For container usage, comment in the follwoing lines
 # Name of container image (must be available in working directory)
@@ -39,22 +38,9 @@ if [[ ! -f ${WRAPPER} ]]; then
   exit 1
 fi
 
-# clean-up modules to avoid conflicts between host and container settings
-module purge
-
-# declare directory-variables which will be modified by config_runscript.py
-source_dir=/my/path/to/pkl/files/
-destination_dir=/my/path/to/tfrecords/files
-
-sequence_length=20
-sequences_per_file=10
-# run Preprocessing (step 2 where Tf-records are generated)
-export CUDA_VISIBLE_DEVICES=0
-## One node, single GPU
-srun --mpi=pspmix --cpu-bind=none \
-     singularity exec --nv "${CONTAINER_IMG}" "${WRAPPER}" ${VIRT_ENV_NAME} \
-     python3 ../main_scripts/main_preprocess_data_step2.py -source_dir ${source_dir} -dest_dir ${destination_dir} \
-     -sequence_length ${sequence_length} -sequences_per_file ${sequences_per_file}
+mpirun -n singularity exec --nv "${CONTAINER_IMG}" "${WRAPPER}" ${VIRT_ENV_NAME} \
+python3 ../main_scripts/main_preprocess_data_step2.py -source_dir ${source_dir} -dest_dir ${destination_dir} \
+-sequence_length ${sequence_length} -sequences_per_file ${sequences_per_file}
 
 # WITHOUT container usage, comment in the follwoing lines (and uncomment the lines above)
 # Activate virtual environment if needed (and possible)
@@ -68,10 +54,11 @@ srun --mpi=pspmix --cpu-bind=none \
 #   fi
 #fi
 #
-# Loading modules
-#module purge
-#source ../env_setup/modules_train.sh
-#export CUDA_VISIBLE_DEVICES=0
-#
-# srun python3 ../main_scripts/main_preprocess_data_step2.py -source_dir ${source_dir} -dest_dir ${destination_dir} \
+# Run preprocessing step 2
+#mpirun -n ${n_nodes}  python3 ../main_scripts/main_preprocess_data_step2.py -source_dir ${source_dir} -dest_dir ${destination_dir} \
 #     -sequence_length ${sequence_length} -sequences_per_file ${sequences_per_file}
+
+
+
+
+

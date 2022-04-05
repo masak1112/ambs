@@ -37,8 +37,9 @@ class Postprocess(TrainModel):
     def __init__(self, results_dir: str = None, checkpoint: str = None, data_mode: str = "test", batch_size: int = None,
                  gpu_mem_frac: float = None, num_stochastic_samples: int = 1, stochastic_plot_id: int = 0,
                  seed: int = None, channel: int = 0, run_mode: str = "deterministic", lquick: bool = None,
-                 frac_data: float = 1., eval_metrics: List = ("mse", "psnr", "ssim", "acc"), args=None,
-                 clim_path: str = "/p/scratch/deepacf/video_prediction_shared_folder/preprocessedData/T2monthly/climatology_t2m_1991-2020.nc"):
+                 frac_data: float = 1., eval_metrics: List = ("mse", "psnr", "ssim", "acc"), ltest=False,
+                 clim_path: str = "/p/scratch/deepacf/video_prediction_shared_folder/preprocessedData/T2monthly/"+
+                                  "climatology_t2m_1991-2020.nc", args=None):
         """
         Initialization of the class instance for postprocessing (generation of forecasts from trained model +
         basic evauation).
@@ -56,6 +57,7 @@ class Postprocess(TrainModel):
         :param lquick: flag for quick evaluation
         :param frac_data: fraction of dataset to be used for evaluation (only applied when shuffling is active)
         :param eval_metrics: metrics used to evaluate the trained model
+        :param ltest: flag for test mode to allow bootstrapping on tiny datasets
         :param clim_path:  the path to the netCDF-file storing climatolgical data
         :param args: namespace of parsed arguments
         """
@@ -85,10 +87,8 @@ class Postprocess(TrainModel):
         # configuration of basic evaluation
         self.eval_metrics = eval_metrics
         self.nboots_block = 1000
-        if lquick:
-            self.block_length = 7
-        else:
-            self.block_length = 7 * 24  # this corresponds to a block length of 7 days in case of hourly forecasts
+        self.block_length = 7 * 24  # this corresponds to a block length of 7 days in case of hourly forecasts
+        if ltest: self.block_length = 1
         # initialize evrything to get an executable Postprocess instance
         if args is not None:
             self.save_args_to_option_json()     # create options.json in results directory
@@ -1268,8 +1268,10 @@ def main():
                         help="(Only) metric to evaluate when quick evaluation (-lquick) is chosen.")
     parser.add_argument("--climatology_file", "-clim_fl", dest="clim_fl", type=str, default=False,
                         help="The path to the climatology_t2m_1991-2020.nc file ")
-    parse.add_argument("--frac_data", "-f_dt",  dest="f_dt",type=float,default=1,
-                        help="fraction of dataset to be used for evaluation (only applied when shuffling is active)")
+    parser.add_argument("--frac_data", "-f_dt",  dest="f_dt", type=float, default=1.,
+                        help="Fraction of dataset to be used for evaluation (only applied when shuffling is active).")
+    parser.add_argument("--test_mode", "-test", dest="test_mode", default=False, action="store_true",
+                        help="Test mode for postprocessing to allow bootstrapping on small datasets.")
     args = parser.parse_args()
 
     method = os.path.basename(__file__)
@@ -1296,7 +1298,7 @@ def main():
                                     batch_size=args.batch_size, num_stochastic_samples=args.num_stochastic_samples,
                                     gpu_mem_frac=args.gpu_mem_frac, seed=args.seed, args=args,
                                     eval_metrics=eval_metrics, channel=args.channel, lquick=args.lquick,
-                                    clim_path=args.clim_fl,frac_data=args.frac_data)
+                                    clim_path=args.clim_fl,frac_data=args.frac_data, ltest=args.test_mode)
     # run the postprocessing
     postproc_instance.run()
     postproc_instance.handle_eval_metrics()
