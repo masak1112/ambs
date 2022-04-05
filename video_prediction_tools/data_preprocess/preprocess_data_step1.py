@@ -273,7 +273,7 @@ class Preprocess_ERA5_data(object):
             raise ValueError("%{0}: Values of var_req-dictionary must be dictionary, i.e. pass a nested dictionary."
                              .format(method))
 
-        varnames = var_req.keys()
+        varnames = list(var_req.keys())
         vartypes = [list(var_req[varname].keys())[0] for varname in varnames]
 
         # first check for availability of variables in grib-files
