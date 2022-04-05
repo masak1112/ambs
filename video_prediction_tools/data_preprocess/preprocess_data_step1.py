@@ -187,7 +187,7 @@ class Preprocess_ERA5_data(object):
         return nwarns
 
     @staticmethod
-    def check_dirin(dirin: str, years: str_or_List, months : List):
+    def check_dirin(dirin: str, years: str_or_List, months: List):
         """
         Checks if data directories for all years exist
         :param dirin: path to basic data directory under which files are located
@@ -200,7 +200,7 @@ class Preprocess_ERA5_data(object):
         years = list(years)
         # basic sanity checks
         assert isinstance(dirin, str), "%{0}: Parsed dirin must be a string, but is of type '{1}'".format(method,
-                                                                                                        type(dirin))
+                                                                                                          type(dirin))
         if not all(isinstance(yr, int) for yr in years):
             raise ValueError("%{0}: Passed years must be a list of integers.".format(method))
 
@@ -212,6 +212,7 @@ class Preprocess_ERA5_data(object):
             for month in months:
                 mm_str, yr_str = str(year), "{0:02d}".format(int(month))
                 dirin_now = os.path.join(dirin, yr_str, mm_str)
+                print("dirin_base: {0}, dirin_now: {1}".format(dirin, dirin_now))
                 f = glob.iglob(os.path.join(dirin_now, "{0}{1}*.grb".format(yr_str, mm_str)))
 
                 _exhausted = object()
@@ -244,7 +245,7 @@ class Preprocess_ERA5_data(object):
         elif months == "SON":
             month_list = [9, 10, 11]
         elif months == "all":
-            month_list = list(np.range(1,13))
+            month_list = list(np.range(1, 13))
         else:
             raise ValueError("%{0}: months-argument cannot be converted to list of months (see doc-string)"
                              .format(method))
