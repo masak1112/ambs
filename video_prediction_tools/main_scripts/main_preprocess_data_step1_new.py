@@ -32,10 +32,6 @@ def main():
 
     args = parser.parse_args()
 
-    # print parsed arguments
-    for key in args.keys():
-        print("{0}: {1}".format(key, args[key]))
-
     # initialize preprocessing instance...
     era5_preprocess = Preprocess_ERA5_data(args.source_dir, args.destination_dir, args.vars_dict, args.sw_corner,
                                            args.nyx, args.years, args.months)
