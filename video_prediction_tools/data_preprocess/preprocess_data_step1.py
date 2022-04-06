@@ -3,7 +3,7 @@ Class and functions required for preprocessing ERA5 data (preprocessing substep 
 """
 __email__ = "m.langguth@fz-juelich.de"
 __author__ = "Michael Langguth"
-__date__ = "2021-12-13"
+__date__ = "2022-04-06"
 
 import os, glob
 from typing import List, Union, get_args
@@ -59,10 +59,65 @@ class Preprocess_ERA5_data(object):
     def __call__(self):
         """
         Set-up and run Pystager to preprocess the data.
-        :return:
+        :return: -
         """
         self.era5_pystager.setup(self.years, self.months)
         self.era5_pystager.run(self.dirin, self.dirout, self.var_requests, self.lat_bounds, self.lon_bounds)
+
+    def check_varnames(self, var_req: dict):
+        """
+        Check if all variables can be found in an exemplary datafile stored under datadir
+        :param var_req: nested dictionary where first-level keys carry request variable name. The values of these keys
+                        are dictionaries whose keys denote the type of variable (e.g. "sf" for surface)
+                        and whose values control (optional) vertical interpolation
+        :return: the approved dictionary (same as var_req)
+        """
+        method = Preprocess_ERA5_data.check_varnames.__name__
+
+        allowed_vartypes = ["ml", "sf"]
+
+        assert isinstance(var_req, dict), "%{0}: var_req must be a (controlled) dictionary. See doc-string."\
+                                          .format(method)
+
+        if not all(isinstance(vardict, dict) for vardict in var_req.values()):
+            raise ValueError("%{0}: Values of var_req-dictionary must be dictionary, i.e. pass a nested dictionary."
+                             .format(method))
+
+        varnames = list(var_req.keys())
+        vartypes = [list(var_req[varname].keys())[0] for varname in varnames]
+
+        # first check for availability of variables in grib-files
+        for vartype in allowed_vartypes:
+            inds = [i for i, vtype in enumerate(vartypes) if vtype == vartype]
+            vars2check = list(map(varnames.__getitem__, inds))
+            if not vars2check: continue                   # skip the following if no variable to check
+
+            # construct path to exemplary datafile
+            yy_str, mm_str = str(self.years[0]), "{0:02d}".format(self.months[0])
+            f2check = os.path.join(self.dirin, yy_str, mm_str, "{0}{1}0100_{2}.grb".format(yy_str, mm_str, vartype))
+
+            _ = Preprocess_ERA5_data.check_var_in_grib(f2check, vars2check, labort=True)
+
+        # second check for content of nested dictionaries
+        print("%{0}: Start checking consistency of nested dictionaries for each requested variable.".format(method))
+        for varname in varnames:
+            # check vartypes
+            vartype = list(var_req[varname].keys())[0]
+            lvl_info = list(var_req[varname].values())[0]
+            if not vartype in allowed_vartypes:
+                raise ValueError("%{0}: Key of variable dict for '{1}' must be one of the following types: {2}"
+                                 .format(method, vartype, ", ".join(allowed_vartypes)))
+            # check level types
+            if vartype == "sf" and lvl_info is not "":
+                print("%{0}: lvl_info for surface variable '{1}' is not empty and thus will be ignored."
+                      .format(method, varname))
+            elif vartype == "ml" and not lvl_info.startswith("p"):
+                raise ValueError("%{0}: Variable '' on model levels requires target pressure level".format(method) +
+                                 "for interpolation. Thus, provide 'pX' where X denotes a pressure level in hPa.")
+
+        print("%{0}: Check for consistency of nested dictionaries approved.".format(method))
+
+        return var_req
 
     def check_coords(self, coords_sw: List, nyx: List):
         """
@@ -102,26 +157,25 @@ class Preprocess_ERA5_data(object):
                              "is not within expected [{0:.1f}°E, {1:.f}°E]. Adapt nyx-argument."
                              .format(self.lon_intv[0], self.lon_intv[1]))
 
-        # ML: Approach with automatic check from file -> deprecated (i.e. the user should know his data)
-        # fexample = os.path.join(self.dirin, self.years[0], "01", "{0}010100_sf.grb".format(self.years[0]))
-        # fexample_nc = fexample.replace(".grb", ".nc")
-        #
-        # if not os.path.isfile(fexample):
-        #     raise FileNotFoundError("%{0}: Could not find example file '{1}' for retrieving coordinate data."
-        #                             .format(method, fexample))
-        #
-        # cmd = "cdo --eccodes -f nc copy {0} {1}".format(fexample, fexample_nc)
-        # sp.call(cmd, shell=True)
-        #
-        # dexample = NetcdfUtils(fexample_nc)
-        #
-        # lat, lon = dexample["lon"].values, dexample["lat"].values
         return [coords_sw[0], coords_ne[0]], [coords_sw[1], coords_ne[1]]
 
     @staticmethod
     def worker_func(year_months: list, dirin: str, dirout: str, var_req: dict, lat_bounds, lon_bounds,
                     logger: logging.Logger, nmax_warn: int = 1):
-
+        """
+        Handle grib-files from dirin to extract the variables of interest incl. lateral slicing and optional interpol.
+        The resulting netCDF-files contain monthly data.
+        :param year_months: List of months of years (format: YYYY-MM) to be processed (list elements: datetime-objects)
+        :param dirin: base input directory where grib-files are sorted in yearly and monthly sub-directories
+        :param dirout: base output-directory; netCDF-files will be colledted in yearly subdirectories
+        :param var_req: dictionary for querying variables and interpolation from grib-files,
+                        e.g. {"t" : {"ml": "85000."}} for getting 850hPa temperature
+        :param lat_bounds: lateral boundaries of target domain in meridional (latitude) direction
+        :param lon_bounds: lateral boundaries of target domain in zonal (longitude) direction
+        :param logger: logger instance
+        :param nmax_warn: maximum number of allowed warnings/errors during runtime of worker
+        :return: netCDF-file with monthly data under <dirout>/YYYY/
+        """
         method = Preprocess_ERA5_data.worker_func.__name__
 
         # sanity check
@@ -139,7 +193,11 @@ class Preprocess_ERA5_data(object):
             year_str, month_str = str(year), "{0:02d}".format(int(month))
 
             dirin_now = os.path.join(dirin, year_str, month_str)
-            os.makedirs(dirout, exist_ok=True)
+            dirout_now = os.path.join(dirout, year_str)
+            dirout_tmp = os.path.join(dirout_now, "{0}_tmp".format(month_str))
+            # create output- and temp-directory (store intermediate netCDF-files merged with -mergetime operator later)
+            os.makedirs(dirout_now, exist_ok=True)
+            os.makedirs(dirout_now, exist_ok=True)
 
             for vartype in np.unique(vartypes):
                 logger.info("Start processing variable type '{1}'".format(method, vartype))
@@ -164,30 +222,50 @@ class Preprocess_ERA5_data(object):
                 logger.info("%{0}: Start converting and slicing of data from {1:d} files found with pattern {2}..."
                             .format(method, nfiles, search_patt))
 
-                cmd = "cdo -v --eccodes -f nc copy -selname,{0} -sellonlatbox,{1},{2},{3},{4} -mergetime {5} {6}" \
-                      .format(",".join(vars4type), lon_bounds[0], lon_bounds[1], lat_bounds[0], lat_bounds[1],
-                              search_patt, dest_file)
+                # process each file individually and store resulting netCDF-file in temp-directory
+                for grb_file in grb_files:
+                    tmp_file = os.path.join(dirout_tmp,
+                                            "preprocess_{0}".format(os.path.basename(grb_file).replace("grb", "nc")))
 
-                if vartype == "ml":
+                    cmd = "cdo -v --eccodes -f nc copy -selname,{0} -sellonlatbox,{1},{2},{3},{4} {5} {6}" \
+                          .format(",".join(vars4type), lon_bounds[0], lon_bounds[1], lat_bounds[0], lat_bounds[1],
+                                  grb_file, tmp_file)
+
+                    if vartype == "ml":
+                        try:
+                            pres_lvl = int(float(var_req[vars4type[0]].get("ml").lstrip("p")))
+                        except Exception as err:
+                            logger.debug("%{0}: Failed to convert '{1}' to pressure level integer."
+                                         .format(method, var_req[vars4type[0]].get("ml")))
+                            raise err
+                        cmd.replace(grb_file, "ml2pl,{0:d} {1}".format(pres_lvl, grb_file))
+
                     try:
-                        pres_lvl = int(float(var_req[vars4type[0]].get("ml").lstrip("p")))
-                    except Exception as err:
-                        logger.debug("%{0}: Failed to convert '{1}' to pressure level integer."
-                                     .format(method, var_req[vars4type[0]].get("ml")))
-                        raise err
-                    cmd.replace("-mergetime", "ml2pl,{0:d} -mergetime".format(pres_lvl))
+                        _ = sp.check_output(cmd, stderr=sp.STDOUT, shell=True)
+                    except sp.CalledProcessError as exc:
+                        nwarns += 1
+                        logger.critical("%{0}: Failed to run the following command: {1}".format(method, cmd))
+                        logger.critical("%{0}: Preprocessing of file '{1}' failed. Inspect error message below:"
+                                        .format(method, grb_file))
+                        logger.critical("%{0}: Return code: {1}, error message: {2}".format(method, exc.returncode,
+                                                                                            exc.output))
+                        if nwarns >= nmax_warn:
+                            return -1
+
+                # Finally, merge all files in temp-directory to yield monthly data files
+                logger.info("%{0}: Start merging all files from '{1}' into final file '{2}'."
+                            .format(method, dirout_tmp, dest_file))
+                cmd = "cdo -v mergetime {0} {1}".format(os.path.join(dirout_tmp, "*.nc"), dest_file)
 
                 try:
                     _ = sp.check_output(cmd, stderr=sp.STDOUT, shell=True)
                 except sp.CalledProcessError as exc:
-                    nwarns += 1
                     logger.critical("%{0}: Failed to run the following command: {1}".format(method, cmd))
-                    logger.critical("%{0}: Preprocessing of files found with '{1}' failed. Inspect error message below:"
-                                    .format(method, search_patt))
+                    logger.critical("%{0}: Merging netCDF-files from '{1}' to '{2}' failed. See error message below:"
+                                    .format(method, dirout_tmp, dest_file))
                     logger.critical("%{0}: Return code: {1}, error message: {2}".format(method, exc.returncode,
                                                                                         exc.output))
-                    if nwarns >= nmax_warn:
-                        return -1
+                    return -1
 
         return nwarns
 
@@ -257,62 +335,6 @@ class Preprocess_ERA5_data(object):
 
         return month_list
 
-    def check_varnames(self, var_req: dict):
-        """
-        Check if all variables can be found in an exemplary datafile stored under datadir
-        :param var_req: nested dictionary where first-level keys carry request variable name. The values of these keys
-                        are dictionaries whose keys denote the type of variable (e.g. "sf" for surface)
-                        and whose values control (optional) vertical interpolation
-        :param datadir: directory where gribfiles of ERA5 reanalysis are stored
-        :return:
-        """
-        method = Preprocess_ERA5_data.check_varnames.__name__
-
-        allowed_vartypes = ["ml", "sf"]
-
-        assert isinstance(var_req, dict), "%{0}: var_req must be a (controlled) dictionary. See doc-string."\
-                                          .format(method)
-
-        if not all(isinstance(vardict, dict) for vardict in var_req.values()):
-            raise ValueError("%{0}: Values of var_req-dictionary must be dictionary, i.e. pass a nested dictionary."
-                             .format(method))
-
-        varnames = list(var_req.keys())
-        vartypes = [list(var_req[varname].keys())[0] for varname in varnames]
-
-        # first check for availability of variables in grib-files
-        for vartype in allowed_vartypes:
-            inds = [i for i, vtype in enumerate(vartypes) if vtype == vartype]
-            vars2check = list(map(varnames.__getitem__, inds))
-            if not vars2check: continue                   # skip the following if no variable to check
-
-            # construct path to exemplary datafile
-            yy_str, mm_str = str(self.years[0]), "{0:02d}".format(self.months[0])
-            f2check = os.path.join(self.dirin, yy_str, mm_str, "{0}{1}0100_{2}.grb".format(yy_str, mm_str, vartype))
-
-            _ = Preprocess_ERA5_data.check_var_in_grib(f2check, vars2check, labort=True)
-
-        # second check for content of nested dictionaries
-        print("%{0}: Start checking consistency of nested dictionaries for each requested variable.".format(method))
-        for varname in varnames:
-            # check vartypes
-            vartype = list(var_req[varname].keys())[0]
-            lvl_info = list(var_req[varname].values())[0]
-            if not vartype in allowed_vartypes:
-                raise ValueError("%{0}: Key of variable dict for '{1}' must be one of the following types: {2}"
-                                 .format(method, vartype, ", ".join(allowed_vartypes)))
-            # check level types
-            if vartype == "sf" and lvl_info is not "":
-                print("%{0}: lvl_info for surface variable '{1}' is not empty and thus will be ignored."
-                      .format(method, varname))
-            elif vartype == "ml" and not lvl_info.startswith("p"):
-                raise ValueError("%{0}: Variable '' on model levels requires target pressure level".format(method) +
-                                 "for interpolation. Thus, provide 'pX' where X denotes a pressure level in hPa.")
-
-        print("%{0}: Check for consistency of nested dictionaries approved.".format(method))
-
-        return var_req
-
     @staticmethod
     def check_var_in_grib(gribfile: str, varnames: str_or_List, labort: bool = False):
         """
@@ -338,38 +360,6 @@ class Preprocess_ERA5_data(object):
 
         return stat
 
-    # deprecated (see note under check_coords-methods above)
-    # @staticmethod
-    # def get_ERA5_coords(era5_file):
-    #     """
-    #     Retrieves latitude and longitude coordinates from ERA5-file
-    #     :param era5_file: Path to ERA5-file. Can be either a netCDF- or grib2-file
-    #     :return: numpy-arrays of latitude and longitude coordinates
-    #     """
-    #     method = Preprocess_ERA5_data.get_ERA5_coords.__name__
-    #
-    #     if not os.path.isfile(era5_file):
-    #         raise FileNotFoundError("%{0}: Could not find example file '{1}' for retrieving coordinate data."
-    #                                 .format(method, era5_file))
-    #
-    #     if era5_file.endswith(".grb"):
-    #         era5_file_nc = era5_file.replace(".grb", ".nc")
-    #         cmd = "cdo --eccodes -f nc copy {0} {1}".format(era5_file, era5_file_nc)
-    #         sp.call(cmd, shell=True)
-    #     elif era5_file.endswith(".nc"):
-    #         era5_file_nc = era5_file
-    #     else:
-    #         raise ValueError("%{0}: '{1}' must be either a grib2 or netCDF-file.".format(method, era5_file))
-    #
-    #     data_era5 = NetcdfUtils(era5_file_nc)
-    #
-    #     try:
-    #         lat, lon = data_era5.coords["lat"], data_era5["lon"]
-    #     except Exception as err:
-    #         print("%{0}: Failed to retrieve lat and lon from file '{1}'".format(method, era5_file_nc))
-    #         raise err
-    #
-    #     return lat.values, lon.values
 
 
 
