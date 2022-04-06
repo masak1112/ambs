@@ -175,6 +175,8 @@ class Preprocess_ERA5_data(object):
         :param logger: logger instance
         :param nmax_warn: maximum number of allowed warnings/errors during runtime of worker
         :return: netCDF-file with monthly data under <dirout>/YYYY/
+
+        TO-DO: Support interpolation on multiple pressure levels
         """
         method = Preprocess_ERA5_data.worker_func.__name__
 
@@ -192,8 +194,7 @@ class Preprocess_ERA5_data(object):
             year, month = int(year_month.strftime("%Y")), int(year_month.strftime("%m"))
             year_str, month_str = str(year), "{0:02d}".format(int(month))
 
-            dirin_now = os.path.join(dirin, year_str, month_str)
-            dirout_now = os.path.join(dirout, year_str)
+            dirin_now, dirout_now = os.path.join(dirin, year_str, month_str), os.path.join(dirout, year_str)
             dirout_tmp = os.path.join(dirout_now, "{0}_tmp".format(month_str))
             dest_file = os.path.join(dirout, "ambs_era5_{0}{1}.nc".format(year_str, month_str))
             # create output- and temp-directory (store intermediate netCDF-files merged with -mergetime operator later)
@@ -215,8 +216,7 @@ class Preprocess_ERA5_data(object):
                             .format(method, dirin_now, year_str, month_str))
                 grb_files = glob.glob(search_patt)
 
-                nfiles = len(grb_files)
-                nfiles_exp = pd.Period("{0}-{1}".format(year_str, month_str)).days_in_month*24
+                nfiles, nfiles_exp = len(grb_files), pd.Period("{0}-{1}".format(year_str, month_str)).days_in_month*24
 
                 if not nfiles == nfiles_exp:
                     err = "%{0}: Found {1:d} grib-files with search pattern '{2}'".format(method, nfiles, search_patt) \
@@ -233,17 +233,12 @@ class Preprocess_ERA5_data(object):
                                             "preprocess_{0}".format(os.path.basename(grb_file).replace("grb", "nc")))
 
                     cmd = "cdo -v --eccodes -f nc copy -selname,{0} -sellonlatbox,{1},{2},{3},{4} {5} {6}" \
-                          .format(",".join(vars4type_aux), lon_bounds[0], lon_bounds[1], lat_bounds[0], lat_bounds[1],
-                                  grb_file, tmp_file)
+                          .format(",".join(vars4type_aux), *lon_bounds, *lat_bounds, grb_file, tmp_file)
 
-                    if vartype == "ml":
-                        try:
-                            pres_lvl = int(float(var_req[vars4type[0]].get("ml").lstrip("p")))
-                        except Exception as err:
-                            logger.debug("%{0}: Failed to convert '{1}' to pressure level integer."
-                                         .format(method, var_req[vars4type[0]].get("ml")))
-                            raise err
-                        cmd = cmd.replace("copy", "copy -ml2pl,{0:d}".format(pres_lvl))
+                    if vartype == "ml":    # adjust command if interpolation to pressure level is performed
+                        # this only allows handling of a single pressure level for all variables!
+                        p_lvl = int(float(var_req[vars4type[0]].get("ml").lstrip("p")))
+                        cmd, vars4type = Preprocess_ERA5_data.modify_cdo4ml(cmd, p_lvl,vars4type)
 
                     nwarns = Preprocess_ERA5_data.run_cmd(cmd, logger, nwarns)
                     # check if nwarns was exceeded
@@ -262,10 +257,32 @@ class Preprocess_ERA5_data(object):
             # Now, merge the temp-files to get the final output file
             cmd = "cdo -v -merge {0} {1}".format(os.path.join(dirout_tmp, "preprocess_tmp_*.nc"), dest_file)
             logger.info("%{0}: Final merge of temp-files to '{1}'.".format(method, dest_file))
+            # clean temp-directory
+            logger.info("%{0}: Clean temp-directory '{1}'.".format(method, dirout_tmp))
+            shutil.rmtree(dirout_tmp)
 
             nwarns = Preprocess_ERA5_data.run_cmd(cmd, logger, nwarns, labort=True)
 
         return nwarns
+
+    @staticmethod
+    def modify_cdo4ml(cdo_cmd, p_lvl, variables, replace_str = "copy"):
+        """
+        Modify cdo-command for performing pressure interpolation and renaming variables in data file.
+        :param cdo_cmd: original cdo command
+        :param p_lvl: pressure level onto which data is interpolated [Pa]
+        :param variables: list of variable names subject to interpolation
+        :param replace_str: sub-string in original cdo command which can be used for manipulation (must be a substring)
+        :return: updated cdo-command and list of variable names
+        """
+
+        varrename = ["{0},{0}_{1:d}".format(var, int(p_lvl/100.)) for var in variables]
+        cmd_new = cdo_cmd.replace(replace_str, "{0} -chname,{1} -ml2pl,{2:d}"
+                                  .format(replace_str, ",".join(varrename), p_lvl))
+        # also adjust variable names incl. vars4type for latter variable selection
+        vars4type = ["{0}_{1:d}".format(var, int(p_lvl/100.)) for var in variables]
+
+        return cmd_new, vars4type
 
     @staticmethod
     def run_cmd(cmd: str, logger: logging.Logger, nwarns: int, labort: bool = False):
