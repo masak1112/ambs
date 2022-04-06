@@ -195,6 +195,7 @@ class Preprocess_ERA5_data(object):
             dirin_now = os.path.join(dirin, year_str, month_str)
             dirout_now = os.path.join(dirout, year_str)
             dirout_tmp = os.path.join(dirout_now, "{0}_tmp".format(month_str))
+            dest_file = os.path.join(dirout, "ambs_era5_{0}{1}.nc".format(year_str, month_str))
             # create output- and temp-directory (store intermediate netCDF-files merged with -mergetime operator later)
             os.makedirs(dirout_now, exist_ok=True)
             os.makedirs(dirout_tmp, exist_ok=True)
@@ -202,9 +203,13 @@ class Preprocess_ERA5_data(object):
             for vartype in np.unique(vartypes):
                 logger.info("Start processing variable type '{1}'".format(method, vartype))
                 vars4type = [varname for c, varname in enumerate(varnames) if vartypes[c] == vartype]
+                # ensure that lnsp (logarithmic surface pressure) and z (geopotential) are in list for p-interpolation
+                if vartype == "ml":
+                    vars4type_aux = set(vars4type + ["lnsp", "z"])
+                else:
+                    vars4type_aux = vars4type
 
                 search_patt = os.path.join(dirin_now, "{0}{1}*_{2}.grb".format(year_str, month_str, vartype))
-                dest_file = os.path.join(dirout, "preproc_{0}{1}_{2}.nc".format(year_str, month_str, vartype))
 
                 logger.info("%{0}: Serach for grib-files under '{1}' for year {2} and month {3}"
                             .format(method, dirin_now, year_str, month_str))
@@ -228,7 +233,7 @@ class Preprocess_ERA5_data(object):
                                             "preprocess_{0}".format(os.path.basename(grb_file).replace("grb", "nc")))
 
                     cmd = "cdo -v --eccodes -f nc copy -selname,{0} -sellonlatbox,{1},{2},{3},{4} {5} {6}" \
-                          .format(",".join(vars4type), lon_bounds[0], lon_bounds[1], lat_bounds[0], lat_bounds[1],
+                          .format(",".join(vars4type_aux), lon_bounds[0], lon_bounds[1], lat_bounds[0], lat_bounds[1],
                                   grb_file, tmp_file)
 
                     if vartype == "ml":
@@ -238,37 +243,57 @@ class Preprocess_ERA5_data(object):
                             logger.debug("%{0}: Failed to convert '{1}' to pressure level integer."
                                          .format(method, var_req[vars4type[0]].get("ml")))
                             raise err
-                        cmd = cmd.replace(grb_file, "-ml2pl,{0:d} {1}".format(pres_lvl, grb_file))
+                        cmd = cmd.replace("copy", "copy -ml2pl,{0:d}".format(pres_lvl))
 
-                    try:
-                        logger.info("%{0}: Run the following CDO-command: '{1}'.".format(method, cmd))
-                        _ = sp.check_output(cmd, stderr=sp.STDOUT, shell=True)
-                    except sp.CalledProcessError as exc:
-                        nwarns += 1
-                        logger.critical("%{0}: Failed to run the following command: {1}".format(method, cmd))
-                        logger.critical("%{0}: Preprocessing of file '{1}' failed. Inspect error message below:"
-                                        .format(method, grb_file))
-                        logger.critical("%{0}: Return code: {1}, error message: {2}".format(method, exc.returncode,
-                                                                                            exc.output))
-                        if nwarns >= nmax_warn:
-                            return -1
+                    nwarns = Preprocess_ERA5_data.run_cmd(cmd, logger, nwarns)
+                    # check if nwarns was exceeded
+                    if nwarns >= nmax_warn: return -1
 
-                # Finally, merge all files in temp-directory to yield monthly data files
-                logger.info("%{0}: Start merging all files from '{1}' into final file '{2}'."
-                            .format(method, dirout_tmp, dest_file))
-                cmd = "cdo -v mergetime {0} {1}".format(os.path.join(dirout_tmp, "*.nc"), dest_file)
+                # Merge all files in temp-directory of current vartype to yield monthly data files
+                logger.info("%{0}: Start merging all files from vartype '{1}', i.e. '*{1}.nc'.".format(method, vartype))
+                cmd = "cdo -v -mergetime -selname,{0} {1} {2}"\
+                      .format(",".join(vars4type), os.path.join(dirout_tmp, "*{0}.nc".format(vartype)),
+                              os.path.join(dirout_tmp, "preprocess_tmp_{0}.nc".format(vartype)))
 
-                try:
-                    _ = sp.check_output(cmd, stderr=sp.STDOUT, shell=True)
-                except sp.CalledProcessError as exc:
-                    logger.critical("%{0}: Failed to run the following command: {1}".format(method, cmd))
-                    logger.critical("%{0}: Merging netCDF-files from '{1}' to '{2}' failed. See error message below:"
-                                    .format(method, dirout_tmp, dest_file))
-                    logger.critical("%{0}: Return code: {1}, error message: {2}".format(method, exc.returncode,
-                                                                                        exc.output))
-                    return -1
+                nwarns = Preprocess_ERA5_data.run_cmd(cmd, logger, nwarns, labort=True)
+                # check if previous merging failed
+                if nwarns == -1: return nwarns
+
+            # Now, merge the temp-files to get the final output file
+            cmd = "cdo -v -merge {0} {1}".format(os.path.join(dirout_tmp, "preprocess_tmp_*.nc"), dest_file)
+            logger.info("%{0}: Final merge of temp-files to '{1}'.".format(method, dest_file))
+
+            nwarns = Preprocess_ERA5_data.run_cmd(cmd, logger, nwarns, labort=True)
 
         return nwarns
+
+    @staticmethod
+    def run_cmd(cmd: str, logger: logging.Logger, nwarns: int, labort: bool = False):
+        """
+        Run command in separated shell
+        :param cmd: command to run
+        :param logger: logger instance
+        :param nwarns: number of current warnings
+        :param labort: Boolean if abortion will be triggered (i.e. return nwarns = -1)
+        :return: updated nwarns
+        """
+        method = Preprocess_ERA5_data.run_cmd.__name__
+
+        nwarns_loc = nwarns
+        try:
+            _ = sp.check_output(cmd, stderr=sp.STDOUT, shell=True)
+            logger.info("%{0}: Command '{1}' ran successfully...".format(method, cmd))
+        except sp.CalledProcessError as exc:
+            logger.critical("%{0}: Failed to run the following command: {1}".format(method, cmd))
+            logger.critical("%{0}: Return code: {1}, error message: {2}".format(method, exc.returncode,
+                                                                                exc.output))
+            if labort:
+                nwarns_loc = -1
+            else:
+                nwarns_loc += 1
+
+        return nwarns_loc
+
 
     @staticmethod
     def check_dirin(dirin: str, years: str_or_List, months: List):
