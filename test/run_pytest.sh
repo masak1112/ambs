@@ -1,7 +1,6 @@
 #!#bin/bash
 
-# Name of virtual environment 
-#VIRT_ENV_NAME="vp_new_structure"
+# Name of virtual environment
 VIRT_ENV_NAME="venv2_hdfml"
 
 if [ -z ${VIRTUAL_ENV} ]; then

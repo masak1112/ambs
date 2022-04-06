@@ -18,6 +18,7 @@ def era5_dataset_case1():
                  mode="train", seed=1234, nsamples_ref=1000)
 
 def test_init_era5_dataset(era5_dataset_case1):
+
     assert era5_dataset_case1.max_epochs == 20
     assert era5_dataset_case1.mode == mode
     assert era5_dataset_case1.batch_size == 4
@@ -28,9 +29,6 @@ def test_get_filenames_from_datasplit(era5_dataset_case1):
     flname="era5_vars4ambs_201801.nc"
     check = flname in era5_dataset_case1.filenames
     assert check  == True
-
-
-
 
 def test_load_data_from_nc(era5_dataset_case1):
     era5_dataset_case1.load_data_from_nc()
