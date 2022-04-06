@@ -9,8 +9,7 @@ from abc import ABC, abstractmethod
 
 class BaseDataset(ABC):
 
-    def __init__(self, input_dir: str = None, datasplit_config: str = None, hparams_dict_config: str = None,
-                 mode: str = "train", seed: int = None, nsamples_ref: int = None):
+    def __init__(self, input_dir: str, datasplit_config: str, hparams_dict_config: str, mode: str = "train", seed: int = None, nsamples_ref: int = None):
         """
         This class is used for preparing data for training/validation and test models
         :param input_dir: the path of tfrecords files
@@ -43,29 +42,43 @@ class BaseDataset(ABC):
         self.datasplit_dict_path = datasplit_config
         self.data_dict = self.get_datasplit()
         self.hparams_dict_config = hparams_dict_config
-        self.hparams = self.parse_hparams() 
-        self.get_hparams()
+        self.hparams = self.get_model_hparams_dict()
+        #self.hparams_dict = self.get_model_hparams_dict()
+        #self.hparams = self.parse_hparams() 
         self.filenames = [] #contain the data filenames
+
+
+    def get_model_hparams_dict(self):
+        """
+        Get model_hparams_dict from json file
+        """
+        if self.hparams_dict_config:
+            with open(self.hparams_dict_config,'r') as f:
+                hparams_dict = json.loads(f.read())
+        else:
+            raise FileNotFoundError("hparam directory doesn't exist! please check {}!".format(self.hparams_dict_config)) 
+       
+        return hparams_dict
 
     def parse_hparams(self):
         """
-        Obtain the parameters from json file
+        Obtain the parameters from directory
         """
 
-        self.hparams_dict = dotdict(self.hparams_dict)
-        return self.hparams_dict
+        hparams = dotdict(self.hparams_dict)
+        return hparams
   
 
     def get_datasplit(self):
         """
         Get the datasplit json file
         """
-        with open(self.datasplit_dict_path) as f:
-            datasplit_dict = json.load(f)
+        with open(self.datasplit_dict_path,'r') as f:
+            datasplit_dict = json.loads(f.read())
         return datasplit_dict
 
 
-    @abc.abstractmethod
+    @abstractmethod
     def get_hparams(self):
         """
         obtain the hparams from the dict to the class variables
@@ -83,23 +96,15 @@ class BaseDataset(ABC):
            raise("Method %{}: the hparameter dictionary must include 'context_frames','max_epochs','batch_size','shuffle_on_val'".format(method))
 
 
-    @abc.abstractmethod
-    def get_filnames_from_datasplit(self):
+    @abstractmethod
+    def get_filenames_from_datasplit(self):
         """
         Get the filenames for train and val dataset
         Must implement in the Child class
         """
         pass
 
-    @abc.abstractmethod
-    def calc_samples_per_epoch(self):
-        """
-        calculate the number of samples per epoch
-        """
-        pass
-
-
-    @abc.abstractmethod
+    @abstractmethod
     def make_dataset(self):
         """
         Prepare batch_size dataset fed into to the models.

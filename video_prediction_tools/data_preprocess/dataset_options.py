@@ -16,7 +16,8 @@ def known_datasets():
         'ucf101': 'UCF101VideoDataset',
         'cartgripper': 'CartgripperVideoDataset',
         "era5": "ERA5Dataset",
-        "moving_mnist": "MovingMnist"
+        "moving_mnist": "MovingMnist",
+        "gzprcp": "GzprcpDataset"
         #        "era5_anomaly":"ERA5Dataset_v2_anomaly",
     }
 

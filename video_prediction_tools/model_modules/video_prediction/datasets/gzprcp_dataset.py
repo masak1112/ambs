@@ -10,7 +10,7 @@ import numpy as np
 class GzprcpDataset(BaseDataset):
 
     def __init__(self, *args, **kwargs):
-        super(BaseDataset, *args, **kwargs)
+        super().__init__(*args, **kwargs)
         pass
 
 
@@ -21,11 +21,11 @@ class GzprcpDataset(BaseDataset):
         method = GzprcpDataset.get_hparams.__name__
 
         try:
-            self.context_frames = self.hparams.context_frames
-            self.max_epochs = self.hparams.max_epochs
-            self.batch_size = self.hparams.batch_size
-            self.shuffle_on_val = self.hparams.shuffle_on_val
-            self.k = self.hparams.k
+            self.context_frames = self.hparams['context_frames']
+            self.max_epochs = self.hparams['max_epochs']
+            self.batch_size = self.hparams['batch_size']
+            self.shuffle_on_val = self.hparams['shuffle_on_val']
+            self.k = self.hparams['k']
 
         except Exception as error:
            print("Method %{}: error: {}".format(method,error))
@@ -36,6 +36,7 @@ class GzprcpDataset(BaseDataset):
         """
         Obtain the file names based on the datasplit.json configuration file
         """
+        method = GzprcpDataset.get_filenames_from_datasplit.__name__
         self.filenames = []
         self.data_mode = self.data_dict[self.mode]
         for year in self.data_mode:
@@ -129,5 +130,24 @@ class GzprcpDataset(BaseDataset):
 
 
 
+'''
+
+input_dir = "/p/largedata/jjsc42/project/deeprain/project_data/10min_AWS_prcp"
+datasplit_config = "/p/project/deepacf/deeprain/ji4/ambs/video_prediction_tools/data_split/gzprcp/datasplit.json"
+hparams_dict_config = "/p/project/deepacf/deeprain/ji4/ambs/video_prediction_tools/hparams/gzprcp_data/convLSTM_gan/model_hparams_template.json"
+sequences_per_file = 10
+mode = "val"
+
+
+if __name__ == '__main__':
+    GzprcpDataset(input_dir=input_dir, datasplit_config=datasplit_config, hparams_dict_config=hparams_dict_config,
+                 mode="val", seed=1234, nsamples_ref=1000)
+    dataset = GzprcpDataset.make_dataset()
+
+    for next_element in dataset.take(2):
+        # time_s = time.time()
+        print(next_element.shape)
+        pass
+'''
 
 
