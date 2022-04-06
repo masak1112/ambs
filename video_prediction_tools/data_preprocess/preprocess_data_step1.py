@@ -108,7 +108,7 @@ class Preprocess_ERA5_data(object):
                 raise ValueError("%{0}: Key of variable dict for '{1}' must be one of the following types: {2}"
                                  .format(method, vartype, ", ".join(allowed_vartypes)))
             # check level types
-            if vartype == "sf" and lvl_info is not "":
+            if vartype == "sf" and lvl_info != "":
                 print("%{0}: lvl_info for surface variable '{1}' is not empty and thus will be ignored."
                       .format(method, varname))
             elif vartype == "ml" and not lvl_info.startswith("p"):
@@ -238,7 +238,7 @@ class Preprocess_ERA5_data(object):
                     if vartype == "ml":    # adjust command if interpolation to pressure level is performed
                         # this only allows handling of a single pressure level for all variables!
                         p_lvl = int(float(var_req[vars4type[0]].get("ml").lstrip("p")))
-                        cmd, vars4type = Preprocess_ERA5_data.modify_cdo4ml(cmd, p_lvl,vars4type)
+                        cmd, vars4type = Preprocess_ERA5_data.modify_cdo4ml(cmd, p_lvl, vars4type)
 
                     nwarns = Preprocess_ERA5_data.run_cmd(cmd, logger, nwarns)
                     # check if nwarns was exceeded
