@@ -45,7 +45,7 @@ class Preprocess_ERA5_data(object):
 
         self.months = self.get_months(months)
         self.dirin, self.years = self.check_dirin(dirin, years, months)
-        self.varnames, self.vartypes = self.check_varnames(var_req)
+        self.var_requests = self.check_varnames(var_req)
         # some basic grid information
         self.lat_intv, self.lon_intv = list(lat_intv), list(lon_intv)
         self.lon_intv[1] -= np.abs(dx)
@@ -62,7 +62,7 @@ class Preprocess_ERA5_data(object):
         :return:
         """
         self.era5_pystager.setup(self.years, self.months)
-        self.era5_pystager.run(self.dirin, self.dirout, self.varnames, self.vartypes, self.lat_bounds, self.lon_bounds)
+        self.era5_pystager.run(self.dirin, self.dirout, self.var_requests, self.lat_bounds, self.lon_bounds)
 
     def check_coords(self, coords_sw: List, nyx: List):
         """
@@ -128,7 +128,7 @@ class Preprocess_ERA5_data(object):
         assert isinstance(logger, logging.Logger), "%{0}: logger-argument must be a logging.Logger instance" \
             .format(method)
 
-        varnames = var_req.keys()
+        varnames = list(var_req.keys())
         vartypes = [list(var_req[varname].keys())[0] for varname in varnames]
 
         # initilaize warn counter and start iterating over year_month-list
@@ -145,8 +145,8 @@ class Preprocess_ERA5_data(object):
                 logger.info("Start processing variable type '{1}'".format(method, vartype))
                 vars4type = [varname for c, varname in enumerate(varnames) if vartypes[c] == vartype]
 
-                search_patt = os.path.join(dirin_now, "{0}_{1}{2}*.grb".format(vartype, year_str, month_str))
-                dest_file = os.path.join(dirout, "preproc_{0}_{1}{2}".format(vartype, year_str, month_str))
+                search_patt = os.path.join(dirin_now, "{0}{1}*_{2}.grb".format(year_str, month_str, vartype))
+                dest_file = os.path.join(dirout, "preproc_{0}{1}_{2}.nc".format(year_str, month_str, vartype))
 
                 logger.info("%{0}: Serach for grib-files under '{1}' for year {2} and month {3}"
                             .format(method, dirin_now, year_str, month_str))
@@ -164,13 +164,13 @@ class Preprocess_ERA5_data(object):
                 logger.info("%{0}: Start converting and slicing of data from {1:d} files found with pattern {2}..."
                             .format(method, nfiles, search_patt))
 
-                cmd = "cdo -v --eccodes -f nc copy -selname,{0} -sellonlatbox,{1},{2},{3},{4} -mergetime ${5} ${6}" \
+                cmd = "cdo -v --eccodes -f nc copy -selname,{0} -sellonlatbox,{1},{2},{3},{4} -mergetime {5} {6}" \
                       .format(",".join(vars4type), lon_bounds[0], lon_bounds[1], lat_bounds[0], lat_bounds[1],
                               search_patt, dest_file)
 
                 if vartype == "ml":
                     try:
-                        pres_lvl = int(var_req[vars4type[0]].get("ml").lstrip("p"))
+                        pres_lvl = int(float(var_req[vars4type[0]].get("ml").lstrip("p")))
                     except Exception as err:
                         logger.debug("%{0}: Failed to convert '{1}' to pressure level integer."
                                      .format(method, var_req[vars4type[0]].get("ml")))
@@ -181,6 +181,7 @@ class Preprocess_ERA5_data(object):
                     _ = sp.check_output(cmd, stderr=sp.STDOUT, shell=True)
                 except sp.CalledProcessError as exc:
                     nwarns += 1
+                    logger.critical("%{0}: Failed to run the following command: {1}".format(method, cmd))
                     logger.critical("%{0}: Preprocessing of files found with '{1}' failed. Inspect error message below:"
                                     .format(method, search_patt))
                     logger.critical("%{0}: Return code: {1}, error message: {2}".format(method, exc.returncode,
@@ -301,8 +302,8 @@ class Preprocess_ERA5_data(object):
                 raise ValueError("%{0}: Key of variable dict for '{1}' must be one of the following types: {2}"
                                  .format(method, vartype, ", ".join(allowed_vartypes)))
             # check level types
-            if vartype == "sf" and lvl_info is not None:
-                print("%{0}: lvl_info for surface variable '{1}' is not None and thus will be ignored."
+            if vartype == "sf" and lvl_info is not "":
+                print("%{0}: lvl_info for surface variable '{1}' is not empty and thus will be ignored."
                       .format(method, varname))
             elif vartype == "ml" and not lvl_info.startswith("p"):
                 raise ValueError("%{0}: Variable '' on model levels requires target pressure level".format(method) +
@@ -310,7 +311,7 @@ class Preprocess_ERA5_data(object):
 
         print("%{0}: Check for consistency of nested dictionaries approved.".format(method))
 
-        return varnames, vartypes
+        return var_req
 
     @staticmethod
     def check_var_in_grib(gribfile: str, varnames: str_or_List, labort: bool = False):
