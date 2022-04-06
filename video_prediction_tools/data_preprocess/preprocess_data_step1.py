@@ -238,9 +238,10 @@ class Preprocess_ERA5_data(object):
                             logger.debug("%{0}: Failed to convert '{1}' to pressure level integer."
                                          .format(method, var_req[vars4type[0]].get("ml")))
                             raise err
-                        cmd = cmd.replace(grb_file, "ml2pl,{0:d} {1}".format(pres_lvl, grb_file))
+                        cmd = cmd.replace(grb_file, "-ml2pl,{0:d} {1}".format(pres_lvl, grb_file))
 
                     try:
+                        logger.info("%{0}: Run the following CDO-command: '{1}'.".format(method, cmd))
                         _ = sp.check_output(cmd, stderr=sp.STDOUT, shell=True)
                     except sp.CalledProcessError as exc:
                         nwarns += 1
