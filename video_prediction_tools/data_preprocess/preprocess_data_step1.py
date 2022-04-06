@@ -197,7 +197,7 @@ class Preprocess_ERA5_data(object):
             dirout_tmp = os.path.join(dirout_now, "{0}_tmp".format(month_str))
             # create output- and temp-directory (store intermediate netCDF-files merged with -mergetime operator later)
             os.makedirs(dirout_now, exist_ok=True)
-            os.makedirs(dirout_now, exist_ok=True)
+            os.makedirs(dirout_tmp, exist_ok=True)
 
             for vartype in np.unique(vartypes):
                 logger.info("Start processing variable type '{1}'".format(method, vartype))
@@ -238,7 +238,7 @@ class Preprocess_ERA5_data(object):
                             logger.debug("%{0}: Failed to convert '{1}' to pressure level integer."
                                          .format(method, var_req[vars4type[0]].get("ml")))
                             raise err
-                        cmd.replace(grb_file, "ml2pl,{0:d} {1}".format(pres_lvl, grb_file))
+                        cmd = cmd.replace(grb_file, "ml2pl,{0:d} {1}".format(pres_lvl, grb_file))
 
                     try:
                         _ = sp.check_output(cmd, stderr=sp.STDOUT, shell=True)
