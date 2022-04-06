@@ -209,7 +209,9 @@ class Preprocess_ERA5_data(object):
                     vars4type_aux = set(vars4type + ["lnsp", "z"])
                     # this only allows handling of a single pressure level for all variables!
                     p_lvl = int(float(var_req[vars4type[0]].get("ml").lstrip("p")))
+                    cmd_add, vars4type = Preprocess_ERA5_data.get_cdo_op4ml(p_lvl, vars4type)
                 else:
+                    cmd_add = None
                     vars4type_aux = vars4type
 
                 search_patt = os.path.join(dirin_now, "{0}{1}*_{2}.grb".format(year_str, month_str, vartype))
@@ -237,8 +239,8 @@ class Preprocess_ERA5_data(object):
                     cmd = "cdo -v --eccodes -f nc copy -selname,{0} -sellonlatbox,{1},{2},{3},{4} {5} {6}" \
                           .format(",".join(vars4type_aux), *lon_bounds, *lat_bounds, grb_file, tmp_file)
 
-                    if vartype == "ml":    # adjust command if interpolation to pressure level is performed
-                        cmd, vars4type = Preprocess_ERA5_data.modify_cdo4ml(cmd, p_lvl, vars4type)
+                    if cmd_add is not None:         # append cdo-command if required
+                        cmd = cmd.replace("copy", "copy{0}".format(cmd_add))
 
                     nwarns = Preprocess_ERA5_data.run_cmd(cmd, logger, nwarns)
                     # check if nwarns was exceeded
@@ -266,10 +268,9 @@ class Preprocess_ERA5_data(object):
         return nwarns
 
     @staticmethod
-    def modify_cdo4ml(cdo_cmd, p_lvl, variables, replace_str = "copy"):
+    def get_cdo_op4ml(p_lvl, variables):
         """
         Modify cdo-command for performing pressure interpolation and renaming variables in data file.
-        :param cdo_cmd: original cdo command
         :param p_lvl: pressure level onto which data is interpolated [Pa]
         :param variables: list of variable names subject to interpolation
         :param replace_str: sub-string in original cdo command which can be used for manipulation (must be a substring)
@@ -277,12 +278,11 @@ class Preprocess_ERA5_data(object):
         """
 
         varrename = ["{0},{0}_{1:d}".format(var, int(p_lvl/100.)) for var in variables]
-        cmd_new = cdo_cmd.replace(replace_str, "{0} -chname,{1} -ml2pl,{2:d}"
-                                  .format(replace_str, ",".join(varrename), p_lvl))
+        cdo_add = " -chname,{0} -ml2pl,{1:d} ".format(",".join(varrename), p_lvl)
         # also adjust variable names incl. vars4type for latter variable selection
         vars4type = ["{0}_{1:d}".format(var, int(p_lvl/100.)) for var in variables]
 
-        return cmd_new, vars4type
+        return cdo_add, vars4type
 
     @staticmethod
     def run_cmd(cmd: str, logger: logging.Logger, nwarns: int, labort: bool = False):
