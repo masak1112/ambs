@@ -249,16 +249,21 @@ class Preprocess_ERA5_data(object):
 
                 # Merge all files in temp-directory of current vartype to yield monthly data files
                 logger.info("%{0}: Start merging all files from vartype '{1}', i.e. '*{1}.nc'.".format(method, vartype))
-                cmd = "cdo -v -mergetime {0} {1}"\
-                      .format(os.path.join(dirout_tmp, "*{0}.nc".format(vartype)),
-                              os.path.join(dirout_tmp, "preprocess_tmp_{0}.nc".format(vartype)))
-
+                tmp_file = os.path.join(dirout_tmp, "preprocess_merged_{0}.nc".format(vartype))
+                cmd = "cdo -v -mergetime {0} {1}".format(os.path.join(dirout_tmp, "*{0}.nc".format(vartype)), tmp_file)
                 nwarns = Preprocess_ERA5_data.run_cmd(cmd, logger, nwarns, labort=True)
                 # check if previous merging failed
                 if nwarns == -1: return nwarns
+                # remove auxiliary data from file if pressure interpolation was performed
+                if vartype == "ml":
+                    cmd = "cdo -v -selname,{0} {1} {2}".format(",".join(vars4type), tmp_file,
+                                                               tmp_file.replace("ml", "ml_reduced"))
+                    nwarns = Preprocess_ERA5_data.run_cmd(cmd, logger, nwarns, labort=True)
+                    # check if previous variable selection failed
+                    if nwarns == -1: return nwarns
 
             # Now, merge the temp-files to get the final output file
-            cmd = "cdo -v -merge {0} {1}".format(os.path.join(dirout_tmp, "preprocess_tmp_*.nc"), dest_file)
+            cmd = "cdo -v -merge {0} {1}".format(os.path.join(dirout_tmp, "preprocess_merged_*.nc"), dest_file)
             logger.info("%{0}: Final merge of temp-files to '{1}'.".format(method, dest_file))
             nwarns = Preprocess_ERA5_data.run_cmd(cmd, logger, nwarns, labort=True)
             # clean temp-directory
