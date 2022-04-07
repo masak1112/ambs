@@ -6,6 +6,7 @@ from .base_dataset import BaseDataset
 import tensorflow as tf
 import xarray as xr
 import numpy as np
+import os
 
 class GzprcpDataset(BaseDataset):
 
@@ -41,7 +42,7 @@ class GzprcpDataset(BaseDataset):
         self.data_mode = self.data_dict[self.mode]
         for year in self.data_mode:
             files = "GZ_prcp_{}.nc".format(year)
-            self.filenames.append(files)
+            self.filenames.append(os.path.join(self.input_dir,files))
 
         if len(self.filenames) == 0:
             raise FileNotFoundError("No file is found for Gzprcp Dataset based on the configuration from data_split.json file!")
@@ -68,6 +69,8 @@ class GzprcpDataset(BaseDataset):
         self.n_samples = data_arr.shape[0]
         self.variables = ["prcp"]
         self.n_vars = len(self.variables)
+        ds_time = ds["time"].values
+        self.init_time = (ds_time[4]+ds_time[3]*100+ds_time[2]*10000+ds_time[1]*1000000+ds_time[0]*100000000).astype(np.int)
 
         self.sequence_length = data_arr.shape[1]
         return data_arr
@@ -91,7 +94,7 @@ class GzprcpDataset(BaseDataset):
 
         filenames = self.filenames
 
-        data_arr = GzprcpDataset.load_data_from_nc()
+        data_arr = GzprcpDataset.load_data_from_nc(self)
 
         #log of data for precipitation data
         data_arr = GzprcpDataset.Scaler(self.k, data_arr)
@@ -122,7 +125,7 @@ class GzprcpDataset(BaseDataset):
             else:
                 dataset = dataset.repeat(self.max_epochs)
 
-            dataset = dataset.shuffle()
+            # dataset = dataset.shuffle()
             dataset = dataset.batch(self.batch_size) #obtain data with batch size
             dataset = dataset.map(parse_example) #normalise
 
