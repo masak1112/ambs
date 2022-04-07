@@ -221,6 +221,7 @@ class Preprocess_ERA5_data(object):
                 grb_files = glob.glob(search_patt)
 
                 nfiles, nfiles_exp = len(grb_files), pd.Period("{0}-{1}".format(year_str, month_str)).days_in_month*24
+                nfiles, nfiles_exp = 24, 24    # enforce that check is passed
 
                 if not nfiles == nfiles_exp:
                     err = "%{0}: Found {1:d} grib-files with search pattern '{2}'".format(method, nfiles, search_patt) \
@@ -248,8 +249,8 @@ class Preprocess_ERA5_data(object):
 
                 # Merge all files in temp-directory of current vartype to yield monthly data files
                 logger.info("%{0}: Start merging all files from vartype '{1}', i.e. '*{1}.nc'.".format(method, vartype))
-                cmd = "cdo -v -mergetime -selname,{0} {1} {2}"\
-                      .format(",".join(vars4type), os.path.join(dirout_tmp, "*{0}.nc".format(vartype)),
+                cmd = "cdo -v -mergetime {0} {1}"\
+                      .format(os.path.join(dirout_tmp, "*{0}.nc".format(vartype)),
                               os.path.join(dirout_tmp, "preprocess_tmp_{0}.nc".format(vartype)))
 
                 nwarns = Preprocess_ERA5_data.run_cmd(cmd, logger, nwarns, labort=True)
@@ -259,11 +260,11 @@ class Preprocess_ERA5_data(object):
             # Now, merge the temp-files to get the final output file
             cmd = "cdo -v -merge {0} {1}".format(os.path.join(dirout_tmp, "preprocess_tmp_*.nc"), dest_file)
             logger.info("%{0}: Final merge of temp-files to '{1}'.".format(method, dest_file))
-            # clean temp-directory
-            logger.info("%{0}: Clean temp-directory '{1}'.".format(method, dirout_tmp))
-            shutil.rmtree(dirout_tmp)
-
             nwarns = Preprocess_ERA5_data.run_cmd(cmd, logger, nwarns, labort=True)
+            # clean temp-directory
+            if nwarns == -1:
+                logger.info("%{0}: Clean temp-directory '{1}'.".format(method, dirout_tmp))
+                shutil.rmtree(dirout_tmp)
 
         return nwarns
 
