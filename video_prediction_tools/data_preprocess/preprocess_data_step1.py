@@ -1,9 +1,14 @@
 """
-Class and functions required for preprocessing ERA5 data (preprocessing substep 2)
+Class and functions required for preprocessing raw ERA5 data.
+Calling the class-object will...
+* select variables of interest
+* slice data to target region
+* interpolate multi-level data onto pressure levels
+Data will be stored monthly in netCDF-files, whereas the original ERA5-data is expected to be hourly data in grib-files.
 """
 __email__ = "m.langguth@fz-juelich.de"
 __author__ = "Michael Langguth"
-__date__ = "2022-04-06"
+__date__ = "2022-04-07"
 
 import os, glob
 from typing import List, Union, get_args
@@ -122,10 +127,11 @@ class Preprocess_ERA5_data(object):
     def check_coords(self, coords_sw: List, nyx: List):
         """
         Check arguments for defining target domain and return bounding coordinates.
-        Note: Currently, crossing of the zero-meridian is not supported!
         :param coords_sw: latitude [°N] and longitude [°E] of south-western corner defining target domain
         :param nyx: number of grid points in latitude and longitude direction for target domain
         :return: two tuples of latitude and longitude boundaries of target domain, respectively
+
+        TO-DO: Support slicing accross the zero meridian (i.e. handling data queries accross 0°E).
         """
         method = Preprocess_ERA5_data.check_coords.__name__
 
@@ -275,13 +281,12 @@ class Preprocess_ERA5_data(object):
     @staticmethod
     def get_cdo_op4ml(p_lvl, variables):
         """
-        Modify cdo-command for performing pressure interpolation and renaming variables in data file.
+        Generate CDO-command snippet for performing pressure interpolation and renaming variables in data file.
+        Also adjusts the list of variables subject to renaming.
         :param p_lvl: pressure level onto which data is interpolated [Pa]
         :param variables: list of variable names subject to interpolation
-        :param replace_str: sub-string in original cdo command which can be used for manipulation (must be a substring)
-        :return: updated cdo-command and list of variable names
+        :return: cdo-command snippet for pressure interpolation and updated list of variable names
         """
-
         varrename = ["{0},{0}_{1:d}".format(var, int(p_lvl/100.)) for var in variables]
         cdo_add = " -chname,{0} -ml2pl,{1:d} ".format(",".join(varrename), p_lvl)
         # also adjust variable names incl. vars4type for latter variable selection
@@ -292,7 +297,7 @@ class Preprocess_ERA5_data(object):
     @staticmethod
     def run_cmd(cmd: str, logger: logging.Logger, nwarns: int, labort: bool = False):
         """
-        Run command in separated shell
+        Run command in separated shell.
         :param cmd: command to run
         :param logger: logger instance
         :param nwarns: number of current warnings
@@ -315,7 +320,6 @@ class Preprocess_ERA5_data(object):
                 nwarns_loc += 1
 
         return nwarns_loc
-
 
     @staticmethod
     def check_dirin(dirin: str, years: str_or_List, months: List):
@@ -397,8 +401,8 @@ class Preprocess_ERA5_data(object):
         if not (os.path.isfile(gribfile) and gribfile.endswith("grb")):
             raise FileNotFoundError("%{0}: File '{1}' does not exist or is not a grib-file.".format(method, gribfile))
 
-        if shutil.which("grib_ls") is None: raise NotImplementedError("%{0}: Program 'grib_ls' is not available"
-                                                                      .format(method))
+        if shutil.which("grib_ls") is None:
+            raise NotImplementedError("%{0}: Program 'grib_ls' is not available".format(method))
 
         cmd = "grib_ls -p shortName:s {0} | tail -n +3 | head -n -3".format(gribfile)
         varlist = str(sp.check_output(cmd, stderr=sp.STDOUT, shell=True)).lstrip("b'").rstrip("'").replace(" ", "")
