@@ -221,7 +221,6 @@ class Preprocess_ERA5_data(object):
                 grb_files = glob.glob(search_patt)
 
                 nfiles, nfiles_exp = len(grb_files), pd.Period("{0}-{1}".format(year_str, month_str)).days_in_month*24
-                nfiles, nfiles_exp = 24, 24    # enforce that check is passed
 
                 if not nfiles == nfiles_exp:
                     err = "%{0}: Found {1:d} grib-files with search pattern '{2}'".format(method, nfiles, search_patt) \
