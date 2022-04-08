@@ -24,9 +24,9 @@ from pystager_utils import PyStager
 str_or_List = Union[List, str]
 
 
-class Preprocess_ERA5_data(object):
+class Extract_ERA5_data(object):
 
-    cls_name = "Preprocess_ERA5_data"
+    cls_name = "Extract_ERA5_data"
 
     def __init__(self, dirin: str, dirout: str, var_req: dict, coord_sw: List, nyx: List, years: List,
                  months: str_or_List = "all", lon_intv: List = (0., 360.), lat_intv: List = (-90., 90.),
@@ -42,7 +42,7 @@ class Preprocess_ERA5_data(object):
         :param lat_intv: Allowed interval for slicing along latitude axis for ERA5 data (adapt if required)
         :param dx: grid spacing of regular, spherical grid onto which the ERA5 data is provided (adapt if required)
         """
-        method = Preprocess_ERA5_data.__init__.__name__
+        method = Extract_ERA5_data.__init__.__name__
 
         self.dirout = dirout if os.path.isdir(dirout) else None
         if not self.dirout:
@@ -77,7 +77,7 @@ class Preprocess_ERA5_data(object):
                         and whose values control (optional) vertical interpolation
         :return: the approved dictionary (same as var_req)
         """
-        method = Preprocess_ERA5_data.check_varnames.__name__
+        method = Extract_ERA5_data.check_varnames.__name__
 
         allowed_vartypes = ["ml", "sf"]
 
@@ -101,7 +101,7 @@ class Preprocess_ERA5_data(object):
             yy_str, mm_str = str(self.years[0]), "{0:02d}".format(self.months[0])
             f2check = os.path.join(self.dirin, yy_str, mm_str, "{0}{1}0100_{2}.grb".format(yy_str, mm_str, vartype))
 
-            _ = Preprocess_ERA5_data.check_var_in_grib(f2check, vars2check, labort=True)
+            _ = Extract_ERA5_data.check_var_in_grib(f2check, vars2check, labort=True)
 
         # second check for content of nested dictionaries
         print("%{0}: Start checking consistency of nested dictionaries for each requested variable.".format(method))
@@ -133,7 +133,7 @@ class Preprocess_ERA5_data(object):
 
         TO-DO: Support slicing accross the zero meridian (i.e. handling data queries accross 0°E).
         """
-        method = Preprocess_ERA5_data.check_coords.__name__
+        method = Extract_ERA5_data.check_coords.__name__
 
         if self.dx < 0:
             print("%{0}: Grid spacing should be positive. Change negative value to positive one.".format(method))
@@ -184,7 +184,7 @@ class Preprocess_ERA5_data(object):
 
         TO-DO: Support interpolation on multiple pressure levels
         """
-        method = Preprocess_ERA5_data.worker_func.__name__
+        method = Extract_ERA5_data.worker_func.__name__
 
         # sanity check
         assert isinstance(logger, logging.Logger), "%{0}: logger-argument must be a logging.Logger instance" \
@@ -215,7 +215,7 @@ class Preprocess_ERA5_data(object):
                     vars4type_aux = set(vars4type + ["lnsp", "z"])
                     # this only allows handling of a single pressure level for all variables!
                     p_lvl = int(float(var_req[vars4type[0]].get("ml").lstrip("p")))
-                    cmd_add, vars4type = Preprocess_ERA5_data.get_cdo_op4ml(p_lvl, vars4type)
+                    cmd_add, vars4type = Extract_ERA5_data.get_cdo_op4ml(p_lvl, vars4type)
                 else:
                     cmd_add = None
                     vars4type_aux = vars4type
@@ -248,7 +248,7 @@ class Preprocess_ERA5_data(object):
                     if cmd_add is not None:         # append cdo-command if required
                         cmd = cmd.replace("copy", "copy{0}".format(cmd_add))
 
-                    nwarns = Preprocess_ERA5_data.run_cmd(cmd, logger, nwarns)
+                    nwarns = Extract_ERA5_data.run_cmd(cmd, logger, nwarns)
                     # check if nwarns was exceeded
                     if nwarns >= nmax_warn: return -1
 
@@ -256,21 +256,21 @@ class Preprocess_ERA5_data(object):
                 logger.info("%{0}: Start merging all files from vartype '{1}', i.e. '*{1}.nc'.".format(method, vartype))
                 tmp_file = os.path.join(dirout_tmp, "preprocess_merged_{0}.nc".format(vartype))
                 cmd = "cdo -v -mergetime {0} {1}".format(os.path.join(dirout_tmp, "*{0}.nc".format(vartype)), tmp_file)
-                nwarns = Preprocess_ERA5_data.run_cmd(cmd, logger, nwarns, labort=True)
+                nwarns = Extract_ERA5_data.run_cmd(cmd, logger, nwarns, labort=True)
                 # check if previous merging failed
                 if nwarns == -1: return nwarns
                 # remove auxiliary data from file if pressure interpolation was performed
                 if vartype == "ml":
                     cmd = "cdo -v -selname,{0} {1} {2}".format(",".join(vars4type), tmp_file,
                                                                tmp_file.replace("ml", "ml_reduced"))
-                    nwarns = Preprocess_ERA5_data.run_cmd(cmd, logger, nwarns, labort=True)
+                    nwarns = Extract_ERA5_data.run_cmd(cmd, logger, nwarns, labort=True)
                     # check if previous variable selection failed
                     if nwarns == -1: return nwarns
 
             # Now, merge the temp-files to get the final output file
             cmd = "cdo -v -merge {0} {1}".format(os.path.join(dirout_tmp, "preprocess_merged_*.nc"), dest_file)
             logger.info("%{0}: Final merge of temp-files to '{1}'.".format(method, dest_file))
-            nwarns = Preprocess_ERA5_data.run_cmd(cmd, logger, nwarns, labort=True)
+            nwarns = Extract_ERA5_data.run_cmd(cmd, logger, nwarns, labort=True)
             # clean temp-directory
             if nwarns == -1:
                 logger.info("%{0}: Clean temp-directory '{1}'.".format(method, dirout_tmp))
@@ -304,7 +304,7 @@ class Preprocess_ERA5_data(object):
         :param labort: Boolean if abortion will be triggered (i.e. return nwarns = -1)
         :return: updated nwarns
         """
-        method = Preprocess_ERA5_data.run_cmd.__name__
+        method = Extract_ERA5_data.run_cmd.__name__
 
         nwarns_loc = nwarns
         try:
@@ -330,7 +330,7 @@ class Preprocess_ERA5_data(object):
         :param months: months for which data is requested
         :return: status
         """
-        method = Preprocess_ERA5_data.check_dirin.__name__
+        method = Extract_ERA5_data.check_dirin.__name__
 
         years = list(years)
         # basic sanity checks
@@ -359,7 +359,7 @@ class Preprocess_ERA5_data(object):
     @staticmethod
     def get_months(months):
 
-        method = Preprocess_ERA5_data.get_months.__name__
+        method = Extract_ERA5_data.get_months.__name__
 
         assert isinstance(months, get_args(str_or_List)), \
                "%{0}: months must be either a list of months or a (known) string.".format(method)
@@ -396,7 +396,7 @@ class Preprocess_ERA5_data(object):
         :param labort: flag if script breaks in case that variable is not found in gribfile
         :return: status of check (True if all variables are found in gribfile)
         """
-        method = Preprocess_ERA5_data.check_var_in_grib.__name__
+        method = Extract_ERA5_data.check_var_in_grib.__name__
 
         if not (os.path.isfile(gribfile) and gribfile.endswith("grb")):
             raise FileNotFoundError("%{0}: File '{1}' does not exist or is not a grib-file.".format(method, gribfile))
