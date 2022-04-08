@@ -20,7 +20,7 @@ def gzprcp_dataset_case1():
     dataset.get_hparams()
     dataset.get_filenames_from_datasplit()
     dataset.load_data_from_nc()
-    dataset.make_dataset()
+    # dataset.make_dataset()
     return dataset
 
 def test_init_gzprcp_dataset(gzprcp_dataset_case1):
@@ -46,6 +46,13 @@ def test_load_data_from_nc(gzprcp_dataset_case1):
 
     # df = xr.open_mfdataset(era5_dataset_case1.filenames)
     
+# if __name__ == '__main__':
+#     dataset = ERA5Dataset(input_dir: str = None, datasplit_config: str = None, hparams_dict_config: str = None,
+#                  mode: str = "train", seed: int = None, nsamples_ref: int = None)
+#     for next_element in dataset.take(2):
+#         # time_s = time.time()
+#         # tf.print(next_element.shape)
+#         pass
 
 
 
