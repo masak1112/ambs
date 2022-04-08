@@ -28,8 +28,8 @@ def test_init_era5_dataset(era5_dataset_case1):
 
 
 def test_get_filenames_from_datasplit(era5_dataset_case1):
-    flname= os.path.join(era5_dataset_case1.input_dir,"era5_vars4ambs_201901.nc")
-    n_files = len(flname)
+    flname= os.path.join(era5_dataset_case1.input_dir, "era5_vars4ambs_201901.nc")
+    n_files = len(era5_dataset_case1.filenames)
     check = flname in era5_dataset_case1.filenames
     assert check == True
     assert n_files == 12
