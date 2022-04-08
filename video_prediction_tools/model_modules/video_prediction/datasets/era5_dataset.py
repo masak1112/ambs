@@ -7,16 +7,35 @@ __author__ = "Bing Gong"
 __date__ = "2022-03-17"
 
 from .base_dataset import BaseDataset
-import glob, os
 import tensorflow as tf
 import xarray as xr
 import numpy as np
 
 class ERA5Dataset(BaseDataset):
-    
-    def __init__(self, *args, **kwargs):
-        super(BaseDataset, *args, **kwargs)
-        pass
+
+    def __init__(self, input_dir: str, datasplit_config: str, hparams_dict_config: str, mode: str = "train", seed: int = None, nsamples_ref: int = None):
+        super().__init__(input_dir, datasplit_config, hparams_dict_config, mode, seed, nsamples_ref)
+        self.get_filenames_from_datasplit()
+        self.get_datasplit()
+        self.load_data_from_nc()
+
+
+
+    def get_hparams(self):
+        """
+        obtain the hparams from the dict to the class variables
+        """
+        method = ERA5Dataset.get_hparams.__name__
+
+        try:
+            self.context_frames = self.hparams['context_frames']
+            self.max_epochs = self.hparams['max_epochs']
+            self.batch_size = self.hparams['batch_size']
+            self.shuffle_on_val = self.hparams['shuffle_on_val']
+
+        except Exception as error:
+           print("Method %{}: error: {}".format(method,error))
+           raise("Method %{}: the hparameter dictionary must include 'context_frames','max_epochs','batch_size','shuffle_on_val'".format(method))
 
     def get_filenames_from_datasplit(self):
         """
@@ -24,7 +43,6 @@ class ERA5Dataset(BaseDataset):
         """
         self.filenames = []
         self.data_mode = self.data_dict[self.mode]
-
         for year, months in self.data_mode.items():
             for month in months:
                 tf_files = "era5_vars4ambs_{}{.2}.nc".format(year, month)
@@ -57,14 +75,6 @@ class ERA5Dataset(BaseDataset):
         self.variables = list(ds.keys())
         self.n_vars = len(self.variables)
         return data_arr
-
-
-
-    def __get_numbers_samples_per_epoch__(self):
-        """
-        calculate the number of samples per epoch
-        """
-        pass
 
 
     def make_dataset(self):
@@ -105,6 +115,9 @@ class ERA5Dataset(BaseDataset):
             features = normalize_fixed(line_batch, fixed_range)
             return features
 
+        def data_generator():
+            for d in data_arr:
+                yield d
 
         if len(filenames) == 0:
             raise (
@@ -112,7 +125,8 @@ class ERA5Dataset(BaseDataset):
                     self.mode))
         else:
             #group the data into sequenceds
-            dataset = tf.data.Dataset.from_tensor_slices(data_arr).window(self.sequence_length, shift = 1, drop_remainder = True)
+            dataset = tf.data.Dataset.from_generator(data_generator, tf.float64)
+            dataset = dataset.window(self.sequence_length, shift = 1, drop_remainder = True)
             dataset = dataset.flat_map(lambda window: window.batch(self.sequence_length))
             # shuffle the data
             if shuffle:
