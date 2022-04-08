@@ -1,14 +1,4 @@
 #!/bin/bash -x
-#SBATCH --account=<your_project>
-#SBATCH --nodes=1
-#SBATCH --ntasks=1
-#SBATCH --output=train_model_era5-out.%j
-#SBATCH --error=train_model_era5-err.%j
-#SBATCH --time=24:00:00
-#SBATCH --gres=gpu:1
-#SBATCH --partition=some_partition
-#SBATCH --mail-type=ALL
-#SBATCH --mail-user=me@somewhere.com
 
 ######### Template identifier (don't remove) #########
 echo "Do not run the template scripts"
@@ -20,6 +10,16 @@ WORK_DIR="$(pwd)"
 BASE_DIR=$(dirname "$WORK_DIR")
 # Name of virtual environment
 VIRT_ENV_NAME="my_venv"
+
+# declare directory-variables which will be modified by generate_runscript.py
+source_dir=/my/path/to/tfrecords/files
+destination_dir=/my/model/output/path
+
+# valid identifiers for model-argument are: convLSTM, savp, mcnet and vae
+model=convLSTM
+datasplit_dict=${destination_dir}/data_split.json
+model_hparams=${destination_dir}/model_hparams.json
+
 # !!! ADAPAT DEPENDING ON USAGE OF CONTAINER !!!
 # For container usage, comment in the follwoing lines
 # Name of container image (must be available in working directory)
@@ -39,23 +39,12 @@ fi
 
 # clean-up modules to avoid conflicts between host and container settings
 module purge
-
-# declare directory-variables which will be modified by generate_runscript.py
-source_dir=/my/path/to/tfrecords/files
-destination_dir=/my/model/output/path
-
-# valid identifiers for model-argument are: convLSTM, savp, mcnet and vae
-model=convLSTM
-datasplit_dict=${destination_dir}/data_split.json
-model_hparams=${destination_dir}/model_hparams.json
-
 # run training in container
 export CUDA_VISIBLE_DEVICES=0
-## One node, single GPU 
-srun --mpi=pspmix --cpu-bind=none \
-     singularity exec --nv "${CONTAINER_IMG}" "${WRAPPER}" ${VIRT_ENV_NAME} \
-     python3 "${BASE_DIR}"/main_scripts/main_train_models.py --input_dir ${source_dir} --datasplit_dict ${datasplit_dict} \
-     --dataset era5 --model ${model} --model_hparams_dict ${model_hparams} --output_dir ${destination_dir}/
+## One node, single GPU
+singularity exec --nv "${CONTAINER_IMG}" "${WRAPPER}" ${VIRT_ENV_NAME} \
+python3 "${BASE_DIR}"/main_scripts/main_train_models.py --input_dir ${source_dir} --datasplit_dict ${datasplit_dict} \
+--dataset era5 --model ${model} --model_hparams_dict ${model_hparams} --output_dir ${destination_dir}/
 
 # WITHOUT container usage, comment in the follwoing lines (and uncomment the lines above)
 # Activate virtual environment if needed (and possible)
@@ -69,10 +58,9 @@ srun --mpi=pspmix --cpu-bind=none \
 #   fi
 #fi
 #
-# Loading modules
-#module purge
-#source ../env_setup/modules_train.sh
-#export CUDA_VISIBLE_DEVICES=0
-#
-# srun python3 "${BASE_DIR}"/main_scripts/main_train_models.py --input_dir ${source_dir} --datasplit_dict ${datasplit_dict} \
+# Run training
+#python3 ../main_scripts/main_train_models.py --input_dir ${source_dir} --datasplit_dict ${datasplit_dict} \
 #     --dataset era5 --model ${model} --model_hparams_dict ${model_hparams} --output_dir ${destination_dir}/
+
+
+

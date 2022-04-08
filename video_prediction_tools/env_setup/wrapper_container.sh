@@ -8,11 +8,11 @@ VENV_DIR=$WORKING_DIR/virtual_envs/$1
 shift                     # replaces $1 by $2, so that $@ does not include the name of the virtual environment anymore
 
 # sanity checks
-if [[ "${EXE_DIR}" = "HPC_scripts"   ]] || [[ "${EXE_DIR}" = "JSC_scripts" ]]; 
+if [[ "${EXE_DIR}" = "HPC_scripts"   ]] || [[ "${EXE_DIR}" = "no_HPC_scripts" ]];
 then
   echo "The runscript is running under the folder ${EXE_DIR}"
 else
-  echo "ERROR: Run the setup-script for the enviornment from the HPC_scripts-directory!"
+  echo "ERROR: Run the setup-script for the enviornment from the (no_)HPC_scripts-directory!"
   exit
 fi
 
