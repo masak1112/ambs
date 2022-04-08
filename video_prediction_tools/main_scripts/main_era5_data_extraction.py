@@ -8,7 +8,7 @@ __author__ = "Michael Langguth"
 
 import json as js
 import argparse
-from data_preprocess.preprocess_data_step1 import Preprocess_ERA5_data
+from data_preprocess.extract_era5_data import Extract_ERA5_data
 
 
 def main():
@@ -22,7 +22,7 @@ def main():
                         help="Years of data to be processed.")
     parser.add_argument("--months", "-m", nargs="+", dest="months", default="all",
                         help="Months of data. Can also be 'all' or season-strings, e.g. 'DJF'.")
-    parser.add_argument("--variables", "-v", dest="vars_dict", type=js.loads, default='{"2t": "sfc"}',
+    parser.add_argument("--variables", "-v", dest="vars_dict", type=js.loads, default='{"2t": {"sfc": ""}}',
                         help="Dictionary-like string to parse variable names (keys) together with " +
                              "variable types (values).")
     parser.add_argument("--sw_corner", "-swc", dest="sw_corner", nargs="+", default=(38.4, 0.),
@@ -33,11 +33,11 @@ def main():
     args = parser.parse_args()
 
     # initialize preprocessing instance...
-    era5_preprocess = Preprocess_ERA5_data(args.source_dir, args.destination_dir, args.vars_dict, args.sw_corner,
-                                           args.nyx, args.years, args.months)
+    era5_extract = Extract_ERA5_data(args.source_dir, args.destination_dir, args.vars_dict, args.sw_corner,
+                                     args.nyx, args.years, args.months)
 
     # ...and run it
-    era5_preprocess()
+    era5_extract()
 
 
 if __name__ == "__main__":
