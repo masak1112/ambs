@@ -3,6 +3,7 @@ __email__ = "b.gong@fz-juelich.de"
 
 from video_prediction.datasets.gzprcp_dataset import *
 import pytest
+import tensorflow as tf
 import xarray as xr
 
 input_dir = "/p/largedata/jjsc42/project/deeprain/project_data/10min_AWS_prcp"
@@ -40,9 +41,22 @@ def test_init_gzprcp_dataset(gzprcp_dataset_case1):
 
 
 def test_load_data_from_nc(gzprcp_dataset_case1):
-    dataset = gzprcp_dataset_case1.make_dataset()
-    for next_element in dataset.take(2):
-        print(next_element.shape)
+    train_tf_dataset = gzprcp_dataset_case1.make_dataset()
+    # for next_element in dataset.take(2):
+    #     print(next_element.shape)
+    train_iterator = train_tf_dataset.make_one_shot_iterator()
+    # The `Iterator.string_handle()` method returns a tensor that can be evaluated
+    # and used to feed the `handle` placeholder.
+    train_handle = train_iterator.string_handle()
+    iterator = tf.data.Iterator.from_string_handle(train_handle, train_tf_dataset.output_types, train_tf_dataset.output_shapes)
+    inputs = iterator.get_next()
+
+    with tf.Session() as sess:
+        sess.run(tf.global_variables_initializer())
+        sess.run(tf.local_variables_initializer())
+        for step in range(2):
+            sess.run(inputs)
+
 
     # df = xr.open_mfdataset(era5_dataset_case1.filenames)
     
