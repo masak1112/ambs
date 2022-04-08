@@ -16,10 +16,9 @@ class ERA5Dataset(BaseDataset):
     def __init__(self, input_dir: str, datasplit_config: str, hparams_dict_config: str, mode: str = "train", seed: int = None, nsamples_ref: int = None):
         super().__init__(input_dir, datasplit_config, hparams_dict_config, mode, seed, nsamples_ref)
         self.get_filenames_from_datasplit()
+        self.get_hparams()
         self.get_datasplit()
         self.load_data_from_nc()
-
-
 
     def get_hparams(self):
         """
@@ -91,7 +90,7 @@ class ERA5Dataset(BaseDataset):
 
         filenames = self.filenames
 
-        data_arr = ERA5Dataset.load_data_from_nc()
+        data_arr = self.load_data_from_nc()
 
         fixed_range = self.min_max_values
 
