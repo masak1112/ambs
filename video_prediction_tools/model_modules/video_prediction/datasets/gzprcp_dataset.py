@@ -110,15 +110,18 @@ class GzprcpDataset(BaseDataset):
             # features = tf.transpose(line_batch)
             features = normalize_fn(line_batch, fixed_range[0], fixed_range[1])
             return features
+ 
+        #group the data into sequence
+        def data_generator():
+            for d in data_arr:
+                yield d
+            
 
         if len(filenames) == 0:
             raise ("The filenames list is empty for {} dataset, please make sure your data_split dictionary is configured correctly".format( self.mode))
 
         else:
-            #group the data into sequence
-            data_generator = (d for d in data_arr)
-
-            dataset = tf.data.Dataset.from_generator(data_generator)
+            dataset = tf.data.Dataset.from_generator(data_generator, tf.float64)
 
             # shuffle the data
             if shuffle:

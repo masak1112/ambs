@@ -36,14 +36,21 @@ def test_init_gzprcp_dataset(gzprcp_dataset_case1):
     assert gzprcp_dataset_case1.mode == mode
     assert gzprcp_dataset_case1.batch_size == 32
     assert gzprcp_dataset_case1.k == 0.01
-    assert gzprcp_dataset_case1.filenames[0] == 'GZ_prcp_2019.nc'
+    # assert gzprcp_dataset_case1.filenames[0] == 'GZ_prcp_2019.nc'
 
-
-
+'''
 def test_load_data_from_nc(gzprcp_dataset_case1):
     train_tf_dataset = gzprcp_dataset_case1.make_dataset()
-    # for next_element in dataset.take(2):
-    #     print(next_element.shape)
+    print('***************************')
+'''
+def test_load_data_from_nc(gzprcp_dataset_case1):
+    train_tf_dataset = gzprcp_dataset_case1.make_dataset()
+    '''
+    for next_element in train_tf_dataset.take(2):
+        print(next_element.shape)
+
+    assert next_element.shape == [0]
+    '''
     train_iterator = train_tf_dataset.make_one_shot_iterator()
     # The `Iterator.string_handle()` method returns a tensor that can be evaluated
     # and used to feed the `handle` placeholder.
@@ -57,7 +64,7 @@ def test_load_data_from_nc(gzprcp_dataset_case1):
         for step in range(2):
             sess.run(inputs)
 
-
+    
     # df = xr.open_mfdataset(era5_dataset_case1.filenames)
     
 # if __name__ == '__main__':
