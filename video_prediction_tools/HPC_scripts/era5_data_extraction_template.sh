@@ -22,7 +22,7 @@ exit 99
 VIRT_ENV_NAME="my_venv"
 
 # Activate virtual environment if needed (and possible)
-if [ -z ${VIRTUAL_ENV} ]; then
+if [ -z "${VIRTUAL_ENV}" ]; then
    if [[ -f ../virtual_envs/${VIRT_ENV_NAME}/bin/activate ]]; then
       echo "Activating virtual environment..."
       source ../virtual_envs/${VIRT_ENV_NAME}/bin/activate
@@ -44,8 +44,8 @@ nyx=(56 92)
 
 # set some paths
 # note, that destination_dir is adjusted during runtime based on the data
-source_dir=/my/path/to/extracted/data/
-destination_dir=/my/path/to/pickle/files
+source_dir=/my/path/to/era5/data
+destination_dir=/my/path/to/extracted/data
 
 # execute Python-script
 srun python ../main_scripts/main_era5_data_extraction.py -src_dir "${source_dir}" \
