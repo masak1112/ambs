@@ -5,10 +5,9 @@ from video_prediction.datasets.era5_dataset import *
 import pytest
 import xarray as xr
 
-input_dir = "/p/project/deepacf/deeprain/video_prediction_shared_folder/preprocessedData/test"
+input_dir = "/p/project/deepacf/deeprain/video_prediction_shared_folder/test_data_roshni"
 datasplit_config = "/p/project/deepacf/deeprain/bing/ambs/video_prediction_tools/data_split/test/cv_test.json"
-hparams_dict_config = "/p/project/deepacf/deeprain/bing/ambs/video_prediction_tools/hparams/era5/convLSTM/model_hparams.json"
-sequences_per_file = 10
+hparams_dict_config = "/p/project/deepacf/deeprain/bing/ambs/video_prediction_tools/hparams/era5/convLSTM/model_hparams_template.json"
 mode = "val"
 
 

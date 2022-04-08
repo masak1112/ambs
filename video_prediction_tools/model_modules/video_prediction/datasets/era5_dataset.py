@@ -10,7 +10,7 @@ from .base_dataset import BaseDataset
 import tensorflow as tf
 import xarray as xr
 import numpy as np
-
+import os
 class ERA5Dataset(BaseDataset):
 
     def __init__(self, input_dir: str, datasplit_config: str, hparams_dict_config: str, mode: str = "train", seed: int = None, nsamples_ref: int = None):
@@ -45,7 +45,7 @@ class ERA5Dataset(BaseDataset):
         self.data_mode = self.data_dict[self.mode]
         for year, months in self.data_mode.items():
             for month in months:
-                tf_files = "era5_vars4ambs_{}{.2}.nc".format(year, month)
+                tf_files = os.path.join(self.input_dir,"era5_vars4ambs_{}{:02d}.nc".format(year, month))
                 self.filenames.append(tf_files)
 
         return self.filenames

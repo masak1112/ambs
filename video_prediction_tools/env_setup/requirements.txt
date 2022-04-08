@@ -11,3 +11,4 @@ netcdf4==1.5.8
 normalization==0.4
 utils==1.0.1
 pytest==7.1.1
+dask==2022.3.0
