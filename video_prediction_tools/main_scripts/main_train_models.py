@@ -186,12 +186,12 @@ class TrainModel(object):
         Prepare the dataset interator for training and validation
         """
         self.batch_size = self.model_hparams_dict_load["batch_size"]
-        train_tf_dataset = self.train_dataset.make_dataset(self.batch_size)
+        train_tf_dataset = self.train_dataset.make_dataset()
         train_iterator = train_tf_dataset.make_one_shot_iterator()
         # The `Iterator.string_handle()` method returns a tensor that can be evaluated
         # and used to feed the `handle` placeholder.
         self.train_handle = train_iterator.string_handle()
-        val_tf_dataset = self.val_dataset.make_dataset(self.batch_size)
+        val_tf_dataset = self.val_dataset.make_dataset()
         val_iterator = val_tf_dataset.make_one_shot_iterator()
         self.val_handle = val_iterator.string_handle()
         self.iterator = tf.data.Iterator.from_string_handle(

@@ -26,7 +26,7 @@ class Config_Train(Config_runscript_base):
     # !!! Important note !!!
     # As long as we don't have runscript templates for all the datasets listed in known_datasets
     # or a generic template runscript, we need the following manual list
-    allowed_datasets = ["era5", "moving_mnist"]  # known_datasets().keys
+    allowed_datasets = ["era5", "moving_mnist", "gzprcp"]  # known_datasets().keys
 
     basename_tfdirs = "tfrecords_seq_len_"
 

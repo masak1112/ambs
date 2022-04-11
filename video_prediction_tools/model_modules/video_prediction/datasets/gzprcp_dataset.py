@@ -53,6 +53,8 @@ class GzprcpDataset(BaseDataset):
         Obtain the data and meta information from the netcdf files, including the len of the samples, mim and max values
         :return: None
         """
+        print(self.input_dir)
+        print(self.filenames)
         ds = xr.open_mfdataset(self.filenames)
         da = ds["prcp"].values
         #times = ds["time"].values #return [time_level, sequence_len, number_samples]
@@ -137,7 +139,12 @@ class GzprcpDataset(BaseDataset):
 
 
     def num_examples_per_epoch(self):
-        return self.n_samples
+        filenames = []
+        data_mode = self.data_dict[self.mode]
+        for year in data_mode:
+            files = "GZ_prcp_{}.nc".format(year)
+            filenames.append(os.path.join(self.input_dir,files))
+        return len(filenames)*7007 # each file has 7007 samples
 '''
 
 input_dir = "/p/largedata/jjsc42/project/deeprain/project_data/10min_AWS_prcp"
