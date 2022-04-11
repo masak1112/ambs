@@ -108,10 +108,12 @@ class TrainModel(object):
         """
         Get and read model_hparams_dict from json file to dictionary 
         """
-        self.model_hparams_dict_load = {}
         if self.model_hparams_dict:
-            with open(self.model_hparams_dict) as f:
-                self.model_hparams_dict_load.update(json.loads(f.read()))
+            with open(self.model_hparams_dict, 'r') as f:
+                self.model_hparams_dict_load = json.loads(f.read())
+        else:
+            raise FileNotFoundError("hparam directory doesn't exist! please check {}!".format(self.model_hparams_dict))
+
         return self.model_hparams_dict_load
 
     def load_params_from_checkpoints_dir(self):

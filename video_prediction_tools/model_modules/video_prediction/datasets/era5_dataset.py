@@ -56,6 +56,7 @@ class ERA5Dataset(BaseDataset):
         :return: None
         """
         ds = xr.open_mfdataset(self.filenames)
+
         da = ds.to_array(dim = "variables").squeeze()
         dims = ["time", "lat", "lon"]
 
@@ -137,6 +138,10 @@ class ERA5Dataset(BaseDataset):
             dataset = dataset.batch(self.batch_size) #obtain data with batch size
             dataset = dataset.map(parse_example) #normalise
             return dataset
+
+    def num_examples_per_epoch(self):
+        #total number of samples if the shift is one
+        return self.n_ts - self.sequence_length + 1
 
 
 

@@ -122,3 +122,6 @@ class BaseDataset(ABC):
         return iterator.get_next()
 
 
+    @abstractmethod
+    def num_examples_per_epoch(self):
+        pass

@@ -136,7 +136,8 @@ class GzprcpDataset(BaseDataset):
             return dataset
 
 
-
+    def num_examples_per_epoch(self):
+        return self.n_samples
 '''
 
 input_dir = "/p/largedata/jjsc42/project/deeprain/project_data/10min_AWS_prcp"
