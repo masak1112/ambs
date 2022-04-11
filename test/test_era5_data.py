@@ -7,7 +7,7 @@ import pytest
 import xarray as xr
 import os
 import tensorflow as tf
-
+import numpy as np
 input_dir = "/p/project/deepacf/deeprain/video_prediction_shared_folder/test_data_roshni"
 datasplit_config = "/p/project/deepacf/deeprain/bing/ambs/video_prediction_tools/data_split/test/cv_test.json"
 hparams_dict_config = "/p/project/deepacf/deeprain/bing/ambs/video_prediction_tools/hparams/era5/convLSTM/model_hparams_template.json"
@@ -36,39 +36,57 @@ def test_get_filenames_from_datasplit(era5_dataset_case1):
 
 def test_make_dataset(era5_dataset_case1):
     # Get the data from nc files directly
-    era5_dataset_case1.load_data_from_nc()
+    data_arr = era5_dataset_case1.load_data_from_nc()
+    assert len(data_arr) !=0
     ds = xr.open_mfdataset(era5_dataset_case1.filenames)
     len_dt = len(ds["time"].values) # count number of images/samples in the test dataset
     da = ds.to_array(dim = "variables").squeeze()
     dims = ["time", "lat", "lon"]
+    data_arr = np.squeeze(da.values) #[vars,samples,lat,lon]
     max_vars, min_vars = da.max(dim=dims).values, da.min(dim=dims).values #three dimension
-
+    print("data_arr shape",data_arr.shape)
     #normalise the data for the first variable
     def norm_var(x, min_value, max_value):
         return (x - min_value) / (max_value - min_value)
+   
+    assert np.max(data_arr[0]) == max_vars[0]
     #mannualy calculate the normalization of the data
-    dt_norm = norm_var(da[0], min_vars[0], max_vars[0])
-    s1 = dt_norm[:12] #the first sample
-    s2 = dt_norm[12:24] # the second sample
-
-
+    dt_norm = norm_var(data_arr[0],np.min(data_arr[0]), np.max(data_arr[0]))
+    
+    print("dt_norm",dt_norm.shape)
+    s1 = dt_norm[0] #the first sample, first timestamp
+    s2 = dt_norm[23] #the first sample, last timestamp 
+    s3 = dt_norm[1] # the second sample, first timestamp
+    s4 = dt_norm[24] # the second sample, last timestamp
     # Get the data from make_dataset function
     test_dataset = era5_dataset_case1.make_dataset()
-    train_iterator = test_dataset.make_one_shot_iterator()
+    test_iterator = test_dataset.make_one_shot_iterator()
     # The `Iterator.string_handle()` method returns a tensor that can be evaluated
     # and used to feed the `handle` placeholder.
-    train_handle = train_iterator.string_handle()
-    iterator = tf.data.Iterator.from_string_handle(train_handle, test_dataset.output_types, test_dataset.output_shapes)
+    test_handle = test_iterator.string_handle()
+    iterator = tf.data.Iterator.from_string_handle(test_handle, test_dataset.output_types, test_dataset.output_shapes)
     inputs = iterator.get_next()
     with tf.Session() as sess:
         sess.run(tf.global_variables_initializer())
         sess.run(tf.local_variables_initializer())
-        #get two samples from dataset
-        s1t = sess.run(inputs)
-        s2t = sess.run(inputs)
-    assert (s1-s1t) == 0
-    assert (s2-s2t) == 0
+        #get the batch size samples from dataset
+        dt = sess.run(inputs) #[batch_size,sequence_len,n_vars,lon,lat]
+        dt.shape[0] == 4
+        dt.shape[1] == 24
+        print("shape of dt",dt.shape)
+        s1t = dt[0,0,0]
+        s2t = dt[0,23,0]
+        
+        #get the second sample from dataset
+        s3t = dt[1,0,0]
+        s4t = dt[1,23,0]
+         
+        #s2t = sess.run(inputs)[0,:,0]
+    assert np.sum(s1-s1t) < 0.0001
+    assert np.sum(s2-s2t) < 0.0001
+    assert np.sum(s3-s3t) < 0.0001
+    assert np.sum(s4 -s4t) < 0.0001
     #compare the data from nc files and make_dataset
 
-
+ 
 

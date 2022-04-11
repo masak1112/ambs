@@ -31,7 +31,7 @@ class ERA5Dataset(BaseDataset):
             self.max_epochs = self.hparams['max_epochs']
             self.batch_size = self.hparams['batch_size']
             self.shuffle_on_val = self.hparams['shuffle_on_val']
-
+            self.sequence_length = self.hparams["sequence_length"]
         except Exception as error:
            print("Method %{}: error: {}".format(method,error))
            raise("Method %{}: the hparameter dictionary must include 'context_frames','max_epochs','batch_size','shuffle_on_val'".format(method))
@@ -60,8 +60,7 @@ class ERA5Dataset(BaseDataset):
         dims = ["time", "lat", "lon"]
 
         max_vars, min_vars = da.max(dim = dims).values, da.min(dim = dims).values
-        min_max_vars = np.array([min_vars, max_vars])
-        self.min_max_values = np.transpose(min_max_vars, (1, 0))
+        self.min_max_values = np.array([min_vars, max_vars])
 
         data_arr = np.squeeze(da.values)
         data_arr = np.transpose(data_arr, (1, 0, 2, 3)) #swap n_samples and variables position
@@ -87,31 +86,36 @@ class ERA5Dataset(BaseDataset):
         method = ERA5Dataset.make_dataset.__name__
 
         shuffle = self.mode == 'train' or (self.mode == 'val' and self.shuffle_on_val)
-
         filenames = self.filenames
-
         data_arr = self.load_data_from_nc()
-
-        fixed_range = self.min_max_values
-
-
-        def normalize_fn(x, min_value, max_value):
-
+        
+        def normalize_fn(x:tf.Tensor, min_value:float, max_value:float):
             return tf.divide(tf.subtract(x, min_value), tf.subtract(max_value, min_value))
 
-        def normalize_fixed(x, current_range, n_vars=self.n_vars):
-            current_min, current_max = tf.expand_dims(current_range[:, 0], 1), tf.expand_dims(current_range[:, 1], 1)
+        def normalize_fixed(x:tf.Tensor=None, min_max_values:list=None,norm_dim:int=2):
+            """
+            x is the tensor with the shape of [batch_size,seq_length, n_vars, lat, lon]
+            min_max_values is a list contains min and max values of variables. the first element of list is the min values for variables, and the second is the max values
+            norm_dim is a int that indicate the dim (var) to be normalised
+            return: normalised data (tf.Tensor), the shape is the same as input "x"
+            """
+             
+            current_min, current_max = min_max_values[0], min_max_values[1]
+            n_vars = len(current_min)
+            if not len(current_min) == len(current_max):
+                raise ("The length of min and max values should be equal to the number of variables in normalized_fixed function!")
+
             x_norm = []
             for i in range(n_vars):
                 dt_norm = normalize_fn(x[:, :, i, :, :], current_min[i], current_max[i])
                 x_norm.append(dt_norm)
-
-            x_normed = tf.stack(x_norm, axis=2)
-            return x_normed
+            x_norm = tf.stack(x_norm,axis=norm_dim) #[batch_size,sequence_length,nvar, lon,lat]
+            #x_norm = tf.transpose(x_norm,perm=[1,2,0,3,4])
+            return x_norm
 
         def parse_example(line_batch):
             # features = tf.transpose(line_batch)
-            features = normalize_fixed(line_batch, fixed_range)
+            features = normalize_fixed(line_batch, self.min_max_values)
             return features
 
         def data_generator():
@@ -119,12 +123,10 @@ class ERA5Dataset(BaseDataset):
                 yield d
 
         if len(filenames) == 0:
-            raise (
-                "The filenames list is empty for {} dataset, please make sure your data_split dictionary is configured correctly".format(
-                    self.mode))
+            raise ("The filenames list is empty for {} dataset, please make sure your data_split dictionary is configured correctly".format(self.mode))
         else:
             #group the data into sequenceds
-            dataset = tf.data.Dataset.from_generator(data_generator, tf.float64)
+            dataset = tf.data.Dataset.from_generator(data_generator, tf.float32)
             dataset = dataset.window(self.sequence_length, shift = 1, drop_remainder = True)
             dataset = dataset.flat_map(lambda window: window.batch(self.sequence_length))
             # shuffle the data
@@ -132,7 +134,6 @@ class ERA5Dataset(BaseDataset):
                 dataset = dataset.apply(tf.contrib.data.shuffle_and_repeat(buffer_size = 1024, count = self.max_epochs))
             else:
                 dataset = dataset.repeat(self.max_epochs)
-            dataset = dataset.shuffle()
             dataset = dataset.batch(self.batch_size) #obtain data with batch size
             dataset = dataset.map(parse_example) #normalise
             return dataset
