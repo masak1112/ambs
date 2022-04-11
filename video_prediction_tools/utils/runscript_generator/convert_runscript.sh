@@ -93,13 +93,14 @@ fi
 if [[ `grep "#SBATCH --error=" ${target_script}` ]]; then
   sed -i "s|#SBATCH --error=.*|#SBATCH --error=${log_str}-err\.%j|g" ${target_script}
 fi
-# set correct e-mail address in Batch scripts on Juwels and HDF-ML
+# set correct e-mail address (only when jutil-tool is available)
+if ! [[ -z `command -v jutil` ]]; then
+  USER_EMAIL=$(jutil user show -o json | grep email | cut -f2 -d':' | cut -f1 -d',' | cut -f2 -d'"')
+else
+  USER_EMAIL=""
+fi
+sed -i "s/--mail-user=.*/--mail-user=$USER_EMAIL/g" ${target_script}
 if [[ "${HOST_NAME}" == hdfml* || "${HOST_NAME}" == *juwels* ]]; then
-  if ! [[ -z `command -v jutil` ]]; then
-    USER_EMAIL=$(jutil user show -o json | grep email | cut -f2 -d':' | cut -f1 -d',' | cut -f2 -d'"')
-  else
-    USER_EMAIL=""
-  fi
-  sed -i "s/--mail-user=.*/--mail-user=$USER_EMAIL/g" ${target_script}
+  sed -i "s/--account=.*/--mail-user=deepacf/g" ${target_script}
 fi
 # end

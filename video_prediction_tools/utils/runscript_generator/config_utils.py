@@ -31,10 +31,10 @@ class Config_runscript_base:
         self.VIRT_ENV_NAME = venv_name
         # runscript related attributes
         if lhpc:
-            self.runscript_dir = "../JSC_scripts"
-        else:
             self.runscript_dir = "../HPC_scripts"
-
+        else:
+            self.runscript_dir = "../no_HPC_scripts"
+        
         self.long_name_wrk_step = None
         self.rscrpt_tmpl_prefix = None
         self.runscript_template = None
@@ -224,6 +224,7 @@ class Config_runscript_base:
             for line in runscript:
                 if script_variable in line:
                     var_value = (line.strip(script_variable)).replace("\n", "")
+                    print(var_value)
                     found = True
                     break
 

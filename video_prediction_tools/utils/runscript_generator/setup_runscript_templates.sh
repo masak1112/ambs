@@ -15,8 +15,8 @@
 # **************** Auxiliary functions ****************
 
 # default value for base directory
-base_data_dir_default=/p/project/deepacf/deeprain/video_prediction_shared_folder/
-# base_data_dir_default=/p/scratch/deepacf/ji4/
+# base_data_dir_default=/p/project/deepacf/deeprain/video_prediction_shared_folder/
+base_data_dir_default=/p/scratch/deepacf/deeprain/ji4/
 # some further directory paths
 CURR_DIR_FULL="$( cd "$( dirname "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )"   # retrieves the location of this script
 BASE_DIR="$(dirname "$(dirname "${CURR_DIR_FULL}")")"
@@ -46,7 +46,7 @@ else
   fi
 fi
 
-echo "Start setting up templates under nonHPC_scripts/..."
+echo "Start setting up templates under HPC_scripts/..."
 for f in "${BASE_DIR}"/HPC_scripts/*template.sh; do
   echo "Setting up ${f}..."
   fnew=${f%%.*}_${USER}.sh
@@ -55,8 +55,8 @@ for f in "${BASE_DIR}"/HPC_scripts/*template.sh; do
 done
 echo "Done!"
 
-echo "Start setting up templates under HPC_scripts/"
-for f in "${BASE_DIR}"/JSC_scripts/*template.sh; do
+echo "Start setting up templates under no_HPC_scripts/"
+for f in "${BASE_DIR}"/no_HPC_scripts/*template.sh; do
   echo "Setting up ${f}..."
   fnew=${f%%.*}_${USER}.sh
   cp "${f}" "${fnew}"

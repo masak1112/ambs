@@ -45,7 +45,7 @@ class ERA5Pkl2Tfrecords(ERA5Dataset):
         self.get_metadata(MetaData(json_file=self.metadata_fl))
         # Get the data split informaiton
         self.sequence_length = sequence_length
-        if norm == "minmax" or norm == "znorm":
+        if norm == "minmax" or norm == "znorm" or norm == "cbnorm":
             self.norm = norm
         else:
             raise ValueError("norm should be either 'minmax' or 'znorm'")
@@ -160,6 +160,12 @@ class ERA5Pkl2Tfrecords(ERA5Dataset):
         # open statistics file and feed it to norm-instance
         self.norm_cls.check_and_set_norm(self.stats, self.norm)
 
+    def transform_log(self,x,s=0.01):
+        return np.log(x+s) - np.log(s)
+        
+    def intransform_log(self,x,s=0.01):
+        return np.exp(x+np.log(s))-s
+
     def normalize_vars_per_seq(self, sequences):
         """
         Normalize all the variables for the sequences
@@ -176,7 +182,12 @@ class ERA5Pkl2Tfrecords(ERA5Dataset):
         sequences = np.array(sequences)
         # normalization
         for i in range(self.nvars):
-            sequences[..., i] = self.norm_cls.norm_var(sequences[..., i], self.vars_in[i], self.norm)
+            if self.vars_in[i] == 'tp':
+                sequences[..., i] = sequences[..., i]*1000 # units: mm
+                sequences[..., i] = np.power(equences[..., i],1./3)
+                #sequences[..., i] = self.transform_log(sequences[..., i])
+            else:
+                sequences[..., i] = self.norm_cls.norm_var(sequences[..., i], self.vars_in[i], self.norm)
         return sequences
 
     def read_pkl_and_save_tfrecords(self, year, month):
@@ -217,8 +228,8 @@ class ERA5Pkl2Tfrecords(ERA5Dataset):
         for X_start in X_possible_starts:
             X_end = X_start + self.sequence_length
             seq = X_train[X_start:X_end, ...]
+            t_start = T_train[X_start]
             # recording the start point of the timestamps (already datetime-objects)
-           
             t_start = ERA5Pkl2Tfrecords.ensure_datetime(T_train[X_start])
             seq = list(np.array(seq).reshape((self.sequence_length, self.height, self.width, self.nvars)))
             if not sequences:

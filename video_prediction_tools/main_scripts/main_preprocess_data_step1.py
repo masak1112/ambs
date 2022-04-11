@@ -39,6 +39,8 @@ def main():
     parser.add_argument("--nyx", "-nyx", dest="nyx", nargs="+", help="Number of grid points in zonal and meridional direction.")
     parser.add_argument("--experimental_id", "-exp_id", dest="exp_id", type=str, default="dummy",
                         help="Experimental identifier helping to distinguish between different experiments.")
+    parser.add_argument("--shuffle_pi", "-shu_pi", type=int, default=0, help="Whether do permutation importance. 0:not shuffle, 1: shuffle")
+    parser.add_argument("--shuffle_channel", "-shu_channel", type=int, default=0, help="The target variable channel to do shuffle")
     args = parser.parse_args()
 
     current_path = os.getcwd()
@@ -54,6 +56,8 @@ def main():
     print("Selected variables", vars1)
 
     exp_id = args.exp_id
+    shu_pi = args.shuffle_pi
+    shu_channel = args.shuffle_channel
 
     os.chdir(current_path)
     time.sleep(0)
@@ -200,7 +204,8 @@ def main():
                 if rsync_status == 1:
                     # ML 2020/06/09: workaround to get correct destination_dir obtained by the master node
                     destination_dir = MetaData.get_destdir_jsontmp(tmp_dir=current_path)
-                    process_data = PreprocessNcToPkl(source_dir, destination_dir, years, job, tar_dom, vars1)
+                    # 
+                    process_data = PreprocessNcToPkl(source_dir, destination_dir, years, job, tar_dom, vars1, shu_pi, shu_channel)
                     process_data()
 
                 # Send : the finish of the sync message back to master node

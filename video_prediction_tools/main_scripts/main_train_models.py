@@ -564,7 +564,8 @@ class BestModelSelector(object):
     Class to select the best performing model from multiple checkpoints created during training
     """
         
-    def __init__(self, model_dir: str, eval_metric: str, criterion: str = "min", channel: int = 0, seed: int = 42):
+    def __init__(self, model_dir: str, eval_metric: str, ltest: bool, criterion: str = "min", channel: int = 0,
+                 seed: int = 42):
         """
         Class to retrieve the best model checkpoint. The last one is also retained.
         :param model_dir: path to directory where checkpoints are saved (the trained model output directory)
@@ -572,6 +573,7 @@ class BestModelSelector(object):
         :param criterion: set to 'min' ('max') for negatively (positively) oriented metrics
         :param channel: channel of data used for selection
         :param seed: seed for the Postprocess-instance
+        :param ltest: flag to allow bootstrapping in Postprocessing on tiny datasets
         """
         method = self.__class__.__name__
         # sanity check
@@ -583,6 +585,7 @@ class BestModelSelector(object):
         self.channel = channel
         self.metric = eval_metric
         self.checkpoint_base_dir = model_dir
+        self.ltest = ltest
         self.checkpoints_all = BestModelSelector.get_checkpoints_dirs(model_dir)
         self.ncheckpoints = len(self.checkpoints_all)
         # evaluate all checkpoints...
@@ -606,7 +609,7 @@ class BestModelSelector(object):
             results_dir_eager = os.path.join(checkpoint, "results_eager")
             eager_eval = Postprocess(results_dir=results_dir_eager, checkpoint=checkpoint, data_mode="val", batch_size=32,
                                      seed=self.seed, eval_metrics=[eval_metric], channel=self.channel, frac_data=0.33,
-                                     lquick=True)
+                                     lquick=True, ltest=self.ltest)
             eager_eval.run()
             eager_eval.handle_eval_metrics()
 
@@ -730,6 +733,8 @@ def main():
     parser.add_argument("--frac_intv_save", type=float, default=0.01,
                         help="Fraction of all iteration steps to define the saving interval.")
     parser.add_argument("--seed", default=1234, type=int)
+    parser.add_argument("--test_mode", "-test", dest="test_mode", default=False, action="store_true",
+                        help="Test mode for postprocessing to allow bootstrapping on small datasets.")
 
     args = parser.parse_args()
     # start timing for the whole run
@@ -755,7 +760,7 @@ def main():
 
     # select best model
     if args.dataset == "era5" and args.frac_start_save < 1.:
-        _ = BestModelSelector(args.output_dir, "mse")
+        _ = BestModelSelector(args.output_dir, "mse", args.test_mode)
         timeit_finish = time.time()
         print("Selecting the best model checkpoint took {0:.2f} minutes.".format((timeit_finish - timeit_after_train)/60.))
     else:
