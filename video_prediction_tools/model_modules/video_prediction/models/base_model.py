@@ -9,6 +9,7 @@ import re
 from collections import OrderedDict
 import numpy as np
 import tensorflow as tf
+print('tensorflow version: {}'.format(tf.__version__))
 from tensorflow.contrib.training import HParams
 from tensorflow.python.util import nest
 import model_modules.video_prediction as vp
