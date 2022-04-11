@@ -43,8 +43,8 @@ class BaseDataset(ABC):
         self.data_dict = self.get_datasplit()
         self.hparams_dict_config = hparams_dict_config
         self.hparams = self.get_model_hparams_dict()
-        #self.hparams_dict = self.get_model_hparams_dict()
-        #self.hparams = self.parse_hparams() 
+        self.hparams = self.parse_hparams()
+        self.get_filenames_from_datasplit()
         self.filenames = [] #contain the data filenames
 
 
@@ -74,8 +74,8 @@ class BaseDataset(ABC):
         Get the datasplit json file
         """
         with open(self.datasplit_dict_path,'r') as f:
-            datasplit_dict = json.loads(f.read())
-        return datasplit_dict
+            datasplit = json.loads(f.read())
+        return datasplit
 
 
     @abstractmethod
@@ -104,6 +104,7 @@ class BaseDataset(ABC):
         """
         pass
 
+
     @abstractmethod
     def make_dataset(self):
         """
@@ -115,13 +116,10 @@ class BaseDataset(ABC):
         """
         pass
 
-
-    def make_batch(self):
-        dataset = self.make_dataset(self.batch_size)
-        iterator = dataset.make_one_shot_iterator()
-        return iterator.get_next()
-
-
     @abstractmethod
     def num_examples_per_epoch(self):
+        """
+        obtain the number of samples per each epoch
+        :return: int
+        """
         pass

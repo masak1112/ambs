@@ -55,14 +55,9 @@ class GzprcpDataset(BaseDataset):
         """
         ds = xr.open_mfdataset(self.filenames)
         da = ds["prcp"].values
-        #times = ds["time"].values #return [time_level, sequence_len, number_samples]
-
         min_vars, max_vars = ds["prcp"].min().values, ds["prcp"].max().values
-
         self.min_max_values = np.array([min_vars, max_vars])
-
         data_arr = np.transpose(da, (3, 2, 1, 0)) #swap n_samples and variables position [number_samples, sequence_length, lon, lat]
-
         #obtain the meta information
         self.lat = ds["lat"].values
         self.lon = ds["lon"].values
@@ -71,9 +66,10 @@ class GzprcpDataset(BaseDataset):
         self.n_vars = len(self.variables)
         ds_time = ds["time"].values
         self.init_time = (ds_time[4]+ds_time[3]*100+ds_time[2]*10000+ds_time[1]*1000000+ds_time[0]*100000000).astype(np.int)
-
         self.sequence_length = data_arr.shape[1]
+
         return data_arr
+
 
 
     @staticmethod
@@ -94,7 +90,7 @@ class GzprcpDataset(BaseDataset):
 
         filenames = self.filenames
 
-        data_arr = GzprcpDataset.load_data_from_nc(self)
+        data_arr = self.load_data_from_nc()
 
         #log of data for precipitation data
         data_arr = GzprcpDataset.Scaler(self.k, data_arr)
@@ -102,7 +98,6 @@ class GzprcpDataset(BaseDataset):
         fixed_range = GzprcpDataset.Scaler(self.k, self.min_max_values)
 
         def normalize_fn(x, min_value, max_value):
-
             return tf.divide(tf.subtract(x, min_value), tf.subtract(max_value, min_value))
 
 
@@ -137,7 +132,8 @@ class GzprcpDataset(BaseDataset):
 
 
     def num_examples_per_epoch(self):
-        return self.n_samples
+        data_arr = self.load_data_from_nc()
+        return data_arr.shape[0]
 '''
 
 input_dir = "/p/largedata/jjsc42/project/deeprain/project_data/10min_AWS_prcp"
