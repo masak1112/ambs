@@ -79,10 +79,10 @@ class ConvLstmGANVideoPredictionModel(object):
     def build_graph(self, x: tf.Tensor) ->bool:
         self.is_build_graph = False
         self.inputs = x
-        self.x = x["images"]
-        self.width = self.x.shape.as_list()[3]
-        self.height = self.x.shape.as_list()[2]
-        self.channels = self.x.shape.as_list()[4]
+        print('self.inputs: {}'.format(self.inputs))
+        self.width = 92#self.inputs.shape.as_list()[3]
+        self.height = 46#self.inputs.shape.as_list()[2]
+        self.channels = 1#self.inputs.shape.as_list()[4]
         self.global_step = tf.train.get_or_create_global_step()
         original_global_variables = tf.global_variables()
         # Architecture
@@ -265,8 +265,8 @@ class ConvLstmGANVideoPredictionModel(object):
         """
         Define gan architectures
         """
-        self.gen_images = self.generator(self.x)
-        self.D_real, self.D_real_logits = self.discriminator(self.x[:,self.context_frames:, :, :, 0:1]) # use the first varibale as targeted
+        self.gen_images = self.generator(self.inputs)
+        self.D_real, self.D_real_logits = self.discriminator(self.inputs[:,self.context_frames:, :, :, 0:1]) # use the first varibale as targeted
         #self.D_fake, self.D_fake_logits = self.discriminator(self.gen_images[:,:,:,:,0:1]) #0:1
         self.D_fake, self.D_fake_logits = self.discriminator(self.gen_images[:,self.context_frames-1:, :, :, 0:1]) #0:1
 
@@ -274,10 +274,10 @@ class ConvLstmGANVideoPredictionModel(object):
         self.get_disc_loss()
         self.get_vars()
         if self.loss_fun == "rmse":
-            #self.recon_loss = tf.reduce_mean(tf.square(self.x[:, self.context_frames:,:,:,0] - self.gen_images[:,:,:,:,0]))
-            self.recon_loss = tf.reduce_mean(tf.square(self.x[:, self.context_frames:, :, :, 0] - self.gen_images[:, self.context_frames-1:, :, :, 0]))
+            #self.recon_loss = tf.reduce_mean(tf.square(self.inputs[:, self.context_frames:,:,:,0] - self.gen_images[:,:,:,:,0]))
+            self.recon_loss = tf.reduce_mean(tf.square(self.inputs[:, self.context_frames:, :, :, 0] - self.gen_images[:, self.context_frames-1:, :, :, 0]))
         elif self.loss_fun == "cross_entropy":
-            x_flatten = tf.reshape(self.x[:, self.context_frames:,:,:,0],[-1])
+            x_flatten = tf.reshape(self.inputs[:, self.context_frames:,:,:,0],[-1])
             #x_hat_predict_frames_flatten = tf.reshape(self.gen_images[:,:,:,:,0],[-1])
             x_hat_predict_frames_flatten = tf.reshape(self.gen_images[:,self.context_frames-1:, :, :, 0], [-1])
             bce = tf.keras.losses.BinaryCrossentropy()

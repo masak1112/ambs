@@ -44,6 +44,7 @@ class BaseDataset(ABC):
         self.hparams_dict_config = hparams_dict_config
         self.hparams_dict = self.get_model_hparams_dict()
         self.hparams = self.parse_hparams()
+        self.get_hparams()
         self.filenames = []
         self.get_filenames_from_datasplit()
 

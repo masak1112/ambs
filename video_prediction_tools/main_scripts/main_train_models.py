@@ -157,6 +157,11 @@ class TrainModel(object):
         self.max_epochs = self.model_hparams_dict_load["max_epochs"]
         # create dataset instance
         VideoDataset = datasets.get_dataset_class(self.dataset)
+        print('self.dataset: {}'.format(self.dataset))
+        print('VideoDataset: {}'.format(VideoDataset))
+        print('self.input_dir: {}'.format(self.input_dir))
+        print('self.model_hparams_dict: {}'.format(self.model_hparams_dict))
+        print('self.datasplit_dict: {}'.format(self.datasplit_dict))
         self.train_dataset = VideoDataset(input_dir=self.input_dir, mode='train', datasplit_config=self.datasplit_dict,
                                           hparams_dict_config=self.model_hparams_dict)
         self.calculate_samples_and_epochs()
