@@ -1,6 +1,6 @@
 
 {
-    "batch_size": 4,
+    "batch_size": 32,
     "lr": 0.001,
     "max_epochs":8,
     "context_frames":12,

@@ -7,8 +7,8 @@ import tensorflow as tf
 import xarray as xr
 
 input_dir = "/p/largedata/jjsc42/project/deeprain/project_data/10min_AWS_prcp"
-datasplit_config = "/p/project/deepacf/deeprain/ji4/ambs/video_prediction_tools/data_split/gzprcp/datasplit.json"
-hparams_dict_config = "/p/project/deepacf/deeprain/ji4/ambs/video_prediction_tools/hparams/gzprcp_data/convLSTM_gan/model_hparams_template.json"
+datasplit_config = "/p/project/deepacf/deeprain/bing/ambs/video_prediction_tools/data_split/gzprcp/datasplit.json"
+hparams_dict_config = "/p/project/deepacf/deeprain/bing/ambs/video_prediction_tools/hparams/gzprcp/convLSTM_gan/model_hparams_template.json"
 sequences_per_file = 10
 mode = "test"
 
@@ -17,11 +17,9 @@ mode = "test"
 def gzprcp_dataset_case1():
     dataset =  GzprcpDataset(input_dir=input_dir, datasplit_config=datasplit_config, hparams_dict_config=hparams_dict_config,
                  mode="test", seed=1234, nsamples_ref=1000)
-    print('***********ok*************')
     dataset.get_hparams()
     dataset.get_filenames_from_datasplit()
     dataset.load_data_from_nc()
-    # dataset.make_dataset()
     return dataset
 
 def test_init_gzprcp_dataset(gzprcp_dataset_case1):
@@ -38,19 +36,8 @@ def test_init_gzprcp_dataset(gzprcp_dataset_case1):
     assert gzprcp_dataset_case1.k == 0.01
     # assert gzprcp_dataset_case1.filenames[0] == 'GZ_prcp_2019.nc'
 
-'''
 def test_load_data_from_nc(gzprcp_dataset_case1):
     train_tf_dataset = gzprcp_dataset_case1.make_dataset()
-    print('***************************')
-'''
-def test_load_data_from_nc(gzprcp_dataset_case1):
-    train_tf_dataset = gzprcp_dataset_case1.make_dataset()
-    '''
-    for next_element in train_tf_dataset.take(2):
-        print(next_element.shape)
-
-    assert next_element.shape == [0]
-    '''
     train_iterator = train_tf_dataset.make_one_shot_iterator()
     # The `Iterator.string_handle()` method returns a tensor that can be evaluated
     # and used to feed the `handle` placeholder.
@@ -63,7 +50,6 @@ def test_load_data_from_nc(gzprcp_dataset_case1):
         sess.run(tf.local_variables_initializer())
         for step in range(2):
             sess.run(inputs)
-
     
     # df = xr.open_mfdataset(era5_dataset_case1.filenames)
     
