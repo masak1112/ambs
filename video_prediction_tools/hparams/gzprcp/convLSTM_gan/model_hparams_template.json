@@ -1,0 +1,14 @@
+
+{
+    "batch_size": 4,
+    "lr": 0.001,
+    "max_epochs":8,
+    "context_frames":12,
+    "sequence_length":12,
+    "loss_fun":"rmse",
+    "shuffle_on_val":true,
+    "k":0.01
+}
+
+
+
