@@ -54,11 +54,12 @@ class GzprcpDataset(BaseDataset):
         """
         print(self.input_dir)
         print(self.filenames)
-        ds = xr.open_mfdataset(self.filenames)
+        ds = xr.open_mfdataset(self.filenames,concat_dim="sample_num",combine = 'nested')
         da = ds["prcp"].values
         min_vars, max_vars = ds["prcp"].min().values, ds["prcp"].max().values
         self.min_max_values = np.array([min_vars, max_vars])
         data_arr = np.transpose(da, (3, 2, 1, 0)) #swap n_samples and variables position [number_samples, sequence_length, lon, lat]
+        data_arr = np.expand_dims(data_arr, axis=4)
         #obtain the meta information
         self.lat = ds["lat"].values
         self.lon = ds["lon"].values
@@ -99,7 +100,7 @@ class GzprcpDataset(BaseDataset):
         fixed_range = GzprcpDataset.Scaler(self.k, self.min_max_values)
 
         def normalize_fn(x, min_value, max_value):
-            return tf.divide(tf.subtract(x, min_value), tf.subtract(max_value, min_value))
+            return tf.divide(tf.cast(tf.subtract(x, min_value),tf.float32), tf.cast(tf.subtract(max_value, min_value),tf.float32))
 
 
         def parse_example(line_batch):
@@ -117,7 +118,7 @@ class GzprcpDataset(BaseDataset):
             raise ("The filenames list is empty for {} dataset, please make sure your data_split dictionary is configured correctly".format( self.mode))
 
         else:
-            dataset = tf.data.Dataset.from_generator(data_generator, tf.float64)
+            dataset = tf.data.Dataset.from_generator(data_generator, output_types=tf.float32,output_shapes=[24,40,48,1])
 
             # shuffle the data
             if shuffle:

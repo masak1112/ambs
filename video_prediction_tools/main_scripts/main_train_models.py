@@ -1,3 +1,4 @@
+# coding=utf-8
 # SPDX-FileCopyrightText: 2021 Earth System Data Exploration (ESDE), Jülich Supercomputing Center (JSC)
 # SPDX-FileCopyrightText: 2018 Alex X. Lee
 #
@@ -214,7 +215,7 @@ class TrainModel(object):
         with open(os.path.join(self.output_dir, "options.json"), "w") as f:
             f.write(json.dumps(vars(self.args), sort_keys=True, indent=4))
         with open(os.path.join(self.output_dir, "dataset_hparams.json"), "w") as f:
-            f.write(json.dumps(dataset.hparams.values(), sort_keys=True, indent=4))
+            f.write(json.dumps(dataset.hparams, sort_keys=True, indent=4))
         with open(os.path.join(self.output_dir, "model_hparams.json"), "w") as f:
             f.write(json.dumps(video_model.hparams.values(), sort_keys=True, indent=4))
         #with open(os.path.join(self.output_dir, "data_dict.json"), "w") as f:
