@@ -36,7 +36,6 @@ class VanillaConvLstmVideoPredictionModel(object):
         self.outputs = {}
         self.train_op = None
         self.summary_op = None
-        self.x = None
         self.inputs = None
         self.global_step = None
         self.saveable_variables = None
@@ -85,7 +84,6 @@ class VanillaConvLstmVideoPredictionModel(object):
     def build_graph(self, x):
         self.is_build_graph = False
         self.inputs = x
-        self.x = x["images"]
         self.global_step = tf.train.get_or_create_global_step()
         original_global_variables = tf.global_variables()
 
@@ -94,13 +92,13 @@ class VanillaConvLstmVideoPredictionModel(object):
 
         #Optimize all target variables/channels
         if self.opt_var == "all":
-            x = self.x[:, self.context_frames:, :, :, :]
+            x = self.inputs[:, self.context_frames:, :, :, :]
             x_hat = self.x_hat_predict_frames[:, :, :, :, :]
             print ("The model is optimzied on all the variables in the loss function")
         elif self.opt_var != "all" and isinstance(self.opt_var, str):
             self.opt_var = int(self.opt_var)
             print ("The model is optimized on the {} variable in the loss function".format(self.opt_var))
-            x = self.x[:, self.context_frames:, :, :, self.opt_var]
+            x = self.inputs[:, self.context_frames:, :, :, self.opt_var]
             x_hat = self.x_hat_predict_frames[:, :, :, :, self.opt_var]
         else:
             raise ValueError("The opt var in the hyperparameters setup should be '0','1','2' indicate the index of target variable to be optimised or 'all' indicating optimize all the variables")
@@ -141,7 +139,7 @@ class VanillaConvLstmVideoPredictionModel(object):
         hidden_g = None
         for i in range(self.sequence_length-1):
             if i < self.context_frames:
-                x_1_g, hidden_g = network_template(self.x[:, i, :, :, :], hidden_g)
+                x_1_g, hidden_g = network_template(self.inputs[:, i, :, :, :], hidden_g)
             else:
                 x_1_g, hidden_g = network_template(x_1_g, hidden_g)
             x_hat.append(x_1_g)
