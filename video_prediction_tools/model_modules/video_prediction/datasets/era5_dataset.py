@@ -11,6 +11,8 @@ import tensorflow as tf
 import xarray as xr
 import numpy as np
 import os
+
+
 class ERA5Dataset(BaseDataset):
 
     def __init__(self, input_dir: str, datasplit_config: str, hparams_dict_config: str, mode: str = "train", seed: int = None, nsamples_ref: int = None):
@@ -108,7 +110,7 @@ class ERA5Dataset(BaseDataset):
 
             x_norm = []
             for i in range(n_vars):
-                dt_norm = normalize_fn(x[:, :, i, :, :], current_min[i], current_max[i])
+                dt_norm = normalize_fn(x[:, :, :, :, i], current_min[i], current_max[i])
                 x_norm.append(dt_norm)
             x_norm = tf.stack(x_norm,axis=norm_dim) #[batch_size,sequence_length,nvar, lon,lat]
             #x_norm = tf.transpose(x_norm,perm=[1,2,0,3,4])
