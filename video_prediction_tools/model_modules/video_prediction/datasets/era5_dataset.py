@@ -97,7 +97,7 @@ class ERA5Dataset(BaseDataset):
 
         def normalize_fixed(x:tf.Tensor=None, min_max_values:list=None,norm_dim:int=4):
             """
-            x is the tensor with the shape of [batch_size,seq_length, n_vars, lat, lon]
+            x is the tensor with the shape of [batch_size,seq_length,lat, lon, nvars]
             min_max_values is a list contains min and max values of variables. the first element of list is the min values for variables, and the second is the max values
             norm_dim is a int that indicate the dim (var) to be normalised
             return: normalised data (tf.Tensor), the shape is the same as input "x"
