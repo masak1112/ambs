@@ -72,8 +72,8 @@ class ERA5Dataset(BaseDataset):
 
         #obtain the meta information
         self.n_ts = len(ds["time"].values)
-        self.lat = ds["lat"].values
-        self.lon = ds["lon"].values
+        self.nlat = len(ds["lat"].values)
+        self.nlon = len(ds["lon"].values)
         self.n_samples = data_arr.shape[0]
         self.variables = list(ds.keys())
         self.n_vars = len(self.variables)
@@ -130,7 +130,7 @@ class ERA5Dataset(BaseDataset):
             raise ("The filenames list is empty for {} dataset, please make sure your data_split dictionary is configured correctly".format(self.mode))
         else:
             #group the data into sequenceds
-            dataset = tf.data.Dataset.from_generator(data_generator,output_types=tf.float32, output_shapes=[len(self.lat),len(self.lon),self.n_vars])
+            dataset = tf.data.Dataset.from_generator(data_generator,output_types=tf.float32, output_shapes=[self.nlat,self.nlon,self.n_vars])
             dataset = dataset.window(self.sequence_length, shift = self.shift, drop_remainder=True)
             dataset = dataset.flat_map(lambda window: window.batch(self.sequence_length))
             # shuffle the data
