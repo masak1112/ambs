@@ -7,7 +7,6 @@
     "loss_fun":"rmse",
     "shuffle_on_val":false,
     "recon_weight":0.6
-
 }
 
 

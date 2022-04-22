@@ -10,85 +10,56 @@ from model_modules.video_prediction.models.model_helpers import set_and_check_pr
 import tensorflow as tf
 from model_modules.video_prediction.layers import layer_def as ld
 from model_modules.video_prediction.layers.BasicConvLSTMCell import BasicConvLSTMCell
-from tensorflow.contrib.training import HParams
-from general_utils import reduce_dict
+from .our_base_model import BaseModels
 
-class ConvLstmGANVideoPredictionModel(object):
-    def __init__(self, mode='train', hparams_dict=None):
+class ConvLstmGANVideoPredictionModel(BaseModels):
+    def __init__(self, hparams_dict=None, mode='train', **kwargs):
         """
         This is class for building convLSTM_GAN architecture by using updated hparameters
         args:
-             mode   :str, "train" or "val", side note: mode may not be used in the convLSTM, but this will be a useful argument for the GAN-based model
+             mode        :str,   "train" or "val", side note: mode may not be used in the convLSTM, but this will be a useful argument for the GAN-based model
              hparams_dict: dict, the dictionary contains the hparaemters names and values
         """
+        super().__init__(hparams_dict)
         self.mode = mode
-        self.hparams_dict = hparams_dict
-        self.hparams = self.parse_hparams()        
-        self.learning_rate = self.hparams.lr
-        self.ngf = self.hparams.ngf
-        self.ndf = self.hparams.ndf
-        self.total_loss = None
-        self.context_frames = self.hparams.context_frames
-        self.sequence_length = self.hparams.sequence_length
-        self.predict_frames = set_and_check_pred_frames(self.sequence_length, self.context_frames)
-        self.max_epochs = self.hparams.max_epochs
-        self.loss_fun = self.hparams.loss_fun
-        self.batch_size = self.hparams.batch_size
-        self.recon_weight = self.hparams.recon_weight
         self.bd1 = batch_norm(name = "bd1")
         self.bd2 = batch_norm(name = "bd2")
 
-    def get_default_hparams(self):
-        return HParams(**self.get_default_hparams_dict())
-
-    def parse_hparams(self):
+    def get_hparams(self):
         """
-        Parse the hparams setting to ovoerride the default ones
+        obtain the hparams from the dict to the class variables
         """
-        self.hparams_dict = reduce_dict(self.hparams_dict, self.get_default_hparams().values())
-        parsed_hparams = self.get_default_hparams().override_from_dict(self.hparams_dict or {})
-        return parsed_hparams
+        method = BaseModels.get_hparams.__name__
+
+        try:
+            self.context_frames = self.hparams.context_frames
+            self.sequence_length = self.hparams.sequence_length
+            self.max_epochs = self.hparams.max_epochs
+            self.batch_size = self.hparams.batch_size
+            self.shuffle_on_val = self.hparams.shuffle_on_val
+            self.loss_fun = self.hparams.loss_fun
+            self.recon_weight = self.hparams.recon_weight
+            self.learning_rate = self.hparams.lr
+            self.predict_frames = set_and_check_pred_frames(self.sequence_length, self.context_frames)
+
+        except Exception as error:
+           print("Method %{}: error: {}".format(method,error))
+           raise("Method %{}: the hparameter dictionary must include "
+                 "'context_frames','max_epochs','batch_size','shuffle_on_val' 'loss_fun'".format(method))
 
 
-    def get_default_hparams_dict(self):
-        """
-        The function that contains default hparams
-        Returns:
-            A dict with the following hyperparameters.
-            context_frames  : the number of ground-truth frames to pass in at start.
-            sequence_length : the number of frames in the video sequence 
-            max_epochs      : the number of epochs to train model
-            lr              : learning rate
-            loss_fun        : the loss function
-            recon_wegiht    : the weight for reconstrution loss
-            """
-        hparams = dict(
-            context_frames=12,
-            sequence_length=24,
-            max_epochs = 2,
-            batch_size = 4,
-            lr = 0.001,
-            loss_fun = "rmse",
-            shuffle_on_val= True,
-            recon_weight=0.99,
-            ngf = 4,
-            ndf = 4
-         )
-        return hparams
+    def build_graph(self, x: tf.Tensor):
 
-    def build_graph(self, x: tf.Tensor) ->bool:
         self.is_build_graph = False
         self.inputs = x
-        print('self.inputs: {}'.format(self.inputs))
-        self.width = 92#self.inputs.shape.as_list()[3]
-        self.height = 46#self.inputs.shape.as_list()[2]
-        self.channels = 1#self.inputs.shape.as_list()[4]
         self.global_step = tf.train.get_or_create_global_step()
         original_global_variables = tf.global_variables()
         # Architecture
-        self.define_gan()
+        self.build_model()
+        # define loss function
         self.total_loss = (1-self.recon_weight) * self.G_loss + self.recon_weight*self.recon_loss
         self.D_loss =  (1-self.recon_weight) * self.D_loss
+
         if self.mode == "train":
             if self.recon_weight == 1:
                 print("Only train generator- convLSTM") 
@@ -104,7 +75,6 @@ class ConvLstmGANVideoPredictionModel(object):
         else:
            self.train_op = None 
 
-        self.outputs = {}
         self.outputs["gen_images"] = self.gen_images
         self.outputs["total_loss"] = self.total_loss
         # Summary op
@@ -121,14 +91,12 @@ class ConvLstmGANVideoPredictionModel(object):
         return self.is_build_graph 
 
     @staticmethod
-    def Unet_ConvLSTM_cell(x: tf.Tensor, ngf: int, hidden: tf.Tensor) -> tf.Tensor:
+    def Unet_ConvLSTM_cell(x: tf.Tensor, ngf: int, hidden: tf.Tensor):
         """
         Build up a Unet ConvLSTM cell for each time stamp i
-
         params: x:     the input at timestamp i
         params: ngf:   the numnber of filters for convoluational layers
         params: hidden: the hidden state from the previous timestamp t-1
-        params: cell_id: the cell layer id
         return:
                outputs: the predict frame at timestamp i
                hidden:  the hidden state at current timestamp i
@@ -188,9 +156,10 @@ class ConvLstmGANVideoPredictionModel(object):
             conv7t = ld.conv_layer(conv7s, 3, 1, num_channels, 10, initializer = tf.contrib.layers.xavier_initializer(),activate="relu")
             outputs = ld.conv_layer(conv7t, 1, 1, num_channels, 11, initializer = tf.contrib.layers.xavier_initializer(),activate="linear")
             print('outputs shape: ',outputs.shape)
+
         return outputs, hidden
 
-    def generator(self, x: tf.Tensor) -> tf.Tensor:
+    def generator(self, x: tf.Tensor):
         """
         Function to build up the generator architecture, here we take Unet_ConvLSTM as generator
         args:
@@ -216,7 +185,7 @@ class ConvLstmGANVideoPredictionModel(object):
             print('self.x_hat shape is: ',self.x_hat.shape)
         return self.x_hat
 
-    def discriminator(self,x):
+    def discriminator(self, x):
         """
         Function that get discriminator architecture      
         """
@@ -230,7 +199,7 @@ class ConvLstmGANVideoPredictionModel(object):
             out_logit = ConvLstmGANVideoPredictionModel.linear(fc2, 1, scope='d_fc3')
             out = tf.nn.sigmoid(out_logit)
             #out,out_logit = self.Conv3Dnet(x,self.ndf)
-            return out,out_logit
+            return out, out_logit
 
     def get_disc_loss(self):
         """
@@ -261,7 +230,7 @@ class ConvLstmGANVideoPredictionModel(object):
         self.disc_vars = [var for var in tf.trainable_variables() if var.name.startswith("discriminator")]
         self.gen_vars = [var for var in tf.trainable_variables() if var.name.startswith("generator")]
   
-    def define_gan(self):
+    def build_model(self):
         """
         Define gan architectures
         """

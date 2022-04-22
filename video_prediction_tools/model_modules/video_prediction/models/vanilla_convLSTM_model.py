@@ -10,75 +10,42 @@ from model_modules.video_prediction.models.model_helpers import set_and_check_pr
 import tensorflow as tf
 from model_modules.video_prediction.layers import layer_def as ld
 from model_modules.video_prediction.layers.BasicConvLSTMCell import BasicConvLSTMCell
-from tensorflow.contrib.training import HParams
+from .our_base_model import BaseModels
 
-
-
-class VanillaConvLstmVideoPredictionModel(object):
+class VanillaConvLstmVideoPredictionModel(BaseModels):
     def __init__(self, hparams_dict=None, **kwargs):
         """
         This is class for building convLSTM architecture by using updated hparameters
         args:
              hparams_dict : dict, the dictionary contains the hparaemters names and values
         """
-        self.hparams_dict = hparams_dict
-        self.hparams = self.parse_hparams()        
-        self.learning_rate = self.hparams.lr
-        self.context_frames = self.hparams.context_frames
-        self.sequence_length = self.hparams.sequence_length
-        self.predict_frames = set_and_check_pred_frames(self.sequence_length, self.context_frames)
-        self.max_epochs = self.hparams.max_epochs
-        self.loss_fun = self.hparams.loss_fun
-        self.opt_var = self.hparams.opt_var
-        # Attributes set during runtime
-        self.loss_summary = None
-        self.total_loss = None
-        self.outputs = {}
-        self.train_op = None
-        self.summary_op = None
-        self.inputs = None
-        self.global_step = None
-        self.saveable_variables = None
-        self.is_build_graph = None
-        self.x_hat = None
-        self.x_hat_predict_frames = None
+        super().__init__(hparams_dict)
+        pass
 
 
-    def get_default_hparams(self):
-        return HParams(**self.get_default_hparams_dict())
 
-    def parse_hparams(self):
+    def get_hparams(self):
         """
-        Parse the hparams setting to ovoerride the default ones
+        obtain the hparams from the dict to the class variables
         """
-        
-        parsed_hparams = self.get_default_hparams().override_from_dict(self.hparams_dict or {})
-        return parsed_hparams
+        method = BaseModels.get_hparams.__name__
 
+        try:
+            self.context_frames = self.hparams.context_frames
+            self.sequence_length = self.hparams.sequence_length
+            self.max_epochs = self.hparams.max_epochs
+            self.batch_size = self.hparams.batch_size
+            self.shuffle_on_val = self.hparams.shuffle_on_val
+            self.loss_fun = self.hparams.loss_fun
+            self.opt_var = self.hparams.opt_var
+            self.learning_rate = self.hparams.lr
+            self.predict_frames = set_and_check_pred_frames(self.sequence_length, self.context_frames)
 
-    def get_default_hparams_dict(self):
-        """
-        The function that contains default hparams
-        Returns:
-            A dict with the following hyperparameters.
-            context_frames  : the number of ground-truth frames to pass in at start.
-            sequence_length : the number of frames in the video sequence 
-            max_epochs      : the number of epochs to train model
-            lr              : learning rate
-            loss_fun        : the loss function
-            opt_var         : the target vars/channel to be optimize, string: "0","1",..."n", or "all", if "all" means optimize all the variables/channels
-        """
-        hparams = dict(
-            context_frames=10,
-            sequence_length=20,
-            max_epochs=20,
-            batch_size=40,
-            lr=0.001,
-            loss_fun="cross_entropy",
-            shuffle_on_val=True,
-            opt_var="0",
-        )
-        return hparams
+        except Exception as error:
+           print("Method %{}: error: {}".format(method, error))
+           raise("Method %{}: the hparameter dictionary must include "
+                 "'context_frames','max_epochs','batch_size','shuffle_on_val' 'loss_fun',"
+                 "'opt_var', 'lr', 'opt_var'".format(method))
 
 
     def build_graph(self, x):
