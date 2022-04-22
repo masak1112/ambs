@@ -20,7 +20,8 @@ class VanillaConvLstmVideoPredictionModel(BaseModels):
              hparams_dict : dict, the dictionary contains the hparaemters names and values
         """
         super().__init__(hparams_dict)
-        pass
+        self.hparams_dict = self.get_model_hparams_dict()
+        self.hparams = self.parse_hparams()
 
     def get_hparams(self):
         """
@@ -92,7 +93,7 @@ class VanillaConvLstmVideoPredictionModel(BaseModels):
         global_variables = [var for var in tf.global_variables() if var not in original_global_variables]
         self.saveable_variables = [self.global_step] + global_variables
         self.is_build_graph = True
-        return self.is_build_graph 
+        return self.is_build_graph
 
     def build_model(self):
         network_template = tf.make_template('network',

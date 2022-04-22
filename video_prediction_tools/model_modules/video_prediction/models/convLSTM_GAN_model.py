@@ -21,6 +21,8 @@ class ConvLstmGANVideoPredictionModel(BaseModels):
              hparams_dict: dict, the dictionary contains the hparaemters names and values
         """
         super().__init__(hparams_dict)
+        self.hparams_dict = self.get_model_hparams_dict()
+        self.hparams = self.parse_hparams()
         self.mode = mode
         self.bd1 = batch_norm(name = "bd1")
         self.bd2 = batch_norm(name = "bd2")
