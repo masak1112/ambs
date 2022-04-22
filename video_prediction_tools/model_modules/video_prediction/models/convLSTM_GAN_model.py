@@ -21,7 +21,7 @@ class ConvLstmGANVideoPredictionModel(BaseModels):
              hparams_dict: dict, the dictionary contains the hparaemters names and values
         """
         super().__init__(hparams_dict)
-        self.hparams = self.parse_hparams()
+        self.hparams = self.get_hparams()
         self.mode = mode
         self.bd1 = batch_norm(name = "bd1")
         self.bd2 = batch_norm(name = "bd2")
@@ -34,19 +34,21 @@ class ConvLstmGANVideoPredictionModel(BaseModels):
 
         try:
             self.context_frames = self.hparams.context_frames
-            self.sequence_length = self.hparams.sequence_length
             self.max_epochs = self.hparams.max_epochs
             self.batch_size = self.hparams.batch_size
             self.shuffle_on_val = self.hparams.shuffle_on_val
             self.loss_fun = self.hparams.loss_fun
             self.recon_weight = self.hparams.recon_weight
             self.learning_rate = self.hparams.lr
+            self.sequence_length = self.hparams.sequence_length
             self.predict_frames = set_and_check_pred_frames(self.sequence_length, self.context_frames)
+            self.ngf = self.hparams.ngf
+            self.ndf = self.hparams.ndf
+
 
         except Exception as error:
            print("Method %{}: error: {}".format(method,error))
-           raise("Method %{}: the hparameter dictionary must include "
-                 "'context_frames','max_epochs','batch_size','shuffle_on_val' 'loss_fun'".format(method))
+           raise("Method %{}: the hparameter dictionary must include parameters above".format(method))
 
 
     def build_graph(self, x: tf.Tensor):

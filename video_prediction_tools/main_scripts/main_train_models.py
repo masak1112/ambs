@@ -515,8 +515,8 @@ class TrainModel(object):
             print("Total_loss:{}; latent_losses:{}; reconst_loss:{}"
                   .format(results["total_loss"], results["latent_loss"], results["recon_loss"]))
         elif self.video_model.__class__.__name__ == "ConvLstmGANVideoPredictionModel":
-            print("Total_loss:{}; latent_losses:{}; reconst_loss:{}"
-                  .format(results["total_loss"], results["latent_loss"], results["recon_loss"]))
+            print("Total_loss:{}"
+                  .format(results["total_loss"]))
         else:
             print("%{0}: Printing results of model '{1}' is not implemented yet".format(method, self.video_model.__class__.__name__))
 
