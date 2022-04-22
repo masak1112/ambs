@@ -20,8 +20,8 @@ class VanillaConvLstmVideoPredictionModel(BaseModels):
              hparams_dict : dict, the dictionary contains the hparaemters names and values
         """
         super().__init__(hparams_dict)
-        self.hparams_dict = self.get_model_hparams_dict()
-        self.hparams = self.parse_hparams()
+        self.get_hparams()
+
 
     def get_hparams(self):
         """
@@ -39,7 +39,7 @@ class VanillaConvLstmVideoPredictionModel(BaseModels):
             self.opt_var = self.hparams.opt_var
             self.learning_rate = self.hparams.lr
             self.predict_frames = set_and_check_pred_frames(self.sequence_length, self.context_frames)
-
+            print("The model hparams have been parsed successfully! ")
         except Exception as error:
            print("Method %{}: error: {}".format(method, error))
            raise("Method %{}: the hparameter dictionary must include "

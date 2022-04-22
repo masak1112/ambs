@@ -175,7 +175,7 @@ class TrainModel(object):
         :param mode: "train" used the model graph in train process;  "test" for postprocessing step
         """
         VideoPredictionModel = models.get_model_class(self.model)
-        self.video_model = VideoPredictionModel(hparams_dict=self.model_hparams_dict_load, mode=mode)
+        self.video_model = VideoPredictionModel(hparams_dict=self.model_hparams_dict, mode=mode)
 
     def setup_graph(self):
         """
@@ -213,7 +213,7 @@ class TrainModel(object):
         with open(os.path.join(self.output_dir, "dataset_hparams.json"), "w") as f:
             f.write(json.dumps(dataset.hparams, sort_keys=True, indent=4))
         with open(os.path.join(self.output_dir, "model_hparams.json"), "w") as f:
-            f.write(json.dumps(video_model.hparams.values(), sort_keys=True, indent=4))
+            f.write(json.dumps(video_model.hparams, sort_keys=True, indent=4))
         #with open(os.path.join(self.output_dir, "data_dict.json"), "w") as f:
         #   f.write(json.dumps(dataset.data_dict, sort_keys=True, indent=4))
 
