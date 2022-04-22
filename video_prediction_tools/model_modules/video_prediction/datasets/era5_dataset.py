@@ -95,7 +95,7 @@ class ERA5Dataset(BaseDataset):
         def normalize_fn(x:tf.Tensor, min_value:float, max_value:float):
             return tf.divide(tf.subtract(x, min_value), tf.subtract(max_value, min_value))
 
-        def normalize_fixed(x:tf.Tensor=None, min_max_values:list=None,norm_dim:int=2):
+        def normalize_fixed(x:tf.Tensor=None, min_max_values:list=None,norm_dim:int=4):
             """
             x is the tensor with the shape of [batch_size,seq_length, n_vars, lat, lon]
             min_max_values is a list contains min and max values of variables. the first element of list is the min values for variables, and the second is the max values
@@ -112,7 +112,7 @@ class ERA5Dataset(BaseDataset):
             for i in range(n_vars):
                 dt_norm = normalize_fn(x[:, :, :, :, i], current_min[i], current_max[i])
                 x_norm.append(dt_norm)
-            x_norm = tf.stack(x_norm,axis=norm_dim) #[batch_size,sequence_length,nvar, lon,lat]
+            x_norm = tf.stack(x_norm,axis=norm_dim) #[batch_size,sequence_length,lon,lat,nvar]
             #x_norm = tf.transpose(x_norm,perm=[1,2,0,3,4])
             return x_norm
 
