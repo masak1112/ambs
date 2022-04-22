@@ -22,8 +22,6 @@ class VanillaConvLstmVideoPredictionModel(BaseModels):
         super().__init__(hparams_dict)
         pass
 
-
-
     def get_hparams(self):
         """
         obtain the hparams from the dict to the class variables
@@ -54,7 +52,7 @@ class VanillaConvLstmVideoPredictionModel(BaseModels):
         self.global_step = tf.train.get_or_create_global_step()
         original_global_variables = tf.global_variables()
 
-        self.convLSTM_network()
+        self.build_model()
         #This is the loss function (MSE):
 
         #Optimize all target variables/channels
@@ -96,7 +94,7 @@ class VanillaConvLstmVideoPredictionModel(BaseModels):
         self.is_build_graph = True
         return self.is_build_graph 
 
-    def convLSTM_network(self):
+    def build_model(self):
         network_template = tf.make_template('network',
                                             VanillaConvLstmVideoPredictionModel.convLSTM_cell)  # make the template to share the variables
         # create network
@@ -119,7 +117,7 @@ class VanillaConvLstmVideoPredictionModel(BaseModels):
     @staticmethod
     def convLSTM_cell(inputs, hidden):
         y_0 = inputs #we only usd patch 1, but the original paper use patch 4 for the moving mnist case, but use 2 for Radar Echo Dataset
-        channels = inputs.get_shape()[-1]
+        channels = inputs.get_shape()[-1]sa
         # conv lstm cell
         cell_shape = y_0.get_shape().as_list()
         channels = cell_shape[-1]
