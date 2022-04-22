@@ -46,7 +46,9 @@ class BaseDataset(ABC):
         self.hparams = self.parse_hparams()
         self.get_hparams()
         self.filenames = []
+        self.min_max_values=[]
         self.get_filenames_from_datasplit()
+
 
     def get_model_hparams_dict(self):
         """
@@ -103,7 +105,13 @@ class BaseDataset(ABC):
         Must implement in the Child class
         """
         pass
-
+    @abstractmethod
+    def load_data(self):
+        """
+        load your data based on the filenames, and also the statsitic values of the data should be calculated, which will be used
+        in the make_dataset method for normalising the dataset
+        """
+        pass
 
     @abstractmethod
     def make_dataset(self):
@@ -116,6 +124,7 @@ class BaseDataset(ABC):
         """
         pass
 
+
     @abstractmethod
     def num_examples_per_epoch(self):
         """
@@ -123,3 +132,4 @@ class BaseDataset(ABC):
         :return: int
         """
         pass
+

@@ -20,7 +20,7 @@ class ERA5Dataset(BaseDataset):
         self.get_filenames_from_datasplit()
         self.get_hparams()
         self.get_datasplit()
-        self.load_data_from_nc()
+        self.load_data()
 
     def get_hparams(self):
         """
@@ -34,9 +34,11 @@ class ERA5Dataset(BaseDataset):
             self.batch_size = self.hparams['batch_size']
             self.shuffle_on_val = self.hparams['shuffle_on_val']
             self.sequence_length = self.hparams["sequence_length"]
+            self.shift = self.hparams["shift"]
+
         except Exception as error:
-           print("Method %{}: error: {}".format(method,error))
-           raise("Method %{}: the hparameter dictionary must include 'context_frames','max_epochs','batch_size','shuffle_on_val'".format(method))
+           print("Method %{}: error: {}".format(method, error))
+           raise("Method %{}: the hparameter dictionary must include 'context_frames','max_epochs','batch_size','shuffle_on_val' and 'sequence_length'".format(method))
 
     def get_filenames_from_datasplit(self):
         """
@@ -52,10 +54,10 @@ class ERA5Dataset(BaseDataset):
         return self.filenames
 
 
-    def load_data_from_nc(self):
+    def load_data(self):
         """
         Obtain the data and meta information from the netcdf files, including the len of the samples, mim and max values
-        :return: None
+        return: np.array
         """
         ds = xr.open_mfdataset(self.filenames)
 
@@ -80,17 +82,16 @@ class ERA5Dataset(BaseDataset):
 
     def make_dataset(self):
         """
-         Prepare batch_size dataset fed into to the models.
-         If the data are from training dataset,then the data is shuffled;
-         If the data are from val dataset, the shuffle var will be decided by the hparams.shuffled_on_val;
-         if the data are from test dataset, the data will not be shuffled
-
+        Prepare batch_size dataset fed into to the models.
+        If the data are from training dataset,then the data is shuffled;
+        If the data are from val dataset, the shuffle var will be decided by the hparams.shuffled_on_val;
+        if the data are from test dataset, the data will not be shuffled
         """
         method = ERA5Dataset.make_dataset.__name__
 
         shuffle = self.mode == 'train' or (self.mode == 'val' and self.shuffle_on_val)
         filenames = self.filenames
-        data_arr = self.load_data_from_nc()
+        data_arr = self.load_data()
         
         def normalize_fn(x:tf.Tensor, min_value:float, max_value:float):
             return tf.divide(tf.subtract(x, min_value), tf.subtract(max_value, min_value))
@@ -129,12 +130,12 @@ class ERA5Dataset(BaseDataset):
             raise ("The filenames list is empty for {} dataset, please make sure your data_split dictionary is configured correctly".format(self.mode))
         else:
             #group the data into sequenceds
-            dataset = tf.data.Dataset.from_generator(data_generator,output_types=tf.float32,output_shapes=[len(self.lat),len(self.lon),self.n_vars])
-            dataset = dataset.window(self.sequence_length, shift = 1, drop_remainder = True)
+            dataset = tf.data.Dataset.from_generator(data_generator,output_types=tf.float32, output_shapes=[len(self.lat),len(self.lon),self.n_vars])
+            dataset = dataset.window(self.sequence_length, shift = self.shift, drop_remainder=True)
             dataset = dataset.flat_map(lambda window: window.batch(self.sequence_length))
             # shuffle the data
             if shuffle:
-                dataset = dataset.apply(tf.contrib.data.shuffle_and_repeat(buffer_size = 1024, count = self.max_epochs))
+                dataset = dataset.apply(tf.contrib.data.shuffle_and_repeat(buffer_size=1024, count=self.max_epochs))
             else:
                 dataset = dataset.repeat(self.max_epochs)
             dataset = dataset.batch(self.batch_size) #obtain data with batch size
@@ -144,14 +145,4 @@ class ERA5Dataset(BaseDataset):
     def num_examples_per_epoch(self):
         #total number of samples if the shift is one
         return self.n_ts - self.sequence_length + 1
-
-
-
-# if __name__ == '__main__':
-#     dataset = ERA5Dataset(input_dir: str = None, datasplit_config: str = None, hparams_dict_config: str = None,
-#                  mode: str = "train", seed: int = None, nsamples_ref: int = None)
-#     for next_element in dataset.take(2):
-#         # time_s = time.time()
-#         # tf.print(next_element.shape)
-#         pass
 

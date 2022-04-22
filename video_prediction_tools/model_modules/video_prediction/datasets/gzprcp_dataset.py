@@ -10,9 +10,13 @@ import os
 
 class GzprcpDataset(BaseDataset):
 
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        pass
+    def __init__(self, input_dir: str, datasplit_config: str, hparams_dict_config: str,
+                 mode: str = "train", seed: int = None, nsamples_ref: int = None):
+        super().__init__(input_dir, datasplit_config, hparams_dict_config, mode, seed, nsamples_ref)
+        self.get_filenames_from_datasplit()
+        self.get_hparams()
+        self.get_datasplit()
+        self.load_data()
 
 
     def get_hparams(self):
@@ -47,22 +51,22 @@ class GzprcpDataset(BaseDataset):
             raise FileNotFoundError("No file is found for Gzprcp Dataset based on the configuration from data_split.json file!")
 
 
-    def load_data_from_nc(self):
+    def load_data(self):
         """
         Obtain the data and meta information from the netcdf files, including the len of the samples, mim and max values
         :return: None
         """
         print(self.input_dir)
         print(self.filenames)
-        ds = xr.open_mfdataset(self.filenames,concat_dim="sample_num",combine = 'nested')
+        ds = xr.open_mfdataset(self.filenames, concat_dim="sample_num", combine='nested')
         da = ds["prcp"].values
         min_vars, max_vars = ds["prcp"].min().values, ds["prcp"].max().values
         self.min_max_values = np.array([min_vars, max_vars])
         data_arr = np.transpose(da, (3, 2, 1, 0)) #swap n_samples and variables position [number_samples, sequence_length, lon, lat]
         data_arr = np.expand_dims(data_arr, axis=4)
         #obtain the meta information
-        self.lat = ds["lat"].values
-        self.lon = ds["lon"].values
+        self.nlat = len(ds["lat"].values)
+        self.nlon = len(ds["lon"].values)
         self.n_samples = data_arr.shape[0]
         self.variables = ["prcp"]
         self.n_vars = len(self.variables)
@@ -71,7 +75,6 @@ class GzprcpDataset(BaseDataset):
         self.sequence_length = data_arr.shape[1]
 
         return data_arr
-
 
 
     @staticmethod
@@ -88,11 +91,11 @@ class GzprcpDataset(BaseDataset):
         """
         method = GzprcpDataset.make_dataset.__name__
 
-        shuffle = self.mode == 'train' or (self.mode == 'val' and self.shuffle_on_val)
+        shuffle = self.mode == 'train' or (self.mode=='val' and self.shuffle_on_val)
 
         filenames = self.filenames
 
-        data_arr = self.load_data_from_nc()
+        data_arr = self.load_data()
 
         #log of data for precipitation data
         data_arr = GzprcpDataset.Scaler(self.k, data_arr)
@@ -115,10 +118,10 @@ class GzprcpDataset(BaseDataset):
             
 
         if len(filenames) == 0:
-            raise ("The filenames list is empty for {} dataset, please make sure your data_split dictionary is configured correctly".format( self.mode))
+            raise ("The filenames list is empty for {} dataset, please make sure your data_split dictionary is configured correctly".format(self.mode))
 
         else:
-            dataset = tf.data.Dataset.from_generator(data_generator, output_types=tf.float32,output_shapes=[24,40,48,1])
+            dataset = tf.data.Dataset.from_generator(data_generator, output_types=tf.float32,output_shapes=[self.sequence_length,self.nlat,self.nlon,self.n_vars])
 
             # shuffle the data
             if shuffle:
@@ -126,7 +129,6 @@ class GzprcpDataset(BaseDataset):
             else:
                 dataset = dataset.repeat(self.max_epochs)
 
-            # dataset = dataset.shuffle()
             dataset = dataset.batch(self.batch_size) #obtain data with batch size
             dataset = dataset.map(parse_example) #normalise
 
@@ -134,38 +136,8 @@ class GzprcpDataset(BaseDataset):
 
 
     def num_examples_per_epoch(self):
-        data_arr = self.load_data_from_nc()
-        return data_arr.shape[0]
+        return self.n_samples
 
 
-    '''
-    def num_examples_per_epoch(self):
-        filenames = []
-        data_mode = self.data_dict[self.mode]
-        for year in data_mode:
-            files = "GZ_prcp_{}.nc".format(year)
-            filenames.append(os.path.join(self.input_dir,files))
-        return len(filenames)*7007 # each file has 7007 samples
-    '''
-
-'''
-
-input_dir = "/p/largedata/jjsc42/project/deeprain/project_data/10min_AWS_prcp"
-datasplit_config = "/p/project/deepacf/deeprain/ji4/ambs/video_prediction_tools/data_split/gzprcp/datasplit.json"
-hparams_dict_config = "/p/project/deepacf/deeprain/ji4/ambs/video_prediction_tools/hparams/gzprcp_data/convLSTM_gan/model_hparams_template.json"
-sequences_per_file = 10
-mode = "val"
-
-
-if __name__ == '__main__':
-    GzprcpDataset(input_dir=input_dir, datasplit_config=datasplit_config, hparams_dict_config=hparams_dict_config,
-                 mode="val", seed=1234, nsamples_ref=1000)
-    dataset = GzprcpDataset.make_dataset()
-
-    for next_element in dataset.take(2):
-        # time_s = time.time()
-        print(next_element.shape)
-        pass
-'''
 
 

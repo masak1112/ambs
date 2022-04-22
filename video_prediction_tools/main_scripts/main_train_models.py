@@ -158,11 +158,7 @@ class TrainModel(object):
         self.max_epochs = self.model_hparams_dict_load["max_epochs"]
         # create dataset instance
         VideoDataset = datasets.get_dataset_class(self.dataset)
-        print('self.dataset: {}'.format(self.dataset))
-        print('VideoDataset: {}'.format(VideoDataset))
-        print('self.input_dir: {}'.format(self.input_dir))
-        print('self.model_hparams_dict: {}'.format(self.model_hparams_dict))
-        print('self.datasplit_dict: {}'.format(self.datasplit_dict))
+
         self.train_dataset = VideoDataset(input_dir=self.input_dir, mode='train', datasplit_config=self.datasplit_dict,
                                           hparams_dict_config=self.model_hparams_dict)
         self.calculate_samples_and_epochs()
@@ -255,6 +251,7 @@ class TrainModel(object):
         self.steps_per_epoch = int(self.num_examples/self.batch_size)
         self.total_steps = self.steps_per_epoch * self.max_epochs
         self.diag_intv_step = int(self.diag_intv_frac*self.total_steps)
+
         if self.diag_intv_step == 0:
             self.diag_intv_step = 1
         else:
@@ -262,6 +259,8 @@ class TrainModel(object):
         print("%{}: Batch size: {}; max_epochs: {}; num_samples per epoch: {}; steps_per_epoch: {}, total steps: {}"
               .format(method, self.batch_size, self.max_epochs, self.num_examples, self.steps_per_epoch,
                       self.total_steps))
+
+
 
     def calculate_checkpoint_saver_conf(self):
         """
@@ -388,16 +387,23 @@ class TrainModel(object):
 
             # Final diagnostics: training track time and save to pickle-files)
             train_time = time.time() - run_start_time
-            results_dict = {"train_time": train_time, "total_steps": self.total_steps}
+
+            avg_time_first_epoch = np.mean(time_per_iteration[:self.steps_per_epoch])
+            avg_time_non_first_epoch = np.mean(time_per_iteration[self.steps_per_epoch:])
+            results_dict = {"train_time": train_time, "total_steps": self.total_steps,
+                            "avg_time_first_epoch": avg_time_first_epoch,
+                            "avg_time_non_first_epoch":avg_time_non_first_epoch}
+
             TrainModel.save_results_to_dict(results_dict, self.output_dir)
 
             print("%{0}: Training loss decreased from {1:.6f} to {2:.6f}:"
                   .format(method, np.mean(train_losses[0:10]), np.mean(train_losses[-self.diag_intv_step:])))
             print("%{0}: Validation loss decreased from {1:.6f} to {2:.6f}:"
                   .format(method, np.mean(val_losses[0:10]), np.mean(val_losses[-self.diag_intv_step:])))
-            print("%{0}: Training finsished".format(method))
+            print("%{0}: Training finished".format(method))
             print("%{0}: Total training time: {1:.2f} min".format(method, train_time/60.))
-
+            print("%{0}: The average of training time for the first epoch: {1:.2f} sec".format(method, avg_time_first_epoch))
+            print("%{0}: The average of training time for after first epoch: {1:.2f} sec".format(method,avg_time_non_first_epoch))
             return train_time, time_per_iteration
  
     def create_fetches_for_train(self):
@@ -506,6 +512,9 @@ class TrainModel(object):
                   .format(results["g_losses"], results["d_losses"], results["g_loss"], results["d_loss"],
                           results["gen_l1_loss"]))
         elif self.video_model.__class__.__name__ == "VanillaVAEVideoPredictionModel":
+            print("Total_loss:{}; latent_losses:{}; reconst_loss:{}"
+                  .format(results["total_loss"], results["latent_loss"], results["recon_loss"]))
+        elif self.video_model.__class__.__name__ == "ConvLstmGANVideoPredictionModel":
             print("Total_loss:{}; latent_losses:{}; reconst_loss:{}"
                   .format(results["total_loss"], results["latent_loss"], results["recon_loss"]))
         else:
