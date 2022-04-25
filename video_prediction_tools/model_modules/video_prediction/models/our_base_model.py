@@ -41,7 +41,7 @@ class BaseModels(ABC):
             with open(self.hparams_dict_config, 'r') as f:
                 hparams_dict = json.loads(f.read())
         else:
-            raise FileNotFoundError("hparam directory doesn't exist! please check {}!".format(self.hparams_dict_config))
+            raise FileNotFoundError("hyper-parameter directory doesn't exist! please check {}!".format(self.hparams_dict_config))
 
         return hparams_dict
 
@@ -72,11 +72,8 @@ class BaseModels(ABC):
            raise("Method %{}: the hparameter dictionary must include "
                  "'context_frames','max_epochs','batch_size','shuffle_on_val' 'loss_fun'".format(method))
 
-
-
     @abstractmethod
     def build_graph(self, x: tf.Tensor):
-
         pass
 
 
