@@ -32,7 +32,7 @@ class ERA5Dataset(BaseDataset):
 
         return filenames
 
-    @property()
+
     def specific_hparams(self):
         return ["shift"]
 
