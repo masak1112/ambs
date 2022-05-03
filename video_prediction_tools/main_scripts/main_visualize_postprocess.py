@@ -111,7 +111,7 @@ class Postprocess(TrainModel):
         self.cond_quantile_vars = self.init_cond_quantile_vars()
         # setup test dataset and model
         self.test_dataset, self.num_samples_per_epoch = self.setup_dataset()
-        if lquick and self.test_dataset.shuffled:
+        if lquick and self.test_dataset.shuffle_on_val: # used .shuffled before
             self.num_samples_per_epoch = Postprocess.reduce_samples(self.num_samples_per_epoch, frac_data)
         # self.num_samples_per_epoch = 100              # reduced number of epoch samples -> useful for testing
         self.sequence_length, self.context_frames, self.future_length = self.get_data_params()

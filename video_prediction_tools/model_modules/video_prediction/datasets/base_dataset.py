@@ -27,75 +27,50 @@ class BaseDataset(ABC):
         self.input_dir = input_dir
         self.datasplit_config = datasplit_config
         self.mode = mode
-        self.seed = seed
-        self.sequence_length = None                             # will be set in get_example_info
-        self.nsamples_ref = None
-        self.shuffled = False                                   # will be set properly in make_dataset-method
+        self.seed = seed #used for shuffeling
+        self.nsamples_ref = nsamples_ref
+
         # sanity checks
         if self.mode not in ('train', 'val', 'test'):
             raise ValueError('%{0}: Invalid mode {1}'.format(method, self.mode))
         if not os.path.exists(self.input_dir):
             raise FileNotFoundError("%{0} input_dir '{1}' does not exist".format(method, self.input_dir))
-        if nsamples_ref is not None:
-            self.nsamples_ref = nsamples_ref
+        
         # get configuration parameters from datasplit- and model parameters-files
-        self.datasplit_dict_path = datasplit_config
-        self.data_dict = self.get_datasplit()
-        self.hparams_dict_config = hparams_dict_config
-        self.hparams_dict = self.get_model_hparams_dict()
-        self.hparams = self.parse_hparams()
-        self.get_hparams()
-        self.filenames = []
+        with open(datasplit_config,'r') as f: # TODO:maybe sanity check
+            self.data_dict = json.loads(f.read())
+        
+        with open(hparams_dict_config,'r') as f: # TODO:maybe sanity check
+                hparams = dotdict(json.loads(f.read()))
+
+        self.default_hparams = [
+            "context_frames",
+            "max_epochs",
+            "batch_size",
+            "shuffle_on_val",
+            "sequence_length"
+            ]
+        self._set_hparams(hparams, self.specific_hparams)
+
+        self.filenames = get_filenames_from_datasplit()
         self.min_max_values=[]
-        self.get_filenames_from_datasplit()
 
 
-    def get_model_hparams_dict(self):
-        """
-        Get model_hparams_dict from json file
-        """
-        if self.hparams_dict_config:
-            with open(self.hparams_dict_config,'r') as f:
-                hparams_dict = json.loads(f.read())
-        else:
-            raise FileNotFoundError("hparam directory doesn't exist! please check {}!".format(self.hparams_dict_config)) 
-       
-        return hparams_dict
-
-    def parse_hparams(self):
-        """
-        Obtain the parameters from directory
-        """
-
-        hparams = dotdict(self.hparams_dict)
+    def _set_hparams(self, hparams_dict):
+        """Set all default and specific hyperparameters as attributes."""
+        hparams = []
+        for key in (*self.default_hparams, *self.specific_hparams()):
+            try:
+                self.__dict__[key] = hparams_dict[key]
+            except KeyError as e:
+                raise ValueError(f"missing hyperparameter: {key}")
+        
         return hparams
-  
-
-    def get_datasplit(self):
-        """
-        Get the datasplit json file
-        """
-        with open(self.datasplit_dict_path,'r') as f:
-            datasplit = json.loads(f.read())
-        return datasplit
 
 
     @abstractmethod
-    def get_hparams(self):
-        """
-        obtain the hparams from the dict to the class variables
-        """
-        method = BaseDataset.get_hparams.__name__
-
-        try:
-            self.context_frames = self.hparams.context_frames 
-            self.max_epochs = self.hparams.max_epochs
-            self.batch_size = self.hparams.batch_size
-            self.shuffle_on_val = self.hparams.shuffle_on_val
-
-        except Exception as error:
-           print("Method %{}: error: {}".format(method,error))
-           raise("Method %{}: the hparameter dictionary must include 'context_frames','max_epochs','batch_size','shuffle_on_val'".format(method))
+    def specific_hparams(self):
+        """List names of expected hyperparameters specific to subclass."""
 
 
     @abstractmethod
@@ -105,6 +80,7 @@ class BaseDataset(ABC):
         Must implement in the Child class
         """
         pass
+
     @abstractmethod
     def load_data(self):
         """

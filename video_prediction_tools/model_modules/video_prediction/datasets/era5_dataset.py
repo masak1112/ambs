@@ -17,41 +17,24 @@ class ERA5Dataset(BaseDataset):
 
     def __init__(self, input_dir: str, datasplit_config: str, hparams_dict_config: str, mode: str = "train", seed: int = None, nsamples_ref: int = None):
         super().__init__(input_dir, datasplit_config, hparams_dict_config, mode, seed, nsamples_ref)
-        self.get_filenames_from_datasplit()
-        self.get_hparams()
-        self.get_datasplit()
         self.load_data()
-
-    def get_hparams(self):
-        """
-        obtain the hparams from the dict to the class variables
-        """
-        method = ERA5Dataset.get_hparams.__name__
-
-        try:
-            self.context_frames = self.hparams['context_frames']
-            self.max_epochs = self.hparams['max_epochs']
-            self.batch_size = self.hparams['batch_size']
-            self.shuffle_on_val = self.hparams['shuffle_on_val']
-            self.sequence_length = self.hparams["sequence_length"]
-            self.shift = self.hparams["shift"]
-
-        except Exception as error:
-           print("Method %{}: error: {}".format(method, error))
-           raise("Method %{}: the hparameter dictionary must include 'context_frames','max_epochs','batch_size','shuffle_on_val' and 'sequence_length'".format(method))
 
     def get_filenames_from_datasplit(self):
         """
         Get  absolute .nc path names based on the data splits patterns
         """
-        self.filenames = []
-        self.data_mode = self.data_dict[self.mode]
+        filenames = []
+        data_mode = self.data_dict[self.mode]
         for year, months in self.data_mode.items():
             for month in months:
                 tf_files = os.path.join(self.input_dir,"era5_vars4ambs_{}{:02d}.nc".format(year, month))
-                self.filenames.append(tf_files)
+                filenames.append(tf_files)
 
-        return self.filenames
+        return filenames
+
+    @property()
+    def specific_hparams(self):
+        return ["shift"]
 
 
     def load_data(self):
@@ -135,7 +118,7 @@ class ERA5Dataset(BaseDataset):
             dataset = dataset.flat_map(lambda window: window.batch(self.sequence_length))
             # shuffle the data
             if shuffle:
-                dataset = dataset.apply(tf.contrib.data.shuffle_and_repeat(buffer_size=1024, count=self.max_epochs))
+                dataset = dataset.apply(tf.contrib.data.shuffle_and_repeat(buffer_size=1024, count=self.max_epochs, seed=self.seed)) #seed ?
             else:
                 dataset = dataset.repeat(self.max_epochs)
             dataset = dataset.batch(self.batch_size) #obtain data with batch size
