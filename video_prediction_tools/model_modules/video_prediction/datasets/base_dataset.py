@@ -22,8 +22,6 @@ class BaseDataset(ABC):
                              Example: Let nsamples_ref be 1000 while the current datset consists 100 samples, then
                                       the repetition-factor will be 10 (i.e. nsamples*rep_fac = nsamples_ref)
         """
-        method = self.__class__.__name__
-
         self.input_dir = input_dir
         self.datasplit_config = datasplit_config
         self.mode = mode
@@ -50,7 +48,7 @@ class BaseDataset(ABC):
             "shuffle_on_val",
             "sequence_length"
             ]
-        self._set_hparams(hparams, self.specific_hparams)
+        self._set_hparams(hparams)
 
         self.filenames = get_filenames_from_datasplit()
         self.min_max_values=[]
