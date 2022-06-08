@@ -11,6 +11,7 @@ import tensorflow as tf
 import xarray as xr
 import numpy as np
 import os
+from functools import partial
 
 
 class ERA5Dataset(BaseDataset):
@@ -75,35 +76,27 @@ class ERA5Dataset(BaseDataset):
         shuffle = self.mode == 'train' or (self.mode == 'val' and self.shuffle_on_val)
         filenames = self.filenames
         data_arr = self.load_data()
-        
-        def normalize_fn(x:tf.Tensor, min_value:float, max_value:float):
-            return tf.divide(tf.subtract(x, min_value), tf.subtract(max_value, min_value))
 
-        def normalize_fixed(x:tf.Tensor=None, min_max_values:list=None,norm_dim:int=4):
+        def normalize(x:tf.Tensor=None):
             """
-            x is the tensor with the shape of [batch_size,seq_length,lat, lon, nvars]
-            min_max_values is a list contains min and max values of variables. the first element of list is the min values for variables, and the second is the max values
-            norm_dim is a int that indicate the dim (var) to be normalised
+            x: tensor with shape [batch_size,seq_length,lat, lon, nvars]
+            norm_dim: dimension (var) to be normalised
             return: normalised data (tf.Tensor), the shape is the same as input "x"
             """
+
+            def normalize_var(x, min, max):
+                return tf.divide(tf.subtract(x, min), tf.subtract(max, min))
+                # maybe evene return (x-min) / (max-min)
+
+            x = x.copy() # assure no inplace operation
+            mins, maxs = self.min_max_values
+
+            for i in range(x.shape[-1]):
+                x[:,:,:,:,i] = normalize_var(x[:, :, :, :, i], mins[i], maxs[i])
+        
              
-            current_min, current_max = min_max_values[0], min_max_values[1]
-            n_vars = len(current_min)
-            if not len(current_min) == len(current_max):
-                raise ("The length of min and max values should be equal to the number of variables in normalized_fixed function!")
+            return x
 
-            x_norm = []
-            for i in range(n_vars):
-                dt_norm = normalize_fn(x[:, :, :, :, i], current_min[i], current_max[i])
-                x_norm.append(dt_norm)
-            x_norm = tf.stack(x_norm,axis=norm_dim) #[batch_size,sequence_length,lon,lat,nvar]
-            #x_norm = tf.transpose(x_norm,perm=[1,2,0,3,4])
-            return x_norm
-
-        def parse_example(line_batch):
-            # features = tf.transpose(line_batch)
-            features = normalize_fixed(line_batch, self.min_max_values)
-            return features
 
         def data_generator():
             for d in data_arr:
@@ -122,7 +115,7 @@ class ERA5Dataset(BaseDataset):
             else:
                 dataset = dataset.repeat(self.max_epochs)
             dataset = dataset.batch(self.batch_size) #obtain data with batch size
-            dataset = dataset.map(parse_example) #normalise
+            dataset = dataset.map(normalize) #normalise
             return dataset
 
     def num_examples_per_epoch(self):
