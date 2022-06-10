@@ -5,81 +5,63 @@
 __email__ = "s.grasse@fz-juelich.de"
 __author__ = "Simon Grasse"
 __date__ = "2022-05-03"
+from pathlib import Path
 
-from .base_dataset import BaseDataset
 import xarray as xr
 import tensorflow as tf
+
+from .base_dataset import BaseDataset
 
 class WeatherBenchDataset(BaseDataset):
     """Weatherbench dataset as presented in https://arxiv.org/abs/2002.00469."""
 
-    def __init__(self, inputdir: str, datasplit_config: str, hparams_dict_config: str, mode: str="train", seed: int = None, nsamples_ref: int = None):
-        super.__init__(input_dir, datasplit_config, hparams_dict_config, mode, seed, nsamples_ref)
-        self.extra1, self.extra2 = load_dataset_specific_hparams()
+    def __init__(
+        self,
+        inputdir: str,
+        datasplit_config: str,
+        hparams_dict_config: str,
+        mode: str = "train",
+        seed: int = None,
+        nsamples_ref: int = None,
+    ):
+        super.__init__(
+            input_dir, datasplit_config, hparams_dict_config, mode, seed, nsamples_ref
+        )
+    
+    def filenames(self, mode):
+        self.data_mode = self.data_dict[self.mode]
+        files = []
+        for year in self.data_mode:
+            files.append(self.input_dir / f"{variable}_{year}_{resolution}.nc")
+        
+        return files
 
-        ds = xr.open_mfdataset(self.filenames, combine="by_coords")
-        da = ds.to_array(dim = "variables").squeeze()
 
-        # get statistics
-        dims = ["time", "lat", "lon"]
-        self.mean = da.mean(dim=dims)
-        self.std = da.std(dim=dims)
+    def load_data(self, filenames):
+        ds = xr.open_mfdataset(filenames, coords="minimal", compat="override")
+        ds = ds.drop_vars("level")
 
-        # put array in expected format (TODO: check)
-        data_arr = np.squeeze(da.values)
-        data_arr = np.transpose(data_arr, (1, 2, 3, 0)) #swap positions to [n_samples, lat, lon, channels]
+        da = ds.to_array(dim="variables").squeeze()
 
-        return data_arr
+        dims = ["time", "lat", "lon", "variables"]
+        return da.transpose(*dims)
 
 
-    def normalize(x):
+    def normalize(self, x):
         # mean or min-max normalization ?
-        def normalize_var(x,mean, std):
-            return (x-mean) / std
+        def normalize_var(x, mean, std):
+            return (x - mean) / std
 
-        x = x.copy() # assure no inplace operation
+        x = x.copy()  # assure no inplace operation
 
         # normalize each variable seperatly
         for i in range(x.shape[-1]):
-            x[:,:,:,:,i] = normalize_var(x[:, :, :, :, i], self.mean[i], self.std[i])
-            
+            x[:, :, :, :, i] = normalize_var(
+                x[:, :, :, :, i], mean[i], std[i]
+            )
+
         return x
 
-        
-
-    def make_dataset(self):
-        shuffle = self.mode == 'train' or (self.mode == 'val' and self.shuffle_on_val) # no shuffle in example ?
-
-        data_arr = self.load_data()
-
-        def data_generator():
-            for d in data_arr:
-                yield d
-
-        # create tf Dataset
-        dataset = tf.data.Dataset.from_generator(data_generator, output_types=tf.float32, output_shapes=[self.nlat, self.nlon, self.n_vars])
-
-        # create training sequences
-        dataset = dataset.window(self.sequence_length, shift = self.shift, drop_remainder=True)
-
-        # create batches
-        dataset = dataset.flat_map(lambda window: window.batch(self.sequence_length))
-
-        # shuffle the data
-        if shuffle:
-            dataset = dataset.apply(tf.contrib.data.shuffle_and_repeat(buffer_size=1024, count=self.max_epochs, seed=self.seed)) #seed ?
-        else:
-            dataset = dataset.repeat(self.max_epochs)
-
-        # obtain data with batch size
-        dataset = dataset.batch(self.batch_size)
-
-        # normalise
-        dataset = dataset.map(parse_example)
-        return dataset
-
-
     def num_examples_per_epoch(self):
-        #total number of samples if the shift is one
+        # total number of samples if the shift is one
         return self.n_ts - self.sequence_length + 1
-        
