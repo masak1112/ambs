@@ -2,12 +2,33 @@ __author__ = "Bing Gong"
 __date__ = "2022-03-17"
 __email__ = "b.gong@fz-juelich.de"
 
-from hparams_utils import *
-import json, os
+import json
+import os
 from abc import ABC, abstractmethod
+from dataclasses import dataclass
+
+from hparams_utils import *
+
+@dataclass
+class DatasetStats:
+    mean: np.ndarray
+    std: np.ndarray
+    maximum: np.ndarray
+    minimum: np.ndarray
+    
 
 
 class BaseDataset(ABC):
+    modes = ["train", "val", "test"]
+    dims = ["time", "lat", "lon", "variables"]
+    default_hparams = [
+        "context_frames",
+        "max_epochs",
+        "batch_size",
+        "shuffle_on_val",
+        "sequence_length",
+    ]
+
     def __init__(
         self,
         input_dir: str,
@@ -36,12 +57,8 @@ class BaseDataset(ABC):
         self.nsamples_ref = nsamples_ref
 
         # sanity checks
-        if self.mode not in ("train", "val", "test"):
-            raise ValueError("%{0}: Invalid mode {1}".format(method, self.mode))
         if not os.path.exists(self.input_dir):
-            raise FileNotFoundError(
-                "%{0} input_dir '{1}' does not exist".format(method, self.input_dir)
-            )
+            raise FileNotFoundError("input_dir '{self.input_dir}' does not exist")
 
         # get configuration parameters from datasplit- and model parameters-files
         with open(datasplit_config, "r") as f:  # TODO:maybe sanity check
@@ -50,19 +67,22 @@ class BaseDataset(ABC):
         with open(hparams_dict_config, "r") as f:  # TODO:maybe sanity check
             hparams = dotdict(json.loads(f.read()))
 
-        self.default_hparams = [
-            "context_frames",
-            "max_epochs",
-            "batch_size",
-            "shuffle_on_val",
-            "sequence_length",
-        ]
         self._set_hparams(hparams)
+
+        self._training_stats = None
+        self._validation_stats = None
+        self._test_stats = None
+
+        self._stats_lookup = {
+            "train": self._training_stats,
+            "val": self._validation_stats,
+            "test": self._test_stats
+        }
 
     def _set_hparams(self, hparams_dict):
         """Set all default and specific hyperparameters as attributes."""
         hparams = []
-        for key in (*self.default_hparams, *self.specific_hparams()):
+        for key in (BaseDataset.default_hparams, *self.specific_hparams()):
             try:
                 self.__dict__[key] = hparams_dict[key]
             except KeyError as e:
@@ -75,7 +95,7 @@ class BaseDataset(ABC):
         """List names of expected hyperparameters specific to subclass."""
 
     @abstractmethod
-    def get_filenames_from_datasplit(self):
+    def filenames(self, mode):
         """
         Get the filenames for train and val dataset
         Must implement in the Child class
@@ -90,23 +110,48 @@ class BaseDataset(ABC):
         pass
 
     @abstractmethod
-    def make_dataset(self, mode):
+    def normalize(self, x, args):
         """
-        Prepare batch_size dataset fed into to the models.
-        If the data are from training dataset,then the data is shuffled;
-        If the data are from val dataset, the shuffle var will be decided by the hparams.shuffled_on_val;
-        if the data are from test dataset, the data will not be shuffled
-
+        x: tensor (batch_size, seq_length, lat, lon, nvars)
+        return: normalised data (tf.Tensor), the shape is the same as input "x"
         """
-        shuffle = mode == "train" or (self.mode == "val" and self.shuffle_on_val)
+        pass
 
-        # get data array
+    def get_data(self, mode):
         files = self.filenames(mode)
         if not len(files) > 0:
             raise Exception(
                 f"no files for dataset {mode} found, check data_split dictionary"
             )
         da = self.load_data(files)
+
+        stats = DatasetStats(
+            da.mean(dim=BaseDataset.dims[:3]).values,
+            da.std(dim=BaseDataset.dims[:3]).values,
+            da.max(dim=BaseDataset.dims[:3]).values,
+            da.min(dim=BaseDataset.dims[:3]).values,
+        )
+
+        #if mode == "train":
+            #self._training_stats = stats
+        #elif mode == "val":
+            #self._test_stats = stats
+        #else:
+            #self._validation_stats = stats
+        self._stats_lookup[mode] = stats
+        return da
+
+    def make_dataset(self, mode):
+        """
+        Prepare batch_size dataset fedim
+        """
+        if mode not in BaseDataset.modes:
+            raise ValueError(f"Invalid mode {mode}")
+
+        shuffle = mode == "train" or (mode == "val" and self.shuffle_on_val)
+
+        # get data array
+        da = self._get_data(mode)
 
         def generator(iterable):
             iterator = iter(iterable)
@@ -140,37 +185,53 @@ class BaseDataset(ABC):
         dataset = dataset.batch(self.batch_size)
 
         # normalize
-        dataset = dataset.map(self.normalize)
+        dataset = dataset.map(lambda x: self.normalize(x, mode))
 
         return dataset
 
-    def training(self):
-        self.make_dataset(mode="train")
-
-    def test(self):
-        self.make_dataset(mode="test")
-
-    def validation(self):
-        self.make_dataset(mode="val")
-
-    @abstractmethod
-    def filenames(self, mode):
-        pass
-
-    @abstractmethod
-    def normalize(self, x, args):
-        """
-        x: tensor (batch_size, seq_length, lat, lon, nvars)
-        return: normalised data (tf.Tensor), the shape is the same as input "x"
-        """
-        pass
-
-    def get_stat(self, stat, mode):
-        return self.stats[mode][stat]
-
-    @abstractmethod
+    @property
     def num_samples(self):
         """
         obtain the number of samples per each epoch
         :return: int
         """
+        # TODO calculate num_samples
+
+
+    @property
+    def sample_shape(self):
+        """
+        Obtain the shape of one training frame DataArray.
+        
+        return: (n_lat, n_lon, n_vars)
+        """
+        # TODO get info somewhere
+
+    @property
+    def training(self):
+        return self.make_dataset(mode="train")
+
+    @property
+    def test(self):
+        return self.make_dataset(mode="test")
+
+    @property
+    def validation(self):
+        return self.make_dataset(mode="val")
+    
+    def _get_stats(self, mode):
+        if self._stats_lookup[mode] is None:
+            self.get_data(mode)
+        return self._stats_lookup[mode]
+
+    @property
+    def training_stats(self):
+        self._get_stats("train")
+    
+    @property
+    def validation_stats(self):
+        self._get_stats("val")
+    
+    @property
+    def test_stats(self):
+        self._get_stats("test")

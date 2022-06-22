@@ -29,10 +29,12 @@ class WeatherBenchDataset(BaseDataset):
         )
     
     def filenames(self, mode):
-        self.data_mode = self.data_dict[self.mode]
+        split_config = self.data_dict[mode]
         files = []
-        for year in self.data_mode:
-            files.append(self.input_dir / f"{variable}_{year}_{resolution}.nc")
+        # ["2008":[1,2,3,4,...], "2009":[1,2,3,4,...]]
+        for year, months in split_config.items():
+            for month in months:
+                files.append(self.input_dir / f"ambs_era_{year}{month:02d}.nc") # TODO change with extraction
         
         return files
 
@@ -42,13 +44,12 @@ class WeatherBenchDataset(BaseDataset):
         ds = ds.drop_vars("level")
 
         da = ds.to_array(dim="variables").squeeze()
-
-        dims = ["time", "lat", "lon", "variables"]
-        return da.transpose(*dims)
+        return da.transpose(*BaseDataset.dims)
 
 
-    def normalize(self, x):
+    def normalize(self, x, mode):
         # mean or min-max normalization ?
+        stats = self._stats_lookup[mode]
         def normalize_var(x, mean, std):
             return (x - mean) / std
 
@@ -57,7 +58,7 @@ class WeatherBenchDataset(BaseDataset):
         # normalize each variable seperatly
         for i in range(x.shape[-1]):
             x[:, :, :, :, i] = normalize_var(
-                x[:, :, :, :, i], mean[i], std[i]
+                x[:, :, :, :, i], stats.mean[i], stats.std[i]
             )
 
         return x

@@ -57,9 +57,6 @@ class ERA5Dataset(BaseDataset):
         da = ds.to_array(dim="variables").squeeze()
         dims = ["time", "lat", "lon"]
 
-        max_vars, min_vars = da.max(dim=dims).values, da.min(dim=dims).values
-        self.min_max_values = np.array([min_vars, max_vars])
-
         data_arr = np.squeeze(da.values)
         data_arr = np.transpose(
             data_arr, (1, 2, 3, 0)
@@ -74,7 +71,7 @@ class ERA5Dataset(BaseDataset):
         self.n_vars = len(self.variables)
         return data_arr
 
-    def normalize(self, x: tf.Tensor = None):
+    def normalize(self, x: tf.Tensor, mode: str):
         """
         x: tensor with shape [batch_size,seq_length,lat, lon, nvars]
         return: normalised data (tf.Tensor), the shape is the same as input "x"
@@ -85,10 +82,10 @@ class ERA5Dataset(BaseDataset):
             # maybe evene return (x-min) / (max-min)
 
         x = x.copy()  # assure no inplace operation
-        mins, maxs = self.min_max_values
+        stats = self._stats_lookup[mode]
 
         for i in range(x.shape[-1]):
-            x[:, :, :, :, i] = normalize_var(x[:, :, :, :, i], mins[i], maxs[i])
+            x[:, :, :, :, i] = normalize_var(x[:, :, :, :, i], stats.minimum[i], stats.maximum[i])
 
         return x
 
