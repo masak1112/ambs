@@ -426,7 +426,7 @@ class PyStager(Distributor):
         return logdir
 
     @staticmethod
-    def directory_scanner(source_path, lprint=True):
+    def directory_scanner(source_path, lprint=True): # is used at all ?
         """
         Scans through directory and returns a couple of information.
         NOTE: Subdirectories under source_path are not recursively scanned
@@ -481,3 +481,11 @@ class PyStager(Distributor):
                     "total_num_directories": total_num_directories}
 
         return dir_info
+
+#1) create dict for load balancing (keys: rank, vals: list of year-months str)
+#2) broadcast lists to processes
+#3) process task
+#4) obtain nwarns
+#5) report status based on nwarns
+#6) collect worker status
+#7) terminate work if critical error/unknown message is encountered, max warnings exeeded
