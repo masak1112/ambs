@@ -5,6 +5,8 @@ import itertools as it
 from pathlib import Path
 from typing import Union, List, get_args
 import zipfile as zf
+import multiprocessing as mp
+import sys
 
 from data_preprocess.extract_weatherbench import ExtractWeatherbench
 
@@ -57,8 +59,8 @@ def months(months):
                 f"months-string '{months}' cannot be converted to list of months"
             )
 
-    if not all(1 <= m <= 12 for m in months_list):
-        errors = filter(lambda m: not 1 <= m <= 12, months_list)
+    if not all(1 <= m <= 12 for m in month_list):
+        errors = filter(lambda m: not 1 <= m <= 12, month_list)
         raise ValueError(
             f"all month integers must be within 1, ..., 12 not {list(errors)}"
         )
@@ -200,7 +202,7 @@ def main():
         dest="sw_corner",
         nargs="+",
         type=coords,
-        default=(38.4, 0.0),
+        default=(0.0, 0.0),
         help="Defines south-west corner of target domain (lat, lon)=(-90..90, 0..360)",
     )
     parser.add_argument(
@@ -209,7 +211,7 @@ def main():
         dest="nyx",
         nargs="+",
         type=nyx,
-        default=(56, 92),
+        default=(10, 20),
         help="Number of grid points in zonal and meridional direction.",
     )
 
@@ -229,12 +231,14 @@ def main():
         args.variables,
         args.years,
         args.months,
-        (sw_corner[0], ne_corner[0]),
-        (sw_corner[1], ne_corner[1]),
+        (args.sw_corner[0], ne_corner[0]),
+        (args.sw_corner[1], ne_corner[1]),
         args.resolution,
     )
+    
     weatherbench_extract()
 
 
 if __name__ == "__main__":
+    mp.set_start_method("spawn")  # fix cuda initalization issue
     main()
