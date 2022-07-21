@@ -4,70 +4,76 @@ __email__ = "b.gong@fz-juelich.de"
 
 import json
 import os
-from abc import ABC, abstractmethod
+from typing import List
 from dataclasses import dataclass
+from pathlib import Path
 
 from hparams_utils import *
+from normalization import DatasetStats, Normalize
 
-@dataclass
-class DatasetStats:
-    mean: np.ndarray
-    std: np.ndarray
-    maximum: np.ndarray
-    minimum: np.ndarray
-    
-
-
-class BaseDataset(ABC):
+class Dataset:
     modes = ["train", "val", "test"]
     dims = ["time", "lat", "lon", "variables"]
-    default_hparams = [
+    hparams = [
         "context_frames",
         "max_epochs",
         "batch_size",
         "shuffle_on_val",
         "sequence_length",
+        "shift"
     ]
+    filename_template = "{datset_name}_{year}-{month:02d}.nc"
 
     def __init__(
         self,
-        input_dir: str,
+        name: str,
+        input_dir: Path,
+        output_dir: Path,
         datasplit_config: str,
         hparams_dict_config: str,
-        mode: str = "train",
         seed: int = None,
-        nsamples_ref: int = None,
+        nsamples_ref: int = None, # TODO: implemment ?
     ):
         """
         This class is used for preparing data for training/validation and test models
+        :param name: name of the particular dataset (i.e. era5, weatherbench, ...)
         :param input_dir: the path of tfrecords files
-        :param datasplit_config: the path pointing to the datasplit_config json file
+        :param datasplit_path: the path pointing to the datasplit_config json file
         :param hparams_dict_config: the path to the dict that contains hparameters,
         :param mode: string, "train","val" or "test"
-        :param seed: int, the seed for dataset
+        :param seed: int, the seed for shuffeling the dataset
         :param nsamples_ref: number of reference samples which can be used to control repetition factor for dataset
                              for ensuring adopted size of dataset iterator (used for validation data during training)
                              Example: Let nsamples_ref be 1000 while the current datset consists 100 samples, then
                                       the repetition-factor will be 10 (i.e. nsamples*rep_fac = nsamples_ref)
         """
+        self.name = name
         self.input_dir = input_dir
         self.datasplit_config = datasplit_config
-        self.mode = mode
         self.seed = seed  # used for shuffeling
         self.nsamples_ref = nsamples_ref
+        self.normalize = datasets.default_normalization[self.name]
 
         # sanity checks
         if not os.path.exists(self.input_dir):
             raise FileNotFoundError("input_dir '{self.input_dir}' does not exist")
 
         # get configuration parameters from datasplit- and model parameters-files
-        with open(datasplit_config, "r") as f:  # TODO:maybe sanity check
-            self.data_dict = json.loads(f.read())
+        with open(datasplit_path, "r") as f:  # TODO:maybe sanity check
+            self.datasplit = json.loads(f.read())
 
         with open(hparams_dict_config, "r") as f:  # TODO:maybe sanity check
             hparams = dotdict(json.loads(f.read()))
 
-        self._set_hparams(hparams)
+        try:
+            self.context_frames = hparam["context_frames"]
+            self.max_epochs = hparam["max_epochs"]
+            self.batch_size = hparam["batch_size"]
+            self.shuffle_on_val = hparam["shuffle_on_val"]
+            self.sequence_length = hparam["sequence_length"]
+            self.shift = hparam["shift"]
+        except KeyError as e:
+            raise ValueError(f"missing hyperparameter: {e.args[0]}")
 
         self._training_stats = None
         self._validation_stats = None
@@ -76,48 +82,39 @@ class BaseDataset(ABC):
         self._stats_lookup = {
             "train": self._training_stats,
             "val": self._validation_stats,
-            "test": self._test_stats
+            "test": self._test_stats,
         }
 
-    def _set_hparams(self, hparams_dict):
-        """Set all default and specific hyperparameters as attributes."""
-        hparams = []
-        for key in (BaseDataset.default_hparams, *self.specific_hparams()):
-            try:
-                self.__dict__[key] = hparams_dict[key]
-            except KeyError as e:
-                raise ValueError(f"missing hyperparameter: {key}")
-
-        return hparams
-
-    @abstractmethod
-    def specific_hparams(self):
-        """List names of expected hyperparameters specific to subclass."""
-
-    @abstractmethod
-    def filenames(self, mode):
-        """
-        Get the filenames for train and val dataset
-        Must implement in the Child class
-        """
-        pass
-
-    @abstractmethod
     def load_data(self, files):
         """
-        load DataSet from filenames and transform to DataArray (n_samples, lat, lon, channels)
+        load DataSet from filenames and transform to DataArray (n_samples, lat, lon, channels).
         """
-        pass
+        
+        ds = xr.open_mfdataset(filenames)
+        da = ds.to_array(dim="variables").squeeze()
+        return da.transpose(*Dataset.dims)
+    
+    def filenames(self, mode):
+        """
+        Get the filenames for training, validation and testing dataset.
 
-    @abstractmethod
-    def normalize(self, x, args):
+        :param mode: differentiate datasets, should be "train", "val" or "test"
         """
-        x: tensor (batch_size, seq_length, lat, lon, nvars)
-        return: normalised data (tf.Tensor), the shape is the same as input "x"
-        """
-        pass
+        time_window = self.datasplit[mode]
+        files = []
+        # {"2008":[1,2,3,4,...], "2009":[1,2,3,4,...]}
+        for year, months in time_window.items():
+            for month in months:
+                files.append(self.input_dir / Dataset.file_name(year, month))
+        
+        return files
 
     def get_data(self, mode):
+        """
+        Load data from files into memory and calculate statistics.
+
+        :param mode: indicator to differentiate between training, validation and test data
+        """
         files = self.filenames(mode)
         if not len(files) > 0:
             raise Exception(
@@ -126,26 +123,21 @@ class BaseDataset(ABC):
         da = self.load_data(files)
 
         stats = DatasetStats(
-            da.mean(dim=BaseDataset.dims[:3]).values,
-            da.std(dim=BaseDataset.dims[:3]).values,
-            da.max(dim=BaseDataset.dims[:3]).values,
-            da.min(dim=BaseDataset.dims[:3]).values,
+            da.mean(dim=Dataset.dims[:3]).values,
+            da.std(dim=Dataset.dims[:3]).values,
+            da.max(dim=Dataset.dims[:3]).values,
+            da.min(dim=Dataset.dims[:3]).values,
+            da.sizes("time")
         )
 
-        #if mode == "train":
-            #self._training_stats = stats
-        #elif mode == "val":
-            #self._test_stats = stats
-        #else:
-            #self._validation_stats = stats
         self._stats_lookup[mode] = stats
         return da
 
-    def make_dataset(self, mode):
+    def make_dataset(self, mode, use_training_stats=True):
         """
-        Prepare batch_size dataset fedim
+        Prepare Tensorflow dataset, load data and do all nessecary preprocessing.
         """
-        if mode not in BaseDataset.modes:
+        if mode not in Dataset.modes:
             raise ValueError(f"Invalid mode {mode}")
 
         shuffle = mode == "train" or (mode == "val" and self.shuffle_on_val)
@@ -168,7 +160,7 @@ class BaseDataset(ABC):
         # create training sequences
         dataset = dataset.window(
             self.sequence_length, shift=self.shift, drop_remainder=True
-        )  # why not dataset.batch(self.sequcence_length)
+        )
         dataset = dataset.flat_map(lambda window: window.batch(self.sequence_length))
 
         # shuffle
@@ -185,38 +177,53 @@ class BaseDataset(ABC):
         dataset = dataset.batch(self.batch_size)
 
         # normalize
-        dataset = dataset.map(lambda x: self.normalize(x, mode))
+        if use_training_stats: # use training stats for normalization
+            stats = self._training_stats
+        else: # use corresponding stats for normalization
+            stats = self._stats_lookup[mode]
+
+        normalize = self.normalize(stats)
+        stats.to_json(self.output_dir / "normalization_stats.json")
+        
+        dataset = dataset.map(normalize.normalize_vars)
 
         return dataset
 
     @property
-    def num_samples(self):
+    def num_training_samples(self):
         """
         obtain the number of samples per each epoch
         :return: int
         """
-        # TODO calculate num_samples
-
-
-    @property
-    def sample_shape(self):
-        """
-        Obtain the shape of one training frame DataArray.
-        
-        return: (n_lat, n_lon, n_vars)
-        """
-        # TODO get info somewhere
+        stats = self._get_stats("training")
+        return int((stats.n - (self.sequence_length - stride)) / stride)
 
     @property
-    def training(self):
+    def num_test_samples(self):
+        """
+        obtain the number of samples per each epoch
+        :return: int
+        """
+        stats = self._get_stats("test")
+        return int((stats.n - (self.sequence_length - stride)) / stride)
+    
+    @property
+    def num_validation_samples(self):
+        """
+        obtain the number of samples per each epoch
+        :return: int
+        """
+        stats = self._get_stats("validation")
+        return int((stats.n - (self.sequence_length - stride)) / stride)
+
+
+    def make_training(self):
         return self.make_dataset(mode="train")
 
-    @property
-    def test(self):
+    def make_test(self):
         return self.make_dataset(mode="test")
 
-    @property
-    def validation(self):
+    def make_validation(self):
         return self.make_dataset(mode="val")
     
     def _get_stats(self, mode):
