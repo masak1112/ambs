@@ -29,10 +29,11 @@ from model_modules.video_prediction.utils import tf_utils
 from general_utils import *
 import math
 import shutil
+from pathlib import Path
 
 class TrainModel(object):
     def __init__(self, input_dir: str = None, output_dir: str = None, datasplit_dict: str = None,
-                 model_hparams_dict: str = None, model: str = None, checkpoint: str = None, dataset: str = None,
+                 model_hparams_dict: str = None, model: str = None, checkpoint: str = None, dataset_name: str = None,
                  gpu_mem_frac: float = 1., seed: int = None, args=None, diag_intv_frac: float = 0.001,
                  frac_start_save: float = None, frac_intv_save: float = None):
         """
@@ -51,12 +52,12 @@ class TrainModel(object):
         :param frac_start_save: fraction of total iterations steps to start checkpointing the model
         :param frac_intv_save: fraction of total iterations steps for checkpointing the model
         """
-        self.input_dir = os.path.normpath(input_dir)
-        self.output_dir = os.path.normpath(output_dir)
+        self.input_dir = Path(input_dir).resolve(strict=False)
+        self.output_dir = Path(output_dir).resolve(strict=False)
         self.datasplit_dict = datasplit_dict
         self.model_hparams_dict = model_hparams_dict
         self.checkpoint = checkpoint
-        self.dataset = dataset
+        self.dataset_name = dataset_name
         self.model = model
         self.gpu_mem_frac = gpu_mem_frac
         self.seed = seed
@@ -78,7 +79,7 @@ class TrainModel(object):
         self.make_dataset_iterator()
         self.setup_model()
         self.setup_graph()
-        self.save_dataset_model_params_to_checkpoint_dir(dataset=self.train_dataset,video_model=self.video_model)
+        self.save_dataset_model_params_to_checkpoint_dir(dataset=self.train_dataset,video_model=self.video_model) # TODO: resolve potetial incompatibility
         self.count_parameters()
         self.create_saver_and_writer()
         self.setup_gpu_config()
@@ -137,7 +138,7 @@ class TrainModel(object):
                 with open(os.path.join(self.checkpoint_dir, "options.json")) as f:
                     print("%{0}: Loading options from checkpoint '{1}'".format(method, self.checkpoint))
                     self.options = json.loads(f.read())
-                    self.dataset = self.dataset or self.options['dataset']
+                    self.dataset_name = self.dataset_name or self.options['dataset']
                     self.model = self.model or self.options['model']
             except FileNotFoundError:
                 print("%{0}: options.json does not exist in {1}".format(method, self.checkpoint_dir))
@@ -157,17 +158,11 @@ class TrainModel(object):
         self.batch_size = self.model_hparams_dict_load["batch_size"]
         self.max_epochs = self.model_hparams_dict_load["max_epochs"]
         # create dataset instance
-        VideoDataset = datasets.get_dataset_class(self.dataset)
 
-        self.train_dataset = VideoDataset(input_dir=self.input_dir, mode='train', datasplit_config=self.datasplit_dict,
-                                          hparams_dict_config=self.model_hparams_dict)
+        self.dataset = Dataset(self.dataset_name, input_dir=self.input_dir, output_dir=self.output_dir, datasplit_config=self.datasplit_dict, hparams_dict_config=self.model_hparams_dict, seed=self.seed)
+        
         self.calculate_samples_and_epochs()
-        self.model_hparams_dict_load.update({"sequence_length": self.train_dataset.sequence_length})
-        # set-up validation dataset and calculate number of batches for calculating validation loss
-        self.val_dataset = VideoDataset(input_dir=self.input_dir, mode='val', datasplit_config=self.datasplit_dict,
-                                        hparams_dict_config=self.model_hparams_dict, nsamples_ref=self.num_examples)
-        # Retrieve sequence length from dataset
-        self.model_hparams_dict_load.update({"sequence_length": self.train_dataset.sequence_length})
+        self.model_hparams_dict_load.update({"sequence_length": self.dataset.sequence_length})
 
     def setup_model(self, mode="train"):
         """
@@ -188,12 +183,12 @@ class TrainModel(object):
         Prepare the dataset interator for training and validation
         """
         self.batch_size = self.model_hparams_dict_load["batch_size"]
-        train_tf_dataset = self.train_dataset.make_dataset()
+        train_tf_dataset = self.dataset.make_training()
         train_iterator = train_tf_dataset.make_one_shot_iterator()
         # The `Iterator.string_handle()` method returns a tensor that can be evaluated
         # and used to feed the `handle` placeholder.
         self.train_handle = train_iterator.string_handle()
-        val_tf_dataset = self.val_dataset.make_dataset()
+        val_tf_dataset = self.dataset.make_validation()
         val_iterator = val_tf_dataset.make_one_shot_iterator()
         self.val_handle = val_iterator.string_handle()
         self.iterator = tf.data.Iterator.from_string_handle(
@@ -201,7 +196,7 @@ class TrainModel(object):
         self.inputs = self.iterator.get_next()
         # since era5 tfrecords include T_start, we need to remove it from the tfrecord when we train SAVP
         # Otherwise an error will be risen by SAVP 
-        if self.dataset == "era5" and self.model == "savp":
+        if self.dataset_name == "era5" and self.model == "savp":
             del self.inputs["T_start"]
 
     def save_dataset_model_params_to_checkpoint_dir(self, dataset, video_model):
@@ -247,7 +242,7 @@ class TrainModel(object):
         """
         method = TrainModel.calculate_samples_and_epochs.__name__        
 
-        self.num_examples = self.train_dataset.num_examples_per_epoch()
+        self.num_examples = self.dataset.num_training_samples()
         self.steps_per_epoch = int(self.num_examples/self.batch_size)
         self.total_steps = self.steps_per_epoch * self.max_epochs
         self.diag_intv_step = int(self.diag_intv_frac*self.total_steps)
@@ -739,7 +734,7 @@ def main():
     parser.add_argument("--output_dir", help="Output directory where JSON-files, summary, model, plots etc. are saved.")
     parser.add_argument("--datasplit_dict", help="JSON-file that contains the datasplit configuration")
     parser.add_argument("--checkpoint", help="Checkpoint directory or checkpoint name (e.g. <my_dir>/model-200000)")
-    parser.add_argument("--dataset", type=str, help="Dataset class name")
+    parser.add_argument("--dataset", type=str, help="Dataset name") # as in datasets.known_datasets
     parser.add_argument("--model", type=str, help="Model class name")
     parser.add_argument("--model_hparams_dict", type=str, help="JSON-file of model hyperparameters")
     parser.add_argument("--gpu_mem_frac", type=float, default=0.99, help="Fraction of gpu memory to use")
