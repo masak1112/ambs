@@ -4,13 +4,17 @@ import logging
 from zipfile import ZipFile
 from typing import List, Union, Tuple
 from pathlib import Path
-from multiprocessing import Pool
+import multiprocessing as mp
+import itertools as it
+import sys
 
 import pandas as pd
 import xarray as xr
 
 
 class ExtractWeatherbench:
+    max_years = list(range(1979, 2018))
+    
     def __init__(
         self,
         dirin: Path,
@@ -37,7 +41,10 @@ class ExtractWeatherbench:
         self.dirin = dirin
         self.dirout = dirout
 
-        self.years = years
+        if years[0] == -1:
+            self.years = ExtractWeatherbench.max_years
+        else:
+            self.years = years
         self.months = months
 
         self.variables = variables
@@ -46,12 +53,15 @@ class ExtractWeatherbench:
         self.lon_range = lon_range
 
         self.resolution = resolution
+      
 
     def __call__(self):
         """
         Run extraction.
         :return: -
         """
+        print("start extraction")
+
         zip_files, data_files = self.get_data_files()
 
         # extract archives => netcdf files (maybe use tempfiles ?)
@@ -60,32 +70,39 @@ class ExtractWeatherbench:
             for var_zip, files in zip(zip_files, data_files)
             for file in files
         ]
-        with Pool() as p:
+        with mp.Pool(20) as p:
             p.starmap(ExtractWeatherbench.extract_task, args)
+        print("finished extraction")
 
         # load data
-        files = [dirout / file for data_file in data_files for file in data_file]
+        files = [self.dirout / file for data_file in data_files for file in data_file]
+        print("before xarray")
         ds = xr.open_mfdataset(files, coords="minimal", compat="override")
+        print("opened data")
         ds.drop_vars("level")
+        print("data loaded")
 
         # select months
         ds = ds.isel(time=ds.time.dt.month.isin(self.months))
 
         # select region
         ds = ds.sel(lat=slice(*self.lat_range), lon=slice(*self.lon_range))
+        print("selection done")
 
         # split into monthly netcdf
         year_month_idx = pd.MultiIndex.from_arrays(
             [ds.time.dt.year.values, ds.time.dt.month.values]
         )
         ds.coords["year_month"] = ("time", year_month_idx)
+        print("constructed index")
 
-        with Pool() as p:
+        with mp.Pool(20) as p:
             p.map(
                 ExtractWeatherbench.write_task,
                 zip(ds.groupby("year_month"), it.repeat(self.dirout)),
                 chunksize=5,
             )
+        print("wrote output")
 
     @staticmethod
     def extract_task(var_zip, file, dirout):
@@ -97,7 +114,10 @@ class ExtractWeatherbench:
         (year_month, monthly_ds), dirout = args
         year, month = year_month
         monthly_ds = monthly_ds.drop_vars("year_month")
-        monthly_ds.to_netcdf(path=dirout / f"{year}_{month}.nc")
+        try:
+            monthly_ds.to_netcdf(path=dirout / f"{year}_{month}.nc")
+        except RuntimeError:
+            print(f"runtime error for writing {year}.{month}")
 
     def get_data_files(self):
         """
@@ -107,7 +127,7 @@ class ExtractWeatherbench:
         data_files = []
         zip_files = []
         res_str = f"{self.resolution}deg"
-        years = range() if self.years == -1 else self.years
+        years = self.years
         for var in self.variables:
             var_dir = self.dirin / res_str / var
             if not var_dir.exists():
@@ -118,15 +138,11 @@ class ExtractWeatherbench:
             zip_file = var_dir / f"{var}_{res_str}.zip"
             with ZipFile(zip_file, "r") as myzip:
                 names = myzip.namelist()
+                print(var, years, names)
                 if not all(any(str(year) in name for name in names) for year in years):
-                    missing_years = [
-                        year
-                        for name in names
-                        if str(year) not in name
-                        for year in years
-                    ]
+                    missing_years = list(filter(lambda year: any(str(year) in name for name in names), years))
                     raise ValueError(
-                        f"variable {var} is not available years: {missing_years}"
+                        f"variable {var} is not available for years: {missing_years}"
                     )
                 names = filter(
                     lambda name: any(str(year) in name for year in years), names
