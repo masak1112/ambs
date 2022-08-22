@@ -3,8 +3,9 @@ import dataclasses as dc
 import json
 from pathlib import Path
 
+import numpy as np
 
-@dataclass
+@dc.dataclass
 class DatasetStats:
     mean: np.ndarray
     std: np.ndarray
