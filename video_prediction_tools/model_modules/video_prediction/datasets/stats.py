@@ -1,4 +1,4 @@
-from abc import ABC
+from abc import ABC, abstractmethod
 import dataclasses as dc
 import json
 from pathlib import Path
@@ -16,7 +16,7 @@ class DatasetStats:
     def as_array(self):
         return np.vstack([self.mean, self.std, self.max, self.min])
     
-    @staticmethod()
+    @staticmethod
     def from_json(path):
         with open(path, "r") as f:
             in_dict = json.read(f)
@@ -38,7 +38,7 @@ class Normalize(ABC):
     Provide normalization and denormalization for different normalization approaches.
         self._v
     """
-    def __init__(self, stats: DatasetStats()):
+    def __init__(self, stats: DatasetStats):
         self.stats: DatasetStats = stats
 
     @staticmethod
