@@ -22,7 +22,8 @@ import time
 import numpy as np
 import xarray as xr
 import tensorflow as tf
-from model_modules.video_prediction import datasets, models
+from model_modules.video_prediction import models
+from model_modules.video_prediction.datasets import get_dataset
 import matplotlib.pyplot as plt
 import pickle as pkl
 from model_modules.video_prediction.utils import tf_utils
@@ -159,7 +160,8 @@ class TrainModel(object):
         self.max_epochs = self.model_hparams_dict_load["max_epochs"]
         # create dataset instance
 
-        self.dataset = Dataset(self.dataset_name, input_dir=self.input_dir, output_dir=self.output_dir, datasplit_config=self.datasplit_dict, hparams_dict_config=self.model_hparams_dict, seed=self.seed)
+        self.dataset = get_dataset
+        (self.dataset_name, input_dir=self.input_dir, output_dir=self.output_dir, datasplit_config=self.datasplit_dict, hparams_dict_config=self.model_hparams_dict, seed=self.seed)
         
         self.calculate_samples_and_epochs()
         self.model_hparams_dict_load.update({"sequence_length": self.dataset.sequence_length})
@@ -751,7 +753,7 @@ def main():
     timeit_start = time.time()
     # create a training instance
     train_case = TrainModel(input_dir=args.input_dir,output_dir=args.output_dir,datasplit_dict=args.datasplit_dict,
-                 model_hparams_dict=args.model_hparams_dict,model=args.model,checkpoint=args.checkpoint, dataset=args.dataset,
+                 model_hparams_dict=args.model_hparams_dict,model=args.model,checkpoint=args.checkpoint, dataset_name=args.dataset,
                  gpu_mem_frac=args.gpu_mem_frac, seed=args.seed, args=args, frac_start_save=args.frac_start_save,
                  frac_intv_save=args.frac_intv_save)
     

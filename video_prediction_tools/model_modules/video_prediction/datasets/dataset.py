@@ -9,7 +9,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from hparams_utils import *
-from normalization import DatasetStats, Normalize
+from model_modules.video_prediction.datasets.stats import DatasetStats, Normalize
 
 class Dataset:
     modes = ["train", "val", "test"]
@@ -22,21 +22,20 @@ class Dataset:
         "sequence_length",
         "shift"
     ]
-    filename_template = "{datset_name}_{year}-{month:02d}.nc"
 
     def __init__(
         self,
-        name: str,
         input_dir: Path,
         output_dir: Path,
         datasplit_config: str,
         hparams_dict_config: str,
         seed: int = None,
         nsamples_ref: int = None, # TODO: implemment ?
+        normalize,
+        filename_template: str
     ):
         """
         This class is used for preparing data for training/validation and test models
-        :param name: name of the particular dataset (i.e. era5, weatherbench, ...)
         :param input_dir: the path of tfrecords files
         :param datasplit_path: the path pointing to the datasplit_config json file
         :param hparams_dict_config: the path to the dict that contains hparameters,
@@ -46,13 +45,15 @@ class Dataset:
                              for ensuring adopted size of dataset iterator (used for validation data during training)
                              Example: Let nsamples_ref be 1000 while the current datset consists 100 samples, then
                                       the repetition-factor will be 10 (i.e. nsamples*rep_fac = nsamples_ref)
+        :param normalize: class of the desired normalization method
         """
         self.name = name
         self.input_dir = input_dir
         self.datasplit_config = datasplit_config
         self.seed = seed  # used for shuffeling
         self.nsamples_ref = nsamples_ref
-        self.normalize = datasets.default_normalization[self.name]
+        self.normalize = normalize
+        self.filename_template = filename_template
 
         # sanity checks
         if not os.path.exists(self.input_dir):
