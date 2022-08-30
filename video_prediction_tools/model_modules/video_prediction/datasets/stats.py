@@ -6,15 +6,28 @@ from pathlib import Path
 import numpy as np
 
 @dc.dataclass
+class VarStats:
+    mean: float
+    std: np.ndarray
+    maximum: float
+    minimum: float
+
+    
+@dc.dataclass
 class DatasetStats:
     mean: np.ndarray
     std: np.ndarray
-    max: np.ndarray
-    min: np.ndarray
+    maximum: np.ndarray
+    minimum: np.ndarray
     n: int
 
     def as_array(self):
         return np.vstack([self.mean, self.std, self.max, self.min])
+    
+    def var_stats(self, index):
+        """extract specific stats for variable at position 'index.'"""
+        
+        return VarStats(mean[index], std[index], maximum[index], minimum[index])
     
     @staticmethod
     def from_json(path):
@@ -33,53 +46,46 @@ class DatasetStats:
                 for key in out_dict}, f)
 
 
+
 class Normalize(ABC):
     """
     Provide normalization and denormalization for different normalization approaches.
-        self._v
     """
     def __init__(self, stats: DatasetStats):
         self.stats: DatasetStats = stats
 
     @staticmethod
-    def _apply_over_vars(fun, x, required_stats):
+    def _apply_over_vars(fun, x):
         x = x.copy()  # assure no inplace operation
 
         # normalize each variable seperatly
         for i in range(x.shape[-1]):
-            var_stats = [stat[i] for stat in required_stats]
-            x[:, :, :, :, i] = fun(x[:, :, :, :, i], *var_stats)
+            stats = self.stats.var_stats(i)
+            x[:, :, :, :, i] = fun(x[:, :, :, :, i], stats)
 
     def normalize_vars(self, x):
         """
         Normalize each variable seperatly, using normalize_fun.
         """
-        Normalize._apply_over_vars(self.normalize_fun, x, self.required_stats())
+        Normalize._apply_over_vars(self.normalize_fun, x, self.stats)
         return x
 
     def denormalize_vars(self, x):
         """
         Denormalize each variable seperatly, using denormalize_fun.
         """
-        Normalize._apply_over_vars(self.deormalize_fun, x, self.required_stats())
+        Normalize._apply_over_vars(self.deormalize_fun, x, self.stats)
         return x
 
     @abstractmethod
-    def required_stats():
-        """
-        Select statistics that are required for calculation of specific normalization.
-        """
-        pass
-
-    @abstractmethod
-    def normalize_fun(self, x, *stats):
+    def normalize_fun(self, x, stats: VarStats):
         """
         Normalization for data of shape (batch_size, sequence_len, lat, lon).
         """
         pass
 
     @abstractmethod
-    def denormalize_fun(self, x, *stats):
+    def denormalize_fun(self, x, stats: VarStats):
         """
         Normalization for data of shape (batch_size, sequence_len, lat, lon).
         """
@@ -87,25 +93,19 @@ class Normalize(ABC):
 
 
 class MinMax(Normalize):
-    def required_stats(self):
-        return (self.stats.min, self.stats.max)
-
-    def normalize_fun(self, minimum, maximum):
-        return (x - minimum) / (maximum - minimum)
-
-    def denormalize_fun(self, minimum, maximum):
-        return x * (maximum - minimum) + minimum
+    def normalize_fun(self, x, stats: VarStats):
+        return (x - stats.minimum) / (stats.maximum - stats.minimum)
+    
+    def denormalize_fun(self, x, stats: VarStats):
+        return x * (stats.maximum - stats.minimum) + stats.minimum
 
 
 class ZScore(Normalize):
     """
     Implement ZScore (De)Normalization.
     """
-    def required_stats(self):
-        return (self.stats.mean, self.stats.std)
+    def normalize_fun(self, x, stats: VarStats):
+        return (x - stats.mean) / stats.std
 
-    def normalize_fun(self, x, mean, std):
-        return (x - mean) / std
-
-    def denormalize_fun(self, x, mean, var):
-        return x * std + mean
+    def denormalize_fun(self, x, stats: VarStats):
+        return x * stats.std + stats.mean
