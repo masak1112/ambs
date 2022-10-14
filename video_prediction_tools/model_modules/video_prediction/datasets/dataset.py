@@ -8,8 +8,12 @@ from typing import List
 from dataclasses import dataclass
 from pathlib import Path
 
+import xarray as xr
+import tensorflow as tf
+
 from hparams_utils import *
 from model_modules.video_prediction.datasets.stats import DatasetStats, Normalize
+
 
 class Dataset:
     modes = ["train", "val", "test"]
@@ -27,18 +31,18 @@ class Dataset:
         self,
         input_dir: Path,
         output_dir: Path,
-        datasplit_config: str,
-        hparams_dict_config: str,
-        seed: int = None,
-        nsamples_ref: int = None, # TODO: implemment ?
+        datasplit_path: str,
+        hparams_path: str,
         normalize,
-        filename_template: str
+        filename_template: str,
+        seed: int = None,
+        nsamples_ref: int = None # TODO: implemment ?
     ):
         """
         This class is used for preparing data for training/validation and test models
         :param input_dir: the path of tfrecords files
         :param datasplit_path: the path pointing to the datasplit_config json file
-        :param hparams_dict_config: the path to the dict that contains hparameters,
+        :param hparams_path: the path to the dict that contains hparameters,
         :param mode: string, "train","val" or "test"
         :param seed: int, the seed for shuffeling the dataset
         :param nsamples_ref: number of reference samples which can be used to control repetition factor for dataset
@@ -47,9 +51,8 @@ class Dataset:
                                       the repetition-factor will be 10 (i.e. nsamples*rep_fac = nsamples_ref)
         :param normalize: class of the desired normalization method
         """
-        self.name = name
         self.input_dir = input_dir
-        self.datasplit_config = datasplit_config
+        self.output_dir = output_dir
         self.seed = seed  # used for shuffeling
         self.nsamples_ref = nsamples_ref
         self.normalize = normalize
@@ -63,35 +66,31 @@ class Dataset:
         with open(datasplit_path, "r") as f:  # TODO:maybe sanity check
             self.datasplit = json.loads(f.read())
 
-        with open(hparams_dict_config, "r") as f:  # TODO:maybe sanity check
+        with open(hparams_path, "r") as f:  # TODO:maybe sanity check
             hparams = dotdict(json.loads(f.read()))
 
         try:
-            self.context_frames = hparam["context_frames"]
-            self.max_epochs = hparam["max_epochs"]
-            self.batch_size = hparam["batch_size"]
-            self.shuffle_on_val = hparam["shuffle_on_val"]
-            self.sequence_length = hparam["sequence_length"]
-            self.shift = hparam["shift"]
+            self.context_frames = hparams["context_frames"]
+            self.max_epochs = hparams["max_epochs"]
+            self.batch_size = hparams["batch_size"]
+            self.shuffle_on_val = hparams["shuffle_on_val"]
+            self.sequence_length = hparams["sequence_length"]
+            self.shift = hparams["shift"]
         except KeyError as e:
             raise ValueError(f"missing hyperparameter: {e.args[0]}")
 
-        self._training_stats = None
-        self._validation_stats = None
-        self._test_stats = None
-
         self._stats_lookup = {
-            "train": self._training_stats,
-            "val": self._validation_stats,
-            "test": self._test_stats,
+            "train": None,
+            "val": None,
+            "test": None,
         }
 
     def load_data(self, files):
         """
-        load DataSet from filenames and transform to DataArray (n_samples, lat, lon, channels).
+        load DataSet from files and transform to DataArray (n_samples, lat, lon, channels).
         """
         
-        ds = xr.open_mfdataset(filenames)
+        ds = xr.open_mfdataset(files).load()
         da = ds.to_array(dim="variables").squeeze()
         return da.transpose(*Dataset.dims)
     
@@ -106,11 +105,11 @@ class Dataset:
         # {"2008":[1,2,3,4,...], "2009":[1,2,3,4,...]}
         for year, months in time_window.items():
             for month in months:
-                files.append(self.input_dir / Dataset.file_name(year, month))
+                files.append(self.input_dir / self.filename_template.format(year=year, month=month))
         
         return files
 
-    def get_data(self, mode):
+    def _get_data(self, mode):
         """
         Load data from files into memory and calculate statistics.
 
@@ -128,7 +127,7 @@ class Dataset:
             da.std(dim=Dataset.dims[:3]).values,
             da.max(dim=Dataset.dims[:3]).values,
             da.min(dim=Dataset.dims[:3]).values,
-            da.sizes("time")
+            da.sizes["time"]
         )
 
         self._stats_lookup[mode] = stats
@@ -144,9 +143,10 @@ class Dataset:
         shuffle = mode == "train" or (mode == "val" and self.shuffle_on_val)
 
         # get data array
-        da = self._get_data(mode)
+        da = self._get_data(mode).load() # load everything into memory
+        print(f"xarray info: {da.shape}")
 
-        def generator(iterable):
+        def data_generator(iterable):
             iterator = iter(iterable)
             yield from iterator
 
@@ -179,7 +179,8 @@ class Dataset:
 
         # normalize
         if use_training_stats: # use training stats for normalization
-            stats = self._training_stats
+            stats = self.training_stats
+            print(f"used training stats: {stats}")
         else: # use corresponding stats for normalization
             stats = self._stats_lookup[mode]
 
@@ -196,8 +197,8 @@ class Dataset:
         obtain the number of samples per each epoch
         :return: int
         """
-        stats = self._get_stats("training")
-        return int((stats.n - (self.sequence_length - stride)) / stride)
+        stats = self._get_stats("train")
+        return int((stats.n + self.shift) / (self.sequence_length + self.shift))
 
     @property
     def num_test_samples(self):
@@ -206,7 +207,7 @@ class Dataset:
         :return: int
         """
         stats = self._get_stats("test")
-        return int((stats.n - (self.sequence_length - stride)) / stride)
+        return int((stats.n + self.shift) / (self.sequence_length + self.shift))
     
     @property
     def num_validation_samples(self):
@@ -214,9 +215,8 @@ class Dataset:
         obtain the number of samples per each epoch
         :return: int
         """
-        stats = self._get_stats("validation")
-        return int((stats.n - (self.sequence_length - stride)) / stride)
-
+        stats = self._get_stats("val")
+        return int((stats.n + self.shift) / (self.sequence_length + self.shift))
 
     def make_training(self):
         return self.make_dataset(mode="train")
@@ -229,17 +229,17 @@ class Dataset:
     
     def _get_stats(self, mode):
         if self._stats_lookup[mode] is None:
-            self.get_data(mode)
+            self._get_data(mode)
         return self._stats_lookup[mode]
 
     @property
     def training_stats(self):
-        self._get_stats("train")
+        return self._get_stats("train")
     
     @property
     def validation_stats(self):
-        self._get_stats("val")
+        return self._get_stats("val")
     
     @property
     def test_stats(self):
-        self._get_stats("test")
+        return self._get_stats("test")

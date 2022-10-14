@@ -80,7 +80,7 @@ class TrainModel(object):
         self.make_dataset_iterator()
         self.setup_model()
         self.setup_graph()
-        self.save_dataset_model_params_to_checkpoint_dir(dataset=self.train_dataset,video_model=self.video_model) # TODO: resolve potetial incompatibility
+        self.save_dataset_model_params_to_checkpoint_dir(dataset=self.dataset, video_model=self.video_model) # TODO: resolve potetial incompatibility
         self.count_parameters()
         self.create_saver_and_writer()
         self.setup_gpu_config()
@@ -160,8 +160,7 @@ class TrainModel(object):
         self.max_epochs = self.model_hparams_dict_load["max_epochs"]
         # create dataset instance
 
-        self.dataset = get_dataset
-        (self.dataset_name, input_dir=self.input_dir, output_dir=self.output_dir, datasplit_config=self.datasplit_dict, hparams_dict_config=self.model_hparams_dict, seed=self.seed)
+        self.dataset = get_dataset(self.dataset_name, input_dir=self.input_dir, output_dir=self.output_dir, datasplit_path=self.datasplit_dict, hparams_path=self.model_hparams_dict, seed=self.seed)
         
         self.calculate_samples_and_epochs()
         self.model_hparams_dict_load.update({"sequence_length": self.dataset.sequence_length})
@@ -244,7 +243,7 @@ class TrainModel(object):
         """
         method = TrainModel.calculate_samples_and_epochs.__name__        
 
-        self.num_examples = self.dataset.num_training_samples()
+        self.num_examples = self.dataset.num_training_samples
         self.steps_per_epoch = int(self.num_examples/self.batch_size)
         self.total_steps = self.steps_per_epoch * self.max_epochs
         self.diag_intv_step = int(self.diag_intv_frac*self.total_steps)
@@ -750,6 +749,11 @@ def main():
 
     args = parser.parse_args()
     # start timing for the whole run
+
+    # list pip environment
+    import os
+    print(os.system("pip3 list"))
+
     timeit_start = time.time()
     # create a training instance
     train_case = TrainModel(input_dir=args.input_dir,output_dir=args.output_dir,datasplit_dict=args.datasplit_dict,

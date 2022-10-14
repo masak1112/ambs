@@ -4,6 +4,7 @@ import json
 from pathlib import Path
 
 import numpy as np
+import tensorflow as tf
 
 @dc.dataclass
 class VarStats:
@@ -27,7 +28,7 @@ class DatasetStats:
     def var_stats(self, index):
         """extract specific stats for variable at position 'index.'"""
         
-        return VarStats(mean[index], std[index], maximum[index], minimum[index])
+        return VarStats(self.mean[index], self.std[index], self.maximum[index], self.minimum[index])
     
     @staticmethod
     def from_json(path):
@@ -39,10 +40,10 @@ class DatasetStats:
             for key in in_dict})
 
     def to_json(self, path):
-        out_dict = dict(self)
+        out_dict = dc.asdict(self)
         with open(path, "w") as f:
             json.dump(
-                {key: list(out_dict[key]) if key != "n" else out_dict[key]
+                {key: list(out_dict[key].astype(float)) if key != "n" else out_dict[key]
                 for key in out_dict}, f)
 
 
@@ -55,27 +56,32 @@ class Normalize(ABC):
         self.stats: DatasetStats = stats
 
     @staticmethod
-    def _apply_over_vars(fun, x):
-        x = x.copy()  # assure no inplace operation
+    def _apply_over_vars(fun, x, stats):
+        # x = x.copy()  # assure no inplace operation
+        
+        def inner_fun(i):
+            var_stats = stats.var_stats(i)
+            return fun(x[:, :, :, :, i], var_stats)
+            
 
+        print(f"overall shape: {x.shape}")
         # normalize each variable seperatly
-        for i in range(x.shape[-1]):
-            stats = self.stats.var_stats(i)
-            x[:, :, :, :, i] = fun(x[:, :, :, :, i], stats)
+        x = tf.stack([fun(x[:, :, :, :, i], stats.var_stats(i)) for i in range(x.shape[-1])], axis=-1)
+        
+        print(f"normalized shape: {x.shape}")
+        return x
 
     def normalize_vars(self, x):
         """
         Normalize each variable seperatly, using normalize_fun.
         """
-        Normalize._apply_over_vars(self.normalize_fun, x, self.stats)
-        return x
+        return Normalize._apply_over_vars(self.normalize_fun, x, self.stats)
 
     def denormalize_vars(self, x):
         """
         Denormalize each variable seperatly, using denormalize_fun.
         """
-        Normalize._apply_over_vars(self.deormalize_fun, x, self.stats)
-        return x
+        return Normalize._apply_over_vars(self.denormalize_fun, x, self.stats)
 
     @abstractmethod
     def normalize_fun(self, x, stats: VarStats):

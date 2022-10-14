@@ -11,6 +11,13 @@ import sys
 import pandas as pd
 import xarray as xr
 
+#from model_modules.video_prediction.datasets import get_filename_template
+
+DATE_TEMPLATE = "{year}-{month:02d}" # TODO: make importable (setup proper environment)
+
+def get_filename_template(name):
+    return f"{name}_{DATE_TEMPLATE}.nc"
+
 
 class ExtractWeatherbench:
     max_years = list(range(1979, 2018))
@@ -37,7 +44,7 @@ class ExtractWeatherbench:
         :param lon_range: domain of the longitude axis to extract
         :param resolution: spacing on both lat, lon axis
         """
-
+        
         self.dirin = dirin
         self.dirout = dirout
 
@@ -115,7 +122,7 @@ class ExtractWeatherbench:
         year, month = year_month
         monthly_ds = monthly_ds.drop_vars("year_month")
         try:
-            monthly_ds.to_netcdf(path=dirout / f"{year}_{month}.nc")
+            monthly_ds.to_netcdf(path=dirout / get_filename_template("weatherbench").format(year=year, month=month))
         except RuntimeError:
             print(f"runtime error for writing {year}.{month}")
 
