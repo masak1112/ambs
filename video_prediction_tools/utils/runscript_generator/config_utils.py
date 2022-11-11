@@ -45,25 +45,15 @@ class Config_runscript_base:
         self.list_batch_vars = None
         self.dataset = None
         self.source_dir = None
-        # attribute storing workflow-step dependant function for keyboard interaction
-        self.run_config = None
+
     #
     # -----------------------------------------------------------------------------------
     #
     def run(self):
         """
-        Acts as generic wrapper: Checks if run_config is already set up as a callable
-        :return: Executes run_config
+        Procces keyboard interaction for step-specific runscript configuration.
         """
-        method_name = "run" + " of Class " + Config_runscript_base.cls_name
-        if self.run_config is None:
-            raise ValueError("%{0}: run-method is still uninitialized.".format(method_name))
-
-        if not callable(self.run_config):
-            raise ValueError("%{0}: run-method is not callable".format(method_name))
-
-        # simply execute it
-        self.run_config(self)
+        raise NotImplementedError()
     #
     # -----------------------------------------------------------------------------------
     #

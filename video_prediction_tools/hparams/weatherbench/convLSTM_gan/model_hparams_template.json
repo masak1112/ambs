@@ -1,0 +1,13 @@
+
+{
+    "batch_size": 4,
+    "lr": 0.001,
+    "max_epochs":20,
+    "context_frames":12,
+    "loss_fun":"rmse",
+    "shuffle_on_val":false,
+    "recon_weight":0.6
+}
+
+
+

@@ -1,0 +1,27 @@
+# NOTE: Please configure this JSON-files according your needs. Any line starting with # will be removed 
+#       when editing is invoked from generate_runscript.py. 
+#
+# Explanation: In the following, the data of the whole year 2015 and the first half of 2016 is used for training,
+#              while the data of 2017 and 2018 are used for validation and testing, respectively.
+#              Be aware that this is a pure data file, i.e. do not make use of any Python-functions
+#              such as np.range or similar here!
+{
+    "train":{
+             "2008":[1,2,3,4,5,6,7,8,9,10,11,12],
+             "2009":[1,2,3,4,5,6,7,8,9,10,11,12],
+             "2010":[1,2,3,4,5,6,7,8,9,10,11,12],
+             "2011":[1,2,3,4,5,6,7,8,9,10,11,12],
+             "2012":[1,2,3,4,5,6,7,8,9,10,11,12],
+             "2013":[1,2,3,4,5,6,7,8,9,10,11,12],
+             "2014":[1,2,3,4,5,6,7,8,9,10,11,12],
+             "2015":[1,2,3,4,5,6,7,8,9,10,11,12]
+             },
+     "val":
+             {
+             "2016":[1,2,3,4,5,6,7,8,9,10,11,12]
+             },
+      "test":
+             {
+             "2017":[1,2,3,4,5,6,7,8,9,10,11,12]
+             }
+ }

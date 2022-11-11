@@ -33,12 +33,10 @@ class Config_Preprocess2(Config_runscript_base):
         self.sequence_length = None  # only needed for ERA5
         # list of variables to be written to runscript
         self.list_batch_vars = ["VIRT_ENV_NAME", "source_dir", "destination_dir"]     # appended for ERA5 dataset
-        # copy over method for keyboard interaction
-        self.run_config = Config_Preprocess2.run_preprocess2
     #
     # -----------------------------------------------------------------------------------
     #
-    def run_preprocess2(self):
+    def run(self):
         """
         Runs the keyboard interaction for Preprocessing step 2
         :return: all attributes of class Config_Preprocess2 set

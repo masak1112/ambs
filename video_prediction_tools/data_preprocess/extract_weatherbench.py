@@ -2,7 +2,7 @@ import os, glob
 import logging
 
 from zipfile import ZipFile
-from typing import List, Union, Tuple
+from typing import Union
 from pathlib import Path
 import multiprocessing as mp
 import itertools as it
@@ -26,11 +26,11 @@ class ExtractWeatherbench:
         self,
         dirin: Path,
         dirout: Path,
-        variables: List[str],
-        years: Union[List[int], int],
-        months: List[int],
-        lat_range: Tuple[float],
-        lon_range: Tuple[float],
+        variables: list[dict],
+        years: Union[list[int], int],
+        months: list[int],
+        lat_range: tuple[float],
+        lon_range: tuple[float],
         resolution: float,
     ):
         """
@@ -54,6 +54,13 @@ class ExtractWeatherbench:
             self.years = years
         self.months = months
 
+        # TODO handle special variables for resolution 5.625 (temperature_850, geopotential_500)
+        if resolution == 5.625:
+            for var in variables:
+                combined_name = f"{var['name']}_{var['lvl'][0]}"
+                if combined_name in {"temperature_850", "geopotential_500"}:
+                    var["name"] = combined_name
+                    
         self.variables = variables
 
         self.lat_range = lat_range
@@ -80,6 +87,8 @@ class ExtractWeatherbench:
         with mp.Pool(20) as p:
             p.starmap(ExtractWeatherbench.extract_task, args)
         print("finished extraction")
+        
+        # TODO: handle 3d data
 
         # load data
         files = [self.dirout / file for data_file in data_files for file in data_file]
@@ -136,13 +145,13 @@ class ExtractWeatherbench:
         res_str = f"{self.resolution}deg"
         years = self.years
         for var in self.variables:
-            var_dir = self.dirin / res_str / var
+            var_dir = self.dirin / res_str / var["name"]
             if not var_dir.exists():
                 raise ValueError(
                     f"variable {var} is not available for resolution {res_str}"
                 )
 
-            zip_file = var_dir / f"{var}_{res_str}.zip"
+            zip_file = var_dir / f"{var['name']}_{res_str}.zip"
             with ZipFile(zip_file, "r") as myzip:
                 names = myzip.namelist()
                 print(var, years, names)

@@ -45,13 +45,11 @@ class Config_Preprocess1(Config_runscript_base):
         # list of variables to be written to runscript
         self.list_batch_vars = ["VIRT_ENV_NAME", "source_dir", "destination_dir", "years", "variables",
                                 "sw_corner", "nyx"]
-        # copy over method for keyboard interaction
-        self.run_config = Config_Preprocess1.run_preprocess1
     #
     # -----------------------------------------------------------------------------------
     #
 
-    def run_preprocess1(self):
+    def run(self):
         """
         Runs the keyboard interaction for Preprocessing step 1
         :return: all attributes of class Config_Preprocess1 are set
