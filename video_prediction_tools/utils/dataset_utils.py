@@ -12,27 +12,21 @@ Provides:   * DATASET_META_LOCATION
 import json
 from pathlib import Path
 from typing import Dict, Any, List
-from dataclasses import dataclass
+#from dataclasses import dataclass #TODO use dataclass in python 3.7+
 
-DATASET_META_LOCATION = Path("../data_preprocess")
-DATASETS = [file.stem for file in DATASET_META_LOCATION.iterdir() if file.suffix == ".json"]
+DATASET_META_LOCATION = Path(__file__).parent.parent / "data_split"
+DATASETS = [path.name for path in DATASET_META_LOCATION.iterdir() if path.is_dir()]
 
-@dataclass
-class DatasetInfo:
-    pass
+DATE_TEMPLATE = "{year}-{month:02d}"
 
-@dataclass(frozen=True)
-class Variable:
-    name: str
-    lvl: List[int]
-    interpolation: str
-    
+def get_filename_template(name: str) -> str:
+    return f"{name}_{DATE_TEMPLATE}.nc"
 
-def get_dataset_info(dataset: str) -> Dict[str,Any]:
+def get_dataset_info(name: str) -> Dict[str,Any]:
     """Extract metainformation about dataset from corresponding JSON file."""
-    file = DATASET_META_LOCATION / f"{dataset}.json"
+    file = DATASET_META_LOCATION / f"{name}/{name}.json"
     try:
         with open(file, "r") as f:
-            return json.load(f) # TODO: input validation
+            return json.load(f) # TODO: input validation => specify schema
     except FileNotFoundError as e:
         raise ValueError("Information on dataset '{dataset}' doesnt exist.")

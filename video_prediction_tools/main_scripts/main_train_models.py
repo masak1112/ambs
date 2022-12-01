@@ -735,7 +735,7 @@ def main():
     parser.add_argument("--output_dir", help="Output directory where JSON-files, summary, model, plots etc. are saved.")
     parser.add_argument("--datasplit_dict", help="JSON-file that contains the datasplit configuration")
     parser.add_argument("--checkpoint", help="Checkpoint directory or checkpoint name (e.g. <my_dir>/model-200000)")
-    parser.add_argument("--dataset", type=str, help="Dataset name") # as in datasets.known_datasets
+    parser.add_argument("--dataset", type=str, help="Dataset name") # as in dataset_utils.DATASETS
     parser.add_argument("--model", type=str, help="Model class name")
     parser.add_argument("--model_hparams_dict", type=str, help="JSON-file of model hyperparameters")
     parser.add_argument("--gpu_mem_frac", type=float, default=0.99, help="Fraction of gpu memory to use")
