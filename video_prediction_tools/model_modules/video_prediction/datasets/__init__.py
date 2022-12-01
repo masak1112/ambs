@@ -9,14 +9,16 @@ import dask
 from dask.base import tokenize
 from utils.dataset_utils import DATASETS, get_dataset_info, get_filename_template
 
+normalise = {"MinMax": MinMax,
+            "ZScore": ZScore}
 
 def get_dataset(name: str, *args, **kwargs):
     try:
         ds_info = get_dataset_info(name)
     except ValueError as e:
         raise ValueError(f"unknown dataset: {name}")
-        
+     
     return Dataset(*args, **kwargs,
-                   normalize=ds_info["normalize"],
+                   normalize=normalise[ds_info["normalize"]],
                    filename_template=get_filename_template(name)
                   )
