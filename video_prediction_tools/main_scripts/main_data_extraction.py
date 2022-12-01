@@ -10,7 +10,7 @@ import sys
 import json
 
 from data_preprocess.extract_weatherbench import ExtractWeatherbench
-from utils.discovery_utils import DATASETS, get_dataset_info
+from utils.dataset_utils import DATASETS, get_dataset_info
 
 
 # IDEA: type conversion (generic) => params_obj => bounds_checking (ds-specific)/ semantic checking
@@ -266,11 +266,12 @@ def main():
     else:
         raise ValueError("no other extractor.")
     
-    
+    print("initialized extraction")
         
     extraction()
 
 
 if __name__ == "__main__":
+    print("start script")
     mp.set_start_method("spawn")  # fix cuda initalization issue
     main()

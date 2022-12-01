@@ -11,13 +11,9 @@ import sys
 import pandas as pd
 import xarray as xr
 
-#from model_modules.video_prediction.datasets import get_filename_template
+from utils.dataset_utils import get_filename_template
 
-DATE_TEMPLATE = "{year}-{month:02d}" # TODO: make importable (setup proper environment)
-
-def get_filename_template(name):
-    return f"{name}_{DATE_TEMPLATE}.nc"
-
+logging.basicConfig(level=logging.DEBUG)
 
 class ExtractWeatherbench:
     max_years = list(range(1979, 2018))
@@ -67,14 +63,14 @@ class ExtractWeatherbench:
         self.lon_range = lon_range
 
         self.resolution = resolution
-      
+              
 
     def __call__(self):
         """
         Run extraction.
         :return: -
         """
-        print("start extraction")
+        logging.info("start extraction")
 
         zip_files, data_files = self.get_data_files()
 
@@ -86,31 +82,30 @@ class ExtractWeatherbench:
         ]
         with mp.Pool(20) as p:
             p.starmap(ExtractWeatherbench.extract_task, args)
-        print("finished extraction")
+        logging.info("finished extraction")
         
         # TODO: handle 3d data
 
         # load data
         files = [self.dirout / file for data_file in data_files for file in data_file]
-        print("before xarray")
         ds = xr.open_mfdataset(files, coords="minimal", compat="override")
-        print("opened data")
+        logging.info("opened dataset")
         ds.drop_vars("level")
-        print("data loaded")
+        logging.info("data loaded")
 
         # select months
         ds = ds.isel(time=ds.time.dt.month.isin(self.months))
 
         # select region
         ds = ds.sel(lat=slice(*self.lat_range), lon=slice(*self.lon_range))
-        print("selection done")
+        logging.info("selected region")
 
         # split into monthly netcdf
         year_month_idx = pd.MultiIndex.from_arrays(
             [ds.time.dt.year.values, ds.time.dt.month.values]
         )
         ds.coords["year_month"] = ("time", year_month_idx)
-        print("constructed index")
+        logging.info("constructed splitting-index")
 
         with mp.Pool(20) as p:
             p.map(
@@ -118,7 +113,7 @@ class ExtractWeatherbench:
                 zip(ds.groupby("year_month"), it.repeat(self.dirout)),
                 chunksize=5,
             )
-        print("wrote output")
+        logging.info("wrote output")
 
     @staticmethod
     def extract_task(var_zip, file, dirout):
@@ -129,11 +124,14 @@ class ExtractWeatherbench:
     def write_task(args):
         (year_month, monthly_ds), dirout = args
         year, month = year_month
+        logging.debug(f"{year}.{month:02d}: dropping index")
         monthly_ds = monthly_ds.drop_vars("year_month")
         try:
+            logging.debug(f"{year}.{month:02d}: writing to netCDF")
             monthly_ds.to_netcdf(path=dirout / get_filename_template("weatherbench").format(year=year, month=month))
-        except RuntimeError:
-            print(f"runtime error for writing {year}.{month}")
+        except RuntimeError as e:
+            logging.error(f"runtime error for writing {year}.{month}\n{str(e)}")
+        logging.debug(f"{year}.{month:02d}: finished processing")
 
     def get_data_files(self):
         """
@@ -154,7 +152,7 @@ class ExtractWeatherbench:
             zip_file = var_dir / f"{var['name']}_{res_str}.zip"
             with ZipFile(zip_file, "r") as myzip:
                 names = myzip.namelist()
-                print(var, years, names)
+                logging.debug(f"var:{var}\nyears:{years}\nnames:{names}")
                 if not all(any(str(year) in name for name in names) for year in years):
                     missing_years = list(filter(lambda year: any(str(year) in name for name in names), years))
                     raise ValueError(

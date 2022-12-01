@@ -12,7 +12,10 @@ __date__ = "2021-01-27"
 import os, glob
 import subprocess as sp
 import time
+from pathlib import Path
+
 from runscript_generator.config_utils import Config_runscript_base    # import parent class
+from dataset_utils import DATASETS, get_dataset_info
 
 class Config_Extraction(Config_runscript_base):
 
@@ -34,25 +37,100 @@ class Config_Extraction(Config_runscript_base):
         self.destination_dir = None
         # list of variables to be written to runscript
         self.list_batch_vars = ["VIRT_ENV_NAME", "source_dir", "varmap_file", "years", "destination_dir"]
-        # copy over method for keyboard interaction
-        self.run_config = Config_Extraction.run_extraction
     #
     # -----------------------------------------------------------------------------------
     #
-    def run_extraction(self):
+    def run(self):
         """
         Runs the keyboard interaction for data extraction step
         :return: all attributes of class Data_Extraction are set
         """
+        
+        dataset = Config_Extraction.keyboard_interaction(
+            "Choose dataset:" + "".join([f"\n* {name}" for name in DATASETS]) + "\n",
+            lambda name, silent=False: name in (*DATASETS, "era5"),
+            ValueError("Cannot find dataset for given name"),
+            ntries=3
+        )
+        
+        if dataset == "weatherbench": # TODO: change once more datasets are added
+            self.extract(dataset)
+        else:
+            self.extract_old()
+            
 
-        method_name = Config_Extraction.run_extraction.__name__
-
+    def extract(self, dataset):
+        """
+        Special method for handling of weatherbench data.
+        
+        (in order to not break previous code)
+        """
+        available_years = get_dataset_info("weatherbench")["years"]
+        
+        # override in order to accomdate changes in the structure quick/dirty
+        self.runscript_template = self.rscrpt_tmpl_prefix + dataset + self.suffix_template
+        self.runscript_target = self.rscrpt_tmpl_prefix + dataset + ".sh"
+        self.list_batch_vars = ["VIRT_ENV_NAME", "source_dir", "years", "destination_dir"]
+        
+        def check_input_dir(path, silent=False):
+            try:
+                return Path(path).is_dir() 
+            except PermissionError as e:
+                print(f"Could not access {path} because of missing permissions.")
+                return False
+            return False
+        
+        def check_years(years, silent=False):
+            years = [year.strip() for year in years.split(",")]
+            notyears = list(filter(lambda year: not str.isnumeric(year), years))
+            if len(notyears) > 0:
+                print("The following elements could not be interpreted as valid years:")
+                for elem in notyears:
+                    print(elem, end=", ")
+                return False
+            
+            return all([int(year) > 1970 and int(year) in available_years for year in years])
+        
+        # get input folder
+        source_dir = Config_Extraction.keyboard_interaction(
+            "Enter path to weatherbench data root folder",
+            check_input_dir,
+            ValueError("Could not access directory under given path"),
+            ntries=3
+        )
+        
+        # get output folder
+        destination_dir = Config_Extraction.keyboard_interaction(
+            "Enter path for destination directory",
+            check_input_dir,
+            ValueError("Could not access directory under given path"),
+            ntries=3
+        )
+        
+        # get years
+        years = Config_Extraction.keyboard_interaction(
+            "Enter a comma-separated sequence of years for which data extraction should be performed:",
+            check_years,
+            ValueError("Cannot get years for preprocessing."),
+            ntries=3
+        )
+        years = [year.strip() for year in years.split(",")]
+        
+        # set parameters to be written to file
+        self.years = years
+        self.source_dir = source_dir
+        self.destination_dir = destination_dir
+        
+    
+    def extract_old(self):
+        method_name = Config_Extraction.extract.__name__
+        
         dataset_req_str = "Enter the path where the original ERA5 grib-files are located (standard on JUST: '{0}'):"\
-                          .format(self.era5dir_just)
+                              .format(self.era5dir_just)
         dataset_err = FileNotFoundError("Cannot retrieve input data from passed path.")
 
         self.source_dir = Config_Extraction.keyboard_interaction(dataset_req_str, Config_Extraction.check_data_indir,
-                                                                 dataset_err, ntries=3)
+                                                                 dataset_err, ntries=3) # maybe use locale variable ?
 
         # get years for preprcessing step 1
         years_req_str = "Enter a comma-separated sequence of years for which data extraction should be performed:"
@@ -94,7 +172,7 @@ class Config_Extraction(Config_runscript_base):
         base_dir = Config_Extraction.get_var_from_runscript(os.path.join(self.runscript_dir, self.runscript_template),
                                                             "destination_dir")
         self.destination_dir = os.path.join(base_dir, "extractedData")
-
+    
     #
     # -----------------------------------------------------------------------------------
     #
