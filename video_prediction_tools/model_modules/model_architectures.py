@@ -7,13 +7,9 @@ def known_models():
     model_mappings = {
         'ground_truth': 'GroundTruthVideoPredictionModel',
         'savp': 'SAVPVideoPredictionModel',
-        'vae': 'VanillaVAEVideoPredictionModel',
         'convLSTM': 'VanillaConvLstmVideoPredictionModel',
-        'mcnet': 'McNetVideoPredictionModel',
         'convLSTM_gan': "ConvLstmGANVideoPredictionModel",
-        'ours_vae_l1': 'SAVPVideoPredictionModel',
-        'ours_gan': 'SAVPVideoPredictionModel',
-        'precrnn_v2': 'PredRNNv2VideoPredictionModel'
+        'weatherBench': 'WeatherBenchModel'
         }
 
     return model_mappings
