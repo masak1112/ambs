@@ -15,20 +15,20 @@ import tensorflow as tf
 class BaseModels(ABC):
 
     def __init__(self, hparams_dict_config=None):
-
         self.__model = None
-
+        #self.__hparams = {}
         #Get the user defined hyper-parameters
-        if hparams_dict_config:
-            with open(hparams_dict_config, 'r') as f:
-                hparams_dict = json.loads(f.read())
-        else:
-            raise FileNotFoundError("hyper-parameter directory doesn't exist! please check {}!".format(hparams_dict_config))
+        #if hparams_dict_config:
+        #    with open(hparams_dict_config, 'r') as f:
+        #        hparams_dict = json.loads(f.read())
+        #else:
+        #    raise FileNotFoundError("hyper-parameter directory doesn't exist! please check {}!".format(hparams_dict_config))
 
-        self.__hparams = dotdict(hparams_dict)
-        self.parse_hparams()
+        self.__hparams = self.hparams_options(hparams_dict_config)
+        self.parse_hparams(self.__hparams)
 
         # Compile options, must be custeromised in the sub-class
+        self.inputs = None
         self.train_op = None
         self.total_loss = None
         self.outputs = {}
@@ -38,25 +38,38 @@ class BaseModels(ABC):
         self.saveable_variables = None
         self._is_build_graph_set = False
 
+    
+    def hparams_options(self, hparams_dict_config:str):
+        if hparams_dict_config:
+            with open(hparams_dict_config, 'r') as f:
+                hparams_dict = json.loads(f.read())
+        else:
+            raise FileNotFoundError("hyper-parameter directory doesn't exist! please check {}!".format(hparams_dict_config))
+        return dotdict(hparams_dict)
+
 
     @abstractmethod
-    def parse_hparams(self)->None:
+    def parse_hparams(self, hparams)->None:
         """
         parse the hyper-parameter as class attribute
         Examples:
             ... code-block:: python
+            def parse_hparams(self):
                 try:
-                    self.context_frames = self.__hparams.context_frames
-                    self.max_epochs = self.__hparams.max_epochs
-                    self.batch_size = self.__hparams.batch_size
-                    self.shuffle_on_val = self.__hparams.shuffle_on_val
-                    self.loss_fun = self.__hparams.loss_fun
+                    self.context_frames = hparams.context_frames
+                    self.max_epochs = hparams.max_epochs
+                    self.batch_size = hparams.batch_size
+                    self.shuffle_on_val = hparams.shuffle_on_val
+                    self.loss_fun = hparams.loss_fun
 
                 except Exception as e:
                     raise ValueError(f"missing hyperparameter: {e.args[0]}")
         """
         pass
 
+
+    def get_hparams(self):
+        return self.__hparams
 
 
     @abstractmethod
@@ -70,7 +83,7 @@ class BaseModels(ABC):
                     original_global_variables = tf.global_variables()
                     x_hat = self.build_model(x)
                     self.train_loss = self.get_loss(x,x_hat)
-                    self.train_op = self.optimizer()
+                    self.train_op = self.optimizer(self.train_loss)
                     self.outputs["gen_images"] = x_hat
                     self.summary_op = self.summary() #This is optional
                     global_variables = [var for var in tf.global_variables() if var not in original_global_variables]
@@ -107,20 +120,21 @@ class BaseModels(ABC):
 
 
     @abstractmethod
-    def summary(self):
+    def summary(self,**kwargs):
         """
         return the summary operation can be used for TensorBoard
         """
-        self.loss_summary = tf.summary.scalar("total_loss", self.total_loss)
-        self.summary_op = tf.summary.merge_all()
-
+        #self.loss_summary = tf.summary.scalar("total_loss", self.total_loss)
+        #self.summary_op = tf.summary.merge_all()
+        pass
     @abstractmethod
     def build_model(self, x)->tf.Tensor:
         """
         This function is used to create the network
-        Example: see example in vanilla_convLSTM_model.py, it must return prediction frames,
+        Example: see example in vanilla_convLSTM_model.py, it must return prediction fnsrames and save it to the self.output
         which is used for calculating the loss
         """
+        self.inputs = x
         pass
 
 

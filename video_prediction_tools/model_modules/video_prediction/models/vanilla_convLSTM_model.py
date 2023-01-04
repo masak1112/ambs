@@ -11,32 +11,33 @@ import tensorflow as tf
 from model_modules.video_prediction.layers import layer_def as ld
 from model_modules.video_prediction.layers.BasicConvLSTMCell import BasicConvLSTMCell
 from .our_base_model import BaseModels
+from hparams_utils import *
 
 class VanillaConvLstmVideoPredictionModel(BaseModels):
-    def __init__(self, hparams_dict=None):
+    def __init__(self, hparams_dict_config=None, **kwargs):
         """
         This is class for building convLSTM architecture by using updated hparameters
         args:
             hparams_dict : dict, the dictionary contains the hparaemters names and values
         """
-        super().__init__(hparams_dict)
+        super().__init__(hparams_dict_config)
+        self.__hparams = self.hparams_options(hparams_dict_config)
+        self.parse_hparams(self.__hparams)
 
-
-
-    def parse_hparams(self):
+    def parse_hparams(self,hparams):
         """
         obtain the hyper-parameters from the dictionary
         """
 
         try:
-            self.context_frames = self.__hparams.context_frames
-            self.sequence_length = self.__hparams.sequence_length
-            self.max_epochs = self.__hparams.max_epochs
-            self.batch_size = self.__hparams.batch_size
-            self.shuffle_on_val = self.__hparams.shuffle_on_val
-            self.loss_fun = self.__hparams.loss_fun
-            self.opt_var = self.__hparams.opt_var
-            self.lr = self.__hparams.lr
+            self.context_frames = hparams.context_frames
+            self.sequence_length = hparams.sequence_length
+            self.max_epochs = hparams.max_epochs
+            self.batch_size = hparams.batch_size
+            self.shuffle_on_val = hparams.shuffle_on_val
+            self.loss_fun = hparams.loss_fun
+            self.opt_var = hparams.opt_var
+            self.lr = hparams.lr
             self.predict_frames = set_and_check_pred_frames(self.sequence_length, self.context_frames)
             print("The model hparams have been parsed successfully! ")
         except Exception as e:
@@ -45,22 +46,22 @@ class VanillaConvLstmVideoPredictionModel(BaseModels):
 
 
     def build_graph(self, x:tf.Tensor):
+        self.inputs = x
         original_global_variables = tf.global_variables()
         x_hat = self.build_model(x)
-        train_loss = self.get_loss(x, x_hat)
-        self.train_op = self.optimizer(train_loss)
+        self.total_loss = self.get_loss(x, x_hat)
+        self.train_op = self.optimizer(self.total_loss)
         self.outputs["gen_images"] = x_hat
-        self.summary_op = self.summary()
+        self.summary_op = self.summary(self.total_loss)
         global_variables = [var for var in tf.global_variables() if var not in original_global_variables]
+        self.saveable_variables = [self.global_step] + global_variables
         self._is_build_graph_set = True
         return self._is_build_graph_set
-
-
-
 
     def optimizer(self, total_loss):
         """
         Define the optimizer
+        Return the optimizer
         """
         train_op = tf.train.AdamOptimizer(
             learning_rate = self.lr).minimize(total_loss, global_step = self.global_step)
@@ -100,13 +101,13 @@ class VanillaConvLstmVideoPredictionModel(BaseModels):
 
 
 
-    def summary(self)->None:
+    def summary(self, total_loss)->None:
         """
         return the summary operation can be used for TensorBoard
         """
-        self.loss_summary = tf.summary.scalar("total_loss", self.total_loss)
-        self.summary_op = tf.summary.merge_all()
-
+        loss_summary = tf.summary.scalar("total_loss", total_loss)
+        summary_op = tf.summary.merge_all()
+        return summary_op
 
     def build_model(self, x):
         network_template = tf.make_template('network',
