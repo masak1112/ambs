@@ -46,7 +46,7 @@ class VanillaConvLstmVideoPredictionModel(BaseModels):
 
     def build_graph(self, x:tf.Tensor):
         original_global_variables = tf.global_variables()
-        x_hat = self.build_model()
+        x_hat = self.build_model(x)
         train_loss = self.get_loss(x, x_hat)
         self.train_op = self.optimizer(train_loss)
         self.outputs["gen_images"] = x_hat
@@ -77,7 +77,6 @@ class VanillaConvLstmVideoPredictionModel(BaseModels):
         #Optimize all target variables/channels
         if self.opt_var == "all":
             x = x[:, self.context_frames:, :, :, :]
-
             print("The model is optimzied on all the variables in the loss function")
         elif self.opt_var != "all" and isinstance(self.opt_var, str):
             self.opt_var = int(self.opt_var)
@@ -109,7 +108,7 @@ class VanillaConvLstmVideoPredictionModel(BaseModels):
         self.summary_op = tf.summary.merge_all()
 
 
-    def build_model(self):
+    def build_model(self, x):
         network_template = tf.make_template('network',
                                             VanillaConvLstmVideoPredictionModel.convLSTM_cell)  # make the template to share the variables
         # create network
@@ -119,7 +118,7 @@ class VanillaConvLstmVideoPredictionModel(BaseModels):
         hidden_g = None
         for i in range(self.sequence_length-1):
             if i < self.context_frames:
-                x_1_g, hidden_g = network_template(self.inputs[:, i, :, :, :], hidden_g)
+                x_1_g, hidden_g = network_template(x[:, i, :, :, :], hidden_g)
             else:
                 x_1_g, hidden_g = network_template(x_1_g, hidden_g)
             x_hat.append(x_1_g)

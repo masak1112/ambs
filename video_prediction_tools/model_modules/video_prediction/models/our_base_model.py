@@ -68,7 +68,7 @@ class BaseModels(ABC):
             ... code-block:: python
                 def build_graph(self, inputs):
                     original_global_variables = tf.global_variables()
-                    x_hat = self.build_model()
+                    x_hat = self.build_model(x)
                     self.train_loss = self.get_loss(x,x_hat)
                     self.train_op = self.optimizer()
                     self.outputs["gen_images"] = x_hat
@@ -115,7 +115,7 @@ class BaseModels(ABC):
         self.summary_op = tf.summary.merge_all()
 
     @abstractmethod
-    def build_model(self)->tf.Tensor:
+    def build_model(self, x)->tf.Tensor:
         """
         This function is used to create the network
         Example: see example in vanilla_convLSTM_model.py, it must return prediction frames,
