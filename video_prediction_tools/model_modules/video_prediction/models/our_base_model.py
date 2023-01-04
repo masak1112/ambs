@@ -15,68 +15,117 @@ import tensorflow as tf
 class BaseModels(ABC):
 
     def __init__(self, hparams_dict_config=None):
-        self.hparams_dict_config = hparams_dict_config
-        self.hparams_dict = self.get_model_hparams_dict()
-        self.hparams = self.parse_hparams()
-        # Attributes set during runtime
-        self.total_loss = None
-        self.loss_summary = None
-        self.total_loss = None
-        self.outputs = {}
-        self.train_op = None
-        self.summary_op = None
-        self.inputs = None
-        self.global_step = None
-        self.saveable_variables = None
-        self.is_build_graph = None
-        self.x_hat = None
-        self.x_hat_predict_frames = None
 
+        self.__model = None
 
-    def get_model_hparams_dict(self):
-        """
-        Get model_hparams_dict from json file
-        """
-        if self.hparams_dict_config:
-            with open(self.hparams_dict_config, 'r') as f:
+        #Get the user defined hyper-parameters
+        if hparams_dict_config:
+            with open(hparams_dict_config, 'r') as f:
                 hparams_dict = json.loads(f.read())
         else:
-            raise FileNotFoundError("hyper-parameter directory doesn't exist! please check {}!".format(self.hparams_dict_config))
+            raise FileNotFoundError("hyper-parameter directory doesn't exist! please check {}!".format(hparams_dict_config))
 
-        return hparams_dict
+        self.__hparams = dotdict(hparams_dict)
+        self.parse_hparams()
 
-    def parse_hparams(self):
-        """
-        Obtain the parameters from directory
-        """
+        # Compile options, must be custeromised in the sub-class
+        self.train_op = None
+        self.total_loss = None
+        self.outputs = {}
+        self.loss_summary = None
+        self.summary_op = None
+        self.global_step = tf.train.get_or_create_global_step()
+        self.saveable_variables = None
+        self._is_build_graph_set = False
 
-        hparams = dotdict(self.hparams_dict)
-        return hparams
-
-    @abstractmethod
-    def get_hparams(self):
-        """
-        obtain the hparams from the dict to the class variables
-        """
-        method = BaseModels.get_hparams.__name__
-
-        try:
-            self.context_frames = self.hparams.context_frames
-            self.max_epochs = self.hparams.max_epochs
-            self.batch_size = self.hparams.batch_size
-            self.shuffle_on_val = self.hparams.shuffle_on_val
-            self.loss_fun = self.hparams.loss_fun
-
-        except Exception as error:
-           print("Method %{}: error: {}".format(method,error))
-           raise("Method %{}: the hparameter dictionary must include "
-                 "'context_frames','max_epochs','batch_size','shuffle_on_val' 'loss_fun'".format(method))
 
     @abstractmethod
-    def build_graph(self, x: tf.Tensor):
+    def parse_hparams(self)->None:
+        """
+        parse the hyper-parameter as class attribute
+        Examples:
+            ... code-block:: python
+                try:
+                    self.context_frames = self.__hparams.context_frames
+                    self.max_epochs = self.__hparams.max_epochs
+                    self.batch_size = self.__hparams.batch_size
+                    self.shuffle_on_val = self.__hparams.shuffle_on_val
+                    self.loss_fun = self.__hparams.loss_fun
+
+                except Exception as e:
+                    raise ValueError(f"missing hyperparameter: {e.args[0]}")
+        """
+        pass
+
+
+
+    @abstractmethod
+    def build_graph(self, x: tf.Tensor)->bool:
+        """
+        This function is used for build the graph, and allow a optimiser to the graph by using tensorflow function.
+
+        Example:
+            ... code-block:: python
+                def build_graph(self, inputs):
+                    original_global_variables = tf.global_variables()
+                    x_hat = self.build_model()
+                    self.train_loss = self.get_loss(x,x_hat)
+                    self.train_op = self.optimizer()
+                    self.outputs["gen_images"] = x_hat
+                    self.summary_op = self.summary() #This is optional
+                    global_variables = [var for var in tf.global_variables() if var not in original_global_variables]
+                    self.saveable_variables = [self.global_step] + global_variables
+                    self._is_build_graph_set=True
+                    return self._is_build_graph_set
+
+        """
+        pass
+
+    @abstractmethod
+    def optimizer(self, train_loss):
+        """
+        Define the optimizer
+        Example:
+            ... code-block:: python
+                def optimizer(self):
+                    train_op = tf.train.AdamOptimizer(
+                        learning_rate = self.lr).minimize(total_loss, global_step = self.global_step)
+                    return train_op
+        """
+
         pass
 
 
     @abstractmethod
-    def build_model(self):
+    def get_loss(self, x:tf.Tensor, x_hat:tf.Tensor)->tf.Tensor:
+        """
+        :param x    : Input tensors
+        :param x_hat: Prediction/output tensors
+        :return     : the loss function
+        """
         pass
+
+
+    @abstractmethod
+    def summary(self):
+        """
+        return the summary operation can be used for TensorBoard
+        """
+        self.loss_summary = tf.summary.scalar("total_loss", self.total_loss)
+        self.summary_op = tf.summary.merge_all()
+
+    @abstractmethod
+    def build_model(self)->tf.Tensor:
+        """
+        This function is used to create the network
+        Example: see example in vanilla_convLSTM_model.py, it must return prediction frames,
+        which is used for calculating the loss
+        """
+        pass
+
+
+
+
+
+
+
