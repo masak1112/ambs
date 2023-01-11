@@ -61,7 +61,7 @@ class VanillaConvLstmVideoPredictionModel(BaseModels):
     def optimizer(self, total_loss):
         """
         Define the optimizer
-        Return the optimizer
+        Return: the optimizer object
         """
         train_op = tf.train.AdamOptimizer(
             learning_rate = self.lr).minimize(total_loss, global_step = self.global_step)
@@ -97,7 +97,6 @@ class VanillaConvLstmVideoPredictionModel(BaseModels):
         else:
             raise ValueError("Loss function is not selected properly, you should chose either 'mse' or 'cross_entropy'")
         return total_loss
-
 
 
 
@@ -147,24 +146,3 @@ class VanillaConvLstmVideoPredictionModel(BaseModels):
         #we feed the learn representation into a 1 × 1 convolutional layer to generate the final prediction
         x_hat = ld.conv_layer(z3, 1, 1, channels, "decode_1", activate="sigmoid")
         return x_hat, hidden
-
-    @staticmethod
-    def set_and_check_pred_frames(seq_length, context_frames):
-        """
-        Checks if sequence length and context_frames are set properly and returns number of frames to be predicted.
-        :param seq_length: number of frames/images per sequences
-        :param context_frames: number of context frames/images
-        :return: number of predicted frames
-        """
-
-        method = VanillaConvLstmVideoPredictionModel.set_and_check_pred_frames.__name__
-
-        # sanity checks
-        assert isinstance(seq_length, int), "%{0}: Sequence length (seq_length) must be an integer".format(method)
-        assert isinstance(context_frames, int), "%{0}: Number of context frames must be an integer".format(method)
-
-        if seq_length > context_frames:
-            return seq_length-context_frames
-        else:
-            raise ValueError("%{0}: Sequence length ({1}) must be larger than context frames ({2})."
-                             .format(method, seq_length, context_frames))
