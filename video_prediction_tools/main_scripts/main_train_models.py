@@ -210,8 +210,8 @@ class TrainModel(object):
         with open(os.path.join(self.output_dir, "dataset_hparams.json"), "w") as f:
             f.write(json.dumps(dataset.hparams, sort_keys=True, indent=4))
         with open(os.path.join(self.output_dir, "model_hparams.json"), "w") as f:
-            print("video_model.get_hparams",video_model.get_hparams())
-            f.write(json.dumps(video_model.get_hparams(), sort_keys=True, indent=4))
+            print("video_model.get_hparams",video_model.get_hparams)
+            f.write(json.dumps(video_model.get_hparams, sort_keys=True, indent=4))
         #with open(os.path.join(self.output_dir, "data_dict.json"), "w") as f:
         #   f.write(json.dumps(dataset.data_dict, sort_keys=True, indent=4))
 

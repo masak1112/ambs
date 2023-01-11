@@ -23,7 +23,7 @@ class BaseModels(ABC):
             self.mode = mode
 
         self.__model = None
-        self.__hparams = self.hparams_options(hparams_dict_config)
+        self.hparams = self.hparams_options(hparams_dict_config)
         self.parse_hparams(self.hparams)
 
         # Compile options, must be customized in the sub-class
@@ -68,7 +68,7 @@ class BaseModels(ABC):
 
     @property
     def get_hparams(self):
-        return self.__hparams
+        return self.hparams
 
 
     def build_graph(self, x: tf.Tensor)->bool:
