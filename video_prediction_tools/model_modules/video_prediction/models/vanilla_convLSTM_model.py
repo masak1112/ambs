@@ -21,10 +21,10 @@ class VanillaConvLstmVideoPredictionModel(BaseModels):
             hparams_dict : dict, the dictionary contains the hparaemters names and values
         """
         super().__init__(hparams_dict_config)
-        self.__hparams = self.hparams_options(hparams_dict_config)
-        self.parse_hparams(self.__hparams)
+        self.hparams = self.hparams_options(hparams_dict_config)
+        self.parse_hparams(self.hparams)
 
-    def parse_hparams(self,hparams):
+    def parse_hparams(self, hparams):
         """
         obtain the hyper-parameters from the dictionary
         """
@@ -52,7 +52,7 @@ class VanillaConvLstmVideoPredictionModel(BaseModels):
         self.total_loss = self.get_loss(x, x_hat)
         self.train_op = self.optimizer(self.total_loss)
         self.outputs["gen_images"] = x_hat
-        self.summary_op = self.summary(self.total_loss)
+        self.summary_op = self.summary(total_loss = self.total_loss)
         global_variables = [var for var in tf.global_variables() if var not in original_global_variables]
         self.saveable_variables = [self.global_step] + global_variables
         self._is_build_graph_set = True
@@ -104,7 +104,7 @@ class VanillaConvLstmVideoPredictionModel(BaseModels):
         """
         return the summary operation can be used for TensorBoard
         """
-        loss_summary = tf.summary.scalar("total_loss", total_loss)
+        tf.summary.scalar("total_loss", total_loss)
         summary_op = tf.summary.merge_all()
         return summary_op
 

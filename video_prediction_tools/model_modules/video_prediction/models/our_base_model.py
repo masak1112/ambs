@@ -14,20 +14,19 @@ import tensorflow as tf
 
 class BaseModels(ABC):
 
-    def __init__(self, hparams_dict_config=None):
+    def __init__(self, hparams_dict_config=None, mode="train"):
+        _modes = ["train","val"]
+
+        if mode not in _modes:
+            raise ValueError("The mode must be 'train' or 'val'")
+        else:
+            self.mode = mode
+
         self.__model = None
-        #self.__hparams = {}
-        #Get the user defined hyper-parameters
-        #if hparams_dict_config:
-        #    with open(hparams_dict_config, 'r') as f:
-        #        hparams_dict = json.loads(f.read())
-        #else:
-        #    raise FileNotFoundError("hyper-parameter directory doesn't exist! please check {}!".format(hparams_dict_config))
-
         self.__hparams = self.hparams_options(hparams_dict_config)
-        self.parse_hparams(self.__hparams)
+        self.parse_hparams(self.hparams)
 
-        # Compile options, must be custeromised in the sub-class
+        # Compile options, must be customized in the sub-class
         self.inputs = None
         self.train_op = None
         self.total_loss = None
@@ -67,12 +66,11 @@ class BaseModels(ABC):
         """
         pass
 
-
+    @property
     def get_hparams(self):
         return self.__hparams
 
 
-    @abstractmethod
     def build_graph(self, x: tf.Tensor)->bool:
         """
         This function is used for build the graph, and allow a optimiser to the graph by using tensorflow function.
@@ -92,7 +90,18 @@ class BaseModels(ABC):
                     return self._is_build_graph_set
 
         """
-        pass
+        self.inputs = x
+        original_global_variables = tf.global_variables()
+        x_hat = self.build_model(x)
+        self.total_loss = self.get_loss(x, x_hat)
+        self.train_op = self.optimizer(self.total_loss)
+        self.outputs["gen_images"] = x_hat
+        self.summary_op = self.summary(total_loss = self.total_loss)
+        global_variables = [var for var in tf.global_variables() if var not in original_global_variables]
+        self.saveable_variables = [self.global_step] + global_variables
+        self._is_build_graph_set = True
+        return self._is_build_graph_set
+
 
     @abstractmethod
     def optimizer(self, train_loss):
@@ -119,14 +128,15 @@ class BaseModels(ABC):
         pass
 
 
-    @abstractmethod
-    def summary(self,**kwargs):
+    def summary(self, **kwargs):
         """
         return the summary operation can be used for TensorBoard
         """
-        #self.loss_summary = tf.summary.scalar("total_loss", self.total_loss)
-        #self.summary_op = tf.summary.merge_all()
-        pass
+        for key, value in kwargs.items():
+            tf.summary.scalar(key, value)
+        self.summary_op = tf.summary.merge_all()
+
+
     @abstractmethod
     def build_model(self, x)->tf.Tensor:
         """
