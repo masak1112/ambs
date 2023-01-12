@@ -61,7 +61,7 @@ class ConvLstmGANVideoPredictionModel(BaseModels):
 
         #Save to outputs
         self.outputs["gen_images"] = x_hat
-        self.outputs["total_loss"] = self.total_loss
+
         # Summary op
         sum_dict={"total_loss": self.total_loss,
                   "D_loss": self.D_loss,
@@ -131,10 +131,17 @@ class ConvLstmGANVideoPredictionModel(BaseModels):
             input images: a input tensor with dimension (n_batch,sequence_length,height,width,channel)
         """
         with tf.variable_scope("generator", reuse = tf.AUTO_REUSE):
-            layer_gen = convLSTM.build_model(x)  #use vanilla convLSTM as generator
-        return layer_gen
+            network_template = tf.make_template('network',
+                                                convLSTM.convLSTM_cell)  # make the template to share the variables
 
-    def discriminator(self,vid):
+            x_hat = convLSTM.convLSTM_network(self.inputs,
+                                              self.sequence_length,
+                                              self.context_frames,
+                                              network_template)
+        return x_hat
+
+
+    def discriminator(self, vid):
         """
         Function that get discriminator architecture
         """
