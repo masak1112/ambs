@@ -47,10 +47,6 @@ class ConvLstmGANVideoPredictionModel(BaseModels):
 
         self.inputs = x
 
-        self.width = self.inputs.shape.as_list()[3]
-        self.height = self.inputs.shape.as_list()[2]
-        self.channels = self.inputs.shape.as_list()[4]
-
         self.global_step = tf.train.get_or_create_global_step()
         original_global_variables = tf.global_variables()
 
@@ -120,7 +116,7 @@ class ConvLstmGANVideoPredictionModel(BaseModels):
         Define gan architectures
         """
         #conditional GAN
-        x_hat = self.generator()
+        x_hat = self.generator(x)
 
         self.D_real, self.D_real_logits = self.discriminator(self.inputs[:, self.context_frames:, :, :, 0:1])
         self.D_fake, self.D_fake_logits = self.discriminator(x_hat[:, self.context_frames - 1:, :, :, 0:1])
@@ -128,16 +124,14 @@ class ConvLstmGANVideoPredictionModel(BaseModels):
         return x_hat
 
 
-
-    def generator(self):
+    def generator(self,x):
         """
         Function to build up the generator architecture
         args:
             input images: a input tensor with dimension (n_batch,sequence_length,height,width,channel)
         """
         with tf.variable_scope("generator", reuse = tf.AUTO_REUSE):
-            layer_gen = convLSTM.convLSTM_network(self.inputs)
-            #layer_gen_pred = layer_gen[:, self.context_frames - 1:, :, :, :]
+            layer_gen = convLSTM.build_model(x)  #use vanilla convLSTM as generator
         return layer_gen
 
     def discriminator(self,vid):
