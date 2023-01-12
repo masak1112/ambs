@@ -22,8 +22,7 @@ class VanillaConvLstmVideoPredictionModel(BaseModels):
             hparams_dict : dict, the dictionary contains the hparaemters names and values
         """
         super().__init__(hparams_dict_config)
-        self.hparams = self.hparams_options(hparams_dict_config)
-        self.parse_hparams(self.hparams)
+
 
     def parse_hparams(self, hparams):
         """
@@ -104,13 +103,23 @@ class VanillaConvLstmVideoPredictionModel(BaseModels):
     def build_model(self, x):
         network_template = tf.make_template('network',
                                             VanillaConvLstmVideoPredictionModel.convLSTM_cell)  # make the template to share the variables
+
+        x_hat = VanillaConvLstmVideoPredictionModel.convLSTM_network(x,
+                                                                     self.sequence_length,
+                                                                     self.context_frames,
+                                                                     network_template)
+        return x_hat
+
+    @staticmethod
+    def convLSTM_network(x, sequence_length, context_frames, network_template):
+
         # create network
         x_hat = []
-        
-        #This is for training (optimization of convLSTM layer)
+
+        # This is for training (optimization of convLSTM layer)
         hidden_g = None
-        for i in range(self.sequence_length-1):
-            if i < self.context_frames:
+        for i in range(sequence_length - 1):
+            if i < context_frames:
                 x_1_g, hidden_g = network_template(x[:, i, :, :, :], hidden_g)
             else:
                 x_1_g, hidden_g = network_template(x_1_g, hidden_g)
@@ -119,8 +128,9 @@ class VanillaConvLstmVideoPredictionModel(BaseModels):
         # pack them all together
         x_hat = tf.stack(x_hat)
         x_hat = tf.transpose(x_hat, [1, 0, 2, 3, 4])  # change first dim with sec dim
-        x_hat = x_hat[:, self.context_frames-1:, :, :, :]
+        x_hat = x_hat[:, context_frames - 1:, :, :, :]
         return x_hat
+
 
     @staticmethod
     def convLSTM_cell(inputs, hidden):

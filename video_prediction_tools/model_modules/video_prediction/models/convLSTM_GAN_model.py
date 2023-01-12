@@ -45,11 +45,7 @@ class ConvLstmGANVideoPredictionModel(BaseModels):
 
     def build_graph(self, x: tf.Tensor):
 
-        self.inputs = x["images"]
-
-        self.width = self.inputs.shape.as_list()[3]
-        self.height = self.inputs.shape.as_list()[2]
-        self.channels = self.inputs.shape.as_list()[4]
+        self.inputs = x
 
         self.global_step = tf.train.get_or_create_global_step()
         original_global_variables = tf.global_variables()
@@ -65,7 +61,7 @@ class ConvLstmGANVideoPredictionModel(BaseModels):
 
         #Save to outputs
         self.outputs["gen_images"] = x_hat
-        self.outputs["total_loss"] = self.total_loss
+
         # Summary op
         sum_dict={"total_loss": self.total_loss,
                   "D_loss": self.D_loss,
@@ -136,11 +132,18 @@ class ConvLstmGANVideoPredictionModel(BaseModels):
             input images: a input tensor with dimension (n_batch,sequence_length,height,width,channel)
         """
         with tf.variable_scope("generator", reuse = tf.AUTO_REUSE):
-            layer_gen = convLSTM.convLSTM_network(self.inputs)
-            #layer_gen_pred = layer_gen[:, self.context_frames - 1:, :, :, :]
-        return layer_gen
 
-    def discriminator(self,vid):
+            network_template = tf.make_template('network',
+                                                convLSTM.convLSTM_cell)  # make the template to share the variables
+
+            x_hat = convLSTM.convLSTM_network(self.inputs,
+                                              self.sequence_length,
+                                              self.context_frames,
+                                              network_template)
+        return x_hat
+
+
+    def discriminator(self, vid):
         """
         Function that get discriminator architecture
         """
