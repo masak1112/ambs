@@ -17,7 +17,6 @@ class ConvLstmGANVideoPredictionModel(BaseModels):
 
     def __init__(self, hparams_dict_config=None, mode='train'):
         super().__init__(hparams_dict_config)
-        self.hparams = self.get_hparams()
 
 
     def parse_hparams(self):
