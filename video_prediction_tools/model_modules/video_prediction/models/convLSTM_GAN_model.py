@@ -53,16 +53,18 @@ class ConvLstmGANVideoPredictionModel(BaseModels):
 
         self.global_step = tf.train.get_or_create_global_step()
         original_global_variables = tf.global_variables()
+
         #Build graph
         x_hat = self.build_model(x)
 
         #Get losses (reconstruciton loss, total loss and descriminator loss)
-        self.recon_loss = self.get_loss(x, x_hat)
-        self.total_loss = (1-self.recon_weight) * self.G_loss + self.recon_weight*self.recon_loss
-        self.train_op = self.optimizer(self.total_loss)
-        self.D_loss = (1-self.recon_weight) * self.D_loss
+        self.total_loss = self.get_loss(x, x_hat)
 
-        self.outputs["gen_images"] = self.gen_images
+        #Define optimizer
+        self.train_op = self.optimizer(self.total_loss)
+
+        #Save to outputs
+        self.outputs["gen_images"] = x_hat
         self.outputs["total_loss"] = self.total_loss
         # Summary op
         sum_dict={"total_loss": self.total_loss,
@@ -82,7 +84,13 @@ class ConvLstmGANVideoPredictionModel(BaseModels):
         """
         We use the loss from vanilla convolutional LSTM as reconstruction loss
         """
-        return convLSTM.get_loss(x, x_hat)
+        self.G_loss = self.get_gen_loss()
+        self.D_loss = self.get_disc_loss()
+        self._get_vars()
+        self.recon_loss = convLSTM.get_loss(x, x_hat) #use the loss from vanilla convLSTM
+        self.D_loss = (1 - self.recon_weight) * self.D_loss
+        total_loss = (1-self.recon_weight) * self.G_loss + self.recon_weight*self.recon_loss
+        return total_loss
 
     def optimizer(self, *args):
 
@@ -112,16 +120,13 @@ class ConvLstmGANVideoPredictionModel(BaseModels):
         Define gan architectures
         """
         #conditional GAN
-        self.gen_images = self.generator()
+        x_hat = self.generator()
 
         self.D_real, self.D_real_logits = self.discriminator(self.inputs[:, self.context_frames:, :, :, 0:1])
-        self.D_fake, self.D_fake_logits = self.discriminator(self.gen_images[:, self.context_frames - 1:, :, :, 0:1])
+        self.D_fake, self.D_fake_logits = self.discriminator(x_hat[:, self.context_frames - 1:, :, :, 0:1])
 
-        self.G_loss = self.get_gen_loss()
-        self.D_loss = self.get_disc_loss()
+        return x_hat
 
-        self._get_vars()
-        self.total_loss = self.get_loss()
 
 
     def generator(self):
@@ -152,7 +157,7 @@ class ConvLstmGANVideoPredictionModel(BaseModels):
             conv5 = tf.reshape(conv5, [-1,1])
             conv5sigmoid = tf.nn.sigmoid(conv5)
             return conv5sigmoid, conv5
-        
+
     def get_disc_loss(self):
         """
         Return the loss of discriminator given inputs
