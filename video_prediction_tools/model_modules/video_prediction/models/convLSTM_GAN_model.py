@@ -55,28 +55,10 @@ class ConvLstmGANVideoPredictionModel(BaseModels):
         #Get losses (reconstruciton loss, total loss and descriminator loss)
         self.recon_loss = self.get_loss(x, x_hat)
         self.total_loss = (1-self.recon_weight) * self.G_loss + self.recon_weight*self.recon_loss
+        self.train_op = self.optimizer(self.total_loss)
         self.D_loss = (1-self.recon_weight) * self.D_loss
 
-        if self.mode == "train":
-            if self.recon_weight == 1:
-                print("Only train generator- ConvLSTM")
-                self.train_op = tf.train.AdamOptimizer(learning_rate =
-                                                       self.learning_rate).minimize(self.total_loss,
-                                                                                  var_list=self.gen_vars)
-            else:
-                print("Training discriminator")
-                self.D_solver = tf.train.AdamOptimizer(learning_rate =
-                                                       self.learning_rate).minimize(self.D_loss,
-                                                                                    var_list=self.disc_vars)
-                with tf.control_dependencies([self.D_solver]):
-                    print("Training generator....")
-                    self.G_solver = tf.train.AdamOptimizer(learning_rate =
-                                                           self.learning_rate).minimize(self.total_loss,
-                                                                                        var_list=self.gen_vars)
-                with tf.control_dependencies([self.G_solver]):
-                    self.train_op = tf.assign_add(self.global_step, 1)
-        else:
-           self.train_op = None 
+
 
         self.outputs["gen_images"] = self.gen_images
         self.outputs["total_loss"] = self.total_loss
@@ -99,6 +81,30 @@ class ConvLstmGANVideoPredictionModel(BaseModels):
         We use the loss from vanilla convolutional LSTM as reconstruction loss
         """
         return convLSTM.get_loss(x, x_hat)
+
+    def optimizer(self, *args):
+
+        if self.mode == "train":
+            if self.recon_weight == 1:
+                print("Only train generator- ConvLSTM")
+                train_op = tf.train.AdamOptimizer(learning_rate =
+                                                       self.learning_rate).\
+                    minimize(self.total_loss,var_list=self.gen_vars)
+            else:
+                print("Training discriminator")
+                self.D_solver = tf.train.AdamOptimizer(learning_rate =self.learning_rate).\
+                    minimize(self.D_loss, var_list=self.disc_vars)
+                with tf.control_dependencies([self.D_solver]):
+                    print("Training generator....")
+                    self.G_solver = tf.train.AdamOptimizer(learning_rate =self.learning_rate).\
+                        minimize(self.total_loss, var_list=self.gen_vars)
+                with tf.control_dependencies([self.G_solver]):
+                    train_op = tf.assign_add(self.global_step, 1)
+        else:
+           train_op = None
+        return train_op
+
+
 
     @staticmethod
     def Unet_ConvLSTM_cell(x: tf.Tensor, ngf: int, hidden: tf.Tensor):
@@ -173,7 +179,7 @@ class ConvLstmGANVideoPredictionModel(BaseModels):
                 x_hat.append(x_1_g)
 
             x_hat = tf.stack(x_hat)
-            self.x_hat= tf.transpose(x_hat, [1, 0, 2, 3, 4])
+            self.x_hat = tf.transpose(x_hat, [1, 0, 2, 3, 4])
 
         return self.x_hat
 

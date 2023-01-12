@@ -104,7 +104,7 @@ class BaseModels(ABC):
 
 
     @abstractmethod
-    def optimizer(self, train_loss):
+    def optimizer(self, total_loss):
         """
         Define the optimizer
         Example:
@@ -114,8 +114,11 @@ class BaseModels(ABC):
                         learning_rate = self.lr).minimize(total_loss, global_step = self.global_step)
                     return train_op
         """
+        train_op = tf.train.AdamOptimizer(
+            learning_rate = self.lr).minimize(total_loss, global_step = self.global_step)
+        return train_op
 
-        pass
+
 
 
     @abstractmethod

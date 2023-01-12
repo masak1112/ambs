@@ -58,14 +58,6 @@ class VanillaConvLstmVideoPredictionModel(BaseModels):
         self._is_build_graph_set = True
         return self._is_build_graph_set
 
-    def optimizer(self, total_loss):
-        """
-        Define the optimizer
-        Return: the optimizer object
-        """
-        train_op = tf.train.AdamOptimizer(
-            learning_rate = self.lr).minimize(total_loss, global_step = self.global_step)
-        return train_op
 
 
     def get_loss(self, x:tf.Tensor, x_hat:tf.Tensor)->tf.Tensor:
