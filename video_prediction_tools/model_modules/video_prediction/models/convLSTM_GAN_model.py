@@ -19,12 +19,10 @@ class ConvLstmGANVideoPredictionModel(BaseModels):
         super().__init__(hparams_dict_config)
 
 
-    def parse_hparams(self):
+    def parse_hparams(self, hparams):
         """
         Obtain the hparams from the dict to the class variables
         """
-        method = BaseModels.get_hparams.__name__
-
         try:
             self.context_frames = self.hparams.context_frames
             self.max_epochs = self.hparams.max_epochs
@@ -116,20 +114,20 @@ class ConvLstmGANVideoPredictionModel(BaseModels):
                outputs: the predict frame at timestamp i
                hidden:  the hidden state at current timestamp i
         """
-        initializer = tf.contrib.layers.xavier_initializer()
+       
         input_shape = x.get_shape().as_list()
         num_channels = input_shape[3]
         with tf.variable_scope("down_scale", reuse = tf.AUTO_REUSE):
-            conv1f = ld.conv_layer(x, 3 , 1, ngf, 1, initializer=initializer, activate="relu")
-            conv1s = ld.conv_layer(conv1f, 3, 1, ngf, 2, initializer=initializer, activate="relu")
+            conv1f = ld.conv_layer(x, 3 , 1, ngf, 1, initializer=tf.contrib.layers.xavier_initializer(), activate="relu")
+            conv1s = ld.conv_layer(conv1f, 3, 1, ngf, 2, initializer=tf.contrib.layers.xavier_initializer(), activate="relu")
             pool1 = tf.layers.max_pooling2d(conv1s, pool_size=(2, 2), strides=(2, 2))
 
-            conv2f = ld.conv_layer(pool1, 3, 1, ngf * 2, 3, initializer=initializer, activate="relu")
-            conv2s = ld.conv_layer(conv2f, 3, 1, ngf * 2, 4, initializer = initializer , activate = "relu")
+            conv2f = ld.conv_layer(pool1, 3, 1, ngf * 2, 3, initializer=tf.contrib.layers.xavier_initializer(), activate="relu")
+            conv2s = ld.conv_layer(conv2f, 3, 1, ngf * 2, 4, initializer = tf.contrib.layers.xavier_initializer() , activate = "relu")
             pool2 = tf.layers.max_pooling2d(conv2s, pool_size=(2, 2), strides=(2, 2))
 
-            conv3f = ld.conv_layer(pool2, 3, 1, ngf * 4, 5, initializer=initializer, activate="relu")
-            conv3s = ld.conv_layer(conv3f, 3, 1, ngf * 4, 6, initializer =initializer, activate = "relu")
+            conv3f = ld.conv_layer(pool2, 3, 1, ngf * 4, 5, initializer= tf.contrib.layers.xavier_initializer(), activate="relu")
+            conv3s = ld.conv_layer(conv3f, 3, 1, ngf * 4, 6, initializer = tf.contrib.layers.xavier_initializer(), activate = "relu")
             pool3 = tf.layers.max_pooling2d(conv3s, pool_size=(2, 2), strides=(2, 2))
             convLSTM_input = pool3
 
@@ -137,23 +135,23 @@ class ConvLstmGANVideoPredictionModel(BaseModels):
 
   
         with tf.variable_scope("upscale", reuse = tf.AUTO_REUSE):
-            deconv5 = ld.transpose_conv_layer(convLSTM4, 2, 2, ngf * 4, 1, initializer=initializer, activate="relu")
+            deconv5 = ld.transpose_conv_layer(convLSTM4, 2, 2, ngf * 4, 1, initializer=tf.contrib.layers.xavier_initializer(), activate="relu")
             up5 = tf.concat([deconv5, conv3s], axis=3)
 
-            conv5f = ld.conv_layer(up5, 3, 1, ngf * 4, 2, initializer = initializer, activate="relu")
-            conv5s = ld.conv_layer(conv5f, 3, 1, ngf * 4, 3, initializer = initializer, activate="relu")
+            conv5f = ld.conv_layer(up5, 3, 1, ngf * 4, 2, initializer = tf.contrib.layers.xavier_initializer(), activate="relu")
+            conv5s = ld.conv_layer(conv5f, 3, 1, ngf * 4, 3, initializer = tf.contrib.layers.xavier_initializer(), activate="relu")
 
-            deconv6 = ld.transpose_conv_layer(conv5s, 2, 2, ngf * 2, 4, initializer=initializer, activate="relu")
+            deconv6 = ld.transpose_conv_layer(conv5s, 2, 2, ngf * 2, 4, initializer=tf.contrib.layers.xavier_initializer(), activate="relu")
             up6 = tf.concat([deconv6, conv2s], axis=3)
-            conv6f = ld.conv_layer(up6, 3, 1, ngf * 2, 5, initializer = initializer, activate="relu")
-            conv6s = ld.conv_layer(conv6f, 3, 1, ngf * 2, 6, initializer = initializer, activate="relu")
+            conv6f = ld.conv_layer(up6, 3, 1, ngf * 2, 5, initializer = tf.contrib.layers.xavier_initializer(), activate="relu")
+            conv6s = ld.conv_layer(conv6f, 3, 1, ngf * 2, 6, initializer = tf.contrib.layers.xavier_initializer(), activate="relu")
 
-            deconv7 = ld.transpose_conv_layer(conv6s, 2, 2, ngf, 7, initializer = initializer, activate="relu")
+            deconv7 = ld.transpose_conv_layer(conv6s, 2, 2, ngf, 7, initializer = tf.contrib.layers.xavier_initializer(), activate="relu")
             up7 = tf.concat([deconv7, conv1s], axis=3)
-            conv7f = ld.conv_layer(up7, 3, 1, ngf, 8, initializer = initializer, activate="relu")
-            conv7s = ld.conv_layer(conv7f, 3, 1, ngf, 9, initializer = initializer, activate= "relu")
-            conv7t = ld.conv_layer(conv7s, 3, 1, num_channels, 10, initializer = initializer, activate="relu")
-            outputs = ld.conv_layer(conv7t, 1, 1, num_channels, 11, initializer = initializer, activate="linear")
+            conv7f = ld.conv_layer(up7, 3, 1, ngf, 8, initializer = tf.contrib.layers.xavier_initializer(), activate="relu")
+            conv7s = ld.conv_layer(conv7f, 3, 1, ngf, 9, initializer = tf.contrib.layers.xavier_initializer(), activate= "relu")
+            conv7t = ld.conv_layer(conv7s, 3, 1, num_channels, 10, initializer = tf.contrib.layers.xavier_initializer(), activate="relu")
+            outputs = ld.conv_layer(conv7t, 1, 1, num_channels, 11, initializer = tf.contrib.layers.xavier_initializer(), activate="linear")
 
         return outputs, hidden
 

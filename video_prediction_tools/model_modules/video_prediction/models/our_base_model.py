@@ -103,7 +103,6 @@ class BaseModels(ABC):
         return self._is_build_graph_set
 
 
-    @abstractmethod
     def optimizer(self, total_loss):
         """
         Define the optimizer
