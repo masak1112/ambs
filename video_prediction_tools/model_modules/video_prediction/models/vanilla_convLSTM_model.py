@@ -59,7 +59,6 @@ class VanillaConvLstmVideoPredictionModel(BaseModels):
         return self._is_build_graph_set
 
 
-
     def get_loss(self, x:tf.Tensor, x_hat:tf.Tensor)->tf.Tensor:
         """
         :param x    : Input tensors
@@ -100,7 +99,7 @@ class VanillaConvLstmVideoPredictionModel(BaseModels):
         summary_op = tf.summary.merge_all()
         return summary_op
 
-    def build_model(self, x:tf.Tensor):
+    def build_model(self, x: tf.Tensor):
         network_template = tf.make_template('network',
                                             VanillaConvLstmVideoPredictionModel.convLSTM_cell)  # make the template to share the variables
 
@@ -109,6 +108,7 @@ class VanillaConvLstmVideoPredictionModel(BaseModels):
                                                                      self.context_frames,
                                                                      network_template)
         return x_hat
+
 
     @staticmethod
     def convLSTM_network(x:tf.Tensor, sequence_length:int, context_frames:int, network_template:tf.make_template)->tf.Tensor:
