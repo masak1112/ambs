@@ -82,7 +82,7 @@ class WeatherBenchModel(BaseModels):
             if i == 0:
                 x_pred = self.build_model(x[:, i, :, :, :], filters, kernels)
             else:
-                x_pred = self.build_model(_x_pred, _filters, kernels)
+                x_pred = self.build_model(x_pred, filters, kernels)
             x_hat.append(x_pred)
 
         x_hat = tf.stack(x_hat)
