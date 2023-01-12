@@ -148,8 +148,8 @@ class BaseModels(ABC):
         Example: see example in vanilla_convLSTM_model.py, it must return prediction fnsrames and save it to the self.output
         which is used for calculating the loss
         """
-        self.inputs = x
         pass
+
 
 
 

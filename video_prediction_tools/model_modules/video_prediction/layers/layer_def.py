@@ -58,7 +58,7 @@ def _variable_with_weight_decay(name, shape, stddev, wd,initializer=tf.contrib.l
 
 
 def conv_layer(inputs, kernel_size, stride, num_features, idx, initializer=tf.contrib.layers.xavier_initializer() , activate="relu"):
-    print("conv_layer activation function",activate) 
+
     with tf.variable_scope('{0}_conv'.format(idx)) as scope:
  
         input_channels = inputs.get_shape()[-1]
@@ -97,7 +97,7 @@ def transpose_conv_layer(inputs, kernel_size, stride, num_features, idx, initial
 
         output_shape = tf.stack(
             [tf.shape(inputs)[0], input_shape[1] * stride, input_shape[2] * stride, num_features])
-        print ("output_shape",output_shape)
+
         conv = tf.nn.conv2d_transpose(inputs, weights, output_shape, strides = [1, stride, stride, 1], padding = 'SAME')
         conv_biased = tf.nn.bias_add(conv, biases)
         if activate == "linear":

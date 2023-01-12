@@ -100,7 +100,7 @@ class VanillaConvLstmVideoPredictionModel(BaseModels):
         summary_op = tf.summary.merge_all()
         return summary_op
 
-    def build_model(self, x):
+    def build_model(self, x:tf.Tensor):
         network_template = tf.make_template('network',
                                             VanillaConvLstmVideoPredictionModel.convLSTM_cell)  # make the template to share the variables
 
@@ -111,7 +111,7 @@ class VanillaConvLstmVideoPredictionModel(BaseModels):
         return x_hat
 
     @staticmethod
-    def convLSTM_network(x, sequence_length, context_frames, network_template):
+    def convLSTM_network(x:tf.Tensor, sequence_length:int, context_frames:int, network_template:tf.make_template)->tf.Tensor:
 
         # create network
         x_hat = []
@@ -133,7 +133,7 @@ class VanillaConvLstmVideoPredictionModel(BaseModels):
 
 
     @staticmethod
-    def convLSTM_cell(inputs, hidden):
+    def convLSTM_cell(inputs:tf.Tensor, hidden:tf.Tensor):
         y_0 = inputs #we only usd patch 1, but the original paper use patch 4 for the moving mnist case, but use 2 for Radar Echo Dataset
 
         # conv lstm cell

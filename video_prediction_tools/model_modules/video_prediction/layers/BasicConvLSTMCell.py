@@ -105,8 +105,7 @@ class BasicConvLSTMCell(ConvRNNCell):
                 new_state = LSTMStateTuple(new_c, new_h)
             else:
                 new_state = tf.concat(axis = 3, values = [new_c, new_h])
-            print("new h", new_h)
-            print("new state",new_state)
+
             return new_h, new_state
 
 
@@ -142,14 +141,11 @@ def _conv_linear(args, filter_size, num_features, bias, bias_start=0.0, scope=No
         matrix = tf.get_variable(
             "Matrix", [filter_size[0], filter_size[1], total_arg_size_depth, num_features], dtype = dtype)
         if len(args) == 1:
-            print("args[0]:",args[0])
+
             res = tf.nn.conv2d(args[0], matrix, strides = [1, 1, 1, 1], padding = 'SAME')
-            print("res1:",res)
+
         else:
-            print("matrix:",matrix)
-            print("tf.concat(axis = 3, values = args):",tf.concat(axis = 3, values = args))
             res = tf.nn.conv2d(tf.concat(axis = 3, values = args), matrix, strides = [1, 1, 1, 1], padding = 'SAME')
-            print("res2:",res)
         if not bias:
             return res
         bias_term = tf.get_variable(
