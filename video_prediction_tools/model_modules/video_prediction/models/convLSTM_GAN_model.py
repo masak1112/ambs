@@ -9,7 +9,7 @@ __date__ = "2021-04-13"
 import tensorflow as tf
 from model_modules.video_prediction.models.model_helpers import set_and_check_pred_frames
 from model_modules.video_prediction.layers import layer_def as ld
-from model_modules.video_prediction.layers import  batch_norm
+from model_modules.video_prediction.layers.layer_def import  batch_norm
 from model_modules.video_prediction.models.vanilla_convLSTM_model import VanillaConvLstmVideoPredictionModel as convLSTM
 from .our_base_model import BaseModels
 
