@@ -10,6 +10,7 @@ import tensorflow as tf
 from model_modules.video_prediction.models.model_helpers import set_and_check_pred_frames
 from model_modules.video_prediction.layers import layer_def as ld
 from model_modules.video_prediction.layers.BasicConvLSTMCell import BasicConvLSTMCell
+from model_modules.video_prediction.models.vanilla_convLSTM_model import *
 from .our_base_model import BaseModels
 
 class ConvLstmGANVideoPredictionModel(BaseModels):
@@ -49,7 +50,10 @@ class ConvLstmGANVideoPredictionModel(BaseModels):
         self.inputs = x
         self.global_step = tf.train.get_or_create_global_step()
         original_global_variables = tf.global_variables()
-        self.build_model()
+        #Build graph
+        x_hat = self.build_model(x)
+        #Get losses (reconstruciton loss, total loss and descriminator loss)
+        self.recon_loss = self.get_loss(x, x_hat)
         self.total_loss = (1-self.recon_weight) * self.G_loss + self.recon_weight*self.recon_loss
         self.D_loss = (1-self.recon_weight) * self.D_loss
 
@@ -88,7 +92,13 @@ class ConvLstmGANVideoPredictionModel(BaseModels):
         global_variables = [var for var in tf.global_variables() if var not in original_global_variables]
         self.saveable_variables = [self.global_step] + global_variables
         self.is_build_graph = True
-        return self.is_build_graph 
+        return self.is_build_graph
+
+    def get_loss(self, x: tf.Tensor, x_hat: tf.Tensor):
+        """
+        We use the loss from vanilla convolutional LSTM as reconstruction loss
+        """
+        return VanillaConvLstmVideoPredictionModel.get_loss(x, x_hat)
 
     @staticmethod
     def Unet_ConvLSTM_cell(x: tf.Tensor, ngf: int, hidden: tf.Tensor):
@@ -188,8 +198,8 @@ class ConvLstmGANVideoPredictionModel(BaseModels):
         gen_labels = tf.zeros_like(self.D_fake)
         self.D_loss_real = tf.reduce_mean(tf.nn.sigmoid_cross_entropy_with_logits(logits=self.D_real_logits, labels=real_labels))
         self.D_loss_fake = tf.reduce_mean(tf.nn.sigmoid_cross_entropy_with_logits(logits=self.D_fake_logits, labels=gen_labels))
-        self.D_loss = self.D_loss_real + self.D_loss_fake
-        return self.D_loss
+        D_loss = self.D_loss_real + self.D_loss_fake
+        return D_loss
 
     def get_gen_loss(self):
         """
@@ -199,8 +209,9 @@ class ConvLstmGANVideoPredictionModel(BaseModels):
         Return the loss of generator given inputs
         """
         real_labels = tf.ones_like(self.D_fake)
-        self.G_loss = tf.reduce_mean(tf.nn.sigmoid_cross_entropy_with_logits(logits=self.D_fake_logits, labels=real_labels))
-        return self.G_loss         
+        G_loss = tf.reduce_mean(tf.nn.sigmoid_cross_entropy_with_logits(logits=self.D_fake_logits,
+                                                                             labels=real_labels))
+        return G_loss
    
     def _get_vars(self):
         """
@@ -209,7 +220,7 @@ class ConvLstmGANVideoPredictionModel(BaseModels):
         self.disc_vars = [var for var in tf.trainable_variables() if var.name.startswith("discriminator")]
         self.gen_vars = [var for var in tf.trainable_variables() if var.name.startswith("generator")]
   
-    def build_model(self):
+    def build_model(self, x):
         """
         Define gan architectures
         """
@@ -217,21 +228,13 @@ class ConvLstmGANVideoPredictionModel(BaseModels):
         self.D_real, self.D_real_logits = self.discriminator(self.inputs[:,self.context_frames:, :, :, 0:1])
         self.D_fake, self.D_fake_logits = self.discriminator(self.gen_images[:,self.context_frames-1:, :, :, 0:1])
 
-        self.get_gen_loss()
-        self.get_disc_loss()
-        self._get_vars()
-        if self.loss_fun == "rmse":
-            self.recon_loss = tf.reduce_mean(tf.square(self.inputs[:, self.context_frames:, :, :, 0] -
-                                                       self.gen_images[:, self.context_frames-1:, :, :, 0]))
-        elif self.loss_fun == "cross_entropy":
-            x_flatten = tf.reshape(self.inputs[:, self.context_frames:, :, :, 0], [-1])
-            x_hat_predict_frames_flatten = tf.reshape(self.gen_images[:, self.context_frames-1:, :, :, 0],
-                                                      [-1])
-            bce = tf.keras.losses.BinaryCrossentropy()
-            self.recon_loss = bce(x_flatten, x_hat_predict_frames_flatten)
+        self.G_loss = self.get_gen_loss()
+        self.D_loss = self.get_disc_loss()
 
-        else:
-            raise ValueError("Loss function is not selected properly, you should chose either 'rmse' or 'cross_entropy'")
+        self._get_vars()
+        self.total_loss = self.get_loss()
+
+
 
     @staticmethod
     def convLSTM_cell(inputs, hidden):
