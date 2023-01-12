@@ -14,6 +14,7 @@ from .our_base_model import BaseModels
 from hparams_utils import *
 
 class VanillaConvLstmVideoPredictionModel(BaseModels):
+
     def __init__(self, hparams_dict_config=None, **kwargs):
         """
         This is class for building convLSTM architecture by using updated hparameters
