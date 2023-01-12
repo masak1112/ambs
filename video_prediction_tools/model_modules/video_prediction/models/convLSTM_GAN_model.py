@@ -45,7 +45,7 @@ class ConvLstmGANVideoPredictionModel(BaseModels):
 
     def build_graph(self, x: tf.Tensor):
 
-        self.inputs = x["images"]
+        self.inputs = x
 
         self.width = self.inputs.shape.as_list()[3]
         self.height = self.inputs.shape.as_list()[2]
