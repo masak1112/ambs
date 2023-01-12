@@ -15,8 +15,8 @@ from .our_base_model import BaseModels
 
 class ConvLstmGANVideoPredictionModel(BaseModels):
 
-    def __init__(self, hparams_dict=None, mode='train'):
-        super().__init__(hparams_dict)
+    def __init__(self, hparams_dict_config=None, mode='train'):
+        super().__init__(hparams_dict_config)
         self.hparams = self.get_hparams()
 
 
