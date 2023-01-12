@@ -9,8 +9,8 @@ __date__ = "2021-04-13"
 import tensorflow as tf
 from model_modules.video_prediction.models.model_helpers import set_and_check_pred_frames
 from model_modules.video_prediction.layers import layer_def as ld
-from model_modules.video_prediction.layers.BasicConvLSTMCell import BasicConvLSTMCell
-from model_modules.video_prediction.models.vanilla_convLSTM_model import *
+from model_modules.video_prediction.layers import  batch_norm
+from model_modules.video_prediction.models.vanilla_convLSTM_model import VanillaConvLstmVideoPredictionModel as convLSTM
 from .our_base_model import BaseModels
 
 class ConvLstmGANVideoPredictionModel(BaseModels):
@@ -98,14 +98,14 @@ class ConvLstmGANVideoPredictionModel(BaseModels):
         """
         We use the loss from vanilla convolutional LSTM as reconstruction loss
         """
-        return VanillaConvLstmVideoPredictionModel.get_loss(x, x_hat)
+        return convLSTM.get_loss(x, x_hat)
 
     @staticmethod
     def Unet_ConvLSTM_cell(x: tf.Tensor, ngf: int, hidden: tf.Tensor):
         """
         Build up a UNet ConvLSTM cell for each time stamp i
         params: x:     the input at timestamp i
-        params: ngf:   the number of filters for convoluational layers
+        params: ngf:   the number of filters for convolutional layers
         params: hidden: the hidden state from the previous timestamp t-1
         return:
                outputs: the predict frame at timestamp i
@@ -116,20 +116,20 @@ class ConvLstmGANVideoPredictionModel(BaseModels):
         num_channels = input_shape[3]
         with tf.variable_scope("down_scale", reuse = tf.AUTO_REUSE):
             conv1f = ld.conv_layer(x, 3 , 1, ngf, 1, initializer=initializer, activate="relu")
-            conv1s = ld.conv_layer(conv1f, 3, 1, ngf, 2, initializer=initializer , activate="relu")
+            conv1s = ld.conv_layer(conv1f, 3, 1, ngf, 2, initializer=initializer, activate="relu")
             pool1 = tf.layers.max_pooling2d(conv1s, pool_size=(2, 2), strides=(2, 2))
 
             conv2f = ld.conv_layer(pool1, 3, 1, ngf * 2, 3, initializer=initializer, activate="relu")
             conv2s = ld.conv_layer(conv2f, 3, 1, ngf * 2, 4, initializer = initializer , activate = "relu")
             pool2 = tf.layers.max_pooling2d(conv2s, pool_size=(2, 2), strides=(2, 2))
 
-            conv3f = ld.conv_layer(pool2, 3, 1, ngf * 4, 5, initializer=initializer , activate="relu")
-            conv3s = ld.conv_layer(conv3f, 3, 1, ngf * 4, 6, initializer =initializer , activate = "relu")
+            conv3f = ld.conv_layer(pool2, 3, 1, ngf * 4, 5, initializer=initializer, activate="relu")
+            conv3s = ld.conv_layer(conv3f, 3, 1, ngf * 4, 6, initializer =initializer, activate = "relu")
             pool3 = tf.layers.max_pooling2d(conv3s, pool_size=(2, 2), strides=(2, 2))
             convLSTM_input = pool3
 
-        convLSTM4, hidden = ConvLstmGANVideoPredictionModel.convLSTM_cell(convLSTM_input, hidden)
-        print('convLSTM4 shape: ',convLSTM4.shape)
+        convLSTM4, hidden = convLSTM.convLSTM_cell(convLSTM_input, hidden)
+
   
         with tf.variable_scope("upscale", reuse = tf.AUTO_REUSE):
             deconv5 = ld.transpose_conv_layer(convLSTM4, 2, 2, ngf * 4, 1, initializer=initializer, activate="relu")
@@ -185,7 +185,7 @@ class ConvLstmGANVideoPredictionModel(BaseModels):
             conv1 = tf.layers.conv3d(x, 4, kernel_size=[4, 4, 4], strides=[1, 2, 2], padding="SAME", name="dis1")
             conv1 = self._lrelu(conv1)
             conv2 = tf.reshape(conv1, [-1, 1])
-            fc2 = self._lrelu(self.bd2(ConvLstmGANVideoPredictionModel.linear(conv2, output_size=64, scope='d_fc2')))
+            fc2 = self._lrelu(self.bd2(self._linear(conv2, output_size=64, scope='d_fc2')))
             out_logit = self._linear(fc2, 1, scope='d_fc3')
             out = tf.nn.sigmoid(out_logit)
             return out, out_logit
@@ -235,18 +235,6 @@ class ConvLstmGANVideoPredictionModel(BaseModels):
         self.total_loss = self.get_loss()
 
 
-
-    @staticmethod
-    def convLSTM_cell(inputs, hidden):
-        y_0 = inputs
-        cell_shape = y_0.get_shape().as_list()
-        with tf.variable_scope('conv_lstm', initializer = tf.random_uniform_initializer(-.01, 0.1)):
-            cell = BasicConvLSTMCell(shape = [cell_shape[1], cell_shape[2]], filter_size=5, num_features=64)
-            if hidden is None:
-                hidden = cell.zero_state(y_0, tf.float32)
-            output, hidden = cell(y_0, hidden)
-        return output, hidden
-
     def get_noise(self, x, sigma=0.2):
         """
         Function for creating noise: Given the dimensions (n_batch,n_seq, n_height, n_width, channel)
@@ -262,9 +250,9 @@ class ConvLstmGANVideoPredictionModel(BaseModels):
         conv1 = self._lrelu(conv1)
         conv3 = tf.layers.conv3d(conv1, 1, kernel_size = [4, 4, 4], strides = [1, 1, 1], padding = "SAME", name = 'conv3')
         fl = tf.reshape(conv3, [-1, 1])
-        fc1 = self._lrelu(self.bd1(self.linear(fl, 256, scope = 'fc1')))
-        fc2 = self._lrelu(self.bd2(self.linear(fc1, 64, scope = 'fc2')))
-        out_logit = self.linear(fc2, 1, scope = 'out')
+        fc1 = self._lrelu(self.bd1(self._linear(fl, 256, scope = 'fc1')))
+        fc2 = self._lrelu(self.bd2(self._linear(fc1, 64, scope = 'fc2')))
+        out_logit = self._linear(fc2, 1, scope = 'out')
         out = tf.nn.sigmoid(out_logit)
         return out, out_logit
 
@@ -319,19 +307,4 @@ class ConvLstmGANVideoPredictionModel(BaseModels):
                 return tf.matmul(input_, matrix) + bias
 
 
-class batch_norm(object):
-    def __init__(self, epsilon=1e-5, momentum=0.9, name="batch_norm"):
-        with tf.variable_scope(name):
-            self.epsilon = epsilon
-            self.momentum = momentum
-            self.name = name
-
-    def __call__(self, x, train=True):
-        return tf.contrib.layers.batch_norm(x,
-                      decay=self.momentum,
-                      updates_collections=None,
-                      epsilon=self.epsilon,
-                      scale=True,
-                      is_training=train,
-                      scope=self.name)
 

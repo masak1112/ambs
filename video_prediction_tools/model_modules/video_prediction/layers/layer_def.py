@@ -6,7 +6,6 @@
 """
 
 import tensorflow as tf
-import numpy as np
 weight_decay = 0.0005
 
 def _activation_summary(x):
@@ -63,7 +62,7 @@ def conv_layer(inputs, kernel_size, stride, num_features, idx, initializer=tf.co
     with tf.variable_scope('{0}_conv'.format(idx)) as scope:
  
         input_channels = inputs.get_shape()[-1]
-        weights = _variable_with_weight_decay('weights',shape = [kernel_size, kernel_size, 
+        weights = _variable_with_weight_decay('weights', shape = [kernel_size, kernel_size,
                                                                  input_channels, num_features],
                                               stddev = 0.01, wd = weight_decay)
         biases = _variable_on_gpu('biases', [num_features], initializer)
@@ -141,6 +140,7 @@ def fc_layer(inputs, hiddens, idx, flat=False, activate="relu",weight_init=0.01,
         else:
             ip = tf.add(tf.matmul(inputs_processed, weights), biases)
             return tf.nn.elu(ip, name = str(idx) + '_fc')
+
         
 def bn_layers(inputs,idx,is_training=True,epsilon=1e-3,decay=0.99,reuse=None):
     with tf.variable_scope('{0}_bn'.format(idx)) as scope:
@@ -162,4 +162,21 @@ def bn_layers(inputs,idx,is_training=True,epsilon=1e-3,decay=0.99,reuse=None):
 
 def bn_layers_wrapper(inputs, is_training):
     pass
-   
+
+
+
+class batch_norm(object):
+    def __init__(self, epsilon=1e-5, momentum=0.9, name="batch_norm"):
+        with tf.variable_scope(name):
+            self.epsilon = epsilon
+            self.momentum = momentum
+            self.name = name
+
+    def __call__(self, x, train=True):
+        return tf.contrib.layers.batch_norm(x,
+                      decay=self.momentum,
+                      updates_collections=None,
+                      epsilon=self.epsilon,
+                      scale=True,
+                      is_training=train,
+                      scope=self.name)
