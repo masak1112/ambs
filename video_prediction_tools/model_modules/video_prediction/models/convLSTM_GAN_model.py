@@ -118,7 +118,7 @@ class ConvLstmGANVideoPredictionModel(BaseModels):
                 print("Only train generator- ConvLSTM")
                 train_op = tf.train.AdamOptimizer(learning_rate =
                                                        self.learning_rate).\
-                    minimize(self.total_loss,var_list=self.gen_vars)
+                    minimize(self.total_loss, var_list=self.gen_vars)
             else:
                 print("Training discriminator")
                 self.D_solver = tf.train.AdamOptimizer(learning_rate =self.learning_rate).\
@@ -169,15 +169,15 @@ class ConvLstmGANVideoPredictionModel(BaseModels):
         Function that get discriminator architecture
         """
         with tf.variable_scope("discriminator",reuse=tf.AUTO_REUSE):
-            conv1 = tf.layers.conv3d(vid,64,kernel_size=[4,4,4],strides=[2,2,2],padding="SAME",name="dis1")
+            conv1 = tf.layers.conv3d(vid,64,kernel_size=[4,4,4],strides=[2,2,2],padding="SAME", name="dis1")
             conv1 = self._lrelu(conv1)
-            conv2 = tf.layers.conv3d(conv1,128,kernel_size=[4,4,4],strides=[2,2,2],padding="SAME",name="dis2")
+            conv2 = tf.layers.conv3d(conv1, 128, kernel_size=[4,4,4],strides=[2,2,2],padding="SAME", name="dis2")
             conv2 = self._lrelu(self.bd1(conv2))
-            conv3 = tf.layers.conv3d(conv2,256,kernel_size=[4,4,4],strides=[2,2,2],padding="SAME",name="dis3")
+            conv3 = tf.layers.conv3d(conv2, 256, kernel_size=[4,4,4],strides=[2,2,2],padding="SAME" ,name="dis3")
             conv3 = self._lrelu(self.bd2(conv3))
-            conv4 = tf.layers.conv3d(conv3,512,kernel_size=[4,4,4],strides=[2,2,2],padding="SAME",name="dis4")
+            conv4 = tf.layers.conv3d(conv3, 512, kernel_size=[4,4,4],strides=[2,2,2],padding="SAME", name="dis4")
             conv4 = self._lrelu(self.bd3(conv4))
-            conv5 = tf.layers.conv3d(conv4,1,kernel_size=[2,4,4],strides=[1,1,1],padding="SAME",name="dis5")
+            conv5 = tf.layers.conv3d(conv4, 1, kernel_size=[2,4,4],strides=[1,1,1],padding="SAME", name="dis5")
             conv5 = tf.reshape(conv5, [-1,1])
             conv5sigmoid = tf.nn.sigmoid(conv5)
             return conv5sigmoid, conv5
