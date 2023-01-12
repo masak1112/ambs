@@ -9,7 +9,7 @@ __date__ = "2021-04-13"
 import tensorflow as tf
 from model_modules.video_prediction.models.model_helpers import set_and_check_pred_frames
 from model_modules.video_prediction.layers import layer_def as ld
-from model_modules.video_prediction.layers.layer_def import  batch_norm
+from model_modules.video_prediction.layers.layer_def import batch_norm
 from model_modules.video_prediction.models.vanilla_convLSTM_model import VanillaConvLstmVideoPredictionModel as convLSTM
 from .our_base_model import BaseModels
 
@@ -17,7 +17,9 @@ class ConvLstmGANVideoPredictionModel(BaseModels):
 
     def __init__(self, hparams_dict_config=None, mode='train'):
         super().__init__(hparams_dict_config)
-
+        self.bd1 = batch_norm(name = "bd1")
+        self.bd2 = batch_norm(name = "bd2")
+        self.bd3 = batch_norm(name = "dis3")
 
     def parse_hparams(self, hparams):
         """
@@ -35,27 +37,30 @@ class ConvLstmGANVideoPredictionModel(BaseModels):
             self.predict_frames = set_and_check_pred_frames(self.sequence_length, self.context_frames)
             self.ngf = self.hparams.ngf
             self.ndf = self.hparams.ndf
-            self.bd1 = batch_norm(name = "bd1")
-            self.bd2 = batch_norm(name = "bd2")
 
         except Exception as error:
-           print("Method %{}: error: {}".format(method, error))
-           raise ValueError("Method %{}: the hyper-parameter dictionary must include parameters above".format(method))
+           print("error: {}".format(error))
+           raise ValueError("Method %{}: the hyper-parameter dictionary must include parameters above")
 
 
     def build_graph(self, x: tf.Tensor):
-        self.inputs = x
+
+        self.inputs = x["images"]
+
+        self.width = self.inputs.shape.as_list()[3]
+        self.height = self.inputs.shape.as_list()[2]
+        self.channels = self.inputs.shape.as_list()[4]
+
         self.global_step = tf.train.get_or_create_global_step()
         original_global_variables = tf.global_variables()
         #Build graph
         x_hat = self.build_model(x)
+
         #Get losses (reconstruciton loss, total loss and descriminator loss)
         self.recon_loss = self.get_loss(x, x_hat)
         self.total_loss = (1-self.recon_weight) * self.G_loss + self.recon_weight*self.recon_loss
         self.train_op = self.optimizer(self.total_loss)
         self.D_loss = (1-self.recon_weight) * self.D_loss
-
-
 
         self.outputs["gen_images"] = self.gen_images
         self.outputs["total_loss"] = self.total_loss
@@ -102,97 +107,52 @@ class ConvLstmGANVideoPredictionModel(BaseModels):
         return train_op
 
 
-
-    @staticmethod
-    def Unet_ConvLSTM_cell(x: tf.Tensor, ngf: int, hidden: tf.Tensor):
+    def build_model(self, x):
         """
-        Build up a UNet ConvLSTM cell for each time stamp i
-        params: x:     the input at timestamp i
-        params: ngf:   the number of filters for convolutional layers
-        params: hidden: the hidden state from the previous timestamp t-1
-        return:
-               outputs: the predict frame at timestamp i
-               hidden:  the hidden state at current timestamp i
+        Define gan architectures
         """
-       
-        input_shape = x.get_shape().as_list()
-        num_channels = input_shape[3]
-        with tf.variable_scope("down_scale", reuse = tf.AUTO_REUSE):
-            conv1f = ld.conv_layer(x, 3 , 1, ngf, 1, initializer=tf.contrib.layers.xavier_initializer(), activate="relu")
-            conv1s = ld.conv_layer(conv1f, 3, 1, ngf, 2, initializer=tf.contrib.layers.xavier_initializer(), activate="relu")
-            pool1 = tf.layers.max_pooling2d(conv1s, pool_size=(2, 2), strides=(2, 2))
+        #conditional GAN
+        self.gen_images = self.generator()
 
-            conv2f = ld.conv_layer(pool1, 3, 1, ngf * 2, 3, initializer=tf.contrib.layers.xavier_initializer(), activate="relu")
-            conv2s = ld.conv_layer(conv2f, 3, 1, ngf * 2, 4, initializer = tf.contrib.layers.xavier_initializer() , activate = "relu")
-            pool2 = tf.layers.max_pooling2d(conv2s, pool_size=(2, 2), strides=(2, 2))
+        self.D_real, self.D_real_logits = self.discriminator(self.inputs[:, self.context_frames:, :, :, 0:1])
+        self.D_fake, self.D_fake_logits = self.discriminator(self.gen_images[:, self.context_frames - 1:, :, :, 0:1])
 
-            conv3f = ld.conv_layer(pool2, 3, 1, ngf * 4, 5, initializer= tf.contrib.layers.xavier_initializer(), activate="relu")
-            conv3s = ld.conv_layer(conv3f, 3, 1, ngf * 4, 6, initializer = tf.contrib.layers.xavier_initializer(), activate = "relu")
-            pool3 = tf.layers.max_pooling2d(conv3s, pool_size=(2, 2), strides=(2, 2))
-            convLSTM_input = pool3
+        self.G_loss = self.get_gen_loss()
+        self.D_loss = self.get_disc_loss()
 
-        convLSTM4, hidden = convLSTM.convLSTM_cell(convLSTM_input, hidden)
-
-  
-        with tf.variable_scope("upscale", reuse = tf.AUTO_REUSE):
-            deconv5 = ld.transpose_conv_layer(convLSTM4, 2, 2, ngf * 4, 1, initializer=tf.contrib.layers.xavier_initializer(), activate="relu")
-            up5 = tf.concat([deconv5, conv3s], axis=3)
-
-            conv5f = ld.conv_layer(up5, 3, 1, ngf * 4, 2, initializer = tf.contrib.layers.xavier_initializer(), activate="relu")
-            conv5s = ld.conv_layer(conv5f, 3, 1, ngf * 4, 3, initializer = tf.contrib.layers.xavier_initializer(), activate="relu")
-
-            deconv6 = ld.transpose_conv_layer(conv5s, 2, 2, ngf * 2, 4, initializer=tf.contrib.layers.xavier_initializer(), activate="relu")
-            up6 = tf.concat([deconv6, conv2s], axis=3)
-            conv6f = ld.conv_layer(up6, 3, 1, ngf * 2, 5, initializer = tf.contrib.layers.xavier_initializer(), activate="relu")
-            conv6s = ld.conv_layer(conv6f, 3, 1, ngf * 2, 6, initializer = tf.contrib.layers.xavier_initializer(), activate="relu")
-
-            deconv7 = ld.transpose_conv_layer(conv6s, 2, 2, ngf, 7, initializer = tf.contrib.layers.xavier_initializer(), activate="relu")
-            up7 = tf.concat([deconv7, conv1s], axis=3)
-            conv7f = ld.conv_layer(up7, 3, 1, ngf, 8, initializer = tf.contrib.layers.xavier_initializer(), activate="relu")
-            conv7s = ld.conv_layer(conv7f, 3, 1, ngf, 9, initializer = tf.contrib.layers.xavier_initializer(), activate= "relu")
-            conv7t = ld.conv_layer(conv7s, 3, 1, num_channels, 10, initializer = tf.contrib.layers.xavier_initializer(), activate="relu")
-            outputs = ld.conv_layer(conv7t, 1, 1, num_channels, 11, initializer = tf.contrib.layers.xavier_initializer(), activate="linear")
-
-        return outputs, hidden
+        self._get_vars()
+        self.total_loss = self.get_loss()
 
 
-    def generator(self, x: tf.Tensor):
+    def generator(self):
         """
-        Function to build up the generator architecture, here we take Unet_ConvLSTM as generator
+        Function to build up the generator architecture
         args:
             input images: a input tensor with dimension (n_batch,sequence_length,height,width,channel)
-            output images: (n_batch,forecast_length,height,width,channel)
         """
-        network_template = tf.make_template('network', self.Unet_ConvLSTM_cell)
         with tf.variable_scope("generator", reuse = tf.AUTO_REUSE):
-            # create network
-            x_hat = []
-            hidden_g = None
-            for i in range(self.sequence_length-1):
-                if i < self.context_frames:
-                    x_1_g, hidden_g = network_template(x[:, i, :, :, :], self.ngf, hidden_g)
-                else:
-                    x_1_g, hidden_g = network_template(x_1_g, self.ngf, hidden_g)
-                x_hat.append(x_1_g)
+            layer_gen = convLSTM.convLSTM_network(self.inputs)
+            #layer_gen_pred = layer_gen[:, self.context_frames - 1:, :, :, :]
+        return layer_gen
 
-            x_hat = tf.stack(x_hat)
-            self.x_hat = tf.transpose(x_hat, [1, 0, 2, 3, 4])
-
-        return self.x_hat
-
-    def discriminator(self, x):
+    def discriminator(self,vid):
         """
-        Function that get discriminator architecture      
+        Function that get discriminator architecture
         """
-        with tf.variable_scope("discriminator", reuse=tf.AUTO_REUSE):
-            conv1 = tf.layers.conv3d(x, 4, kernel_size=[4, 4, 4], strides=[1, 2, 2], padding="SAME", name="dis1")
+        with tf.variable_scope("discriminator",reuse=tf.AUTO_REUSE):
+            conv1 = tf.layers.conv3d(vid,64,kernel_size=[4,4,4],strides=[2,2,2],padding="SAME",name="dis1")
             conv1 = self._lrelu(conv1)
-            conv2 = tf.reshape(conv1, [-1, 1])
-            fc2 = self._lrelu(self.bd2(self._linear(conv2, output_size=64, scope='d_fc2')))
-            out_logit = self._linear(fc2, 1, scope='d_fc3')
-            out = tf.nn.sigmoid(out_logit)
-            return out, out_logit
-
+            conv2 = tf.layers.conv3d(conv1,128,kernel_size=[4,4,4],strides=[2,2,2],padding="SAME",name="dis2")
+            conv2 = self._lrelu(self.bd1(conv2))
+            conv3 = tf.layers.conv3d(conv2,256,kernel_size=[4,4,4],strides=[2,2,2],padding="SAME",name="dis3")
+            conv3 = self._lrelu(self.bd2(conv3))
+            conv4 = tf.layers.conv3d(conv3,512,kernel_size=[4,4,4],strides=[2,2,2],padding="SAME",name="dis4")
+            conv4 = self._lrelu(self.bd3(conv4))
+            conv5 = tf.layers.conv3d(conv4,1,kernel_size=[2,4,4],strides=[1,1,1],padding="SAME",name="dis5")
+            conv5 = tf.reshape(conv5, [-1,1])
+            conv5sigmoid = tf.nn.sigmoid(conv5)
+            return conv5sigmoid, conv5
+        
     def get_disc_loss(self):
         """
         Return the loss of discriminator given inputs
@@ -203,6 +163,8 @@ class ConvLstmGANVideoPredictionModel(BaseModels):
         self.D_loss_fake = tf.reduce_mean(tf.nn.sigmoid_cross_entropy_with_logits(logits=self.D_fake_logits, labels=gen_labels))
         D_loss = self.D_loss_real + self.D_loss_fake
         return D_loss
+
+
 
     def get_gen_loss(self):
         """
@@ -222,76 +184,7 @@ class ConvLstmGANVideoPredictionModel(BaseModels):
         """
         self.disc_vars = [var for var in tf.trainable_variables() if var.name.startswith("discriminator")]
         self.gen_vars = [var for var in tf.trainable_variables() if var.name.startswith("generator")]
-  
-    def build_model(self, x):
-        """
-        Define gan architectures
-        """
-        self.gen_images = self.generator(self.inputs)
-        self.D_real, self.D_real_logits = self.discriminator(self.inputs[:,self.context_frames:, :, :, 0:1])
-        self.D_fake, self.D_fake_logits = self.discriminator(self.gen_images[:,self.context_frames-1:, :, :, 0:1])
 
-        self.G_loss = self.get_gen_loss()
-        self.D_loss = self.get_disc_loss()
-
-        self._get_vars()
-        self.total_loss = self.get_loss()
-
-
-    def get_noise(self, x, sigma=0.2):
-        """
-        Function for creating noise: Given the dimensions (n_batch,n_seq, n_height, n_width, channel)
-        """
-        x_shape = x.get_shape().as_list()
-        noise = sigma * tf.random.uniform(minval=-1., maxval=1., shape=x_shape)
-        x = x + noise
-        return x
-
-    def Conv3Dnet_v1(self, x, ndf):
-
-        conv1 = tf.layers.conv3d(x, ndf, kernel_size = [4, 4, 4], strides = [1, 2, 2], padding = "SAME", name = 'conv1')
-        conv1 = self._lrelu(conv1)
-        conv3 = tf.layers.conv3d(conv1, 1, kernel_size = [4, 4, 4], strides = [1, 1, 1], padding = "SAME", name = 'conv3')
-        fl = tf.reshape(conv3, [-1, 1])
-        fc1 = self._lrelu(self.bd1(self._linear(fl, 256, scope = 'fc1')))
-        fc2 = self._lrelu(self.bd2(self._linear(fc1, 64, scope = 'fc2')))
-        out_logit = self._linear(fc2, 1, scope = 'out')
-        out = tf.nn.sigmoid(out_logit)
-        return out, out_logit
-
-    def Conv3Dnet_v2(self, x, ndf):
-        """
-        args:
-            input images: a input tensor with dimension (n_batch,forecast_length,height,width,channel)
-            output images:
-        """
-        conv1 = Conv3D(ndf, 4, strides = (1, 2, 2), padding = 'same', kernel_initializer = 'he_normal')(x)
-        bn1 = BatchNormalization()(conv1)
-        bn1 = LeakyReLU(0.2)(bn1)
-        pool1 = MaxPooling3D(pool_size = (1, 2, 2), padding = 'same')(bn1)
-        noise1 = self.get_noise(pool1)
-
-        conv2 = Conv3D(ndf * 2, 4, strides = (1, 2, 2), padding = 'same', kernel_initializer = 'he_normal')(noise1)
-        bn2 = BatchNormalization()(conv2)
-        bn2 = LeakyReLU(0.2)(bn2)
-        pool2 = MaxPooling3D(pool_size = (1, 2, 2), padding = 'same')(bn2)
-        noise2 = self.get_noise(pool2)
-
-        conv3 = Conv3D(ndf * 4, 4, strides = (1, 2, 2), padding = 'same', kernel_initializer = 'he_normal')(noise2)
-        bn3 = BatchNormalization()(conv3)
-        bn3 = LeakyReLU(0.2)(bn3)
-        pool3 = MaxPooling3D(pool_size = (1, 2, 2), padding = 'same')(bn3)
-
-        conv4 = Conv3D(1, 4, 1, padding = 'same')(pool3)
-
-        fl = tf.reshape(conv4, [-1, 1])
-        drop1 = Dropout(0.3)(fl)
-        fc1 = Dense(1024, activation = 'relu')(drop1)
-        drop2 = Dropout(0.3)(fc1)
-        fc2 = Dense(512, activation = 'relu')(drop2)
-        out_logit = Dense(1, activation = 'linear')(fc2)
-        out = tf.nn.sigmoid(out_logit)
-        return out, out_logit
 
 
     def _lrelu(self, x, leak=0.2):
