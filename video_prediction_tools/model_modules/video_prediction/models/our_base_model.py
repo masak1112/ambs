@@ -136,7 +136,9 @@ class BaseModels(ABC):
         """
         for key, value in kwargs.items():
             tf.summary.scalar(key, value)
-        self.summary_op = tf.summary.merge_all()
+        summary_op = tf.summary.merge_all()
+        return summary_op
+
 
 
     @abstractmethod
