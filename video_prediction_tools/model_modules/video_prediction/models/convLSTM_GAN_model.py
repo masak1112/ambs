@@ -62,7 +62,6 @@ class ConvLstmGANVideoPredictionModel(BaseModels):
         #Save to outputs
         self.outputs["gen_images"] = x_hat
         self.outputs["total_loss"] = self.total_loss
-
         # Summary op
         sum_dict = {"total_loss": self.total_loss,
                   "D_loss": self.D_loss,
@@ -139,7 +138,7 @@ class ConvLstmGANVideoPredictionModel(BaseModels):
         Define gan architectures
         """
         #conditional GAN
-        x_hat = self.generator()
+        x_hat = self.generator(x)
 
         self.D_real, self.D_real_logits = self.discriminator(self.inputs[:, self.context_frames:, :, :, 0:1])
         self.D_fake, self.D_fake_logits = self.discriminator(x_hat[:, self.context_frames - 1:, :, :, 0:1])
@@ -147,15 +146,13 @@ class ConvLstmGANVideoPredictionModel(BaseModels):
         return x_hat
 
 
-
-    def generator(self):
+    def generator(self,x):
         """
         Function to build up the generator architecture
         args:
             input images: a input tensor with dimension (n_batch,sequence_length,height,width,channel)
         """
         with tf.variable_scope("generator", reuse = tf.AUTO_REUSE):
-
             network_template = tf.make_template('network',
                                                 convLSTM.convLSTM_cell)  # make the template to share the variables
 
