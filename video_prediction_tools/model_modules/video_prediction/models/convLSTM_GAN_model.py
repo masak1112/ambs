@@ -13,7 +13,7 @@ from model_modules.video_prediction.layers.layer_def import batch_norm
 from model_modules.video_prediction.models.vanilla_convLSTM_model import VanillaConvLstmVideoPredictionModel as convLSTM
 from .our_base_model import BaseModels
 
-class ConvLstmGANVideoPredictionModel(convLSTM):
+class ConvLstmGANVideoPredictionModel(BaseModels):
 
     def __init__(self, hparams_dict_config=None, mode='train'):
         super().__init__(hparams_dict_config)
@@ -62,7 +62,7 @@ class ConvLstmGANVideoPredictionModel(convLSTM):
 
         #Save to outputs
         self.outputs["gen_images"] = x_hat
-
+        self.outputs["total_loss"] = self.total_loss
         # Summary op
         sum_dict = {"total_loss": self.total_loss,
                   "D_loss": self.D_loss,
