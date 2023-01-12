@@ -3,12 +3,11 @@
 # SPDX-License-Identifier: MIT
 
 __email__ = "b.gong@fz-juelich.de"
-__author__ = "Bing Gong,Yanji"
+__author__ = "Bing Gong"
 __date__ = "2021-04-13"
 
 import tensorflow as tf
 from model_modules.video_prediction.models.model_helpers import set_and_check_pred_frames
-from model_modules.video_prediction.layers import layer_def as ld
 from model_modules.video_prediction.layers.layer_def import batch_norm
 from model_modules.video_prediction.models.vanilla_convLSTM_model import VanillaConvLstmVideoPredictionModel as convLSTM
 from .our_base_model import BaseModels
@@ -16,7 +15,7 @@ from .our_base_model import BaseModels
 class ConvLstmGANVideoPredictionModel(BaseModels):
 
     def __init__(self, hparams_dict_config=None, mode='train'):
-        super().__init__(hparams_dict_config)
+        super().__init__(hparams_dict_config, mode)
         self.bd1 = batch_norm(name = "bd1")
         self.bd2 = batch_norm(name = "bd2")
         self.bd3 = batch_norm(name = "dis3")
