@@ -13,7 +13,7 @@ from model_modules.video_prediction.layers.layer_def import batch_norm
 from model_modules.video_prediction.models.vanilla_convLSTM_model import VanillaConvLstmVideoPredictionModel as convLSTM
 from .our_base_model import BaseModels
 
-class ConvLstmGANVideoPredictionModel(BaseModels):
+class ConvLstmGANVideoPredictionModel(convLSTM):
 
     def __init__(self, hparams_dict_config=None, mode='train'):
         super().__init__(hparams_dict_config)
@@ -34,6 +34,7 @@ class ConvLstmGANVideoPredictionModel(BaseModels):
             self.recon_weight = self.hparams.recon_weight
             self.learning_rate = self.hparams.lr
             self.sequence_length = self.hparams.sequence_length
+            self.opt_var = self.hparams.opt_var
             self.predict_frames = set_and_check_pred_frames(self.sequence_length, self.context_frames)
             self.ngf = self.hparams.ngf
             self.ndf = self.hparams.ndf
@@ -63,7 +64,7 @@ class ConvLstmGANVideoPredictionModel(BaseModels):
         self.outputs["gen_images"] = x_hat
 
         # Summary op
-        sum_dict={"total_loss": self.total_loss,
+        sum_dict = {"total_loss": self.total_loss,
                   "D_loss": self.D_loss,
                   "G_loss": self.G_loss,
                   "D_loss_fake": self.D_loss_fake,
@@ -83,7 +84,29 @@ class ConvLstmGANVideoPredictionModel(BaseModels):
         self.G_loss = self.get_gen_loss()
         self.D_loss = self.get_disc_loss()
         self._get_vars()
-        self.recon_loss = convLSTM.get_loss(x, x_hat) #use the loss from vanilla convLSTM
+        #self.recon_loss = self.get_loss(self, x, x_hat) #use the loss from vanilla convLSTM
+
+        if self.opt_var == "all":
+            x = x[:, self.context_frames:, :, :, :]
+            print("The model is optimzied on all the variables in the loss function")
+        elif self.opt_var != "all" and isinstance(self.opt_var, str):
+            self.opt_var = int(self.opt_var)
+            print("The model is optimized on the {} variable in the loss function".format(self.opt_var))
+            x = x[:, self.context_frames:, :, :, self.opt_var]
+            x_hat = x_hat[:, :, :, :, self.opt_var]
+        else:
+            raise ValueError("The opt var in the hyperparameters setup should be '0','1','2' indicate the index of target variable to be optimised or 'all' indicating optimize all the variables")
+
+        if self.loss_fun == "mse":
+            self.recon_loss = tf.reduce_mean(tf.square(x - x_hat))
+        elif self.loss_fun == "cross_entropy":
+            x_flatten = tf.reshape(x, [-1])
+            x_hat_predict_frames_flatten = tf.reshape(x_hat, [-1])
+            bce = tf.keras.losses.BinaryCrossentropy()
+            self.recon_loss = bce(x_flatten, x_hat_predict_frames_flatten)
+        else:
+            raise ValueError("Loss function is not selected properly, you should chose either 'mse' or 'cross_entropy'")
+
         self.D_loss = (1 - self.recon_weight) * self.D_loss
         total_loss = (1-self.recon_weight) * self.G_loss + self.recon_weight*self.recon_loss
         return total_loss
