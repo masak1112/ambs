@@ -7,7 +7,7 @@ from .vanilla_convLSTM_model import VanillaConvLstmVideoPredictionModel
 from .test_model import TestModelVideoPredictionModel
 from model_modules.model_architectures import known_models
 from .convLSTM_GAN_model import ConvLstmGANVideoPredictionModel
-
+from .weatherBench3Dcnn import  WeatherBenchModel
 
 def get_model_class(model):
     model_mappings = known_models()

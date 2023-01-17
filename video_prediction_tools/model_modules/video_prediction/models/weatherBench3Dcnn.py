@@ -13,9 +13,6 @@ from .our_base_model import BaseModels
 
 class WeatherBenchModel(BaseModels):
 
-    filters = [64, 64, 64, 64, 2]
-    kernels = [5, 5, 5, 5, 5]
-
     def __init__(self, hparams_dict_config: dict=None, mode:str="train", **kwargs):
         """
         This is class for building weatherBench architecture by using updated hparameters
@@ -58,8 +55,10 @@ class WeatherBenchModel(BaseModels):
     def build_model(self, x):
         """Fully convolutional network"""
         x = x[:, 0, :, :, :]
-
         _idx = 0
+        filters = [64, 64, 64, 64, 2]
+        kernels = [5, 5, 5, 5, 5]
+
         for f, k in zip(filters[:-1], kernels[:-1]):
             with tf.variable_scope("conv_layer_"+str(_idx), reuse=tf.AUTO_REUSE):
                 x = ld.conv_layer(x, kernel_size=k, stride=1,
