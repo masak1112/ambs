@@ -11,7 +11,7 @@ __date__ = "2021-02-01"
 # import modules
 import os, glob
 from model_modules.model_architectures import known_models
-from data_preprocess.dataset_options import known_datasets
+from data_extraction.dataset_options import known_datasets
 from runscript_generator.config_utils import Config_runscript_base    # import parent class
 
 class Config_Postprocess(Config_runscript_base):

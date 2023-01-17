@@ -409,38 +409,18 @@ class TrainModel(object):
         Fetch variables in the graph, this can be custermized based on models and also the needs of users
         """
         # This is the basic fetch for all the models
-        fetch_list = ["train_op", "summary_op", "global_step"]
+        fetch_list = ["train_op", "summary_op", "global_step","total_loss"]
 
         # Append fetches depending on model to be trained
-        if self.video_model.__class__.__name__ == "McNetVideoPredictionModel":
-            fetch_list = fetch_list + ["L_p", "L_gdl", "L_GAN"]
-            self.saver_loss = fetch_list[-3]  # ML: Is this a reasonable choice?
+        if self.video_model.__class__.__name__ == "ConvLstmGANVideoPredictionModel":
+            self.saver_loss = fetch_list[-1]  
             self.saver_loss_name = "Loss"
         if self.video_model.__class__.__name__ == "VanillaConvLstmVideoPredictionModel":
-            fetch_list = fetch_list + ["inputs", "total_loss"]
+            fetch_list = fetch_list + ["inputs"]
             self.saver_loss = fetch_list[-1]
-            self.saver_loss_name = "Total loss"
-        if self.video_model.__class__.__name__ == "SAVPVideoPredictionModel":
-            fetch_list = fetch_list + ["g_losses", "d_losses", "d_loss", "g_loss", ("g_losses", "gen_l1_loss")]
-            # Add loss that is tracked
-            self.saver_loss = fetch_list[-1][1]                
-            self.saver_loss_dict = fetch_list[-1][0]
-            self.saver_loss_name = "Generator L1 loss"
-        if self.video_model.__class__.__name__ == "VanillaVAEVideoPredictionModel":
-            fetch_list = fetch_list + ["latent_loss", "recon_loss", "total_loss"]
-            self.saver_loss = fetch_list[-2]
-            self.saver_loss_name = "Reconstruction loss"
-        if self.video_model.__class__.__name__ == "VanillaGANVideoPredictionModel":
-            fetch_list = fetch_list + ["inputs", "total_loss"]
-            self.saver_loss = fetch_list[-1]
-            self.saver_loss_name = "Total loss"
-        if self.video_model.__class__.__name__ == "ConvLstmGANVideoPredictionModel":
-            fetch_list = fetch_list + ["inputs", "total_loss"]
-            self.saver_loss = fetch_list[-1]
-            self.saver_loss_name = "Total loss"
-
+        else: 
+            self.saver_loss = "total_loss"
         self.fetches = self.generate_fetches(fetch_list)
-
         return self.fetches
 
     def create_fetches_for_val(self):
@@ -497,27 +477,16 @@ class TrainModel(object):
         Print the training results /validation results from the training step.
         """
         method = TrainModel.print_results.__name__
-
         train_epoch = step/self.steps_per_epoch
         print("%{0}: Progress global step {1:d}  epoch {2:.1f}".format(method, step + 1, train_epoch))
-        if self.video_model.__class__.__name__ == "McNetVideoPredictionModel":
-            print("Total_loss:{}; L_p_loss:{}; L_gdl:{}; L_GAN: {}".format(results["total_loss"], results["L_p"],
-                                                                           results["L_gdl"],results["L_GAN"]))
-        elif self.video_model.__class__.__name__ == "VanillaConvLstmVideoPredictionModel":
+        if self.video_model.__class__.__name__ == "VanillaConvLstmVideoPredictionModel":
             print ("Total_loss:{}".format(results["total_loss"]))
-        elif self.video_model.__class__.__name__ == "SAVPVideoPredictionModel":
-            print("Total_loss/g_losses:{}; d_losses:{}; g_loss:{}; d_loss: {}, gen_l1_loss: {}"
-                  .format(results["g_losses"], results["d_losses"], results["g_loss"], results["d_loss"],
-                          results["gen_l1_loss"]))
-        elif self.video_model.__class__.__name__ == "VanillaVAEVideoPredictionModel":
-            print("Total_loss:{}; latent_losses:{}; reconst_loss:{}"
-                  .format(results["total_loss"], results["latent_loss"], results["recon_loss"]))
         elif self.video_model.__class__.__name__ == "ConvLstmGANVideoPredictionModel":
             print("Total_loss:{}"
                   .format(results["total_loss"]))
         else:
-            print("%{0}: Printing results of model '{1}' is not implemented yet".format(method, self.video_model.__class__.__name__))
-
+            print("Total_loss:{}"
+                  .format(results["total_loss"]))
     @staticmethod
     def plot_train(train_losses, val_losses, loss_name, output_dir):
         """
